@@ -1,0 +1,75 @@
+# R session and local IDE state
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+*.Rproj
+Rplots.pdf
+
+# R package/library environments
+renv/library/
+renv/staging/
+renv/python/
+renv/sandbox/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Python/runtime caches from bundled reference models
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+venv/
+
+# Generated spatial data and tabular outputs
+data/
+*.gpkg
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.geojson
+*.fgb
+*.tif
+*.tiff
+*.vrt
+*.parquet
+*.arrow
+*.feather
+*.csv
+
+# OSM extracts and osmextract/vector-translate caches
+*.osm
+*.pbf
+*.osm.pbf
+*.sqlite
+
+# Leaflet/htmlwidget exports and browser render checks
+*.html
+*_files/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+
+# Local literature and external reference corpora
+fuse_ref/
+
+# Bundled external model/repo checkout and large model data
+pre_models/
+
+# Keep lightweight placeholders if explicitly added later
+!.gitkeep
+!README.md
+!.gitignore

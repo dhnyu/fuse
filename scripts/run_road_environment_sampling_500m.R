@@ -10,25 +10,25 @@ source("R/road_environment_sampling.R")
 
 sf_use_s2(FALSE)
 
-grid_path <- "data/grid_1km/seoul_grid_1km.gpkg"
+grid_path <- "data/grid_500m/seoul_grid_500m.gpkg"
 boundary_path <- "data/geodata/seoul_boundary.gpkg"
 roads_path <- "data/osm/seoul_roads_filtered.gpkg"
-chunk_dir <- "data/sampling_1km/chunks"
-final_parquet <- "data/sampling_1km/seoul_road_environment_samples_1km.parquet"
-map_html <- "data/sampling_1km/seoul_road_environment_sampling_1km_map.html"
+chunk_dir <- "data/sampling_500m/chunks"
+final_parquet <- "data/sampling_500m/seoul_road_environment_samples_500m.parquet"
+map_html <- "data/sampling_500m/seoul_road_environment_sampling_500m_map.html"
 
 workers <- as.integer(Sys.getenv("SEOUL_SAMPLE_WORKERS", "12"))
-chunk_size <- as.integer(Sys.getenv("SEOUL_SAMPLE_CHUNK_SIZE", "200"))
+chunk_size <- as.integer(Sys.getenv("SEOUL_SAMPLE_CHUNK_SIZE", "150"))
 n_samples <- as.integer(Sys.getenv("SEOUL_SAMPLES_PER_GRID", "10"))
 force_grid <- identical(tolower(Sys.getenv("SEOUL_FORCE_GRID", "false")), "true")
 force_osm <- identical(tolower(Sys.getenv("SEOUL_FORCE_OSM", "false")), "true")
 write_debug <- identical(tolower(Sys.getenv("SEOUL_WRITE_DEBUG_GPKG", "true")), "true")
 
 grid <- build_seoul_grid(
-  cell_size_m = 1000,
+  cell_size_m = 500,
   boundary_path = boundary_path,
   grid_path = grid_path,
-  map_path = "data/grid_1km/seoul_grid_1km_map.png",
+  map_path = "data/grid_500m/seoul_grid_500m_map.png",
   force = force_grid
 )
 
@@ -52,7 +52,7 @@ samples <- run_chunked_sampling(
   roads_path = roads_path,
   output_dir = chunk_dir,
   final_parquet = final_parquet,
-  grid_layer = "seoul_grid_1km",
+  grid_layer = "seoul_grid_500m",
   chunk_size = chunk_size,
   workers = workers,
   n_samples = n_samples,
@@ -66,19 +66,16 @@ message("Sampled points: ", format(summary$sampled_points, big.mark = ","))
 message("Missing point rows: ", format(summary$missing_points, big.mark = ","))
 
 if (write_debug) {
-  write_debug_outputs(samples = samples, roads = roads, output_dir = "data/sampling_1km/debug")
+  write_debug_outputs(samples = samples, roads = roads, output_dir = "data/sampling_500m/debug")
 }
 
 make_leaflet_map(
   boundary = boundary,
   grid = grid,
-  roads = roads,
   samples = samples,
   out_html = map_html,
-  max_grid_cells = 1200,
-  max_roads = 20000,
-  max_points = 10000,
-  road_simplify_tolerance_m = 10,
+  max_grid_cells = 5000,
+  max_points = 30000,
   grid_simplify_tolerance_m = 1,
   boundary_simplify_tolerance_m = 5
 )

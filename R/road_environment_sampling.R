@@ -79,10 +79,10 @@ normalize_road_schema <- function(roads) {
 }
 
 build_seoul_grid <- function(
-  cell_size_m = 1000,
+  cell_size_m = 500,
   boundary_path = "data/geodata/seoul_boundary.gpkg",
-  grid_path = "data/grid_1km/seoul_grid_1km.gpkg",
-  map_path = "data/grid_1km/seoul_grid_1km_map.png",
+  grid_path = "data/grid_500m/seoul_grid_500m.gpkg",
+  map_path = "data/grid_500m/seoul_grid_500m_map.png",
   force = FALSE
 ) {
   if (file.exists(grid_path) && !force) {
@@ -386,10 +386,10 @@ parquet_has_schema <- function(path, required_columns = sample_output_columns) {
 run_chunked_sampling <- function(
   grid_path,
   roads_path,
-  output_dir = "data/sampling_1km/chunks",
-  final_parquet = "data/sampling_1km/seoul_road_environment_samples_1km.parquet",
+  output_dir = "data/sampling_500m/chunks",
+  final_parquet = "data/sampling_500m/seoul_road_environment_samples_500m.parquet",
   grid_layer = derive_layer_name(grid_path),
-  chunk_size = 200L,
+  chunk_size = 150L,
   workers = 12L,
   n_samples = 10L,
   seed_base = 100000L
@@ -436,9 +436,9 @@ run_chunked_sampling <- function(
 write_debug_outputs <- function(
   samples,
   roads,
-  output_dir = "data/sampling_1km/debug",
-  sample_points_gpkg = "sampled_points_1km.gpkg",
-  roads_gpkg = "roads_filtered_1km_context.gpkg"
+  output_dir = "data/sampling_500m/debug",
+  sample_points_gpkg = "sampled_points_500m.gpkg",
+  roads_gpkg = "roads_filtered_500m_context.gpkg"
 ) {
   ensure_dir(output_dir)
 
@@ -503,13 +503,10 @@ validate_leaflet_export <- function(out_html) {
 make_leaflet_map <- function(
   boundary,
   grid,
-  roads,
   samples,
-  out_html = "data/sampling_1km/seoul_road_environment_sampling_1km_map.html",
-  max_grid_cells = 1200,
-  max_roads = 20000,
-  max_points = 10000,
-  road_simplify_tolerance_m = 10,
+  out_html = "data/sampling_500m/seoul_road_environment_sampling_500m_map.html",
+  max_grid_cells = 5000,
+  max_points = 30000,
   grid_simplify_tolerance_m = 1,
   boundary_simplify_tolerance_m = 5
 ) {
@@ -527,11 +524,6 @@ make_leaflet_map <- function(
     slice_head(n = max_grid_cells) %>%
     simplify_for_leaflet(grid_simplify_tolerance_m)
 
-  roads_map <- roads %>%
-    arrange(sampled_rank) %>%
-    thin_sf_by_group("highway_class", max_features = max_roads) %>%
-    simplify_for_leaflet(road_simplify_tolerance_m)
-
   points_map <- samples %>%
     filter(!is.na(lon), !is.na(lat)) %>%
     slice_head(n = max_points) %>%
@@ -540,19 +532,11 @@ make_leaflet_map <- function(
   message("Leaflet layer counts:")
   message("  boundary features: ", nrow(boundary_map))
   message("  grid features: ", nrow(grid_map), " / ", nrow(grid))
-  message("  road features: ", nrow(roads_map), " / ", nrow(roads))
   message("  sampled points: ", nrow(points_map), " / ", sum(!is.na(samples$lon)))
   message("Leaflet layer object sizes:")
   message("  boundary: ", format(utils::object.size(boundary_map), units = "auto"))
   message("  grid: ", format(utils::object.size(grid_map), units = "auto"))
-  message("  roads: ", format(utils::object.size(roads_map), units = "auto"))
   message("  points: ", format(utils::object.size(points_map), units = "auto"))
-
-  road_palette <- leaflet::colorNumeric(
-    palette = c("#67000d", "#cb181d", "#fb6a4a", "#fcae91", "#fee5d9"),
-    domain = c(1, 9),
-    reverse = FALSE
-  )
 
   map <- leaflet::leaflet(options = leaflet::leafletOptions(preferCanvas = TRUE)) %>%
     leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron) %>%
@@ -566,17 +550,10 @@ make_leaflet_map <- function(
     leaflet::addPolygons(
       data = grid_map,
       color = "#8c8c8c",
-      weight = 0.7,
+      weight = 0.45,
       fill = FALSE,
-      opacity = 0.55,
-      group = "1km grid"
-    ) %>%
-    leaflet::addPolylines(
-      data = roads_map,
-      color = ~road_palette(sampled_rank),
-      weight = ~pmax(0.7, 3.2 - sampled_rank * 0.25),
-      opacity = 0.8,
-      group = "Roads"
+      opacity = 0.5,
+      group = "500m grid"
     ) %>%
     leaflet::addCircleMarkers(
       data = points_map,
@@ -594,15 +571,8 @@ make_leaflet_map <- function(
       ),
       group = "Sampled points"
     ) %>%
-    leaflet::addLegend(
-      "bottomright",
-      pal = road_palette,
-      values = c(1, 9),
-      title = "Highway rank",
-      opacity = 0.9
-    ) %>%
     leaflet::addLayersControl(
-      overlayGroups = c("Seoul boundary", "1km grid", "Roads", "Sampled points"),
+      overlayGroups = c("Seoul boundary", "500m grid", "Sampled points"),
       options = leaflet::layersControlOptions(collapsed = FALSE)
     )
 

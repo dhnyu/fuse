@@ -13,13 +13,13 @@ expect_true <- function(x, msg) {
   }
 }
 
-cell <- st_as_sfc(st_bbox(c(xmin = 0, ymin = 0, xmax = 1000, ymax = 1000), crs = PROJECTED_CRS)) %>%
+cell <- st_as_sfc(st_bbox(c(xmin = 0, ymin = 0, xmax = 500, ymax = 500), crs = PROJECTED_CRS)) %>%
   st_sf(grid_id = 7L, geometry = .)
 
 roads <- st_sfc(
-  st_linestring(matrix(c(0, 100, 1000, 100), ncol = 2, byrow = TRUE)),
-  st_linestring(matrix(c(0, 200, 1000, 200), ncol = 2, byrow = TRUE)),
-  st_linestring(matrix(c(0, 300, 500, 300), ncol = 2, byrow = TRUE)),
+  st_linestring(matrix(c(0, 100, 500, 100), ncol = 2, byrow = TRUE)),
+  st_linestring(matrix(c(0, 200, 500, 200), ncol = 2, byrow = TRUE)),
+  st_linestring(matrix(c(0, 300, 250, 300), ncol = 2, byrow = TRUE)),
   crs = PROJECTED_CRS
 ) %>%
   st_sf(
@@ -35,9 +35,9 @@ expect_true(nrow(sample_a) == 10L, "A road grid must return exactly 10 sample ro
 expect_true(identical(names(sample_a), sample_output_columns), "Unexpected output schema.")
 expect_true(all(sample_a$sample_id == seq_len(10)), "sample_id should run from 1 to 10 per grid.")
 expect_true(all(sample_a$class_proportion >= 0 & sample_a$class_proportion <= 1), "Class proportions are not bounded.")
-expect_true(abs(unique(sample_a$total_road_length_m)[[1]] - 2500) < 1e-9, "Unexpected total clipped length.")
-expect_true(all(sample_a$class_length_m[sample_a$highway_class == "primary"] == 1000), "Primary class length is wrong.")
-expect_true(all(sample_a$class_length_m[sample_a$highway_class == "residential"] == 1500), "Residential class length is wrong.")
+expect_true(abs(unique(sample_a$total_road_length_m)[[1]] - 1250) < 1e-9, "Unexpected total clipped length.")
+expect_true(all(sample_a$class_length_m[sample_a$highway_class == "primary"] == 500), "Primary class length is wrong.")
+expect_true(all(sample_a$class_length_m[sample_a$highway_class == "residential"] == 750), "Residential class length is wrong.")
 expect_true(all(!is.na(sample_a$lon) & !is.na(sample_a$lat)), "Road samples should have coordinates.")
 expect_true(identical(sample_a, sample_b), "Sampling should be deterministic for the same seed/grid.")
 
@@ -49,11 +49,11 @@ expect_true(all(empty$total_road_length_m == 0), "No-road total length should be
 
 tmp_dir <- tempfile("road_env_test_")
 dir.create(tmp_dir)
-grid_path <- file.path(tmp_dir, "seoul_grid_1km.gpkg")
+grid_path <- file.path(tmp_dir, "seoul_grid_500m.gpkg")
 roads_path <- file.path(tmp_dir, "roads.gpkg")
 chunk_path <- file.path(tmp_dir, "chunk.parquet")
 
-st_write(cell, grid_path, layer = "seoul_grid_1km", quiet = TRUE)
+st_write(cell, grid_path, layer = "seoul_grid_500m", quiet = TRUE)
 st_write(roads, roads_path, quiet = TRUE)
 
 chunk_result <- process_grid_chunk(
@@ -61,7 +61,7 @@ chunk_result <- process_grid_chunk(
   grid_path = grid_path,
   roads_path = roads_path,
   out_path = chunk_path,
-  grid_layer = "seoul_grid_1km",
+  grid_layer = "seoul_grid_500m",
   n_samples = 10L,
   seed_base = 100000L
 )

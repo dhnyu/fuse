@@ -1,10 +1,10 @@
 # Seoul Road Environment Sampling
 
-This repository contains an R workflow for probabilistic road-environment sampling over 1 km grid cells in Seoul.
+This repository contains an R workflow for probabilistic road-environment sampling over 500 m grid cells in Seoul.
 
 The current pipeline:
 
-- builds a 1 km Seoul grid in EPSG:5186
+- builds a 500 m Seoul grid in EPSG:5186
 - reads/caches OpenStreetMap roads from Geofabrik via `osmextract`
 - filters road classes used for urban road-environment sampling
 - clips roads to each grid cell
@@ -18,9 +18,9 @@ The current pipeline:
 Tracked source files are intentionally lightweight:
 
 - `R/road_environment_sampling.R`: reusable functions
-- `scripts/build_seoul_grid_1km.R`: builds the 1 km Seoul grid
-- `scripts/run_road_environment_sampling_1km.R`: runs the full sampling workflow
-- `scripts/render_leaflet_1km.R`: rerenders only the Leaflet visualization from existing outputs
+- `scripts/build_seoul_grid_500m.R`: builds the 500 m Seoul grid
+- `scripts/run_road_environment_sampling_500m.R`: runs the full sampling workflow
+- `scripts/render_leaflet_500m.R`: rerenders only the Leaflet visualization from existing outputs
 - `tests/test_road_environment_sampling.R`: lightweight function and chunk-processing tests
 
 Generated outputs, cached OSM extracts, spatial files, parquet files, Leaflet HTML, and local reference corpora are ignored by Git.
@@ -33,33 +33,34 @@ Run the lightweight tests:
 Rscript tests/test_road_environment_sampling.R
 ```
 
-Build the 1 km grid:
+Build the 500 m grid:
 
 ```bash
-Rscript scripts/build_seoul_grid_1km.R
+Rscript scripts/build_seoul_grid_500m.R
 ```
 
 Run the full sampling workflow:
 
 ```bash
-Rscript scripts/run_road_environment_sampling_1km.R
+Rscript scripts/run_road_environment_sampling_500m.R
 ```
 
 Rerender only the Leaflet map without rerunning OSM downloads or sampling:
 
 ```bash
-Rscript scripts/render_leaflet_1km.R
+Rscript scripts/render_leaflet_500m.R
 ```
 
 Useful environment variables:
 
 - `SEOUL_SAMPLE_WORKERS`: number of `future.mirai` workers, default `12`
-- `SEOUL_SAMPLE_CHUNK_SIZE`: grids per chunk, default `200`
+- `SEOUL_SAMPLE_CHUNK_SIZE`: grids per chunk, default `150`
 - `SEOUL_SAMPLES_PER_GRID`: samples per grid, default `10`
-- `SEOUL_FORCE_GRID=true`: rebuild the 1 km grid
+- `SEOUL_FORCE_GRID=true`: rebuild the 500 m grid
 - `SEOUL_FORCE_OSM=true`: refresh the cached Geofabrik road extract
-- `SEOUL_LEAFLET_MAX_ROADS`: road features rendered in Leaflet, default `20000`
-- `SEOUL_LEAFLET_MAX_POINTS`: sampled points rendered in Leaflet, default `10000`
+- `SEOUL_LEAFLET_MAX_POINTS`: sampled points rendered in Leaflet, default `30000`
+
+The Leaflet diagnostic map intentionally renders only the Seoul boundary, 500 m grid boundaries, and sampled points. Road geometries are excluded from the interactive map to keep browser rendering stable; roads are still used by the sampling pipeline.
 
 ## Ignored Outputs
 

@@ -78,21 +78,19 @@ data/streetview/
 
 ## Visual Examples
 
-The road-network sampling workflow writes both an interactive Leaflet map and a static screenshot suitable for quick README inspection:
+The road-network sampling workflow writes an interactive Leaflet map under `data/`. A lightweight screenshot is tracked for README rendering:
 
 [Open the interactive Leaflet map](data/sampling_global/seoul_road_network_sampling_map.html)
 
-![Seoul road-network sampling map](data/sampling_global/seoul_road_network_sampling_map.png)
+![Seoul road-network sampling map](docs/assets/seoul_road_network_sampling_map.png)
 
 The Street View prototype stores raw panoramas and local directional crops. Example panorama `z_3m1MPKrsDvaRndk5YKlQ`:
 
-![Raw Street View panorama](data/streetview/panoramas/raw/z_3m1MPKrsDvaRndk5YKlQ.jpg)
+![Raw Street View panorama](docs/assets/streetview_panorama_example.jpg)
 
-| Front | Left | Rear | Right |
-| --- | --- | --- | --- |
-| ![Front crop](data/streetview/crops/front/z_3m1MPKrsDvaRndk5YKlQ_front.jpg) | ![Left crop](data/streetview/crops/left/z_3m1MPKrsDvaRndk5YKlQ_left.jpg) | ![Rear crop](data/streetview/crops/rear/z_3m1MPKrsDvaRndk5YKlQ_rear.jpg) | ![Right crop](data/streetview/crops/right/z_3m1MPKrsDvaRndk5YKlQ_right.jpg) |
+![Street View directional crop contact sheet](docs/assets/streetview_contact_sheet_example.jpg)
 
-These visual assets are generated outputs under `data/`, so they are available after running the corresponding sampling and Street View workflows but are not tracked by Git.
+The full generated outputs remain under ignored `data/` directories. Only this small curated README subset is tracked under `docs/assets/`.
 
 ## Reproducible Workflow
 

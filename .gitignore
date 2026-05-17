@@ -71,3 +71,8 @@ pre_models/
 !.gitkeep
 !README.md
 !.gitignore
+!docs/
+!docs/assets/
+!docs/assets/*.png
+!docs/assets/*.jpg
+!docs/assets/*.jpeg

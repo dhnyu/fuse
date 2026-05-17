@@ -28,15 +28,14 @@ KEPT_HIGHWAYS <- HIGHWAY_RANKS$highway_class
 EXCLUDED_HIGHWAYS <- c("footway", "pedestrian", "cycleway", "path")
 
 sample_output_columns <- c(
+  "point_id",
   "grid_id",
-  "sample_id",
   "highway_class",
   "sampled_rank",
   "lon",
   "lat",
-  "class_length_m",
-  "class_proportion",
-  "total_road_length_m"
+  "source_road_id",
+  "nearest_neighbor_distance"
 )
 
 derive_layer_name <- function(path) {
@@ -62,18 +61,22 @@ normalize_road_schema <- function(roads) {
   if ("selected_rank" %in% names(roads) && !"sampled_rank" %in% names(roads)) {
     roads <- roads %>% rename(sampled_rank = selected_rank)
   }
+  if (!"source_road_id" %in% names(roads)) {
+    roads$source_road_id <- seq_len(nrow(roads))
+  }
 
   geometry <- st_geometry(roads)
   attrs <- roads %>%
     st_drop_geometry() %>%
-    select(any_of(c("highway_class", "sampled_rank"))) %>%
+    select(any_of(c("source_road_id", "highway_class", "sampled_rank"))) %>%
     mutate(sampled_rank = as.integer(sampled_rank)) %>%
     left_join(
       HIGHWAY_RANKS %>% rename(expected_rank = sampled_rank),
       by = "highway_class"
     ) %>%
     mutate(sampled_rank = coalesce(sampled_rank, expected_rank)) %>%
-    select(highway_class, sampled_rank)
+    mutate(source_road_id = as.integer(source_road_id)) %>%
+    select(source_road_id, highway_class, sampled_rank)
 
   st_sf(attrs, geometry = geometry, crs = st_crs(roads))
 }
@@ -176,199 +179,335 @@ download_and_cache_osm_roads <- function(
     st_transform(PROJECTED_CRS) %>%
     st_make_valid() %>%
     { suppressWarnings(st_collection_extract(., "LINESTRING", warn = FALSE)) } %>%
+    { suppressWarnings(st_cast(., "LINESTRING", warn = FALSE)) } %>%
     filter(!st_is_empty(st_geometry(.)))
 
   st_write(roads, out_path, delete_dsn = TRUE, quiet = TRUE)
   normalize_road_schema(roads)
 }
 
-empty_grid_samples <- function(grid_id, n_samples = 10L) {
-  tibble(
-    grid_id = as.integer(grid_id),
-    sample_id = seq_len(n_samples),
-    highway_class = NA_character_,
-    sampled_rank = NA_integer_,
-    lon = NA_real_,
-    lat = NA_real_,
-    class_length_m = NA_real_,
-    class_proportion = NA_real_,
-    total_road_length_m = 0
-  )
-}
-
-make_seed <- function(grid_id, sample_id = 0L, seed_base = 100000L) {
-  as.integer((seed_base + as.integer(grid_id) * 1000L + as.integer(sample_id)) %% .Machine$integer.max)
-}
-
-sample_point_on_lines <- function(lines, seed) {
-  set.seed(seed)
-
-  line_set <- st_union(st_geometry(lines)) %>%
-    { suppressWarnings(st_collection_extract(., "LINESTRING", warn = FALSE)) } %>%
-    { suppressWarnings(st_cast(., "LINESTRING", warn = FALSE)) }
-
-  if (length(line_set) == 0 || all(st_is_empty(line_set))) {
-    return(c(lon = NA_real_, lat = NA_real_))
-  }
-
-  lengths <- as.numeric(st_length(line_set))
-  valid <- which(lengths > 0)
-  if (length(valid) == 0) {
-    return(c(lon = NA_real_, lat = NA_real_))
-  }
-
-  chosen <- sample(valid, size = 1, prob = lengths[valid])
-  sampled <- st_line_sample(line_set[chosen], n = 1, type = "random") %>%
-    st_cast("POINT", warn = FALSE)
-
-  if (length(sampled) == 0 || all(st_is_empty(sampled))) {
-    return(c(lon = NA_real_, lat = NA_real_))
-  }
-
-  coords <- sampled %>%
-    st_sfc(crs = st_crs(lines)) %>%
-    st_transform(LONLAT_CRS) %>%
-    st_coordinates()
-
-  stats::setNames(as.numeric(coords[1, c("X", "Y")]), c("lon", "lat"))
-}
-
-process_one_grid_probabilistic <- function(
-  cell,
-  roads,
-  n_samples = 10L,
-  seed_base = 100000L
-) {
-  grid_id <- as.integer(cell$grid_id[[1]])
-  candidate_idx <- st_intersects(cell, roads, sparse = TRUE)[[1]]
-
-  if (length(candidate_idx) == 0) {
-    return(empty_grid_samples(grid_id, n_samples = n_samples))
-  }
-
-  clipped <- suppressWarnings(st_intersection(roads[candidate_idx, ], cell)) %>%
+construct_seoul_road_network <- function(roads, boundary = NULL) {
+  roads <- roads %>%
+    normalize_road_schema() %>%
+    filter(.data$highway_class %in% KEPT_HIGHWAYS) %>%
+    st_transform(PROJECTED_CRS) %>%
+    st_make_valid() %>%
     { suppressWarnings(st_collection_extract(., "LINESTRING", warn = FALSE)) } %>%
     filter(!st_is_empty(st_geometry(.)))
 
-  if (nrow(clipped) == 0) {
-    return(empty_grid_samples(grid_id, n_samples = n_samples))
+  if (!is.null(boundary)) {
+    boundary_union <- boundary %>%
+      st_transform(PROJECTED_CRS) %>%
+      st_make_valid() %>%
+      st_union()
+
+    roads <- roads %>%
+      st_filter(boundary_union, .predicate = st_intersects) %>%
+      { suppressWarnings(st_intersection(., boundary_union)) } %>%
+      { suppressWarnings(st_collection_extract(., "LINESTRING", warn = FALSE)) } %>%
+      { suppressWarnings(st_cast(., "LINESTRING", warn = FALSE)) } %>%
+      filter(!st_is_empty(st_geometry(.)))
   }
 
-  length_summary <- clipped %>%
+  roads %>%
     mutate(length_m = as.numeric(st_length(st_geometry(.)))) %>%
-    filter(length_m > 0) %>%
-    st_drop_geometry() %>%
-    group_by(highway_class, sampled_rank) %>%
-    summarise(class_length_m = sum(length_m), .groups = "drop") %>%
-    arrange(sampled_rank)
+    filter(.data$length_m > 0) %>%
+    select(source_road_id, highway_class, sampled_rank, length_m)
+}
 
-  total_length <- sum(length_summary$class_length_m, na.rm = TRUE)
-  if (total_length <= 0 || nrow(length_summary) == 0) {
-    return(empty_grid_samples(grid_id, n_samples = n_samples))
+line_candidate_points <- function(geom, spacing_m, crs) {
+  length_m <- as.numeric(st_length(geom))
+  if (is.na(length_m) || length_m <= 0) {
+    return(NULL)
   }
 
-  length_summary <- length_summary %>%
-    mutate(class_proportion = class_length_m / total_length)
+  if (length_m < spacing_m / 2) {
+    return(NULL)
+  }
 
-  set.seed(make_seed(grid_id, sample_id = 0L, seed_base = seed_base))
-  allocations <- as.integer(rmultinom(1, size = n_samples, prob = length_summary$class_proportion))
+  distances <- seq(spacing_m / 2, length_m, by = spacing_m)
 
-  sample_plan <- length_summary %>%
-    mutate(n_allocated = allocations) %>%
-    filter(n_allocated > 0) %>%
-    tidyr::uncount(n_allocated) %>%
-    mutate(sample_id = row_number()) %>%
-    select(sample_id, highway_class, sampled_rank, class_length_m, class_proportion)
-
-  purrr::pmap_dfr(sample_plan, function(
-    sample_id,
-    highway_class,
-    sampled_rank,
-    class_length_m,
-    class_proportion
-  ) {
-    class_lines <- clipped %>% filter(.data$highway_class == highway_class)
-    point <- sample_point_on_lines(
-      class_lines,
-      seed = make_seed(grid_id, sample_id = sample_id, seed_base = seed_base)
-    )
-
-    tibble(
-      grid_id = grid_id,
-      sample_id = as.integer(sample_id),
-      highway_class = highway_class,
-      sampled_rank = as.integer(sampled_rank),
-      lon = point[["lon"]],
-      lat = point[["lat"]],
-      class_length_m = as.numeric(class_length_m),
-      class_proportion = as.numeric(class_proportion),
-      total_road_length_m = as.numeric(total_length)
-    )
-  }) %>%
-    arrange(sample_id)
-}
-
-read_grid_ids <- function(grid_path, layer = derive_layer_name(grid_path)) {
-  st_read(grid_path, query = paste0("SELECT grid_id FROM ", layer), quiet = TRUE) %>%
-    st_drop_geometry() %>%
-    pull(grid_id)
-}
-
-read_grid_chunk <- function(grid_path, grid_ids, layer = derive_layer_name(grid_path)) {
-  id_sql <- paste(as.integer(grid_ids), collapse = ",")
-  read_sf_projected(
-    grid_path,
-    query = paste0("SELECT * FROM ", layer, " WHERE grid_id IN (", id_sql, ")")
+  suppressWarnings(
+    st_line_sample(st_sfc(geom, crs = crs), sample = pmin(distances / length_m, 1)) %>%
+      st_cast("POINT", warn = FALSE)
   )
 }
 
-read_roads_for_chunk <- function(roads_path, grid_chunk, buffer_m = 50) {
-  chunk_filter <- grid_chunk %>%
-    st_union() %>%
-    st_buffer(buffer_m) %>%
-    st_as_text()
+generate_road_candidates_chunk <- function(
+  roads,
+  spacing_m = 10
+) {
+  roads <- roads %>%
+    st_transform(PROJECTED_CRS) %>%
+    normalize_road_schema() %>%
+    { suppressWarnings(st_cast(., "LINESTRING", warn = FALSE)) }
 
-  read_sf_projected(roads_path, wkt_filter = chunk_filter) %>%
-    normalize_road_schema()
+  crs <- st_crs(roads)
+  geom <- st_geometry(roads)
+  attrs <- roads %>% st_drop_geometry()
+
+  purrr::map_dfr(seq_along(geom), function(i) {
+    pts <- line_candidate_points(geom[[i]], spacing_m = spacing_m, crs = crs)
+    if (is.null(pts) || length(pts) == 0) {
+      return(tibble())
+    }
+
+    coords <- st_coordinates(pts)
+    tibble(
+      source_road_id = as.integer(attrs$source_road_id[[i]]),
+      highway_class = attrs$highway_class[[i]],
+      sampled_rank = as.integer(attrs$sampled_rank[[i]]),
+      x = as.numeric(coords[, "X"]),
+      y = as.numeric(coords[, "Y"])
+    )
+  })
 }
 
-process_grid_chunk <- function(
-  grid_ids,
-  grid_path,
-  roads_path,
-  out_path = NULL,
-  grid_layer = derive_layer_name(grid_path),
-  n_samples = 10L,
-  seed_base = 100000L
-) {
-  grid_chunk <- read_grid_chunk(grid_path, grid_ids, layer = grid_layer)
-  roads_chunk <- read_roads_for_chunk(roads_path, grid_chunk)
+make_row_chunks <- function(n_rows, chunk_size = 2000L) {
+  if (n_rows == 0) {
+    return(list())
+  }
+  split(seq_len(n_rows), ceiling(seq_len(n_rows) / chunk_size))
+}
 
-  result <- if (nrow(roads_chunk) == 0) {
-    purrr::map_dfr(grid_chunk$grid_id, empty_grid_samples, n_samples = n_samples)
+generate_road_candidates <- function(
+  roads,
+  spacing_m = 10,
+  workers = 1L,
+  chunk_size = 2000L
+) {
+  roads <- roads %>%
+    mutate(.road_order = row_number())
+
+  chunks <- make_row_chunks(nrow(roads), chunk_size = chunk_size)
+  if (length(chunks) == 0) {
+    return(tibble(
+      candidate_id = integer(),
+      source_road_id = integer(),
+      highway_class = character(),
+      sampled_rank = integer(),
+      x = numeric(),
+      y = numeric()
+    ))
+  }
+
+  worker_count <- max(1L, as.integer(workers))
+  if (worker_count > 1L && length(chunks) > 1L) {
+    old_plan <- future::plan()
+    on.exit(future::plan(old_plan), add = TRUE)
+    future::plan(future.mirai::mirai_multisession, workers = worker_count)
+
+    futures <- purrr::map(chunks, function(idx) {
+      future::future({
+        generate_road_candidates_chunk(roads[idx, ], spacing_m = spacing_m)
+      }, seed = TRUE, packages = c("sf", "dplyr", "purrr", "tibble"))
+    })
+    candidates <- purrr::map_dfr(futures, future::value)
   } else {
-    purrr::map_dfr(seq_len(nrow(grid_chunk)), function(i) {
-      process_one_grid_probabilistic(
-        cell = grid_chunk[i, ],
-        roads = roads_chunk,
-        n_samples = n_samples,
-        seed_base = seed_base
-      )
+    candidates <- purrr::map_dfr(chunks, function(idx) {
+      generate_road_candidates_chunk(roads[idx, ], spacing_m = spacing_m)
     })
   }
 
-  result <- result %>% select(all_of(sample_output_columns))
-
-  if (!is.null(out_path)) {
-    ensure_dir(dirname(out_path))
-    arrow::write_parquet(result, out_path)
-  }
-
-  result
+  candidates %>%
+    mutate(candidate_id = row_number()) %>%
+    select(candidate_id, source_road_id, highway_class, sampled_rank, x, y)
 }
 
-make_grid_chunks <- function(grid_ids, chunk_size = 200L) {
-  split(grid_ids, ceiling(seq_along(grid_ids) / chunk_size))
+cell_key <- function(cell_x, cell_y) {
+  paste(cell_x, cell_y, sep = ":")
+}
+
+nearest_neighbor_distances_grid <- function(points, cell_size_m = 50) {
+  n_points <- nrow(points)
+  if (n_points == 0) {
+    return(numeric())
+  }
+  if (n_points == 1) {
+    return(NA_real_)
+  }
+
+  cell_x <- floor(points$x / cell_size_m)
+  cell_y <- floor(points$y / cell_size_m)
+  cell_index <- new.env(hash = TRUE, parent = emptyenv())
+
+  for (i in seq_len(n_points)) {
+    key <- cell_key(cell_x[[i]], cell_y[[i]])
+    existing <- if (exists(key, envir = cell_index, inherits = FALSE)) {
+      get(key, envir = cell_index, inherits = FALSE)
+    } else {
+      integer(0)
+    }
+    assign(key, c(existing, i), envir = cell_index)
+  }
+
+  max_radius <- max(diff(range(cell_x)), diff(range(cell_y))) + 1L
+  purrr::map_dbl(seq_len(n_points), function(i) {
+    best <- Inf
+    radius <- 1L
+
+    while (radius <= max_radius) {
+      neighbor_ids <- integer(0)
+      for (dx in seq.int(-radius, radius)) {
+        for (dy in seq.int(-radius, radius)) {
+          key <- cell_key(cell_x[[i]] + dx, cell_y[[i]] + dy)
+          if (exists(key, envir = cell_index, inherits = FALSE)) {
+            neighbor_ids <- c(neighbor_ids, get(key, envir = cell_index, inherits = FALSE))
+          }
+        }
+      }
+
+      neighbor_ids <- setdiff(unique(neighbor_ids), i)
+      if (length(neighbor_ids) > 0) {
+        dist_sq <- (points$x[neighbor_ids] - points$x[[i]])^2 +
+          (points$y[neighbor_ids] - points$y[[i]])^2
+        best <- min(best, sqrt(min(dist_sq)))
+      }
+
+      if (is.finite(best) && best <= radius * cell_size_m) {
+        break
+      }
+      radius <- radius + 1L
+    }
+
+    if (is.finite(best)) best else NA_real_
+  })
+}
+
+poisson_disk_thin_candidates <- function(
+  candidates,
+  min_spacing_m = 50,
+  target_count = 40000L,
+  seed = 20260517L
+) {
+  if (nrow(candidates) == 0) {
+    return(tibble(
+      point_id = integer(),
+      source_road_id = integer(),
+      highway_class = character(),
+      sampled_rank = integer(),
+      x = numeric(),
+      y = numeric(),
+      nearest_neighbor_distance = numeric()
+    ))
+  }
+
+  set.seed(seed)
+  order_idx <- sample.int(nrow(candidates))
+  candidates <- candidates[order_idx, , drop = FALSE]
+  candidates$cell_x <- floor(candidates$x / min_spacing_m)
+  candidates$cell_y <- floor(candidates$y / min_spacing_m)
+
+  accepted_rows <- integer(0)
+  accepted_x <- numeric(0)
+  accepted_y <- numeric(0)
+  cell_index <- new.env(hash = TRUE, parent = emptyenv())
+  min_spacing_sq <- min_spacing_m^2
+
+  for (i in seq_len(nrow(candidates))) {
+    cx <- candidates$cell_x[[i]]
+    cy <- candidates$cell_y[[i]]
+    neighbor_ids <- integer(0)
+
+    for (dx in -1:1) {
+      for (dy in -1:1) {
+        key <- cell_key(cx + dx, cy + dy)
+        if (exists(key, envir = cell_index, inherits = FALSE)) {
+          neighbor_ids <- c(neighbor_ids, get(key, envir = cell_index, inherits = FALSE))
+        }
+      }
+    }
+
+    nearest <- NA_real_
+    if (length(neighbor_ids) > 0) {
+      dist_sq <- (accepted_x[neighbor_ids] - candidates$x[[i]])^2 +
+        (accepted_y[neighbor_ids] - candidates$y[[i]])^2
+      nearest <- sqrt(min(dist_sq))
+      if (any(dist_sq < min_spacing_sq)) {
+        next
+      }
+    }
+
+    accepted_id <- length(accepted_rows) + 1L
+    accepted_rows[[accepted_id]] <- i
+    accepted_x[[accepted_id]] <- candidates$x[[i]]
+    accepted_y[[accepted_id]] <- candidates$y[[i]]
+
+    key <- cell_key(cx, cy)
+    existing <- if (exists(key, envir = cell_index, inherits = FALSE)) {
+      get(key, envir = cell_index, inherits = FALSE)
+    } else {
+      integer(0)
+    }
+    assign(key, c(existing, accepted_id), envir = cell_index)
+
+    if (!is.null(target_count) && length(accepted_rows) >= target_count) {
+      break
+    }
+  }
+
+  accepted <- candidates[accepted_rows, , drop = FALSE] %>%
+    transmute(
+      point_id = row_number(),
+      source_road_id,
+      highway_class,
+      sampled_rank,
+      x,
+      y
+    )
+
+  accepted %>%
+    mutate(nearest_neighbor_distance = nearest_neighbor_distances_grid(accepted, cell_size_m = min_spacing_m))
+}
+
+samples_to_sf <- function(samples) {
+  samples %>%
+    st_as_sf(coords = c("x", "y"), crs = PROJECTED_CRS, remove = FALSE)
+}
+
+assign_samples_to_grid <- function(samples, grid) {
+  if (nrow(samples) == 0) {
+    return(tibble(
+      point_id = integer(),
+      grid_id = integer(),
+      highway_class = character(),
+      sampled_rank = integer(),
+      lon = numeric(),
+      lat = numeric(),
+      source_road_id = integer(),
+      nearest_neighbor_distance = numeric()
+    ))
+  }
+
+  point_sf <- samples_to_sf(samples)
+  grid_sf <- grid %>%
+    st_transform(PROJECTED_CRS) %>%
+    select(grid_id)
+
+  joined <- suppressWarnings(st_join(point_sf, grid_sf, join = st_within, left = TRUE)) %>%
+    group_by(point_id) %>%
+    slice(1) %>%
+    ungroup()
+
+  missing_grid <- which(is.na(joined$grid_id))
+  if (length(missing_grid) > 0 && nrow(grid_sf) > 0) {
+    nearest <- st_nearest_feature(joined[missing_grid, ], grid_sf)
+    joined$grid_id[missing_grid] <- grid_sf$grid_id[nearest]
+  }
+
+  lonlat <- joined %>%
+    st_transform(LONLAT_CRS) %>%
+    st_coordinates()
+
+  joined %>%
+    st_drop_geometry() %>%
+    mutate(
+      grid_id = as.integer(grid_id),
+      lon = as.numeric(lonlat[, "X"]),
+      lat = as.numeric(lonlat[, "Y"])
+    ) %>%
+    arrange(point_id) %>%
+    select(all_of(sample_output_columns))
 }
 
 parquet_has_schema <- function(path, required_columns = sample_output_columns) {
@@ -383,62 +522,59 @@ parquet_has_schema <- function(path, required_columns = sample_output_columns) {
   !is.null(columns) && identical(columns, required_columns)
 }
 
-run_chunked_sampling <- function(
-  grid_path,
-  roads_path,
-  output_dir = "data/sampling_500m/chunks",
-  final_parquet = "data/sampling_500m/seoul_road_environment_samples_500m.parquet",
-  grid_layer = derive_layer_name(grid_path),
-  chunk_size = 150L,
-  workers = 12L,
-  n_samples = 10L,
-  seed_base = 100000L
+run_global_road_network_sampling <- function(
+  roads,
+  grid,
+  boundary = NULL,
+  final_parquet = "data/sampling_global/seoul_road_network_samples.parquet",
+  candidate_spacing_m = 10,
+  min_spacing_m = 50,
+  target_count = 40000L,
+  seed = 20260517L,
+  candidate_workers = 1L,
+  candidate_chunk_size = 2000L
 ) {
-  ensure_dir(output_dir)
   ensure_dir(dirname(final_parquet))
 
-  grid_ids <- read_grid_ids(grid_path, layer = grid_layer)
-  chunks <- make_grid_chunks(grid_ids, chunk_size = chunk_size)
-  chunk_paths <- file.path(output_dir, sprintf("chunk_%04d.parquet", seq_along(chunks)))
-  todo <- which(!vapply(chunk_paths, parquet_has_schema, logical(1)))
-
-  if (length(todo) > 0) {
-    old_plan <- future::plan()
-    on.exit(future::plan(old_plan), add = TRUE)
-    future::plan(future.mirai::mirai_multisession, workers = workers)
-
-    futures <- purrr::map(todo, function(i) {
-      future::future({
-        process_grid_chunk(
-          grid_ids = chunks[[i]],
-          grid_path = grid_path,
-          roads_path = roads_path,
-          out_path = chunk_paths[[i]],
-          grid_layer = grid_layer,
-          n_samples = n_samples,
-          seed_base = seed_base
-        )
-      }, seed = TRUE)
-    })
-
-    invisible(purrr::map(futures, future::value))
-  }
-
-  samples <- arrow::open_dataset(output_dir, format = "parquet") %>%
-    collect() %>%
-    arrange(grid_id, sample_id) %>%
-    select(all_of(sample_output_columns))
+  message("Constructing unified Seoul road network...")
+  network <- construct_seoul_road_network(roads = roads, boundary = boundary)
+  message(
+    "Network features: ", format(nrow(network), big.mark = ","),
+    "; length m: ", format(round(sum(network$length_m, na.rm = TRUE)), big.mark = ",")
+  )
+  message(
+    "Generating regular road candidates with ", candidate_workers,
+    " worker(s), chunk size ", candidate_chunk_size, "..."
+  )
+  candidates <- generate_road_candidates(
+    network,
+    spacing_m = candidate_spacing_m,
+    workers = candidate_workers,
+    chunk_size = candidate_chunk_size
+  )
+  message("Candidate points: ", format(nrow(candidates), big.mark = ","))
+  message("Applying greedy Poisson-disk-style thinning...")
+  thinned <- poisson_disk_thin_candidates(
+    candidates = candidates,
+    min_spacing_m = min_spacing_m,
+    target_count = target_count,
+    seed = seed
+  )
+  message("Accepted points: ", format(nrow(thinned), big.mark = ","))
+  message("Assigning accepted points to 500 m grids...")
+  samples <- assign_samples_to_grid(thinned, grid = grid)
 
   arrow::write_parquet(samples, final_parquet)
+  attr(samples, "candidate_count") <- nrow(candidates)
+  attr(samples, "network_road_count") <- nrow(network)
+  attr(samples, "network_length_m") <- sum(network$length_m, na.rm = TRUE)
   samples
 }
 
 write_debug_outputs <- function(
   samples,
-  roads,
-  output_dir = "data/sampling_500m/debug",
-  sample_points_gpkg = "sampled_points_500m.gpkg",
-  roads_gpkg = "roads_filtered_500m_context.gpkg"
+  output_dir = "data/sampling_global/debug",
+  sample_points_gpkg = "sampled_points_global.gpkg"
 ) {
   ensure_dir(output_dir)
 
@@ -448,7 +584,6 @@ write_debug_outputs <- function(
     st_transform(PROJECTED_CRS)
 
   st_write(sampled_points, file.path(output_dir, sample_points_gpkg), delete_dsn = TRUE, quiet = TRUE)
-  st_write(roads, file.path(output_dir, roads_gpkg), delete_dsn = TRUE, quiet = TRUE)
   invisible(sampled_points)
 }
 
@@ -504,7 +639,7 @@ make_leaflet_map <- function(
   boundary,
   grid,
   samples,
-  out_html = "data/sampling_500m/seoul_road_environment_sampling_500m_map.html",
+  out_html = "data/sampling_global/seoul_road_network_sampling_map.html",
   max_grid_cells = 5000,
   max_points = 30000,
   grid_simplify_tolerance_m = 1,
@@ -564,10 +699,10 @@ make_leaflet_map <- function(
       fillOpacity = 0.75,
       color = "#2166ac",
       popup = ~paste0(
-        "grid_id: ", grid_id,
-        "<br>sample_id: ", sample_id,
+        "point_id: ", point_id,
+        "<br>grid_id: ", grid_id,
         "<br>class: ", highway_class,
-        "<br>p: ", round(class_proportion, 3)
+        "<br>nearest prior spacing: ", round(nearest_neighbor_distance, 1), " m"
       ),
       group = "Sampled points"
     ) %>%
@@ -582,12 +717,81 @@ make_leaflet_map <- function(
 }
 
 summarise_samples <- function(samples) {
+  sampled <- samples %>% filter(!is.na(lon), !is.na(lat))
+
+  if (nrow(sampled) == 0) {
+    empty_distribution <- tibble(
+      grids_with_points = integer(),
+      min_n = integer(),
+      p25_n = numeric(),
+      median_n = numeric(),
+      mean_n = numeric(),
+      p75_n = numeric(),
+      max_n = integer()
+    )
+    empty_distance <- tibble(
+      min_m = numeric(),
+      p05_m = numeric(),
+      median_m = numeric(),
+      mean_m = numeric(),
+      p95_m = numeric(),
+      max_m = numeric()
+    )
+
+    return(list(
+      rows = nrow(samples),
+      sampled_points = 0L,
+      grids_covered = 0L,
+      class_counts = tibble(highway_class = character(), n = integer()),
+      class_proportions = tibble(highway_class = character(), n = integer(), proportion = numeric()),
+      per_grid_points = empty_distribution,
+      nearest_neighbor_distance = empty_distance
+    ))
+  }
+
   list(
     rows = nrow(samples),
-    grids = dplyr::n_distinct(samples$grid_id),
-    sampled_points = sum(!is.na(samples$lon)),
-    missing_points = sum(is.na(samples$lon)),
-    class_counts = samples %>% count(highway_class, sort = TRUE),
-    per_grid_rows = samples %>% count(grid_id) %>% summarise(min_n = min(n), max_n = max(n))
+    sampled_points = nrow(sampled),
+    grids_covered = dplyr::n_distinct(sampled$grid_id),
+    class_counts = sampled %>% count(highway_class, sort = TRUE),
+    class_proportions = sampled %>%
+      count(highway_class, sort = TRUE) %>%
+      mutate(proportion = n / sum(n)),
+    per_grid_points = sampled %>%
+      count(grid_id, name = "n_points") %>%
+      summarise(
+        grids_with_points = n(),
+        min_n = min(n_points),
+        p25_n = as.numeric(quantile(n_points, 0.25)),
+        median_n = median(n_points),
+        mean_n = mean(n_points),
+        p75_n = as.numeric(quantile(n_points, 0.75)),
+        max_n = max(n_points),
+        .groups = "drop"
+      ),
+    nearest_neighbor_distance = sampled %>%
+      filter(!is.na(nearest_neighbor_distance)) %>%
+      summarise(
+        min_m = min(nearest_neighbor_distance),
+        p05_m = as.numeric(quantile(nearest_neighbor_distance, 0.05)),
+        median_m = median(nearest_neighbor_distance),
+        mean_m = mean(nearest_neighbor_distance),
+        p95_m = as.numeric(quantile(nearest_neighbor_distance, 0.95)),
+        max_m = max(nearest_neighbor_distance),
+        .groups = "drop"
+      )
   )
+}
+
+print_sample_diagnostics <- function(summary) {
+  message("Rows written: ", format(summary$rows, big.mark = ","))
+  message("Sampled points: ", format(summary$sampled_points, big.mark = ","))
+  message("Grids covered: ", format(summary$grids_covered, big.mark = ","))
+  message("Highway class proportions:")
+  print(summary$class_proportions)
+  message("Points per grid distribution:")
+  print(summary$per_grid_points)
+  message("Nearest-neighbor distance summary:")
+  print(summary$nearest_neighbor_distance)
+  invisible(summary)
 }

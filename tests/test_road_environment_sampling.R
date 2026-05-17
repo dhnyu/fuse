@@ -1,6 +1,7 @@
 suppressPackageStartupMessages({
   library(sf)
   library(tidyverse)
+  library(arrow)
 })
 
 source("R/road_environment_sampling.R")
@@ -13,61 +14,74 @@ expect_true <- function(x, msg) {
   }
 }
 
-cell <- st_as_sfc(st_bbox(c(xmin = 0, ymin = 0, xmax = 500, ymax = 500), crs = PROJECTED_CRS)) %>%
-  st_sf(grid_id = 7L, geometry = .)
+grid <- st_make_grid(
+  st_as_sfc(st_bbox(c(xmin = 0, ymin = 0, xmax = 1000, ymax = 1000), crs = PROJECTED_CRS)),
+  cellsize = 500
+) %>%
+  st_sf(grid_id = seq_along(.), geometry = .)
 
 roads <- st_sfc(
-  st_linestring(matrix(c(0, 100, 500, 100), ncol = 2, byrow = TRUE)),
-  st_linestring(matrix(c(0, 200, 500, 200), ncol = 2, byrow = TRUE)),
-  st_linestring(matrix(c(0, 300, 250, 300), ncol = 2, byrow = TRUE)),
+  st_linestring(matrix(c(0, 100, 1000, 100), ncol = 2, byrow = TRUE)),
+  st_linestring(matrix(c(0, 250, 1000, 250), ncol = 2, byrow = TRUE)),
+  st_linestring(matrix(c(0, 400, 1000, 400), ncol = 2, byrow = TRUE)),
+  st_linestring(matrix(c(0, 700, 1000, 700), ncol = 2, byrow = TRUE)),
   crs = PROJECTED_CRS
 ) %>%
   st_sf(
-    highway_class = c("primary", "residential", "residential"),
-    sampled_rank = c(3L, 6L, 6L),
+    source_road_id = 1:4,
+    highway_class = c("primary", "residential", "residential", "service"),
+    sampled_rank = c(3L, 6L, 6L, 7L),
     geometry = .
   )
 
-sample_a <- process_one_grid_probabilistic(cell, roads, n_samples = 10L, seed_base = 100000L)
-sample_b <- process_one_grid_probabilistic(cell, roads, n_samples = 10L, seed_base = 100000L)
+network <- construct_seoul_road_network(roads)
+candidates <- generate_road_candidates(network, spacing_m = 25)
+thin_a <- poisson_disk_thin_candidates(candidates, min_spacing_m = 100, target_count = 20, seed = 123)
+thin_b <- poisson_disk_thin_candidates(candidates, min_spacing_m = 100, target_count = 20, seed = 123)
+samples <- assign_samples_to_grid(thin_a, grid)
 
-expect_true(nrow(sample_a) == 10L, "A road grid must return exactly 10 sample rows.")
-expect_true(identical(names(sample_a), sample_output_columns), "Unexpected output schema.")
-expect_true(all(sample_a$sample_id == seq_len(10)), "sample_id should run from 1 to 10 per grid.")
-expect_true(all(sample_a$class_proportion >= 0 & sample_a$class_proportion <= 1), "Class proportions are not bounded.")
-expect_true(abs(unique(sample_a$total_road_length_m)[[1]] - 1250) < 1e-9, "Unexpected total clipped length.")
-expect_true(all(sample_a$class_length_m[sample_a$highway_class == "primary"] == 500), "Primary class length is wrong.")
-expect_true(all(sample_a$class_length_m[sample_a$highway_class == "residential"] == 750), "Residential class length is wrong.")
-expect_true(all(!is.na(sample_a$lon) & !is.na(sample_a$lat)), "Road samples should have coordinates.")
-expect_true(identical(sample_a, sample_b), "Sampling should be deterministic for the same seed/grid.")
+expect_true(nrow(network) == 4L, "The constructed road network should preserve test road features.")
+expect_true(nrow(candidates) == 160L, "Regular 25 m candidates on four 1 km roads should yield 160 candidates.")
+expect_true(nrow(thin_a) <= 20L, "Thinning should respect the requested target count.")
+expect_true(identical(thin_a, thin_b), "Poisson-style thinning should be deterministic for the same seed.")
+expect_true(identical(names(samples), sample_output_columns), "Unexpected output schema.")
+expect_true(all(samples$point_id == seq_len(nrow(samples))), "point_id should be sequential after thinning.")
+expect_true(all(!is.na(samples$grid_id)), "All test points should be assigned to a 500 m grid.")
+expect_true(all(!is.na(samples$lon) & !is.na(samples$lat)), "Samples should have lon/lat coordinates.")
 
-empty <- process_one_grid_probabilistic(cell, roads[0, ], n_samples = 10L, seed_base = 100000L)
-expect_true(nrow(empty) == 10L, "A no-road grid must still return exactly 10 rows.")
-expect_true(all(empty$sample_id == seq_len(10)), "No-road sample_id should run from 1 to 10.")
-expect_true(all(is.na(empty$highway_class)), "No-road grid should have NA highway_class.")
-expect_true(all(empty$total_road_length_m == 0), "No-road total length should be zero.")
+sample_points <- samples %>%
+  st_as_sf(coords = c("lon", "lat"), crs = LONLAT_CRS, remove = FALSE) %>%
+  st_transform(PROJECTED_CRS)
+
+dist_matrix <- st_distance(sample_points)
+diag(dist_matrix) <- units::set_units(Inf, "m")
+expect_true(
+  min(as.numeric(dist_matrix)) >= 100 - 1e-7,
+  "Accepted sample points should honor the minimum Euclidean spacing."
+)
 
 tmp_dir <- tempfile("road_env_test_")
 dir.create(tmp_dir)
-grid_path <- file.path(tmp_dir, "seoul_grid_500m.gpkg")
-roads_path <- file.path(tmp_dir, "roads.gpkg")
-chunk_path <- file.path(tmp_dir, "chunk.parquet")
+parquet_path <- file.path(tmp_dir, "samples.parquet")
 
-st_write(cell, grid_path, layer = "seoul_grid_500m", quiet = TRUE)
-st_write(roads, roads_path, quiet = TRUE)
-
-chunk_result <- process_grid_chunk(
-  grid_ids = 7L,
-  grid_path = grid_path,
-  roads_path = roads_path,
-  out_path = chunk_path,
-  grid_layer = "seoul_grid_500m",
-  n_samples = 10L,
-  seed_base = 100000L
+pipeline_samples <- run_global_road_network_sampling(
+  roads = roads,
+  grid = grid,
+  boundary = NULL,
+  final_parquet = parquet_path,
+  candidate_spacing_m = 25,
+  min_spacing_m = 100,
+  target_count = 20,
+  seed = 123,
+  candidate_workers = 2,
+  candidate_chunk_size = 2
 )
 
-expect_true(file.exists(chunk_path), "Chunk parquet was not written.")
-expect_true(nrow(chunk_result) == 10L, "Chunk processor should return 10 rows per grid.")
-expect_true(parquet_has_schema(chunk_path), "Chunk parquet schema check failed.")
+summary <- summarise_samples(pipeline_samples)
+
+expect_true(file.exists(parquet_path), "Final parquet was not written.")
+expect_true(parquet_has_schema(parquet_path), "Final parquet schema check failed.")
+expect_true(summary$sampled_points == nrow(pipeline_samples), "Diagnostics should count sampled points.")
+expect_true(nrow(summary$class_proportions) >= 2L, "Diagnostics should include highway class proportions.")
 
 message("All road environment sampling tests passed.")

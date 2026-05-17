@@ -63,8 +63,6 @@ data/
 *.gif
 *.svg
 
-# Local literature and external reference corpora
-fuse_ref/
 
 # Bundled external model/repo checkout and large model data
 pre_models/

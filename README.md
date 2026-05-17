@@ -88,8 +88,6 @@ Street View example panorama `-AJxJJBvXKn3vp4q0hEDxA`:
 | --- | --- | --- | --- |
 | ![Front crop](docs/assets/streetview_crop_front.jpg) | ![Left crop](docs/assets/streetview_crop_left.jpg) | ![Rear crop](docs/assets/streetview_crop_rear.jpg) | ![Right crop](docs/assets/streetview_crop_right.jpg) |
 
-![Street View projection debug contact sheet](docs/assets/streetview_debug_contact_sheet_example.jpg)
-
 ## Reproducible Workflow
 
 Run the lightweight tests:

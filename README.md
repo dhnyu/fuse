@@ -78,17 +78,17 @@ data/streetview/
 
 ## Visual Examples
 
-The road-network sampling workflow writes an interactive Leaflet map under `data/`. A lightweight screenshot is tracked for README rendering:
+The road-network sampling workflow writes an interactive Leaflet map under `data/`. A lightweight copy is tracked for README access:
 
-[Open the interactive Leaflet map](data/sampling_global/seoul_road_network_sampling_map.html)
-
-![Seoul road-network sampling map](docs/assets/seoul_road_network_sampling_map.png)
+[Open the interactive Leaflet map](docs/assets/seoul_road_network_sampling_map.html)
 
 The Street View prototype stores raw panoramas and local directional crops. Example panorama `z_3m1MPKrsDvaRndk5YKlQ`:
 
 ![Raw Street View panorama](docs/assets/streetview_panorama_example.jpg)
 
-![Street View directional crop contact sheet](docs/assets/streetview_contact_sheet_example.jpg)
+| Front | Left | Rear | Right |
+| --- | --- | --- | --- |
+| ![Front crop](docs/assets/streetview_crop_front.jpg) | ![Left crop](docs/assets/streetview_crop_left.jpg) | ![Rear crop](docs/assets/streetview_crop_rear.jpg) | ![Right crop](docs/assets/streetview_crop_right.jpg) |
 
 The full generated outputs remain under ignored `data/` directories. Only this small curated README subset is tracked under `docs/assets/`.
 

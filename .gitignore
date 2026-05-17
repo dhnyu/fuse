@@ -73,9 +73,6 @@ pre_models/
 !.gitignore
 !docs/
 !docs/assets/
-!docs/assets/*.html
 !docs/assets/*.png
 !docs/assets/*.jpg
 !docs/assets/*.jpeg
-!docs/assets/seoul_road_network_sampling_map_files/
-!docs/assets/seoul_road_network_sampling_map_files/**

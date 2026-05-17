@@ -12,7 +12,7 @@ The current road sampling pipeline:
 - applies reproducible greedy Euclidean thinning to avoid clustered samples
 - assigns final points to 500 m grids only after sampling
 - writes a no-geometry parquet output
-- renders an interactive Leaflet diagnostic map
+- exports lightweight map diagnostics for visual QA
 
 The current Street View prototype pipeline:
 
@@ -30,13 +30,13 @@ Tracked source files are intentionally lightweight:
 - `R/road_environment_sampling.R`: reusable functions
 - `scripts/build_seoul_grid_500m.R`: builds the 500 m Seoul grid
 - `scripts/run_road_network_sampling_global.R`: runs the full global road-network sampling workflow
-- `scripts/render_leaflet_global.R`: rerenders only the Leaflet visualization from existing outputs
+- `scripts/render_leaflet_global.R`: rerenders the optional map diagnostic from existing outputs
 - `tests/test_road_environment_sampling.R`: lightweight global sampling tests
 - `tests/test_gsv_metadata_pilot.py`: metadata-only Street View pilot for the first 1000 sampled points
 - `tests/test_obtain_gsv_one.py`: one-point end-to-end Street View panorama prototype
 - `tests/test_obtain_gsv_100.py`: small cached/benchmark panorama acquisition and crop-regeneration pipeline
 
-Generated outputs, cached OSM extracts, spatial files, parquet files, Leaflet HTML, and local reference corpora are ignored by Git.
+Generated outputs, cached OSM extracts, spatial files, parquet files, map diagnostics, and local reference corpora are ignored by Git.
 
 ## Data Architecture
 
@@ -45,14 +45,12 @@ Generated data live under `data/`:
 - `data/geodata/`: source/admin geodata such as the Seoul boundary
 - `data/grid_500m/`: 500 m aggregation/visualization grid
 - `data/osm/`: cached Geofabrik/OSM downloads and filtered Seoul road network
-- `data/sampling_global/`: global road-network sample outputs and Leaflet map
+- `data/sampling_global/`: global road-network sample outputs and map diagnostics
 - `data/streetview/`: Street View metadata, panoramas, crops, manifests, logs, previews, and debug sheets
 
 Current road sampling outputs:
 
 - `data/sampling_global/seoul_road_network_samples.parquet`: final no-geometry point sample table
-- `data/sampling_global/seoul_road_network_sampling_map.html`: lightweight Leaflet map
-- `data/sampling_global/seoul_road_network_sampling_map_files/`: htmlwidget dependencies
 
 Street View output layout:
 
@@ -78,11 +76,11 @@ data/streetview/
 
 ## Visual Examples
 
-The road-network sampling workflow writes an interactive Leaflet map under `data/`. A lightweight copy is tracked for README access:
+The curated README assets under `docs/assets/` are lightweight copies of generated outputs.
 
-[Open the interactive Leaflet map](docs/assets/seoul_road_network_sampling_map.html)
+![Seoul road-network sampling map](docs/assets/seoul_road_network_sampling_map.png)
 
-The Street View prototype stores raw panoramas and local directional crops. Example panorama `z_3m1MPKrsDvaRndk5YKlQ`:
+Street View example panorama `-AJxJJBvXKn3vp4q0hEDxA`:
 
 ![Raw Street View panorama](docs/assets/streetview_panorama_example.jpg)
 
@@ -90,7 +88,7 @@ The Street View prototype stores raw panoramas and local directional crops. Exam
 | --- | --- | --- | --- |
 | ![Front crop](docs/assets/streetview_crop_front.jpg) | ![Left crop](docs/assets/streetview_crop_left.jpg) | ![Rear crop](docs/assets/streetview_crop_rear.jpg) | ![Right crop](docs/assets/streetview_crop_right.jpg) |
 
-The full generated outputs remain under ignored `data/` directories. Only this small curated README subset is tracked under `docs/assets/`.
+![Street View projection debug contact sheet](docs/assets/streetview_debug_contact_sheet_example.jpg)
 
 ## Reproducible Workflow
 
@@ -112,7 +110,7 @@ Run the full sampling workflow:
 Rscript scripts/run_road_network_sampling_global.R
 ```
 
-Rerender only the Leaflet map without rerunning OSM downloads or sampling:
+Rerender only the map diagnostic without rerunning OSM downloads or sampling:
 
 ```bash
 Rscript scripts/render_leaflet_global.R
@@ -158,10 +156,10 @@ Useful environment variables:
 - `SEOUL_CANDIDATE_CHUNK_SIZE`: road features per candidate-generation chunk, default `2000`
 - `SEOUL_FORCE_GRID=true`: rebuild the 500 m grid
 - `SEOUL_FORCE_OSM=true`: refresh the cached Geofabrik road extract
-- `SEOUL_SAMPLES_PARQUET`: parquet path used by the Leaflet-only renderer
-- `SEOUL_LEAFLET_MAX_POINTS`: sampled points rendered in Leaflet, default `30000`
+- `SEOUL_SAMPLES_PARQUET`: parquet path used by the map diagnostic renderer
+- `SEOUL_LEAFLET_MAX_POINTS`: sampled points rendered in the map diagnostic, default `30000`
 
-The Leaflet diagnostic map intentionally renders only the Seoul boundary, 500 m grid boundaries, and sampled points. Road geometries are excluded from the interactive map to keep browser rendering stable; roads are still used by the sampling pipeline.
+The map diagnostic intentionally renders only the Seoul boundary, 500 m grid boundaries, and sampled points. Road geometries are excluded to keep browser rendering stable; roads are still used by the sampling pipeline.
 
 Street View environment variables:
 

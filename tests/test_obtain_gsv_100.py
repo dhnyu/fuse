@@ -59,6 +59,7 @@ MIN_VALID_PANO_BYTES = int(os.getenv("GSV_MIN_VALID_PANO_BYTES", "50000"))
 TILE_SIZE = 512
 CROP_SIZE = 512
 CROP_FOV = 90
+CROP_PITCH_DEG = 15
 TILE_ENDPOINT = "https://geo0.ggpht.com/cbk"
 DIRECTION_SPECS = {
     "front": 0,
@@ -274,7 +275,7 @@ def equirectangular_to_perspective(
         np.asarray(panorama.convert("RGB")),
         fov_deg=(fov_deg, fov_deg),
         u_deg=heading_deg,
-        v_deg=0,
+        v_deg=CROP_PITCH_DEG,
         out_hw=(out_size, out_size),
     )
     return Image.fromarray(crop).convert("RGB")

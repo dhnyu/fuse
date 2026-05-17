@@ -76,6 +76,24 @@ data/streetview/
   debug/
 ```
 
+## Visual Examples
+
+The road-network sampling workflow writes both an interactive Leaflet map and a static screenshot suitable for quick README inspection:
+
+[Open the interactive Leaflet map](data/sampling_global/seoul_road_network_sampling_map.html)
+
+![Seoul road-network sampling map](data/sampling_global/seoul_road_network_sampling_map.png)
+
+The Street View prototype stores raw panoramas and local directional crops. Example panorama `z_3m1MPKrsDvaRndk5YKlQ`:
+
+![Raw Street View panorama](data/streetview/panoramas/raw/z_3m1MPKrsDvaRndk5YKlQ.jpg)
+
+| Front | Left | Rear | Right |
+| --- | --- | --- | --- |
+| ![Front crop](data/streetview/crops/front/z_3m1MPKrsDvaRndk5YKlQ_front.jpg) | ![Left crop](data/streetview/crops/left/z_3m1MPKrsDvaRndk5YKlQ_left.jpg) | ![Rear crop](data/streetview/crops/rear/z_3m1MPKrsDvaRndk5YKlQ_rear.jpg) | ![Right crop](data/streetview/crops/right/z_3m1MPKrsDvaRndk5YKlQ_right.jpg) |
+
+These visual assets are generated outputs under `data/`, so they are available after running the corresponding sampling and Street View workflows but are not tracked by Git.
+
 ## Reproducible Workflow
 
 Run the lightweight tests:

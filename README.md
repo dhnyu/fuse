@@ -6,6 +6,7 @@ The current road sampling pipeline:
 
 - builds a 500 m Seoul grid in EPSG:5186
 - reads/caches OpenStreetMap roads from Geofabrik via `osmextract`
+- keeps a canonical Seoul road archive separate from the operational sampling network
 - filters road classes used for urban road-environment sampling
 - constructs a unified Seoul road network
 - generates dense regular candidate points along roads
@@ -44,13 +45,17 @@ Generated data live under `data/`:
 
 - `data/geodata/`: source/admin geodata such as the Seoul boundary
 - `data/grid_500m/`: 500 m aggregation/visualization grid
-- `data/osm/`: cached Geofabrik/OSM downloads and filtered Seoul road network
+- `data/osm/raw/`: original Geofabrik OSM downloads
+- `data/osm/canonical/seoul_roads_canonical.gpkg`: reusable Seoul road archive with tunnel roads and useful OSM attributes retained
+- `data/osm/sampling/seoul_roads_sampling_network.gpkg`: non-tunnel operational network used for Poisson road sampling and Street View acquisition
 - `data/sampling_global/`: global road-network sample outputs and map diagnostics
 - `data/streetview/`: Street View metadata, panoramas, crops, manifests, logs, previews, and debug sheets
 
 Current road sampling outputs:
 
 - `data/sampling_global/seoul_road_network_samples.parquet`: final no-geometry point sample table
+
+Tunnel filtering occurs only when constructing the sampling network. The canonical archive retains tunnel attributes so it remains reusable, while the Street View sampling workflow continues to use the same non-tunnel operational road logic.
 
 Street View output layout:
 

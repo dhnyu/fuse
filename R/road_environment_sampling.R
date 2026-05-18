@@ -57,9 +57,23 @@ read_sf_projected <- function(path, layer = NULL, query = NULL, wkt_filter = NUL
     st_transform(PROJECTED_CRS)
 }
 
+truthy_osm_value <- function(x) {
+  !is.na(x) & tolower(as.character(x)) %in% c("yes", "true", "1")
+}
+
+add_missing_columns <- function(x, columns, value = NA_character_) {
+  for (column in setdiff(columns, names(x))) {
+    x[[column]] <- value
+  }
+  x
+}
+
 normalize_road_schema <- function(roads) {
   if ("selected_rank" %in% names(roads) && !"sampled_rank" %in% names(roads)) {
     roads <- roads %>% rename(sampled_rank = selected_rank)
+  }
+  if ("highway" %in% names(roads) && !"highway_class" %in% names(roads)) {
+    roads <- roads %>% mutate(highway_class = as.character(.data$highway))
   }
   if (!"source_road_id" %in% names(roads)) {
     roads$source_road_id <- seq_len(nrow(roads))
@@ -136,14 +150,14 @@ grid_extent_boundary <- function(grid, buffer_m = 250) {
 
 download_and_cache_osm_roads <- function(
   grid,
-  out_path = "data/osm/seoul_roads_filtered.gpkg",
+  out_path = "data/osm/canonical/seoul_roads_canonical.gpkg",
   osm_place = "South Korea",
-  download_directory = "data/osm/osmextract_downloads",
+  download_directory = "data/osm/raw",
   buffer_m = 250,
   force = FALSE
 ) {
   if (file.exists(out_path) && !force) {
-    return(read_sf_projected(out_path) %>% normalize_road_schema())
+    return(read_sf_projected(out_path))
   }
 
   if (!requireNamespace("osmextract", quietly = TRUE)) {
@@ -161,33 +175,39 @@ download_and_cache_osm_roads <- function(
     boundary_type = "spat",
     download_directory = download_directory,
     max_file_size = 5e9,
-    extra_tags = c("highway", "tunnel"),
+    extra_tags = c("highway", "tunnel", "bridge", "layer", "oneway", "name"),
     quiet = FALSE,
     force_download = FALSE,
     force_vectortranslate = TRUE
   )
 
+  useful_road_attrs <- c("highway", "tunnel", "bridge", "layer", "oneway", "name")
+
   roads <- roads_raw %>%
     st_as_sf() %>%
+    add_missing_columns(useful_road_attrs) %>%
     filter(
       highway %in% KEPT_HIGHWAYS,
-      !highway %in% EXCLUDED_HIGHWAYS,
-      is.na(tunnel) | !tolower(as.character(tunnel)) %in% c("yes", "true", "1")
+      !highway %in% EXCLUDED_HIGHWAYS
     ) %>%
-    transmute(highway_class = highway, geometry = geometry) %>%
+    mutate(highway_class = as.character(.data$highway)) %>%
     left_join(HIGHWAY_RANKS, by = "highway_class") %>%
     st_transform(PROJECTED_CRS) %>%
     st_make_valid() %>%
     { suppressWarnings(st_collection_extract(., "LINESTRING", warn = FALSE)) } %>%
     { suppressWarnings(st_cast(., "LINESTRING", warn = FALSE)) } %>%
-    filter(!st_is_empty(st_geometry(.)))
+    filter(!st_is_empty(st_geometry(.))) %>%
+    mutate(source_road_id = row_number()) %>%
+    select(source_road_id, highway_class, sampled_rank, any_of(useful_road_attrs), geometry)
 
   st_write(roads, out_path, delete_dsn = TRUE, quiet = TRUE)
-  normalize_road_schema(roads)
+  roads
 }
 
 construct_seoul_road_network <- function(roads, boundary = NULL) {
   roads <- roads %>%
+    add_missing_columns("tunnel") %>%
+    filter(!truthy_osm_value(.data$tunnel)) %>%
     normalize_road_schema() %>%
     filter(.data$highway_class %in% KEPT_HIGHWAYS) %>%
     st_transform(PROJECTED_CRS) %>%

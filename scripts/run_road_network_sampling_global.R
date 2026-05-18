@@ -12,9 +12,10 @@ sf_use_s2(FALSE)
 
 grid_path <- "data/grid_500m/seoul_grid_500m.gpkg"
 boundary_path <- "data/geodata/seoul_boundary.gpkg"
-roads_path <- "data/osm/seoul_roads_filtered.gpkg"
+roads_path <- "data/osm/canonical/seoul_roads_canonical.gpkg"
 final_parquet <- "data/sampling_global/seoul_road_network_samples.parquet"
 map_html <- "data/sampling_global/seoul_road_network_sampling_map.html"
+sampling_network_path <- "data/osm/sampling/seoul_roads_sampling_network.gpkg"
 
 target_count <- as.integer(Sys.getenv("SEOUL_TARGET_SAMPLE_COUNT", "40000"))
 candidate_spacing_m <- as.numeric(Sys.getenv("SEOUL_CANDIDATE_SPACING_M", "10"))
@@ -40,13 +41,18 @@ roads <- download_and_cache_osm_roads(
   grid = grid,
   out_path = roads_path,
   osm_place = "South Korea",
-  download_directory = "data/osm/osmextract_downloads",
+  download_directory = "data/osm/raw",
   buffer_m = 250,
   force = force_osm
 )
 
+sampling_network <- construct_seoul_road_network(roads = roads, boundary = boundary)
+ensure_dir(dirname(sampling_network_path))
+st_write(sampling_network, sampling_network_path, delete_dsn = TRUE, quiet = TRUE)
+
 message("Grid cells: ", format(nrow(grid), big.mark = ","))
-message("Filtered road features: ", format(nrow(roads), big.mark = ","))
+message("Canonical road features: ", format(nrow(roads), big.mark = ","))
+message("Sampling-network road features: ", format(nrow(sampling_network), big.mark = ","))
 message(
   "Target points: ", format(target_count, big.mark = ","),
   "; candidate spacing: ", candidate_spacing_m, " m",
@@ -57,9 +63,9 @@ message(
 )
 
 samples <- run_global_road_network_sampling(
-  roads = roads,
+  roads = sampling_network,
   grid = grid,
-  boundary = boundary,
+  boundary = NULL,
   final_parquet = final_parquet,
   candidate_spacing_m = candidate_spacing_m,
   min_spacing_m = min_spacing_m,

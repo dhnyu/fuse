@@ -45,6 +45,16 @@ files:
   osm_poi_tmp_gpkg: osm/tmp/seoul_osm_poi_extract.gpkg
   samples_global_parquet: sampling_global/seoul_road_network_samples.parquet
   samples_global_leaflet: sampling_global/seoul_road_network_sampling_map.html
+  gsv_candidate_pool_parquet: streetview/metadata/gsv_candidate_pool.parquet
+  gsv_accepted_metadata: streetview/metadata/gsv_accepted_metadata.parquet
+  gsv_rejected_metadata: streetview/metadata/gsv_rejected_metadata.parquet
+  gsv_metadata_checkpoint: streetview/metadata/gsv_metadata_checkpoint.parquet
+  gsv_metadata_rejection_summary: streetview/metadata/gsv_metadata_rejection_summary.parquet
+  gsv_sampling_network_composition: streetview/metadata/gsv_sampling_network_composition.parquet
+  gsv_final_manifest: streetview/manifests/gsv_final_manifest.parquet
+  gsv_image_manifest: streetview/manifests/gsv_image_manifest.parquet
+  gsv_final_coverage_leaflet: streetview/metadata/gsv_final_coverage_map.html
+  gsv_diagnostics_report: streetview/metadata/gsv_diagnostics_report.md
   streetview_metadata_test: streetview/metadata/gsv_metadata_test.parquet
   streetview_metadata_pilot: streetview/metadata/gsv_metadata_pilot_1000.parquet
   streetview_metadata_summary: streetview/metadata/gsv_metadata_pilot_summary.parquet

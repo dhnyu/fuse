@@ -8,7 +8,14 @@ import sys
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+def find_repo_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "src" / "fuse_paths.py").exists():
+            return candidate
+    raise RuntimeError(f"Could not locate repository root from {start}")
+
+
+REPO_ROOT = find_repo_root(Path(__file__).resolve())
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from fuse_paths import (  # noqa: E402

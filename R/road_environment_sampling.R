@@ -40,8 +40,9 @@ HIGHWAY_RANKS <- tibble::tribble(
   "unclassified", 9L
 )
 
-KEPT_HIGHWAYS <- HIGHWAY_RANKS$highway_class
-EXCLUDED_HIGHWAYS <- c("footway", "pedestrian", "cycleway", "path")
+SAMPLING_EXCLUDED_HIGHWAYS <- c("service")
+KEPT_HIGHWAYS <- setdiff(HIGHWAY_RANKS$highway_class, SAMPLING_EXCLUDED_HIGHWAYS)
+EXCLUDED_HIGHWAYS <- c("footway", "pedestrian", "cycleway", "path", SAMPLING_EXCLUDED_HIGHWAYS)
 
 sample_output_columns <- c(
   "point_id",
@@ -53,6 +54,33 @@ sample_output_columns <- c(
   "source_road_id",
   "nearest_neighbor_distance"
 )
+
+network_composition <- function(roads, label = "network") {
+  roads %>%
+    st_drop_geometry() %>%
+    count(highway_class, name = "road_features") %>%
+    left_join(
+      roads %>%
+        st_drop_geometry() %>%
+        group_by(highway_class) %>%
+        summarise(length_m = sum(length_m, na.rm = TRUE), .groups = "drop"),
+      by = "highway_class"
+    ) %>%
+    mutate(
+      label = label,
+      length_km = length_m / 1000,
+      feature_fraction = road_features / sum(road_features),
+      length_fraction = length_m / sum(length_m, na.rm = TRUE)
+    ) %>%
+    arrange(sampled_rank_for_class(.data$highway_class), highway_class) %>%
+    select(label, highway_class, road_features, length_m, length_km, feature_fraction, length_fraction)
+}
+
+sampled_rank_for_class <- function(highway_class) {
+  ranks <- HIGHWAY_RANKS$sampled_rank
+  names(ranks) <- HIGHWAY_RANKS$highway_class
+  unname(ranks[as.character(highway_class)])
+}
 
 derive_layer_name <- function(path) {
   tools::file_path_sans_ext(basename(path))

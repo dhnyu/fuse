@@ -261,10 +261,10 @@ The project no longer treats OSM as a general geometry-foundation dataset. Build
 | Path | Role |
 |---|---|
 | `R/road_environment_sampling.R` | Core road-network sampling, thinning, grid assignment, and map utilities. |
-| `scripts/run_road_network_sampling_global.R` | End-to-end Seoul road sampling workflow. |
-| `scripts/build_seoul_grid_500m.R` | Seoul 500 m grid generation. |
-| `scripts/render_leaflet_global.R` | Lightweight map diagnostic rendering from existing samples. |
-| `scripts/extract_seoul_osm_pois.R` | Semantic OSM POI extraction and canonical parquet/GPKG export. |
+| `scripts/streetview/10_run_road_network_sampling_global.R` | End-to-end Seoul road sampling workflow. |
+| `scripts/grid/10_build_seoul_grid_500m.R` | Seoul 500 m grid generation. |
+| `scripts/visualization/render_leaflet_global.R` | Lightweight map diagnostic rendering from existing samples. |
+| `scripts/POI/10_extract_seoul_osm_pois.R` | Semantic OSM POI extraction and canonical parquet/GPKG export. |
 | `tests/test_road_environment_sampling.R` | Lightweight validation of road sampling logic. |
 | `tests/test_gsv_metadata_pilot.py` | Metadata-only Google Street View pilot. |
 | `tests/test_obtain_gsv_one.py` | One-panorama acquisition prototype. |

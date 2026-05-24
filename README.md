@@ -29,9 +29,12 @@ The current Street View prototype pipeline:
 Tracked source files are intentionally lightweight:
 
 - `R/road_environment_sampling.R`: reusable functions
-- `scripts/build_seoul_grid_500m.R`: builds the 500 m Seoul grid
-- `scripts/run_road_network_sampling_global.R`: runs the full global road-network sampling workflow
-- `scripts/render_leaflet_global.R`: rerenders the optional map diagnostic from existing outputs
+- `scripts/grid/10_build_seoul_grid_500m.R`: builds the 500 m Seoul grid
+- `scripts/streetview/10_run_road_network_sampling_global.R`: runs the global road-network sampling workflow
+- `scripts/streetview/20_build_gsv_candidate_pool.R`: builds the oversampled Street View candidate pool
+- `scripts/streetview/30_run_gsv_metadata_acceptance.py`: runs resumable metadata validation and pano deduplication
+- `scripts/visualization/render_leaflet_global.R`: rerenders the optional map diagnostic from existing outputs
+- `scripts/validation/validate_paths.R` and `scripts/validation/validate_paths.py`: lightweight path validation utilities
 - `tests/test_road_environment_sampling.R`: lightweight global sampling tests
 - `tests/test_gsv_metadata_pilot.py`: metadata-only Street View pilot for the first 1000 sampled points
 - `tests/test_obtain_gsv_one.py`: one-point end-to-end Street View panorama prototype
@@ -113,8 +116,8 @@ Street View example panorama `-AJxJJBvXKn3vp4q0hEDxA`:
 Validate path setup without running expensive pipelines:
 
 ```bash
-Rscript scripts/validate_paths.R
-python scripts/validate_paths.py
+Rscript scripts/validation/validate_paths.R
+python scripts/validation/validate_paths.py
 ```
 
 Use an explicit data root when the sibling `fusedata/` location is not appropriate:
@@ -144,48 +147,51 @@ Rscript tests/test_road_environment_sampling.R
 Build the 500 m grid:
 
 ```bash
-Rscript scripts/build_seoul_grid_500m.R
+Rscript scripts/grid/10_build_seoul_grid_500m.R
 ```
 
 Run the full sampling workflow:
 
 ```bash
-Rscript scripts/run_road_network_sampling_global.R
+Rscript scripts/streetview/10_run_road_network_sampling_global.R
 ```
 
 Rerender only the map diagnostic without rerunning OSM downloads or sampling:
 
 ```bash
-Rscript scripts/render_leaflet_global.R
+Rscript scripts/visualization/render_leaflet_global.R
 ```
 
-Run the Street View metadata pilot. The API key is read from `GOOGLE_MAPS_API_KEY`; do not hardcode it.
+Build the production Street View candidate pool:
+
+```bash
+Rscript scripts/streetview/20_build_gsv_candidate_pool.R
+```
+
+Run a small metadata acceptance pilot. The API key is read from `GOOGLE_MAPS_API_KEY`; do not hardcode it.
+
+```bash
+GOOGLE_MAPS_API_KEY=... python scripts/streetview/30_run_gsv_metadata_acceptance.py --target-count 100 --max-candidates 500
+```
+
+Materialize a small accepted-image pilot:
+
+```bash
+python scripts/streetview/40_materialize_gsv_images.py --limit 25
+```
+
+Finalize and validate the exact-size production manifest after successful image materialization:
+
+```bash
+python scripts/streetview/50_finalize_gsv_dataset.py
+python scripts/streetview/60_validate_gsv_final_dataset.py --require-images
+```
+
+Legacy prototype scripts remain in `tests/` for small development checks:
 
 ```bash
 python tests/test_gsv_metadata_pilot.py
-```
-
-If the key is exported from an interactive-only section of `~/.bashrc`, run through interactive bash:
-
-```bash
-bash -ic 'python tests/test_gsv_metadata_pilot.py'
-```
-
-Run the one-point panorama prototype:
-
-```bash
 python tests/test_obtain_gsv_one.py
-```
-
-Run the 100-panorama benchmark from metadata pilot results:
-
-```bash
-python tests/test_obtain_gsv_100.py
-```
-
-Regenerate crops from existing cached panoramas without redownloading:
-
-```bash
 env GSV_EXISTING_PANOS_ONLY=true GSV_OVERWRITE_CROPS=true GSV_BENCHMARK_N_PANOS=20 python tests/test_obtain_gsv_100.py
 ```
 
@@ -217,7 +223,7 @@ Street View environment variables:
 - `GSV_EXISTING_PANOS_ONLY=true`: reuse existing panorama JPGs and skip download attempts
 - `GSV_OVERWRITE_CROPS=true`: regenerate directional crops even if crop JPGs already exist
 
-Street View acquisition remains prototype-scale. Do not use these scripts for full-dataset downloading without adding batching, rate-limit controls, failure recovery, and quota safeguards.
+The production Street View workflow is stage-oriented and resumable, but full 40,000-image acquisition should still be launched intentionally because it consumes API quota, network bandwidth, and substantial storage.
 
 ## Ignored Outputs
 

@@ -4,20 +4,33 @@ suppressPackageStartupMessages({
   library(arrow)
 })
 
-source("R/road_environment_sampling.R")
+find_repo_root_from <- function(start) {
+  current <- normalizePath(start, winslash = "/", mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "config", "paths.R"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) stop("Could not locate repository root.", call. = FALSE)
+    current <- parent
+  }
+}
+script_arg <- grep("^--file=", commandArgs(FALSE), value = TRUE)
+start_dir <- if (length(script_arg)) dirname(sub("^--file=", "", script_arg[1])) else getwd()
+repo_root <- find_repo_root_from(start_dir)
+source(file.path(repo_root, "config", "paths.R"))
+source(file.path(fuse_repo_root(), "R", "road_environment_sampling.R"))
 
 sf_use_s2(FALSE)
 
-grid_path <- "data/grid_500m/seoul_grid_500m.gpkg"
-boundary_path <- "data/geodata/seoul_boundary.gpkg"
+grid_path <- fuse_file("seoul_grid_500m", must_exist = TRUE)
+boundary_path <- fuse_file("seoul_boundary", must_exist = TRUE)
 samples_path <- Sys.getenv(
   "SEOUL_SAMPLES_PARQUET",
-  "data/sampling_global/seoul_road_network_samples.parquet"
+  fuse_file("samples_global_parquet", must_exist = TRUE)
 )
 
 out_html <- Sys.getenv(
   "SEOUL_LEAFLET_OUT",
-  "data/sampling_global/seoul_road_network_sampling_map.html"
+  fuse_file("samples_global_leaflet", create_parent = TRUE)
 )
 
 grid <- read_sf_projected(grid_path, layer = "seoul_grid_500m")

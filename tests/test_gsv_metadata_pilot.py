@@ -17,6 +17,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+import sys
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -24,10 +25,12 @@ import requests
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SAMPLES_PARQUET = REPO_ROOT / "data/sampling_global/seoul_road_network_samples.parquet"
-STREETVIEW_ROOT = REPO_ROOT / "data/streetview"
-METADATA_DIR = STREETVIEW_ROOT / "metadata"
-LOG_DIR = STREETVIEW_ROOT / "logs"
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from fuse_paths import data_dir, data_file, relative_to_repo_or_data  # noqa: E402
+
+SAMPLES_PARQUET = data_file("samples_global_parquet")
+METADATA_DIR = data_dir("streetview_metadata")
+LOG_DIR = data_dir("streetview_logs")
 
 PILOT_SIZE = int(os.getenv("GSV_METADATA_PILOT_SIZE", "1000"))
 REQUEST_THROTTLE_SECONDS = float(os.getenv("GSV_METADATA_THROTTLE_SECONDS", "0.05"))
@@ -42,8 +45,8 @@ YEAR_DISTRIBUTION_PARQUET = METADATA_DIR / "gsv_capture_year_distribution.parque
 
 
 def ensure_dirs() -> None:
-    METADATA_DIR.mkdir(parents=True, exist_ok=True)
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    data_dir("streetview_metadata", create=True)
+    data_dir("streetview_logs", create=True)
 
 
 def configure_logging() -> Path:
@@ -357,11 +360,11 @@ def run_pilot() -> int:
     )
     print(f"top_duplicate_panos: {pano_counts[:5]}")
     print(f"capture_year_bins: {len(year_records)}")
-    print(f"metadata_parquet: {METADATA_PARQUET.relative_to(REPO_ROOT)}")
-    print(f"summary_parquet: {SUMMARY_PARQUET.relative_to(REPO_ROOT)}")
-    print(f"duplication_parquet: {DUPLICATION_PARQUET.relative_to(REPO_ROOT)}")
-    print(f"capture_year_distribution_parquet: {YEAR_DISTRIBUTION_PARQUET.relative_to(REPO_ROOT)}")
-    print(f"log: {log_path.relative_to(REPO_ROOT)}")
+    print(f"metadata_parquet: {relative_to_repo_or_data(METADATA_PARQUET)}")
+    print(f"summary_parquet: {relative_to_repo_or_data(SUMMARY_PARQUET)}")
+    print(f"duplication_parquet: {relative_to_repo_or_data(DUPLICATION_PARQUET)}")
+    print(f"capture_year_distribution_parquet: {relative_to_repo_or_data(YEAR_DISTRIBUTION_PARQUET)}")
+    print(f"log: {relative_to_repo_or_data(log_path)}")
     return 0
 
 

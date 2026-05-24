@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+import sys
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -26,19 +27,21 @@ from PIL import Image, UnidentifiedImageError
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SAMPLES_PARQUET = REPO_ROOT / "data/sampling_global/seoul_road_network_samples.parquet"
-STREETVIEW_ROOT = REPO_ROOT / "data/streetview"
-METADATA_PARQUET = STREETVIEW_ROOT / "metadata/gsv_metadata_test.parquet"
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from fuse_paths import data_dir, data_file, relative_to_repo_or_data  # noqa: E402
+
+SAMPLES_PARQUET = data_file("samples_global_parquet")
+METADATA_PARQUET = data_file("streetview_metadata_test")
 
 OUTPUT_DIRS = {
-    "metadata": STREETVIEW_ROOT / "metadata",
-    "panoramas_raw": STREETVIEW_ROOT / "panoramas/raw",
-    "crops_front": STREETVIEW_ROOT / "crops/front",
-    "crops_right": STREETVIEW_ROOT / "crops/right",
-    "crops_rear": STREETVIEW_ROOT / "crops/rear",
-    "crops_left": STREETVIEW_ROOT / "crops/left",
-    "previews": STREETVIEW_ROOT / "previews",
-    "logs": STREETVIEW_ROOT / "logs",
+    "metadata": data_dir("streetview_metadata"),
+    "panoramas_raw": data_dir("streetview_panoramas_raw"),
+    "crops_front": data_dir("streetview_crops_front"),
+    "crops_right": data_dir("streetview_crops_right"),
+    "crops_rear": data_dir("streetview_crops_rear"),
+    "crops_left": data_dir("streetview_crops_left"),
+    "previews": data_dir("streetview_previews"),
+    "logs": data_dir("streetview_logs"),
 }
 
 METADATA_ENDPOINT = "https://maps.googleapis.com/maps/api/streetview/metadata"
@@ -492,7 +495,7 @@ def build_metadata_record(
         "copyright": metadata.get("copyright"),
         "status": metadata.get("status"),
         "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
-        "image_path": str(image_path.relative_to(REPO_ROOT)) if image_path else None,
+        "image_path": relative_to_repo_or_data(image_path) if image_path else None,
         "image_exists": image_exists,
         "image_size_bytes": image_size_bytes,
         "point_to_pano_distance_m": point_to_pano_distance_m,
@@ -589,13 +592,13 @@ def main() -> int:
     print(f"point_id: {point.point_id}")
     print(f"pano_id: {pano_id}")
     print(f"capture_date: {metadata.get('date')}")
-    print(f"metadata_parquet: {METADATA_PARQUET.relative_to(REPO_ROOT)}")
-    print(f"panorama: {pano_path.relative_to(REPO_ROOT)}")
-    print(f"contact_sheet: {contact_sheet_path.relative_to(REPO_ROOT)}")
+    print(f"metadata_parquet: {relative_to_repo_or_data(METADATA_PARQUET)}")
+    print(f"panorama: {relative_to_repo_or_data(pano_path)}")
+    print(f"contact_sheet: {relative_to_repo_or_data(contact_sheet_path)}")
     print("crops:")
     for label, path in crop_paths.items():
-        print(f"  {label}: {path.relative_to(REPO_ROOT)}")
-    print(f"log: {log_path.relative_to(REPO_ROOT)}")
+        print(f"  {label}: {relative_to_repo_or_data(path)}")
+    print(f"log: {relative_to_repo_or_data(log_path)}")
     return 0
 
 

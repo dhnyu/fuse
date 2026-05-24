@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+import sys
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -28,18 +29,20 @@ import py360convert
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-METADATA_PARQUET = REPO_ROOT / "data/streetview/metadata/gsv_metadata_pilot_1000.parquet"
-STREETVIEW_ROOT = REPO_ROOT / "data/streetview"
-RAW_PANO_DIR = STREETVIEW_ROOT / "panoramas/raw"
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from fuse_paths import data_dir, data_file, relative_to_repo_or_data  # noqa: E402
+
+METADATA_PARQUET = data_file("streetview_metadata_pilot")
+RAW_PANO_DIR = data_dir("streetview_panoramas_raw")
 CROP_DIRS = {
-    "front": STREETVIEW_ROOT / "crops/front",
-    "right": STREETVIEW_ROOT / "crops/right",
-    "rear": STREETVIEW_ROOT / "crops/rear",
-    "left": STREETVIEW_ROOT / "crops/left",
+    "front": data_dir("streetview_crops_front"),
+    "right": data_dir("streetview_crops_right"),
+    "rear": data_dir("streetview_crops_rear"),
+    "left": data_dir("streetview_crops_left"),
 }
-MANIFEST_DIR = STREETVIEW_ROOT / "manifests"
-LOG_DIR = STREETVIEW_ROOT / "logs"
-DEBUG_DIR = STREETVIEW_ROOT / "debug"
+MANIFEST_DIR = data_dir("streetview_manifests")
+LOG_DIR = data_dir("streetview_logs")
+DEBUG_DIR = data_dir("streetview_debug")
 MANIFEST_PARQUET = MANIFEST_DIR / "gsv_download_manifest_100.parquet"
 LOG_PATH = LOG_DIR / "gsv_download_100.log"
 
@@ -336,7 +339,7 @@ def generate_crops_for_panorama(
             "rear_edge_discontinuity_score": rear_edge_discontinuity_score(paths["rear"]),
         }
         if write_debug_sheet:
-            metrics["debug_contact_sheet"] = str(create_debug_contact_sheet(pano_id, source_path, paths).relative_to(REPO_ROOT))
+            metrics["debug_contact_sheet"] = relative_to_repo_or_data(create_debug_contact_sheet(pano_id, source_path, paths))
         return True, metrics
 
     panorama = Image.open(source_path).convert("RGB")
@@ -352,7 +355,7 @@ def generate_crops_for_panorama(
         "rear_edge_discontinuity_score": rear_edge_discontinuity_score(paths["rear"]) if success else None,
     }
     if success and write_debug_sheet:
-        metrics["debug_contact_sheet"] = str(create_debug_contact_sheet(pano_id, source_path, paths).relative_to(REPO_ROOT))
+        metrics["debug_contact_sheet"] = relative_to_repo_or_data(create_debug_contact_sheet(pano_id, source_path, paths))
     return success, metrics
 
 
@@ -461,7 +464,7 @@ def download_or_reuse_panorama(task: PanoTask) -> dict[str, Any]:
         "crops_generated": bool(crops_generated),
         "retry_count": int(retry_count),
         "zoom_used": zoom_used,
-        "panorama_path": str(path.relative_to(REPO_ROOT)) if path.exists() else None,
+        "panorama_path": relative_to_repo_or_data(path) if path.exists() else None,
         "image_size_bytes": path.stat().st_size if path.exists() else None,
         "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
         "failure_reason": None if download_success and crops_generated else failure_reason,
@@ -544,12 +547,12 @@ def main() -> int:
         print(f"crop_distinctness_min_mean: {min(distinctness_scores):.2f} / {sum(distinctness_scores) / len(distinctness_scores):.2f}")
     if rear_edge_scores:
         print(f"rear_edge_discontinuity_min_mean_max: {min(rear_edge_scores):.2f} / {sum(rear_edge_scores) / len(rear_edge_scores):.2f} / {max(rear_edge_scores):.2f}")
-    print(f"manifest: {MANIFEST_PARQUET.relative_to(REPO_ROOT)}")
-    print(f"log: {LOG_PATH.relative_to(REPO_ROOT)}")
+    print(f"manifest: {relative_to_repo_or_data(MANIFEST_PARQUET)}")
+    print(f"log: {relative_to_repo_or_data(LOG_PATH)}")
     if EXISTING_PANOS_ONLY:
         debug_sheets = [record.get("debug_contact_sheet") for record in records if record.get("debug_contact_sheet")]
         print(f"debug_contact_sheets: {len(debug_sheets)}")
-        print(f"debug_dir: {DEBUG_DIR.relative_to(REPO_ROOT)}")
+        print(f"debug_dir: {relative_to_repo_or_data(DEBUG_DIR)}")
     if failures:
         print("failures:")
         for record in failures[:10]:

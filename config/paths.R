@@ -1,0 +1,158 @@
+FUSE_PATH_CONFIG <- list(
+  data_root_env = "FUSE_DATA_ROOT",
+  repo_root_env = "FUSE_REPO_ROOT",
+  data_root_default = "../fusedata",
+  legacy_data_root = "data",
+  directories = list(
+    geodata = "geodata",
+    grid_500m = "grid_500m",
+    osm = "osm",
+    osm_raw = "osm/raw",
+    osm_canonical = "osm/canonical",
+    osm_canonical_gpkg = "osm/canonical/gpkg",
+    osm_canonical_parquet = "osm/canonical/parquet",
+    osm_sampling = "osm/sampling",
+    osm_metadata = "osm/metadata",
+    osm_logs = "osm/logs",
+    osm_tmp = "osm/tmp",
+    sampling_global = "sampling_global",
+    sampling_global_debug = "sampling_global/debug",
+    streetview = "streetview",
+    streetview_metadata = "streetview/metadata",
+    streetview_panoramas_raw = "streetview/panoramas/raw",
+    streetview_crops_front = "streetview/crops/front",
+    streetview_crops_right = "streetview/crops/right",
+    streetview_crops_rear = "streetview/crops/rear",
+    streetview_crops_left = "streetview/crops/left",
+    streetview_previews = "streetview/previews",
+    streetview_logs = "streetview/logs",
+    streetview_manifests = "streetview/manifests",
+    streetview_debug = "streetview/debug"
+  ),
+  files = list(
+    seoul_boundary = "geodata/seoul_boundary.gpkg",
+    gadm_dir = "geodata/gadm",
+    seoul_grid_500m = "grid_500m/seoul_grid_500m.gpkg",
+    seoul_grid_500m_map = "grid_500m/seoul_grid_500m_map.png",
+    osm_pbf = "osm/raw/geofabrik_south-korea-latest.osm.pbf",
+    osm_roads_canonical = "osm/canonical/seoul_roads_canonical.gpkg",
+    osm_roads_sampling_network = "osm/sampling/seoul_roads_sampling_network.gpkg",
+    osm_poi_tmp_gpkg = "osm/tmp/seoul_osm_poi_extract.gpkg",
+    samples_global_parquet = "sampling_global/seoul_road_network_samples.parquet",
+    samples_global_leaflet = "sampling_global/seoul_road_network_sampling_map.html",
+    streetview_metadata_test = "streetview/metadata/gsv_metadata_test.parquet",
+    streetview_metadata_pilot = "streetview/metadata/gsv_metadata_pilot_1000.parquet",
+    streetview_metadata_summary = "streetview/metadata/gsv_metadata_pilot_summary.parquet",
+    streetview_pano_duplication = "streetview/metadata/gsv_pano_duplication_counts.parquet",
+    streetview_capture_year_distribution = "streetview/metadata/gsv_capture_year_distribution.parquet",
+    streetview_manifest_100 = "streetview/manifests/gsv_download_manifest_100.parquet"
+  )
+)
+
+fuse_norm_path <- function(path, must_work = FALSE) {
+  normalizePath(path, winslash = "/", mustWork = must_work)
+}
+
+fuse_find_repo_root <- function(start = getwd()) {
+  env_root <- Sys.getenv(FUSE_PATH_CONFIG$repo_root_env, "")
+  if (nzchar(env_root)) {
+    root <- fuse_norm_path(env_root, must_work = TRUE)
+    if (!file.exists(file.path(root, "config", "paths.R"))) {
+      stop("FUSE_REPO_ROOT does not look like the fuse repository: ", root, call. = FALSE)
+    }
+    return(root)
+  }
+
+  current <- fuse_norm_path(start, must_work = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "config", "paths.R")) &&
+        file.exists(file.path(current, "R", "road_environment_sampling.R"))) {
+      return(current)
+    }
+    parent <- dirname(current)
+    if (identical(parent, current)) {
+      break
+    }
+    current <- parent
+  }
+
+  stop("Could not locate the fuse repository root. Set FUSE_REPO_ROOT.", call. = FALSE)
+}
+
+fuse_repo_root <- function() {
+  fuse_find_repo_root()
+}
+
+fuse_data_root <- function(create = FALSE) {
+  repo_root <- fuse_repo_root()
+  env_root <- Sys.getenv(FUSE_PATH_CONFIG$data_root_env, "")
+  candidates <- character()
+
+  if (nzchar(env_root)) {
+    candidates <- c(candidates, env_root)
+  } else {
+    candidates <- c(
+      candidates,
+      file.path(repo_root, FUSE_PATH_CONFIG$data_root_default),
+      file.path(repo_root, FUSE_PATH_CONFIG$legacy_data_root)
+    )
+  }
+
+  existing <- candidates[dir.exists(candidates)]
+  root <- if (length(existing) > 0) existing[[1]] else candidates[[1]]
+  root <- fuse_norm_path(root, must_work = FALSE)
+
+  if (create && !dir.exists(root)) {
+    dir.create(root, recursive = TRUE, showWarnings = FALSE)
+  }
+  root
+}
+
+fuse_path <- function(..., create_parent = FALSE, must_exist = FALSE) {
+  path <- file.path(fuse_data_root(create = create_parent), ...)
+  if (create_parent) {
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  }
+  if (must_exist && !file.exists(path)) {
+    stop("Required data path does not exist: ", path, call. = FALSE)
+  }
+  path
+}
+
+fuse_dir <- function(key, create = FALSE, must_exist = FALSE) {
+  rel <- FUSE_PATH_CONFIG$directories[[key]]
+  if (is.null(rel)) {
+    stop("Unknown FUSE data directory key: ", key, call. = FALSE)
+  }
+  path <- file.path(fuse_data_root(create = create), rel)
+  if (create && !dir.exists(path)) {
+    dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  }
+  if (must_exist && !dir.exists(path)) {
+    stop("Required data directory does not exist: ", path, call. = FALSE)
+  }
+  path
+}
+
+fuse_file <- function(key, create_parent = FALSE, must_exist = FALSE) {
+  rel <- FUSE_PATH_CONFIG$files[[key]]
+  if (is.null(rel)) {
+    stop("Unknown FUSE data file key: ", key, call. = FALSE)
+  }
+  fuse_path(rel, create_parent = create_parent, must_exist = must_exist)
+}
+
+fuse_ensure_core_dirs <- function() {
+  invisible(lapply(names(FUSE_PATH_CONFIG$directories), fuse_dir, create = TRUE))
+}
+
+fuse_print_environment <- function() {
+  repo_root <- fuse_repo_root()
+  data_root <- fuse_data_root(create = FALSE)
+  cat("FUSE path environment\n")
+  cat("  repo_root: ", repo_root, "\n", sep = "")
+  cat("  data_root: ", data_root, "\n", sep = "")
+  cat("  FUSE_DATA_ROOT: ", Sys.getenv("FUSE_DATA_ROOT", "<unset>"), "\n", sep = "")
+  cat("  legacy_data_present: ", dir.exists(file.path(repo_root, "data")), "\n", sep = "")
+  invisible(list(repo_root = repo_root, data_root = data_root))
+}

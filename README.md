@@ -37,30 +37,45 @@ Tracked source files are intentionally lightweight:
 - `tests/test_obtain_gsv_one.py`: one-point end-to-end Street View panorama prototype
 - `tests/test_obtain_gsv_100.py`: small cached/benchmark panorama acquisition and crop-regeneration pipeline
 
-Generated outputs, cached OSM extracts, spatial files, parquet files, map diagnostics, and local reference corpora are ignored by Git.
+Generated outputs, cached OSM extracts, spatial files, parquet files, map diagnostics, and local reference corpora are stored outside the repository by default and ignored by Git.
 
 ## Data Architecture
 
-Generated data live under `data/`:
+Generated data live outside the repository by default in a sibling directory named `fusedata/`.
 
-- `data/geodata/`: source/admin geodata such as the Seoul boundary
-- `data/grid_500m/`: 500 m aggregation/visualization grid
-- `data/osm/raw/`: original Geofabrik OSM downloads
-- `data/osm/canonical/seoul_roads_canonical.gpkg`: reusable Seoul road archive with tunnel roads and useful OSM attributes retained
-- `data/osm/sampling/seoul_roads_sampling_network.gpkg`: non-tunnel operational network used for Poisson road sampling and Street View acquisition
-- `data/sampling_global/`: global road-network sample outputs and map diagnostics
-- `data/streetview/`: Street View metadata, panoramas, crops, manifests, logs, previews, and debug sheets
+Path handling is centralized in:
+
+- `config/paths.yml`: documented path contract
+- `config/paths.R`: R helpers such as `fuse_file()` and `fuse_dir()`
+- `src/fuse_paths.py`: Python `pathlib` helpers such as `data_file()` and `data_dir()`
+
+Resolution order:
+
+1. `FUSE_DATA_ROOT`, if set
+2. `../fusedata`, relative to the repository root, when present
+3. legacy `./data`, when present
+4. `../fusedata`, created for new outputs
+
+Main data directories:
+
+- `fusedata/geodata/`: source/admin geodata such as the Seoul boundary
+- `fusedata/grid_500m/`: 500 m aggregation/visualization grid
+- `fusedata/osm/raw/`: original Geofabrik OSM downloads
+- `fusedata/osm/canonical/seoul_roads_canonical.gpkg`: reusable Seoul road archive with tunnel roads and useful OSM attributes retained
+- `fusedata/osm/sampling/seoul_roads_sampling_network.gpkg`: non-tunnel operational network used for Poisson road sampling and Street View acquisition
+- `fusedata/sampling_global/`: global road-network sample outputs and map diagnostics
+- `fusedata/streetview/`: Street View metadata, panoramas, crops, manifests, logs, previews, and debug sheets
 
 Current road sampling outputs:
 
-- `data/sampling_global/seoul_road_network_samples.parquet`: final no-geometry point sample table
+- `fusedata/sampling_global/seoul_road_network_samples.parquet`: final no-geometry point sample table
 
 Tunnel filtering occurs only when constructing the sampling network. The canonical archive retains tunnel attributes so it remains reusable, while the Street View sampling workflow continues to use the same non-tunnel operational road logic.
 
 Street View output layout:
 
 ```text
-data/streetview/
+fusedata/streetview/
   metadata/
     gsv_metadata_pilot_1000.parquet
     gsv_metadata_pilot_summary.parquet
@@ -94,6 +109,31 @@ Street View example panorama `-AJxJJBvXKn3vp4q0hEDxA`:
 | ![Front crop](docs/assets/streetview_crop_front.jpg) | ![Left crop](docs/assets/streetview_crop_left.jpg) | ![Rear crop](docs/assets/streetview_crop_rear.jpg) | ![Right crop](docs/assets/streetview_crop_right.jpg) |
 
 ## Reproducible Workflow
+
+Validate path setup without running expensive pipelines:
+
+```bash
+Rscript scripts/validate_paths.R
+python scripts/validate_paths.py
+```
+
+Use an explicit data root when the sibling `fusedata/` location is not appropriate:
+
+```bash
+export FUSE_DATA_ROOT=/path/to/fusedata
+```
+
+Windows PowerShell:
+
+```powershell
+$env:FUSE_DATA_ROOT = "D:\fusedata"
+```
+
+On shared systems, a symlink is also acceptable if collaborators prefer the default layout:
+
+```bash
+ln -s /shared/project/fusedata ../fusedata
+```
 
 Run the lightweight tests:
 
@@ -151,6 +191,8 @@ env GSV_EXISTING_PANOS_ONLY=true GSV_OVERWRITE_CROPS=true GSV_BENCHMARK_N_PANOS=
 
 Useful environment variables:
 
+- `FUSE_DATA_ROOT`: optional external data root; default is sibling `../fusedata`
+- `FUSE_REPO_ROOT`: optional repository root override for unusual launch contexts
 - `SEOUL_TARGET_SAMPLE_COUNT`: final target point count, default `40000`
 - `SEOUL_CANDIDATE_SPACING_M`: regular spacing for road candidates, default `10`
 - `SEOUL_MIN_SAMPLE_SPACING_M`: greedy Euclidean thinning distance, default `50`
@@ -181,7 +223,7 @@ Street View acquisition remains prototype-scale. Do not use these scripts for fu
 
 The `.gitignore` excludes generated and heavyweight artifacts, including:
 
-- `data/`: generated grids, OSM extracts, sampling parquet, Street View images, manifests, logs, debug sheets, and Leaflet files
+- `data/`: legacy generated-data location, retained only for backward-compatible local checkouts
 - `*.gpkg`, shapefile sidecars, GeoJSON, rasters, parquet, Arrow/Feather, and CSV files
 - Leaflet/htmlwidget exports such as `*.html` and `*_files/`
 - image exports such as `*.png` and `*.jpg`
@@ -189,7 +231,7 @@ The `.gitignore` excludes generated and heavyweight artifacts, including:
 - `pre_models/`: external model checkout and large model data
 - R session files and local caches
 
-Existing outputs are not deleted by this setup. They remain available locally but are intentionally untracked because they are reproducible, large, machine-specific, or derived from external data.
+Existing outputs should live in `fusedata/` or a path named by `FUSE_DATA_ROOT`. They remain available locally but are intentionally untracked because they are reproducible, large, machine-specific, or derived from external data.
 
 ## Optional renv
 

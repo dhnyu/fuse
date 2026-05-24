@@ -4,7 +4,19 @@ suppressPackageStartupMessages({
   library(arrow)
 })
 
-source("R/road_environment_sampling.R")
+find_repo_root_from <- function(start) {
+  current <- normalizePath(start, winslash = "/", mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "config", "paths.R"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) stop("Could not locate repository root.", call. = FALSE)
+    current <- parent
+  }
+}
+script_arg <- grep("^--file=", commandArgs(FALSE), value = TRUE)
+start_dir <- if (length(script_arg)) dirname(sub("^--file=", "", script_arg[1])) else getwd()
+repo_root <- find_repo_root_from(start_dir)
+source(file.path(repo_root, "R", "road_environment_sampling.R"))
 
 sf_use_s2(FALSE)
 

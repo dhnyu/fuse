@@ -23,6 +23,20 @@ suppressPackageStartupMessages({
   library(furrr)
 })
 
+find_repo_root_from <- function(start) {
+  current <- normalizePath(start, winslash = "/", mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "config", "paths.R"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) stop("Could not locate repository root.", call. = FALSE)
+    current <- parent
+  }
+}
+script_arg <- grep("^--file=", commandArgs(FALSE), value = TRUE)
+start_dir <- if (length(script_arg)) dirname(sub("^--file=", "", script_arg[1])) else getwd()
+repo_root <- find_repo_root_from(start_dir)
+source(file.path(repo_root, "config", "paths.R"))
+
 sf::sf_use_s2(FALSE)
 
 target_crs <- 5186
@@ -59,13 +73,13 @@ extra_tags <- unique(c(
 ))
 
 paths <- list(
-  pbf = "data/osm/raw/geofabrik_south-korea-latest.osm.pbf",
-  gadm_dir = "data/geodata/gadm",
-  canonical_gpkg_dir = "data/osm/canonical/gpkg",
-  canonical_parquet_dir = "data/osm/canonical/parquet",
-  metadata_dir = "data/osm/metadata",
-  logs_dir = "data/osm/logs",
-  tmp_dir = "data/osm/tmp"
+  pbf = fuse_file("osm_pbf", must_exist = TRUE),
+  gadm_dir = fuse_file("gadm_dir", must_exist = TRUE),
+  canonical_gpkg_dir = fuse_dir("osm_canonical_gpkg", create = TRUE),
+  canonical_parquet_dir = fuse_dir("osm_canonical_parquet", create = TRUE),
+  metadata_dir = fuse_dir("osm_metadata", create = TRUE),
+  logs_dir = fuse_dir("osm_logs", create = TRUE),
+  tmp_dir = fuse_dir("osm_tmp", create = TRUE)
 )
 
 outputs <- list(

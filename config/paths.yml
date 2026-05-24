@@ -1,0 +1,53 @@
+# Central path contract for the FUSE repository.
+#
+# FUSE_DATA_ROOT overrides data_root_default. If unset, the code prefers the
+# sibling directory ../fusedata when it exists, then falls back to legacy ./data
+# when present, and otherwise creates/uses ../fusedata.
+data_root_env: FUSE_DATA_ROOT
+repo_root_env: FUSE_REPO_ROOT
+data_root_default: ../fusedata
+legacy_data_root: data
+
+directories:
+  geodata: geodata
+  grid_500m: grid_500m
+  osm: osm
+  osm_raw: osm/raw
+  osm_canonical: osm/canonical
+  osm_canonical_gpkg: osm/canonical/gpkg
+  osm_canonical_parquet: osm/canonical/parquet
+  osm_sampling: osm/sampling
+  osm_metadata: osm/metadata
+  osm_logs: osm/logs
+  osm_tmp: osm/tmp
+  sampling_global: sampling_global
+  sampling_global_debug: sampling_global/debug
+  streetview: streetview
+  streetview_metadata: streetview/metadata
+  streetview_panoramas_raw: streetview/panoramas/raw
+  streetview_crops_front: streetview/crops/front
+  streetview_crops_right: streetview/crops/right
+  streetview_crops_rear: streetview/crops/rear
+  streetview_crops_left: streetview/crops/left
+  streetview_previews: streetview/previews
+  streetview_logs: streetview/logs
+  streetview_manifests: streetview/manifests
+  streetview_debug: streetview/debug
+
+files:
+  seoul_boundary: geodata/seoul_boundary.gpkg
+  gadm_dir: geodata/gadm
+  seoul_grid_500m: grid_500m/seoul_grid_500m.gpkg
+  seoul_grid_500m_map: grid_500m/seoul_grid_500m_map.png
+  osm_pbf: osm/raw/geofabrik_south-korea-latest.osm.pbf
+  osm_roads_canonical: osm/canonical/seoul_roads_canonical.gpkg
+  osm_roads_sampling_network: osm/sampling/seoul_roads_sampling_network.gpkg
+  osm_poi_tmp_gpkg: osm/tmp/seoul_osm_poi_extract.gpkg
+  samples_global_parquet: sampling_global/seoul_road_network_samples.parquet
+  samples_global_leaflet: sampling_global/seoul_road_network_sampling_map.html
+  streetview_metadata_test: streetview/metadata/gsv_metadata_test.parquet
+  streetview_metadata_pilot: streetview/metadata/gsv_metadata_pilot_1000.parquet
+  streetview_metadata_summary: streetview/metadata/gsv_metadata_pilot_summary.parquet
+  streetview_pano_duplication: streetview/metadata/gsv_pano_duplication_counts.parquet
+  streetview_capture_year_distribution: streetview/metadata/gsv_capture_year_distribution.parquet
+  streetview_manifest_100: streetview/manifests/gsv_download_manifest_100.parquet

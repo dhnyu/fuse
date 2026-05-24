@@ -6,6 +6,22 @@ suppressPackageStartupMessages({
   library(future.mirai)
 })
 
+if (!exists("fuse_file", mode = "function")) {
+  this_file <- NULL
+  for (frame in rev(sys.frames())) {
+    if (!is.null(frame$ofile)) {
+      this_file <- frame$ofile
+      break
+    }
+  }
+  config_path <- if (!is.null(this_file)) {
+    file.path(dirname(dirname(normalizePath(this_file, winslash = "/", mustWork = FALSE))), "config", "paths.R")
+  } else {
+    "config/paths.R"
+  }
+  source(config_path)
+}
+
 sf_use_s2(FALSE)
 
 PROJECTED_CRS <- 5186
@@ -97,9 +113,9 @@ normalize_road_schema <- function(roads) {
 
 build_seoul_grid <- function(
   cell_size_m = 500,
-  boundary_path = "data/geodata/seoul_boundary.gpkg",
-  grid_path = "data/grid_500m/seoul_grid_500m.gpkg",
-  map_path = "data/grid_500m/seoul_grid_500m_map.png",
+  boundary_path = fuse_file("seoul_boundary"),
+  grid_path = fuse_file("seoul_grid_500m"),
+  map_path = fuse_file("seoul_grid_500m_map"),
   force = FALSE
 ) {
   if (file.exists(grid_path) && !force) {
@@ -150,9 +166,9 @@ grid_extent_boundary <- function(grid, buffer_m = 250) {
 
 download_and_cache_osm_roads <- function(
   grid,
-  out_path = "data/osm/canonical/seoul_roads_canonical.gpkg",
+  out_path = fuse_file("osm_roads_canonical"),
   osm_place = "South Korea",
-  download_directory = "data/osm/raw",
+  download_directory = fuse_dir("osm_raw"),
   buffer_m = 250,
   force = FALSE
 ) {
@@ -546,7 +562,7 @@ run_global_road_network_sampling <- function(
   roads,
   grid,
   boundary = NULL,
-  final_parquet = "data/sampling_global/seoul_road_network_samples.parquet",
+  final_parquet = fuse_file("samples_global_parquet"),
   candidate_spacing_m = 10,
   min_spacing_m = 50,
   target_count = 40000L,
@@ -593,7 +609,7 @@ run_global_road_network_sampling <- function(
 
 write_debug_outputs <- function(
   samples,
-  output_dir = "data/sampling_global/debug",
+  output_dir = fuse_dir("sampling_global_debug"),
   sample_points_gpkg = "sampled_points_global.gpkg"
 ) {
   ensure_dir(output_dir)
@@ -659,7 +675,7 @@ make_leaflet_map <- function(
   boundary,
   grid,
   samples,
-  out_html = "data/sampling_global/seoul_road_network_sampling_map.html",
+  out_html = fuse_file("samples_global_leaflet"),
   max_grid_cells = 5000,
   max_points = 30000,
   grid_simplify_tolerance_m = 1,

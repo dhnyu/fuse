@@ -6,16 +6,29 @@ suppressPackageStartupMessages({
   library(future.mirai)
 })
 
-source("R/road_environment_sampling.R")
+find_repo_root_from <- function(start) {
+  current <- normalizePath(start, winslash = "/", mustWork = TRUE)
+  repeat {
+    if (file.exists(file.path(current, "config", "paths.R"))) return(current)
+    parent <- dirname(current)
+    if (identical(parent, current)) stop("Could not locate repository root.", call. = FALSE)
+    current <- parent
+  }
+}
+script_arg <- grep("^--file=", commandArgs(FALSE), value = TRUE)
+start_dir <- if (length(script_arg)) dirname(sub("^--file=", "", script_arg[1])) else getwd()
+repo_root <- find_repo_root_from(start_dir)
+source(file.path(repo_root, "config", "paths.R"))
+source(file.path(fuse_repo_root(), "R", "road_environment_sampling.R"))
 
 sf_use_s2(FALSE)
 
-grid_path <- "data/grid_500m/seoul_grid_500m.gpkg"
-boundary_path <- "data/geodata/seoul_boundary.gpkg"
-roads_path <- "data/osm/canonical/seoul_roads_canonical.gpkg"
-final_parquet <- "data/sampling_global/seoul_road_network_samples.parquet"
-map_html <- "data/sampling_global/seoul_road_network_sampling_map.html"
-sampling_network_path <- "data/osm/sampling/seoul_roads_sampling_network.gpkg"
+grid_path <- fuse_file("seoul_grid_500m")
+boundary_path <- fuse_file("seoul_boundary", must_exist = TRUE)
+roads_path <- fuse_file("osm_roads_canonical", create_parent = TRUE)
+final_parquet <- fuse_file("samples_global_parquet", create_parent = TRUE)
+map_html <- fuse_file("samples_global_leaflet", create_parent = TRUE)
+sampling_network_path <- fuse_file("osm_roads_sampling_network", create_parent = TRUE)
 
 target_count <- as.integer(Sys.getenv("SEOUL_TARGET_SAMPLE_COUNT", "40000"))
 candidate_spacing_m <- as.numeric(Sys.getenv("SEOUL_CANDIDATE_SPACING_M", "10"))
@@ -31,7 +44,7 @@ grid <- build_seoul_grid(
   cell_size_m = 500,
   boundary_path = boundary_path,
   grid_path = grid_path,
-  map_path = "data/grid_500m/seoul_grid_500m_map.png",
+  map_path = fuse_file("seoul_grid_500m_map", create_parent = TRUE),
   force = force_grid
 )
 
@@ -41,7 +54,7 @@ roads <- download_and_cache_osm_roads(
   grid = grid,
   out_path = roads_path,
   osm_place = "South Korea",
-  download_directory = "data/osm/raw",
+  download_directory = fuse_dir("osm_raw", create = TRUE),
   buffer_m = 250,
   force = force_osm
 )
@@ -82,7 +95,7 @@ message("Network length m: ", format(round(attr(samples, "network_length_m")), b
 print_sample_diagnostics(summary)
 
 if (write_debug) {
-  write_debug_outputs(samples = samples, output_dir = "data/sampling_global/debug")
+  write_debug_outputs(samples = samples, output_dir = fuse_dir("sampling_global_debug", create = TRUE))
 }
 
 make_leaflet_map(

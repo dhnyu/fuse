@@ -262,17 +262,16 @@ def run_metadata_acceptance(candidate_path: Path, config: MetadataConfig) -> tup
     checkpoint_path = data_file("gsv_metadata_checkpoint", create_parent=True)
     pending = iter_unprocessed_candidates(candidate_path, checkpoint_path, config.max_candidates)
     logging.info("Pending metadata candidates: %s", len(pending))
-    processed_now: list[dict[str, Any]] = []
-
     for start in range(0, len(pending), config.batch_size):
         batch = pending[start : start + config.batch_size]
         if not batch:
             continue
+        processed_batch: list[dict[str, Any]] = []
         with ThreadPoolExecutor(max_workers=config.workers) as executor:
             future_to_candidate = {executor.submit(query_one_metadata, candidate, config): candidate for candidate in batch}
             for future in as_completed(future_to_candidate):
-                processed_now.append(future.result())
-        append_safe_write(processed_now, checkpoint_path, key="candidate_id")
+                processed_batch.append(future.result())
+        append_safe_write(processed_batch, checkpoint_path, key="candidate_id")
         all_records = read_records(checkpoint_path)
         accepted, _ = accept_metadata_records(all_records, config.target_count)
         logging.info(

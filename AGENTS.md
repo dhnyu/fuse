@@ -18,7 +18,25 @@ contains large raw datasets.
 Large processed spatial outputs should be written to:
 ~/fusedatalarge/processed
 
-This processed directory is flat and should not contain subdirectories.
+(This processed directory is flat and should not contain subdirectories.)
+
+## fuse_external
+
+External research repositories: ~/fuse_external
+
+Contains third-party GitHub repositories used for embedding generation,
+representation learning, computer vision, and geospatial foundation models.
+
+Examples:
+
+- GeoNeuralRepresentation (for geometric embeddings of geospatial point/line/polygon objects)
+
+Rules:
+
+- Do not copy external repositories into ~/fuse.
+- Reference and execute them in place from ~/fuse_external.
+- Keep external repositories isolated from project code.
+- Modifications to external repositories should be documented before changing source code.
 
 # Programming Environment
 
@@ -187,3 +205,41 @@ Use a stable unique ID when possible, for example:
 - grid_id
 
 Do not store large attribute tables inside GeoPackage unless explicitly required.
+
+## Processed Outputs
+
+Processed canonical outputs are stored in:
+
+~/fusedatalarge/processed
+
+which includes
+~/fusedatalarge/processed/korea_buildings_vworld.gpkg (building data)
+~/fusedatalarge/processed/korea_poi_ngii_point.gpkg (point POI data)
+~/fusedatalarge/processed/korea_togieeum_polygon.gpkg (polygon POI data)
+
+Before generating new nationwide datasets, inspect existing processed outputs to avoid duplication.
+
+## Representation Learning Resources
+
+External embedding and foundation-model repositories are stored in:
+
+~/fuse_external
+
+Before implementing a new embedding workflow:
+
+- inspect existing external repositories
+- reuse existing pretrained models when appropriate
+- avoid reimplementing published embedding methods
+- document embedding dimensions, pretrained weights, and training settings
+- save generated embeddings as parquet files with stable IDs
+
+Embedding outputs should be stored in:
+
+~/fusedata/embeddings
+
+Use stable identifiers such as:
+
+- building_id
+- poi_id
+- road_id
+- grid_id

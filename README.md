@@ -1,252 +1,134 @@
-# Seoul Road Environment and Street View Sampling
+# FUSE
 
-This repository contains a Seoul road-environment sampling workflow and prototype Google Street View acquisition utilities.
+FUSE is a research codebase for multimodal geospatial representation learning.
+The long-term goal is spatial scene similarity evaluation: learning
+representations that can compare neighborhoods, districts, corridors, and other
+geographic scenes by their structure, function, and visual context.
 
-The current road sampling pipeline:
+Object embeddings, especially building embeddings, are an intermediate layer in
+that goal. The current implementation focuses on building-scale infrastructure
+because buildings provide a stable object system for constructing higher-level
+scene representations.
 
-- builds a 500 m Seoul grid in EPSG:5186
-- reads/caches OpenStreetMap roads from Geofabrik via `osmextract`
-- keeps a canonical Seoul road archive separate from the operational sampling network
-- filters road classes used for urban road-environment sampling
-- constructs a unified Seoul road network
-- generates dense regular candidate points along roads
-- applies reproducible greedy Euclidean thinning to avoid clustered samples
-- assigns final points to 500 m grids only after sampling
-- writes a no-geometry parquet output
-- exports lightweight map diagnostics for visual QA
+## Project Overview
 
-The current Street View prototype pipeline:
+The current project builds the object-level foundation for future scene
+embeddings:
 
-- runs metadata-first Google Street View checks from sampled points
-- stores Street View metadata and pilot summaries in parquet
-- downloads a small benchmark set of unique panoramas
-- reuses existing panorama JPGs when available
-- generates local directional crops from panoramas using `py360convert`
-- writes download manifests, logs, and crop-projection debug contact sheets
+- geometry: VWorld building footprints and Geo2Vec-style shape embeddings;
+- semantics: NGII POIs, KLIP/UPIS facilities, OSM POIs, roads, and
+  administrative context;
+- visual context: Google Street View panoramas and directional crops;
+- future fusion: object embeddings aggregated into scene representations for
+  spatial similarity evaluation.
+
+## Conceptual Architecture
+
+```text
+Spatial objects
+  VWorld buildings, NGII POIs, KLIP/UPIS facilities, OSM roads/POIs,
+  administrative areas, Google Street View samples
+        |
+        v
+Object embeddings
+  geometry + semantics + visual context
+        |
+        v
+Scene embeddings
+  aggregated object and relation representations
+        |
+        v
+Spatial scene similarity evaluation
+```
+
+## Major Datasets
+
+- VWorld buildings: authoritative national building footprints, processed at
+  14,388,938 buildings under `~/fusedatalarge/processed`.
+- NGII POIs: primary national activity/facility point source, processed at
+  9,801,999 points under `~/fusedatalarge/processed`.
+- KLIP/UPIS Togieeum polygons: national institutional and planning context,
+  processed at 470,928 polygons under `~/fusedatalarge/processed`.
+- OSM roads and POIs: road sampling, accessibility, and auxiliary semantic
+  context under `~/fusedata/osm`.
+- Google Street View: 40,000 accepted Seoul panoramas with raw images and
+  directional crops under `~/fusedata/streetview` and
+  `~/fusedatalarge/streetview`.
+- Geo2Vec outputs: Gwanak validation embeddings and large-scale prototype
+  artifacts under `~/fusedata/embeddings`,
+  `~/fusedata/gwanak_test/validation`, and
+  `~/fusedata/geo2vec_large_scale`.
+
+## Current Status
+
+Completed as of 2026-06-09:
+
+- nationwide VWorld building processing;
+- nationwide NGII POI processing;
+- nationwide KLIP/UPIS facility polygon processing;
+- Seoul OSM road and POI processing;
+- Seoul Street View metadata acceptance and large image acquisition;
+- Gwanak Geo2Vec validation;
+- Geo2Vec scaling studies through 1M buildings.
+
+In progress or not yet complete:
+
+- production semantic embedding generation;
+- Street View visual embedding generation;
+- 5M Geo2Vec stress test;
+- full nationwide production Geo2Vec embedding run;
+- final semantic graph;
+- final fused object representation;
+- scene embedding generation;
+- spatial scene similarity evaluation framework.
 
 ## Repository Layout
 
-Tracked source files are intentionally lightweight:
+```text
+fuse/
+  AGENTS.md                  project operating rules for future agents
+  CONTEXT.md                 detailed research memory and status
+  README.md                  this landing page
+  config/                    shared R/Python path configuration
+  R/                         reusable R spatial helpers
+  src/                       reusable Python helpers
+  scripts/                   project workflows
+    buildings/               VWorld building processing
+    poi/ and POI/            NGII and OSM POI processing
+    togieeum/                KLIP/UPIS facility processing
+    streetview/              Street View sampling and acquisition
+    embedding/               Geo2Vec preparation/wrappers
+    grid/                    Seoul grid workflows
+    validation/              lightweight validation utilities
+    visualization/           maps and diagnostics
+  docs/                      project notes and methodology docs
+  tests/gwanak_test/docs/    Gwanak Geo2Vec experiment reports
+  tests/geo2vec_large_scale/ large-scale Geo2Vec prototypes and reports
+```
 
-- `R/road_environment_sampling.R`: reusable functions
-- `scripts/grid/10_build_seoul_grid_500m.R`: builds the 500 m Seoul grid
-- `scripts/streetview/10_run_road_network_sampling_global.R`: runs the global road-network sampling workflow
-- `scripts/streetview/20_build_gsv_candidate_pool.R`: builds the oversampled Street View candidate pool
-- `scripts/streetview/30_run_gsv_metadata_acceptance.py`: runs resumable metadata validation and pano deduplication
-- `scripts/visualization/render_leaflet_global.R`: rerenders the optional map diagnostic from existing outputs
-- `scripts/validation/validate_paths.R` and `scripts/validation/validate_paths.py`: lightweight path validation utilities
-- `tests/test_road_environment_sampling.R`: lightweight global sampling tests
-- `tests/test_gsv_metadata_pilot.py`: metadata-only Street View pilot for the first 1000 sampled points
-- `tests/test_obtain_gsv_one.py`: one-point end-to-end Street View panorama prototype
-- `tests/test_obtain_gsv_100.py`: small cached/benchmark panorama acquisition and crop-regeneration pipeline
+Generated data are intentionally stored outside the repository:
 
-Generated outputs, cached OSM extracts, spatial files, parquet files, map diagnostics, and local reference corpora are stored outside the repository by default and ignored by Git.
+- `~/fusedata`: canonical project outputs, metadata, embeddings, and
+  visualizations;
+- `~/fusedatalarge`: raw large datasets, nationwide processed geometry, and
+  large Street View imagery.
 
-## Data Architecture
-
-Generated data live outside the repository by default in a sibling directory named `fusedata/`.
+## Working Notes
 
 Path handling is centralized in:
 
-- `config/paths.yml`: documented path contract
-- `config/paths.R`: R helpers such as `fuse_file()` and `fuse_dir()`
-- `src/fuse_paths.py`: Python `pathlib` helpers such as `data_file()` and `data_dir()`
+- `config/paths.yml`;
+- `config/paths.R`;
+- `src/fuse_paths.py`.
 
-Resolution order:
+The preferred projected CRS for spatial analysis is EPSG:5186.
 
-1. `FUSE_DATA_ROOT`, if set
-2. `../fusedata`, relative to the repository root, when present
-3. legacy `./data`, when present
-4. `../fusedata`, created for new outputs
+## Further Reading
 
-Main data directories:
-
-- `fusedata/geodata/`: source/admin geodata such as the Seoul boundary
-- `fusedata/grid_500m/`: 500 m aggregation/visualization grid
-- `fusedata/osm/raw/`: original Geofabrik OSM downloads
-- `fusedata/osm/canonical/seoul_roads_canonical.gpkg`: reusable Seoul road archive with tunnel roads and useful OSM attributes retained
-- `fusedata/osm/sampling/seoul_roads_sampling_network.gpkg`: non-tunnel operational network used for Poisson road sampling and Street View acquisition
-- `fusedata/sampling_global/`: global road-network sample outputs and map diagnostics
-- `fusedata/streetview/`: Street View metadata, panoramas, crops, manifests, logs, previews, and debug sheets
-
-Current road sampling outputs:
-
-- `fusedata/sampling_global/seoul_road_network_samples.parquet`: final no-geometry point sample table
-
-Tunnel filtering occurs only when constructing the sampling network. The canonical archive retains tunnel attributes so it remains reusable, while the Street View sampling workflow continues to use the same non-tunnel operational road logic.
-
-Street View output layout:
-
-```text
-fusedata/streetview/
-  metadata/
-    gsv_metadata_pilot_1000.parquet
-    gsv_metadata_pilot_summary.parquet
-    gsv_pano_duplication_counts.parquet
-    gsv_capture_year_distribution.parquet
-    gsv_metadata_test.parquet
-  panoramas/raw/
-  crops/front/
-  crops/right/
-  crops/rear/
-  crops/left/
-  manifests/
-    gsv_download_manifest_100.parquet
-  logs/
-  previews/
-  debug/
-```
-
-## Visual Examples
-
-The curated README assets under `docs/assets/` are lightweight copies of generated outputs.
-
-![Seoul road-network sampling map](docs/assets/seoul_road_network_sampling_map.png)
-
-Street View example panorama `-AJxJJBvXKn3vp4q0hEDxA`:
-
-![Raw Street View panorama](docs/assets/streetview_panorama_example.jpg)
-
-| Front | Left | Rear | Right |
-| --- | --- | --- | --- |
-| ![Front crop](docs/assets/streetview_crop_front.jpg) | ![Left crop](docs/assets/streetview_crop_left.jpg) | ![Rear crop](docs/assets/streetview_crop_rear.jpg) | ![Right crop](docs/assets/streetview_crop_right.jpg) |
-
-## Reproducible Workflow
-
-Validate path setup without running expensive pipelines:
-
-```bash
-Rscript scripts/validation/validate_paths.R
-python scripts/validation/validate_paths.py
-```
-
-Use an explicit data root when the sibling `fusedata/` location is not appropriate:
-
-```bash
-export FUSE_DATA_ROOT=/path/to/fusedata
-```
-
-Windows PowerShell:
-
-```powershell
-$env:FUSE_DATA_ROOT = "D:\fusedata"
-```
-
-On shared systems, a symlink is also acceptable if collaborators prefer the default layout:
-
-```bash
-ln -s /shared/project/fusedata ../fusedata
-```
-
-Run the lightweight tests:
-
-```bash
-Rscript tests/test_road_environment_sampling.R
-```
-
-Build the 500 m grid:
-
-```bash
-Rscript scripts/grid/10_build_seoul_grid_500m.R
-```
-
-Run the full sampling workflow:
-
-```bash
-Rscript scripts/streetview/10_run_road_network_sampling_global.R
-```
-
-Rerender only the map diagnostic without rerunning OSM downloads or sampling:
-
-```bash
-Rscript scripts/visualization/render_leaflet_global.R
-```
-
-Build the production Street View candidate pool:
-
-```bash
-Rscript scripts/streetview/20_build_gsv_candidate_pool.R
-```
-
-Run a small metadata acceptance pilot. The API key is read from `GOOGLE_MAPS_API_KEY`; do not hardcode it.
-
-```bash
-GOOGLE_MAPS_API_KEY=... python scripts/streetview/30_run_gsv_metadata_acceptance.py --target-count 100 --max-candidates 500
-```
-
-Materialize a small accepted-image pilot:
-
-```bash
-python scripts/streetview/40_materialize_gsv_images.py --limit 25
-```
-
-Finalize and validate the exact-size production manifest after successful image materialization:
-
-```bash
-python scripts/streetview/50_finalize_gsv_dataset.py
-python scripts/streetview/60_validate_gsv_final_dataset.py --require-images
-```
-
-Legacy prototype scripts remain in `tests/` for small development checks:
-
-```bash
-python tests/test_gsv_metadata_pilot.py
-python tests/test_obtain_gsv_one.py
-env GSV_EXISTING_PANOS_ONLY=true GSV_OVERWRITE_CROPS=true GSV_BENCHMARK_N_PANOS=20 python tests/test_obtain_gsv_100.py
-```
-
-Useful environment variables:
-
-- `FUSE_DATA_ROOT`: optional external data root; default is sibling `../fusedata`
-- `FUSE_REPO_ROOT`: optional repository root override for unusual launch contexts
-- `SEOUL_TARGET_SAMPLE_COUNT`: final target point count, default `40000`
-- `SEOUL_CANDIDATE_SPACING_M`: regular spacing for road candidates, default `10`
-- `SEOUL_MIN_SAMPLE_SPACING_M`: greedy Euclidean thinning distance, default `50`
-- `SEOUL_SAMPLE_SEED`: deterministic shuffle seed, default `20260517`
-- `SEOUL_CANDIDATE_WORKERS`: parallel workers for road candidate generation, default `40`
-- `SEOUL_CANDIDATE_CHUNK_SIZE`: road features per candidate-generation chunk, default `2000`
-- `SEOUL_FORCE_GRID=true`: rebuild the 500 m grid
-- `SEOUL_FORCE_OSM=true`: refresh the cached Geofabrik road extract
-- `SEOUL_SAMPLES_PARQUET`: parquet path used by the map diagnostic renderer
-- `SEOUL_LEAFLET_MAX_POINTS`: sampled points rendered in the map diagnostic, default `30000`
-
-The map diagnostic intentionally renders only the Seoul boundary, 500 m grid boundaries, and sampled points. Road geometries are excluded to keep browser rendering stable; roads are still used by the sampling pipeline.
-
-Street View environment variables:
-
-- `GOOGLE_MAPS_API_KEY`: required for official Street View metadata endpoint calls
-- `GSV_METADATA_PILOT_SIZE`: metadata pilot row count, default `1000`
-- `GSV_METADATA_THROTTLE_SECONDS`: polite metadata request delay, default `0.05`
-- `GSV_BENCHMARK_N_PANOS`: number of unique panoramas for benchmark/crop validation, default `100`
-- `GSV_BENCHMARK_WORKERS`: thread-pool workers for panorama benchmark, default `6`
-- `GSV_BENCHMARK_ZOOMS`: tile zoom fallback list, default `2,1`
-- `GSV_EXISTING_PANOS_ONLY=true`: reuse existing panorama JPGs and skip download attempts
-- `GSV_OVERWRITE_CROPS=true`: regenerate directional crops even if crop JPGs already exist
-
-The production Street View workflow is stage-oriented and resumable, but full 40,000-image acquisition should still be launched intentionally because it consumes API quota, network bandwidth, and substantial storage.
-
-## Ignored Outputs
-
-The `.gitignore` excludes generated and heavyweight artifacts, including:
-
-- `data/`: legacy generated-data location, retained only for backward-compatible local checkouts
-- `*.gpkg`, shapefile sidecars, GeoJSON, rasters, parquet, Arrow/Feather, and CSV files
-- Leaflet/htmlwidget exports such as `*.html` and `*_files/`
-- image exports such as `*.png` and `*.jpg`
-- `fuse_ref/`: local PDF/reference corpus
-- `pre_models/`: external model checkout and large model data
-- R session files and local caches
-
-Existing outputs should live in `fusedata/` or a path named by `FUSE_DATA_ROOT`. They remain available locally but are intentionally untracked because they are reproducible, large, machine-specific, or derived from external data.
-
-## Optional renv
-
-This repository can be initialized with `renv` if you want package-version pinning:
-
-```r
-install.packages("renv")
-renv::init()
-renv::snapshot()
-```
-
-The local `renv/library/` directory is ignored; `renv.lock` should be tracked if you initialize it.
+- [research_vision.md](research_vision.md): theoretical motivation,
+  dissertation framing, research questions, object-to-scene hierarchy, and
+  long-term scientific vision.
+- [CONTEXT.md](CONTEXT.md): project memory, completed work, experimental
+  history, design decisions, infrastructure evolution, and current status.
+- [AGENTS.md](AGENTS.md): operational rules, data-location conventions, and
+  working instructions for future agent sessions.

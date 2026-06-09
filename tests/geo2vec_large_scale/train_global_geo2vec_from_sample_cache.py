@@ -114,7 +114,8 @@ def restore_rng_state(state: dict[str, Any]) -> None:
             x.detach().cpu().to(torch.uint8) if isinstance(x, torch.Tensor) else x
             for x in state["torch_cuda_all"]
         ]
-        torch.cuda.set_rng_state_all(cuda_states)
+        visible_count = torch.cuda.device_count()
+        torch.cuda.set_rng_state_all(cuda_states[:visible_count])
 
 
 def checkpoint_path(run_dir: Path, global_step: int) -> Path:
@@ -174,17 +175,23 @@ def train_batch(
     loss_fn: SDFLoss,
     device: torch.device,
     batch: pd.DataFrame,
-) -> float:
+) -> dict[str, float]:
     ids = torch.as_tensor(batch["geo2vec_internal_id"].to_numpy(dtype=np.int64), dtype=torch.long, device=device)
     xy = torch.as_tensor(batch[["x", "y"]].to_numpy(dtype=np.float32), dtype=torch.float32, device=device)
     sdf = torch.as_tensor(batch["sdf"].to_numpy(dtype=np.float32).reshape(-1, 1), dtype=torch.float32, device=device)
     optimizer.zero_grad(set_to_none=True)
     pred = model(ids, xy)
     latent = model.poly_embedding_layer(ids)
+    reconstruction_loss = torch.sum(torch.abs(pred - sdf)) if loss_fn.sum else torch.mean(torch.abs(pred - sdf))
+    latent_regularization_loss = torch.mean(latent.pow(2)) * loss_fn.code_reg_weight if loss_fn.code_reg_weight > 0.0 else torch.zeros((), device=device)
     loss = loss_fn(pred, sdf, latent)
     loss.backward()
     optimizer.step()
-    return float(loss.item())
+    return {
+        "total_loss": float(loss.item()),
+        "reconstruction_loss": float(reconstruction_loss.item()),
+        "latent_regularization_loss": float(latent_regularization_loss.item()),
+    }
 
 
 def eval_validation(model: Geo2Vec_Model, device: torch.device, df: pd.DataFrame, batch_size: int) -> float | None:
@@ -210,11 +217,36 @@ def synchronize_if_cuda(device: torch.device) -> None:
         torch.cuda.synchronize(device)
 
 
+def training_suffix_from_manifest(manifest: dict[str, Any]) -> str:
+    branch = str(manifest.get("branch") or "shape")
+    limit = manifest.get("limit")
+    sample_config = manifest.get("sample_config", {})
+    sample_config_version = str(
+        manifest.get("sample_config_version")
+        or sample_config.get("sample_config_version")
+        or "unknown_config"
+    )
+    if limit is not None:
+        try:
+            from geo2vec_large_scale_common import suffix_for_limit
+
+            limit_suffix = suffix_for_limit(int(limit))
+        except Exception:
+            limit_suffix = str(limit)
+        return f"{branch}_{limit_suffix}_{sample_config_version}"
+    sample_name = Path(manifest["sample_dir"]).name
+    for prefix in [f"korea_geo2vec_{branch}_samples_", "korea_geo2vec_sdf_samples_"]:
+        if sample_name.startswith(prefix):
+            return f"{branch}_{sample_name.removeprefix(prefix)}"
+    return f"{branch}_{sample_name}"
+
+
 def main() -> None:
     args = parse_args()
     manifest = read_json(args.manifest_json)
     validate_sample_manifest_for_training(manifest)
-    suffix = Path(manifest["sample_dir"]).name.replace("korea_geo2vec_sdf_samples_", "")
+    branch = str(manifest.get("branch") or "shape")
+    suffix = training_suffix_from_manifest(manifest)
     run_dir = args.run_dir or (TRAINING_RUN_DIR / f"korea_geo2vec_global_train_{suffix}_{args.geo_dim}d")
     if run_dir.exists() and any(run_dir.iterdir()) and not (args.resume or args.overwrite_run_dir):
         raise SystemExit(f"Run directory exists. Use --resume or --overwrite-run-dir: {run_dir}")
@@ -245,7 +277,11 @@ def main() -> None:
             "hidden_size": args.hidden_size,
             "num_layers": args.num_layers,
             "num_freqs": args.num_freqs,
+            "branch": branch,
         },
+        "sample_branch": branch,
+        "sample_normalization": manifest.get("normalization"),
+        "sample_config": manifest.get("sample_config"),
         "id_map_checksum": id_map_checksum,
         "sample_manifest_checksum": manifest_checksum,
         "device": str(device),
@@ -278,14 +314,19 @@ def main() -> None:
             train = train.iloc[order].reset_index(drop=True)
             start_offset = int(state["current_sample_offset"]) if (epoch == state["epoch"] and shard_index == state["current_shard_index"]) else 0
             shard_loss = 0.0
+            shard_reconstruction_loss = 0.0
+            shard_latent_regularization_loss = 0.0
             shard_steps = 0
             synchronize_if_cuda(device)
             shard_start = time.time()
             model.train()
             for offset in range(start_offset, len(train), args.batch_size):
                 batch = train.iloc[offset : offset + args.batch_size]
-                loss = train_batch(model, optimizer, loss_fn, device, batch)
+                losses = train_batch(model, optimizer, loss_fn, device, batch)
+                loss = losses["total_loss"]
                 shard_loss += loss
+                shard_reconstruction_loss += losses["reconstruction_loss"]
+                shard_latent_regularization_loss += losses["latent_regularization_loss"]
                 shard_steps += 1
                 state["global_step"] += 1
                 state["samples_seen"] += int(len(batch))
@@ -320,6 +361,8 @@ def main() -> None:
                 "train_rows": int(len(train)),
                 "validation_rows": int((df["split"] == 1).sum()),
                 "mean_train_loss": float(shard_loss / shard_steps) if shard_steps else None,
+                "mean_train_reconstruction_loss": float(shard_reconstruction_loss / shard_steps) if shard_steps else None,
+                "mean_train_latent_regularization_loss": float(shard_latent_regularization_loss / shard_steps) if shard_steps else None,
                 "validation_l1": val_loss,
                 "elapsed_seconds": elapsed,
                 "training_samples_per_second": float(len(train) / elapsed) if elapsed > 0 else None,

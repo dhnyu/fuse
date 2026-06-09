@@ -98,7 +98,7 @@ def main() -> None:
     for density in DENSITIES:
         name = density["name"]
         sample_root = SAMPLE_CACHE_DIR / STUDY_NAME / name
-        sample_manifest = sample_root / f"korea_geo2vec_sdf_samples_{suffix_for_limit(n)}_{density['sample_config_version']}" / "manifest.json"
+        sample_manifest = sample_root / f"korea_geo2vec_shape_samples_{suffix_for_limit(n)}_{density['sample_config_version']}" / "manifest.json"
         if not (sample_manifest.exists() and args.skip_existing):
             run(
                 [
@@ -114,6 +114,8 @@ def main() -> None:
                     GWANAK_LAYER,
                     "--limit",
                     str(n),
+                    "--branch",
+                    "shape",
                     "--buildings-per-shard",
                     "5000",
                     "--workers",

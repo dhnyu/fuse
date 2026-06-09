@@ -42,6 +42,7 @@ from geo2vec_large_scale_common import (
 
 
 DEFAULT_SAMPLE_CONFIG_VERSION = "sdf_proto_v1"
+VALID_BRANCHES = {"shape", "location"}
 SAMPLE_SCHEMA = pa.schema(
     [
         ("geo2vec_internal_id", pa.int64()),
@@ -86,6 +87,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--layer", default=GEOMETRY_LAYER)
     parser.add_argument("--output-dir", type=Path, default=SAMPLE_CACHE_DIR)
     parser.add_argument("--limit", type=int, required=True)
+    parser.add_argument("--branch", choices=sorted(VALID_BRANCHES), default="shape")
     parser.add_argument("--buildings-per-shard", type=int, default=5000)
     parser.add_argument("--base-seed", type=int, default=BASE_SEED)
     parser.add_argument("--sample-config-version", default=DEFAULT_SAMPLE_CONFIG_VERSION)
@@ -152,6 +154,63 @@ def normalize_for_shape(geom: BaseGeometry, total_bounds: tuple[float, float, fl
     return geom
 
 
+def normalize_for_location(geom: BaseGeometry, total_bounds: tuple[float, float, float, float]) -> BaseGeometry | None:
+    geom = polygonal_part(geom)
+    if geom is None:
+        return None
+    minx, miny, maxx, maxy = total_bounds
+    width = max(maxx - minx, 1e-9)
+    height = max(maxy - miny, 1e-9)
+    geom = affinity.translate(geom, xoff=-minx, yoff=-miny)
+    geom = affinity.scale(geom, xfact=1.0 / width, yfact=1.0 / height, origin=(0, 0))
+    return geom
+
+
+def normalize_geometry(geom: BaseGeometry, total_bounds: tuple[float, float, float, float], branch: str) -> BaseGeometry | None:
+    if branch == "shape":
+        return normalize_for_shape(geom, total_bounds)
+    if branch == "location":
+        return normalize_for_location(geom, total_bounds)
+    raise ValueError(f"Unsupported Geo2Vec branch: {branch}")
+
+
+def normalization_metadata(total_bounds: tuple[float, float, float, float], branch: str) -> dict[str, Any]:
+    minx, miny, maxx, maxy = total_bounds
+    width = max(maxx - minx, 1e-9)
+    height = max(maxy - miny, 1e-9)
+    if branch == "shape":
+        formula = (
+            "First apply original GeoNeuralRepresentation dataset normalization: "
+            "x1=(x-minx)/(maxx-minx), y1=(y-miny)/(maxy-miny). "
+            "Then per entity apply shape normalization: subtract entity bbox center "
+            "and divide both axes by max(entity_width, entity_height)."
+        )
+    elif branch == "location":
+        formula = (
+            "Apply original GeoNeuralRepresentation dataset/global normalization only: "
+            "x1=(x-minx)/(maxx-minx), y1=(y-miny)/(maxy-miny). "
+            "No per-entity centering or per-entity scaling is applied."
+        )
+    else:
+        raise ValueError(f"Unsupported Geo2Vec branch: {branch}")
+    return {
+        "branch": branch,
+        "source_total_bounds": [float(minx), float(miny), float(maxx), float(maxy)],
+        "source_width": float(width),
+        "source_height": float(height),
+        "normalized_bounds_without_buffer": [0.0, 0.0, 1.0, 1.0] if branch == "location" else None,
+        "formula": formula,
+    }
+
+
+def uniform_sample_bounds(branch: str, buffer: float = 0.1) -> tuple[float, float, float, float]:
+    if branch == "shape":
+        return (-0.6, 0.6, -0.6, 0.6)
+    if branch == "location":
+        return (0.0 - buffer, 1.0 + buffer, 0.0 - buffer, 1.0 + buffer)
+    raise ValueError(f"Unsupported Geo2Vec branch: {branch}")
+
+
 def iter_polygon_rings(geom: BaseGeometry) -> list[list[tuple[float, float]]]:
     parts = list(geom.geoms) if geom.geom_type == "MultiPolygon" else [geom]
     rings: list[list[tuple[float, float]]] = []
@@ -176,7 +235,8 @@ def sample_geometry(
     total_bounds: tuple[float, float, float, float],
     config: dict[str, Any],
 ) -> pd.DataFrame:
-    normalized = normalize_for_shape(geom, total_bounds)
+    branch = str(config["branch"])
+    normalized = normalize_geometry(geom, total_bounds, branch)
     if normalized is None or normalized.is_empty:
         return pd.DataFrame(columns=[field.name for field in SAMPLE_SCHEMA])
     seed = stable_hash_int(config["base_seed"], building_id, gid, config["sample_config_version"])
@@ -217,8 +277,9 @@ def sample_geometry(
 
     grid = int(config["uniform_grid"])
     if grid > 0:
-        for x in np.linspace(-0.6, 0.6, grid, dtype=np.float32):
-            for y in np.linspace(-0.6, 0.6, grid, dtype=np.float32):
+        minx, maxx, miny, maxy = config["uniform_sample_bounds"]
+        for x in np.linspace(minx, maxx, grid, dtype=np.float32):
+            for y in np.linspace(miny, maxy, grid, dtype=np.float32):
                 add(float(x), float(y), 3)
 
     return pd.DataFrame.from_records(rows, columns=[field.name for field in SAMPLE_SCHEMA])
@@ -236,23 +297,25 @@ def sample_geometry_worker(payload: tuple[str, int, BaseGeometry, tuple[float, f
         return gid, f"{type(exc).__name__}: {exc}", empty
 
 
-def load_geometry_subset(path: Path, layer: str, limit: int) -> tuple[pd.DataFrame, tuple[float, float, float, float]]:
+def load_geometry_subset(path: Path, layer: str, limit: int) -> tuple[pd.DataFrame, tuple[float, float, float, float], str | None]:
     info = pyogrio.read_info(path, layer=layer)
     total_bounds = tuple(float(x) for x in info["total_bounds"])
+    crs = info.get("crs")
     sql = f"SELECT building_id, geom FROM {layer} ORDER BY building_id LIMIT {int(limit)}"
     gdf = pyogrio.read_dataframe(path, sql=sql)
-    return gdf, total_bounds
+    return gdf, total_bounds, str(crs) if crs is not None else None
 
 
 def main() -> None:
     args = parse_args()
     refuse_unsafe_limit(args.limit, args.force_large)
+    branch = str(args.branch)
     id_map = pd.read_parquet(args.id_map).head(args.limit)
     if len(id_map) != args.limit:
         raise RuntimeError(f"Id map has {len(id_map):,} rows, expected {args.limit:,}.")
     suffix = suffix_for_limit(args.limit)
     sample_config_version = str(args.sample_config_version)
-    sample_dir = args.output_dir / f"korea_geo2vec_sdf_samples_{suffix}_{sample_config_version}"
+    sample_dir = args.output_dir / f"korea_geo2vec_{branch}_samples_{suffix}_{sample_config_version}"
     sample_dir.mkdir(parents=True, exist_ok=True)
     manifest_parquet = sample_dir / "manifest.parquet"
     manifest_json = sample_dir / "manifest.json"
@@ -263,16 +326,18 @@ def main() -> None:
             return
 
     config = {
+        "branch": branch,
         "sample_config_version": sample_config_version,
         "base_seed": int(args.base_seed),
         "samples_per_unit": float(args.samples_per_unit),
         "point_sample": int(args.point_sample),
         "sample_band_width": float(args.sample_band_width),
         "uniform_grid": int(args.uniform_grid),
+        "uniform_sample_bounds": uniform_sample_bounds(branch),
         "validation_ratio": float(args.validation_ratio),
     }
     workers = max(1, int(args.workers))
-    gdf, total_bounds = load_geometry_subset(args.geometry, args.layer, args.limit)
+    gdf, total_bounds, source_crs = load_geometry_subset(args.geometry, args.layer, args.limit)
     merged = id_map.merge(gdf, on="building_id", how="left", validate="one_to_one")
     if merged["geometry"].isna().any():
         raise RuntimeError("Some id-map buildings were not found in the geometry subset.")
@@ -359,6 +424,7 @@ def main() -> None:
     manifest = {
         "script": Path(__file__).name,
         "complete": True,
+        "branch": branch,
         "sample_dir": str(sample_dir),
         "manifest_parquet": str(manifest_parquet),
         "manifest_checksum_sha256": manifest_checksum,
@@ -366,6 +432,9 @@ def main() -> None:
         "id_map_metadata": str(args.id_map_metadata) if args.id_map_metadata else None,
         "geometry": str(args.geometry),
         "layer": args.layer,
+        "source_crs": source_crs,
+        "total_bounds": [float(x) for x in total_bounds],
+        "normalization": normalization_metadata(total_bounds, branch),
         "limit": int(args.limit),
         "building_count": int(len(merged)),
         "total_samples": int(total_samples),

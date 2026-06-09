@@ -172,17 +172,6 @@ Examples:
 * ~/fusedatalarge/processed
 * ~/fuse_external
 
-# Reproducibility
-
-Prefer deterministic workflows.
-
-When random sampling is used:
-
-* set explicit seeds
-* document seeds
-* preserve validated outputs
-* avoid changing canonical datasets unless requested
-
 # Embeddings
 
 Embedding outputs should be stored in:
@@ -195,3 +184,64 @@ Use stable identifiers:
 * poi_id
 * road_id
 * grid_id
+
+# Reproducibility
+
+Prefer deterministic workflows.
+
+When random sampling is used:
+
+* set explicit seeds
+* document seeds
+* preserve validated outputs
+* avoid changing canonical datasets unless requested
+
+# Documentation Management
+
+Stable project documents may exist at repository root:
+
+* README.md
+* AGENTS.md
+* CONTEXT.md
+* research_vision.md
+
+Use:
+
+* ~/fuse/docs
+
+for stable project documentation intended for long-term reference.
+
+Use:
+
+* ~/fuse/reports
+
+for generated reports, audits, experiment summaries, implementation notes, benchmarking reports, validation reports, and Codex-generated Markdown outputs.
+
+Generated Markdown files should:
+
+* be written only under ~/fuse/reports
+* use sortable filenames
+* follow the format:
+
+  YYYYMMDD_HHMM_short_description.md
+
+Example:
+
+* 20260609_1430_geoneuralrepresentation_shape_location_audit.md
+
+Do not create generated Markdown reports inside:
+
+* tests/
+* scripts/
+* src/
+* experiment subdirectories
+
+README.md files inside code directories may be used as local documentation and are exempt from this rule.
+
+When creating a new report:
+
+* check for an existing related report first
+* append or update when appropriate
+* avoid creating duplicate reports covering the same topic
+
+

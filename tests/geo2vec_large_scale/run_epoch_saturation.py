@@ -122,7 +122,7 @@ def build_gwanak_id_map(overwrite: bool) -> tuple[Path, Path, int]:
 
 
 def sample_manifest_path(sample_root: Path, limit: int, version: str) -> Path:
-    return sample_root / f"korea_geo2vec_sdf_samples_{suffix_for_limit(limit)}_{version}" / "manifest.json"
+    return sample_root / f"korea_geo2vec_shape_samples_{suffix_for_limit(limit)}_{version}" / "manifest.json"
 
 
 def generate_cache(
@@ -156,6 +156,8 @@ def generate_cache(
         GWANAK_LAYER,
         "--limit",
         str(limit),
+        "--branch",
+        "shape",
         "--buildings-per-shard",
         str(buildings_per_shard),
         "--workers",

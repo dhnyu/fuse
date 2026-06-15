@@ -3,10 +3,46 @@
 # FUSE_DATA_ROOT overrides data_root_default. If unset, the code prefers the
 # sibling directory ../fusedata when it exists, then falls back to legacy ./data
 # when present, and otherwise creates/uses ../fusedata.
+#
+# FUSE_LARGE_DATA_ROOT stores source-like and heavy reference assets:
+# raw/, osm/, geodata/, streetview/, and processed/.
 data_root_env: FUSE_DATA_ROOT
+large_data_root_env: FUSE_LARGE_DATA_ROOT
 repo_root_env: FUSE_REPO_ROOT
 data_root_default: ../fusedata
+large_data_root_default: ../fusedatalarge
 legacy_data_root: data
+
+large_directory_keys:
+  - geodata
+  - osm
+  - osm_raw
+  - osm_canonical
+  - osm_canonical_gpkg
+  - osm_canonical_parquet
+  - osm_sampling
+  - osm_metadata
+  - osm_logs
+  - osm_tmp
+  - streetview_panoramas_raw
+  - streetview_crops_front
+  - streetview_crops_right
+  - streetview_crops_rear
+  - streetview_crops_left
+  - streetview_previews
+  - streetview_logs
+  - streetview_manifests
+  - streetview_debug
+
+large_file_keys:
+  - seoul_boundary
+  - gadm_dir
+  - osm_pbf
+  - osm_roads_canonical
+  - osm_roads_sampling_network
+  - osm_poi_tmp_gpkg
+  - gsv_image_manifest
+  - streetview_manifest_100
 
 directories:
   geodata: geodata
@@ -23,6 +59,7 @@ directories:
   sampling_global: sampling_global
   sampling_global_debug: sampling_global/debug
   streetview: streetview
+  streetview_final: streetview/final
   streetview_metadata: streetview/metadata
   streetview_panoramas_raw: streetview/panoramas/raw
   streetview_crops_front: streetview/crops/front
@@ -51,8 +88,8 @@ files:
   gsv_metadata_checkpoint: streetview/metadata/gsv_metadata_checkpoint.parquet
   gsv_metadata_rejection_summary: streetview/metadata/gsv_metadata_rejection_summary.parquet
   gsv_sampling_network_composition: streetview/metadata/gsv_sampling_network_composition.parquet
-  gsv_final_manifest: streetview/manifests/gsv_final_manifest.parquet
-  gsv_image_manifest: streetview/manifests/gsv_image_manifest.parquet
+  gsv_final_manifest: streetview/final/gsv_seoul_metadata_final_40000.parquet
+  gsv_image_manifest: streetview/manifests/gsv_large_image_acquisition_manifest.parquet
   gsv_final_coverage_leaflet: streetview/metadata/gsv_final_coverage_map.html
   gsv_diagnostics_report: streetview/metadata/gsv_diagnostics_report.md
   streetview_metadata_test: streetview/metadata/gsv_metadata_test.parquet

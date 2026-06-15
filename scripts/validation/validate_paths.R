@@ -16,9 +16,28 @@ source(file.path(repo_root, "config", "paths.R"))
 
 expected_discoverable_files <- c(
   "seoul_boundary",
-  "seoul_grid_500m",
   "osm_roads_canonical",
-  "samples_global_parquet"
+  "samples_global_parquet",
+  "gsv_final_manifest",
+  "gsv_image_manifest"
+)
+
+required_directory_keys <- c(
+  "geodata",
+  "osm",
+  "osm_raw",
+  "osm_canonical",
+  "osm_sampling",
+  "sampling_global",
+  "streetview",
+  "streetview_final",
+  "streetview_metadata",
+  "streetview_panoramas_raw",
+  "streetview_crops_front",
+  "streetview_crops_right",
+  "streetview_crops_rear",
+  "streetview_crops_left",
+  "streetview_manifests"
 )
 
 can_write <- function(directory) {
@@ -32,26 +51,34 @@ can_write <- function(directory) {
   ok
 }
 
-fuse_ensure_core_dirs()
+if (tolower(Sys.getenv("FUSE_VALIDATE_CREATE_DIRS", "false")) == "true") {
+  fuse_ensure_core_dirs()
+}
 env <- fuse_print_environment()
 
-missing_dirs <- names(FUSE_PATH_CONFIG$directories)[
-  !vapply(names(FUSE_PATH_CONFIG$directories), function(key) dir.exists(fuse_dir(key)), logical(1))
+missing_required_dirs <- required_directory_keys[
+  !vapply(required_directory_keys, function(key) dir.exists(fuse_dir(key)), logical(1))
 ]
-unwritable_dirs <- names(FUSE_PATH_CONFIG$directories)[
-  !vapply(names(FUSE_PATH_CONFIG$directories), function(key) can_write(fuse_dir(key)), logical(1))
+optional_directory_keys <- setdiff(names(FUSE_PATH_CONFIG$directories), required_directory_keys)
+optional_missing_dirs <- optional_directory_keys[
+  !vapply(optional_directory_keys, function(key) dir.exists(fuse_dir(key)), logical(1))
+]
+unwritable_dirs <- required_directory_keys[
+  !vapply(required_directory_keys, function(key) dir.exists(fuse_dir(key)) && can_write(fuse_dir(key)), logical(1))
 ]
 missing_files <- expected_discoverable_files[
   !vapply(expected_discoverable_files, function(key) file.exists(fuse_file(key)), logical(1))
 ]
 
 cat("  data_root_writable: ", can_write(env$data_root), "\n", sep = "")
+cat("  large_data_root_writable: ", can_write(env$large_data_root), "\n", sep = "")
 cat("  configured_directories: ", length(FUSE_PATH_CONFIG$directories), "\n", sep = "")
 cat("  configured_files: ", length(FUSE_PATH_CONFIG$files), "\n", sep = "")
-cat("  missing_directories: ", if (length(missing_dirs)) paste(missing_dirs, collapse = ", ") else "none", "\n", sep = "")
+cat("  missing_required_directories: ", if (length(missing_required_dirs)) paste(missing_required_dirs, collapse = ", ") else "none", "\n", sep = "")
+cat("  optional_missing_directories: ", if (length(optional_missing_dirs)) paste(optional_missing_dirs, collapse = ", ") else "none", "\n", sep = "")
 cat("  unwritable_directories: ", if (length(unwritable_dirs)) paste(unwritable_dirs, collapse = ", ") else "none", "\n", sep = "")
 cat("  missing_expected_files: ", if (length(missing_files)) paste(missing_files, collapse = ", ") else "none", "\n", sep = "")
 
-if (length(missing_dirs) || length(unwritable_dirs)) {
+if (length(missing_required_dirs) || length(unwritable_dirs)) {
   quit(status = 1)
 }

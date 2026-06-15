@@ -29,11 +29,30 @@ from fuse_paths import (  # noqa: E402
 )
 
 
+REQUIRED_DIRECTORY_KEYS = [
+    "geodata",
+    "osm",
+    "osm_raw",
+    "osm_canonical",
+    "osm_sampling",
+    "sampling_global",
+    "streetview",
+    "streetview_final",
+    "streetview_metadata",
+    "streetview_panoramas_raw",
+    "streetview_crops_front",
+    "streetview_crops_right",
+    "streetview_crops_rear",
+    "streetview_crops_left",
+    "streetview_manifests",
+]
+
 EXPECTED_DISCOVERABLE_FILES = [
     "seoul_boundary",
-    "seoul_grid_500m",
     "osm_roads_canonical",
     "samples_global_parquet",
+    "gsv_final_manifest",
+    "gsv_image_manifest",
 ]
 
 
@@ -59,17 +78,21 @@ def main() -> int:
     root = data_root(create=True)
     print(f"  data_root_writable: {can_write(root)}")
 
-    missing_dirs = [key for key in DIRECTORIES if not data_dir(key).is_dir()]
-    unwritable_dirs = [key for key in DIRECTORIES if data_dir(key).is_dir() and not can_write(data_dir(key))]
+    missing_required_dirs = [key for key in REQUIRED_DIRECTORY_KEYS if not data_dir(key).is_dir()]
+    optional_missing_dirs = [
+        key for key in DIRECTORIES if key not in REQUIRED_DIRECTORY_KEYS and not data_dir(key).is_dir()
+    ]
+    unwritable_dirs = [key for key in REQUIRED_DIRECTORY_KEYS if data_dir(key).is_dir() and not can_write(data_dir(key))]
     missing_files = [key for key in EXPECTED_DISCOVERABLE_FILES if not data_file(key).exists()]
 
     print(f"  configured_directories: {len(DIRECTORIES)}")
     print(f"  configured_files: {len(FILES)}")
-    print(f"  missing_directories: {', '.join(missing_dirs) if missing_dirs else 'none'}")
+    print(f"  missing_required_directories: {', '.join(missing_required_dirs) if missing_required_dirs else 'none'}")
+    print(f"  optional_missing_directories: {', '.join(optional_missing_dirs) if optional_missing_dirs else 'none'}")
     print(f"  unwritable_directories: {', '.join(unwritable_dirs) if unwritable_dirs else 'none'}")
     print(f"  missing_expected_files: {', '.join(missing_files) if missing_files else 'none'}")
 
-    if missing_dirs or unwritable_dirs:
+    if missing_required_dirs or unwritable_dirs:
         return 1
     return 0
 

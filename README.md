@@ -44,20 +44,35 @@ Spatial scene similarity evaluation
 ## Major Datasets
 
 - VWorld buildings: authoritative national building footprints, processed at
-  14,388,938 buildings under `~/fusedatalarge/processed`.
+  14,388,938 buildings under `~/fusedatalarge/processed`; raw archives live
+  under `~/fusedatalarge/raw/Building_vworld`.
 - NGII POIs: primary national activity/facility point source, processed at
-  9,801,999 points under `~/fusedatalarge/processed`.
-- KLIP/UPIS Togieeum polygons: national institutional and planning context,
-  processed at 470,928 polygons under `~/fusedatalarge/processed`.
+  9,801,999 points under `~/fusedatalarge/processed`; raw archives live under
+  `~/fusedatalarge/raw/POI_ngii`.
+- KLIP/UPIS Togieeum polygon POIs: canonical facility-filtered national
+  polygon POI source for downstream embedding and analysis. Geometry is
+  `~/fusedatalarge/processed/korea_polygon_poi_togieeum_facility.gpkg`;
+  attributes are
+  `~/fusedatalarge/processed/korea_polygon_poi_togieeum_facility_attributes.parquet`.
+  This EPSG:5186 layer contains 134,912 polygon POIs after removing 1,127
+  route-like transportation corridor polygons from the broader cleaned
+  Togieeum layer. The legacy broader-cleaned files remain available as
+  `~/fusedatalarge/processed/korea_polygon_poi_togieeum.gpkg` and
+  `~/fusedatalarge/processed/korea_polygon_poi_togieeum_attributes.parquet`;
+  raw archives live under `~/fusedatalarge/raw/togieeum`.
+- Administrative and boundary reference geodata: large reference layers live
+  under `~/fusedatalarge/geodata`.
 - OSM roads and POIs: road sampling, accessibility, and auxiliary semantic
-  context under `~/fusedata/osm`.
-- Google Street View: 40,000 accepted Seoul panoramas with raw images and
-  directional crops under `~/fusedata/streetview` and
-  `~/fusedatalarge/streetview`.
+  context under `~/fusedatalarge/osm` because these are treated as source-like
+  base layers.
+- Google Street View: 40,000 accepted Seoul panoramas. Metadata and analysis
+  products live under `~/fusedata/streetview`; raw images, crops, and large
+  manifests live under `~/fusedatalarge/streetview`.
 - Geo2Vec outputs: Gwanak validation embeddings and large-scale prototype
-  artifacts under `~/fusedata/embeddings`,
-  `~/fusedata/gwanak_test/validation`, and
-  `~/fusedata/geo2vec_large_scale`.
+  artifacts are derived outputs. Their historical/default locations are
+  `~/fusedata/embeddings`, `~/fusedata/gwanak_test/validation`, and
+  `~/fusedata/geo2vec_large_scale`, but these output trees are not currently
+  present in the active filesystem.
 
 ## Current Status
 
@@ -65,7 +80,7 @@ Completed as of 2026-06-09:
 
 - nationwide VWorld building processing;
 - nationwide NGII POI processing;
-- nationwide KLIP/UPIS facility polygon processing;
+- nationwide KLIP/UPIS facility-filtered polygon POI processing;
 - Seoul OSM road and POI processing;
 - Seoul Street View metadata acceptance and large image acquisition;
 - Gwanak Geo2Vec validation;
@@ -108,10 +123,13 @@ fuse/
 
 Generated data are intentionally stored outside the repository:
 
-- `~/fusedata`: canonical project outputs, metadata, embeddings, and
-  visualizations;
-- `~/fusedatalarge`: raw large datasets, nationwide processed geometry, and
-  large Street View imagery.
+- `~/fusedata`: derived outputs, metadata, embeddings, validation outputs,
+  scene construction outputs, analysis products, and visualizations.
+- `~/fusedatalarge/raw`: raw source datasets.
+- `~/fusedatalarge/osm`: OSM source-derived base layers.
+- `~/fusedatalarge/geodata`: large geospatial reference datasets.
+- `~/fusedatalarge/streetview`: raw Street View imagery and crops.
+- `~/fusedatalarge/processed`: canonical heavy processed geometry outputs.
 
 ## Working Notes
 

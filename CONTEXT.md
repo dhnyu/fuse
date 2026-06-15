@@ -1,1098 +1,825 @@
-# Executive Summary
+# FUSE Project Memory
 
-Last reconstructed: 2026-06-09.
+Status date: 2026-06-15
 
-FUSE is a multimodal geospatial representation-learning project. Its long-term
-goal is spatial scene similarity evaluation: constructing representations that
-can compare neighborhoods, districts, corridors, and other geographic scenes by
-their geometry, semantics, visual context, and spatial relationships.
+This document is project memory. It records completed work, implementation state, experimental findings, current priorities, and unfinished work.
 
-The current implementation focuses on object-level infrastructure, especially
-building representations, because object embeddings are the building blocks for
-future scene embeddings. Building embeddings are not the final scientific goal;
-they are an intermediate representation on the path toward scene-level
-representation and similarity learning.
+It is not the research vision. The theoretical motivation, research philosophy, and research questions are maintained in `research_vision.md`.
 
-Completed as of 2026-06-09:
-
-- nationwide VWorld building processing, with 14,388,938 building footprints;
-- nationwide NGII POI processing, with 9,801,999 point POIs;
-- nationwide KLIP/UPIS Togieeum processing, with 470,928 facility/planning
-  polygons;
-- Seoul OSM road and POI processing;
-- Seoul Google Street View metadata acceptance and large image acquisition for
-  40,000 accepted panoramas;
-- Gwanak Geo2Vec validation;
-- Geo2Vec scaling studies through 1M buildings.
-
-Unfinished work:
-
-- production semantic embedding generation;
-- Street View visual embedding generation;
-- 5M Geo2Vec stress test;
-- full nationwide production Geo2Vec run;
-- final semantic graph;
-- fused object embeddings;
-- scene embedding generation and spatial scene similarity evaluation.
-
-Most important findings so far:
-
-- single-model Geo2Vec is methodologically superior to independent chunked
-  embeddings;
-- useful Geo2Vec SDF sample density appears to flatten around 800-1,600
-  samples/building;
-- SDF sample-generation worker scaling plateaus around 8 workers;
-- disk-backed global Geo2Vec training scales to at least 1M buildings;
-- metadata-first Street View acquisition produced a clean 40,000-panorama Seoul
-  dataset;
-- hybrid semantics are necessary because NGII, KLIP/UPIS, OSM, roads, and
-  Street View each capture different parts of geographic meaning.
-
-# Relationship to Research Vision
-
-[research_vision.md](research_vision.md) is the first-class research framing
-document. It explains why the project exists, the dissertation-level motivation,
-research questions, object-to-scene hierarchy, and long-term scientific goal of
-spatial scene similarity evaluation.
-
-This `CONTEXT.md` is the project-memory document. It records implementation
-history, experimental findings, major design decisions, infrastructure
-evolution, current status, unresolved issues, and next practical milestones.
-
-The intended hierarchy is:
+Authority order for future work:
 
 ```text
-README.md
-  concise project landing page
-
-research_vision.md
-  theoretical motivation, dissertation framing, research questions,
-  object-to-scene hierarchy, long-term vision
-
-CONTEXT.md
-  project memory, completed work, experimental history, design decisions,
-  implementation evolution, current status
-
 AGENTS.md
-  operational rules, data conventions, and working instructions
+    -> research_vision.md
+    -> CONTEXT.md / CONTEXT_v2.md
+    -> reports/
+    -> implementation details
 ```
 
-To reduce duplication, this file does not restate the full theoretical
-motivation for scene representation. It preserves the implementation and
-experimental knowledge needed by a future Codex session to continue the work.
+The current project priority, from `AGENTS.md`, is architectural validation on a bounded study area, currently Gwanak-gu. Nationwide scaling is preserved as implementation history and future capacity, but it is not the active primary objective.
 
-# Project Memory Frame
+## Current Status Dashboard
 
-FUSE is currently organized around object-level representation as a foundation
-for scene-level similarity learning. The working object representation combines:
+| Area | Current state | Memory note |
+|---|---|---|
+| Research direction | Scene-first spatial representation learning | Defined in `research_vision.md`; do not duplicate theory here |
+| Active top priority | Gwanak-gu architecture validation | Demonstrate end-to-end scene representation before scaling |
+| Current architecture target | `Spatial Scene -> Scene-Aware Object Embedding -> Scene Embedding -> Scene Similarity` | This replaces object-only or scale-first roadmaps |
+| Study-area focus | Gwanak-gu | Current bounded validation area because building geometry and Geo2Vec results are mature there |
+| Reference scene scale | Approximately 500 m fixed-size spatial crops | Scene materialization still needs implementation |
+| Primary object nodes | Buildings, road segments, polygon POIs | From `AGENTS.md`; point POIs and Street View are usually evidence modalities |
+| Supporting evidence | Point POIs, Street View imagery, attributes, administrative context | Used to enrich objects and scenes |
+| Data foundation | Strong | National buildings/POIs/facilities, Seoul roads/POIs/GSV, Gwanak buildings exist |
+| Regional working data | Standardized validation subsets now exist | `~/fusedatalarge/working_data/<region_key>/` with reproducible script and README |
+| Geometry embeddings | Strongest implemented representation channel | Shape-only and full Gwanak Geo2Vec evidence exists |
+| Semantic embeddings | Not yet production | Source data exist; scene-aware semantic feature construction remains unfinished |
+| Visual embeddings | Not yet production | Seoul Street View imagery/crops exist; embeddings and Gwanak scene linkage remain unfinished |
+| Scene-aware object embeddings | Not implemented | Current critical architecture gap |
+| Scene embeddings | Not implemented | Current critical architecture gap |
+| Scene similarity evaluation | Not implemented | Current critical architecture gap |
+| Nationwide scaling | Demonstrated to 1M for shape-only Geo2Vec | Supporting evidence, not current priority |
 
-- geometric form: what the building footprint looks like;
-- semantic function: what activities, facilities, institutions, and urban
-  contexts are associated with the building;
-- visual context: what the surrounding streetscape looks like from Google
-  Street View;
-- spatial context: how the building relates to roads, administrative areas,
-  neighborhoods, open space, and other urban infrastructure.
+## Current Architecture Memory
 
-The near-term engineering target is a fused object embedding. The higher-level
-research target is scene representation and similarity evaluation:
+The current architecture to validate is:
 
 ```text
-Spatial objects
-  -> object embeddings
-  -> scene embeddings
-  -> spatial scene similarity evaluation
+Spatial Scene
+    -> Scene-Aware Object Embedding
+    -> Scene Embedding
+    -> Scene Similarity
 ```
 
-Current project work is closest to completion for geometric embeddings and
-Street View acquisition. Semantic embedding and final multimodal fusion are
-designed conceptually but not yet complete as production pipelines.
-
-# Conceptual Architecture
-
-## Building Representation
-
-The project treats a building as a central entity connected to multiple
-evidence sources:
+For the current Gwanak-gu implementation target, this means:
 
 ```text
-VWorld building footprint
-  -> geometry embedding from Geo2Vec
-  -> semantic context from POIs, facilities, roads, admin areas
-  -> visual context from nearby Google Street View imagery
-  -> future fused object embedding
-  -> future scene embedding
+Gwanak-gu study area
+    -> fixed-size spatial scenes, approximately 500 m
+    -> object extraction
+       buildings, road segments, polygon POIs
+    -> evidence attachment
+       point POIs, Street View imagery, administrative/context attributes
+    -> initial object embeddings
+       geometry, semantics, visual/context features
+    -> relation-aware object updating
+       within-scene graph or attention model
+    -> scene-aware object embeddings
+    -> scene embedding
+    -> scene similarity evaluation
 ```
 
-Stable building identifiers are essential. The nationwide VWorld building
-pipeline creates `building_id`, and future building-level outputs should join
-through that key. Embedding-specific IDs such as `geo2vec_internal_id` are
-internal run keys and should not replace `building_id`.
+Important design implications:
 
-## Geometry
+- Objects should be interpreted inside a scene, not as isolated national records.
+- Building embeddings are intermediate products, not final outputs.
+- Road segments and polygon POIs should be treated as primary scene objects when building the scene graph.
+- Point POIs should generally be semantic evidence, not primary object nodes.
+- Street View imagery should generally be visual evidence associated with roads, buildings, or scenes, not a primary object node unless a specific experiment requires it.
+- Location should be represented relative to the scene whenever possible to reduce absolute-coordinate memorization.
+- Evaluation must test whether scene representations preserve useful geographic information, not only whether an embedding reconstructs its input.
 
-Geometry is the building's physical footprint and morphology.
+## What Has Been Completed
 
-Primary dataset:
+### National Data Foundations
 
-- VWorld nationwide building footprints.
+VWorld building processing is complete at national scale.
 
-Method:
+- Scale: 14,388,938 building footprints.
+- Stable key: `building_id`.
+- Role: primary building entity system for object extraction and geometry channels.
+- Canonical geometry: `~/fusedatalarge/processed/korea_buildings_vworld.gpkg`.
+- Canonical attributes: `~/fusedatalarge/processed/korea_buildings_vworld_attributes.parquet`.
 
-- Geo2Vec / GeoNeuralRepresentation, currently used in a shape-only mode.
+NGII POI processing is complete at national scale.
 
-Research role:
+- Scale: 9,801,999 point POIs.
+- Stable key: `poi_id`.
+- Role: primary point-based semantic evidence for activities and facilities.
+- Geometry: `~/fusedatalarge/processed/korea_poi_ngii_point.gpkg`.
+- Attributes: `~/fusedatalarge/processed/korea_poi_ngii_attributes.parquet`.
 
-- capture footprint morphology independently of observed activity, road context,
-  and absolute location;
-- provide a clean geometry channel that can later be fused with semantic and
-  visual channels.
+KLIP/UPIS Togieeum facility/planning polygon processing is complete at national scale.
 
-Important conceptual decision:
+- Canonical downstream scale: 134,912 facility-filtered polygon POIs.
+- Stable key: `polygon_poi_id`.
+- Role: primary polygon POI object source for polygon POI analysis, shape embedding, multimodal embedding fusion, spatial scene representation learning, and downstream machine learning workflows.
+- Canonical geometry: `~/fusedatalarge/processed/korea_polygon_poi_togieeum_facility.gpkg`.
+- Canonical attributes: `~/fusedatalarge/processed/korea_polygon_poi_togieeum_facility_attributes.parquet`.
+- CRS: EPSG:5186.
+- Refinement note: the broader cleaned Togieeum polygon POI layer contained route-like transportation corridor polygons, primarily railway/subway corridor geometries. A geometry-based transportation refinement removed 1,127 route-like corridor polygons while preserving station-, terminal-, airport-, port-, parking-, depot-, and facility-like transportation polygons.
+- Legacy broader-cleaned geometry: `~/fusedatalarge/processed/korea_polygon_poi_togieeum.gpkg`.
+- Legacy broader-cleaned attributes: `~/fusedatalarge/processed/korea_polygon_poi_togieeum_attributes.parquet`.
+- Historical broader KLIP/UPIS planning/facility merge products remain provenance for earlier national data-foundation work: `~/fusedatalarge/processed/korea_togieeum_polygon.gpkg` and `~/fusedatalarge/processed/korea_togieeum_polygon_attributes.parquet`.
 
-- Shape-only Geo2Vec is not a full building representation. It is the
-  morphology component of the final representation.
+OSM road and POI processing exists for Seoul and Korea-level auxiliary context.
 
-## Semantics
+- Seoul canonical roads: 107,912 features.
+- Seoul Street View sampling network: 47,824 no-tunnel, no-service road features in current memory.
+- Seoul OSM POIs: 70,842 point features and 20,229 polygon features.
+- Korea OSM POIs: 364,071 point features and 185,369 polygon features.
+- Current canonical root: `~/fusedatalarge/osm`.
+- Role: road objects, Street View sampling frame, auxiliary POI context.
 
-Semantics are the building's observed or contextual urban meaning.
+Standardized validation-region working data has been created under `~/fusedatalarge/working_data`.
 
-Primary semantic sources:
+- Purpose: regional subsets for spatial scene representation, validation, and downstream embedding workflows.
+- README: `~/fusedatalarge/working_data/README.md`.
+- Reproducible script: `~/fuse/scripts/working_data/create_validation_working_data.R`.
+- Current region keys: `gwanak`, `seoul`, `daegu`, `jeju`, `gangneung`, `ganghwa`, `sejong`, `danyang`, `seongnam`, `incheon`, `daejeon`, `changwon`, `suwon`, and `korea`.
+- Standard files per regional subset: `1_Building_vworld`, `2_pointPOI_osm`, `2_pointPOI_ngii`, `3_polygonPOI_osm`, `3_polygonPOI_togi`, `4_road_osm`, and `5_streetview`, using `.gpkg` plus `.parquet` for spatial layers and parquet only for Street View metadata.
+- The `korea` directory is a symlink alias to nationwide source datasets and should not duplicate large nationwide files.
+- A nationwide highway-tagged OSM road working source was derived under `~/fusedatalarge/working_data/_sources` because no documented nationwide canonical OSM road GPKG existed; source/raw OSM files were not modified.
+- Street View working-data outputs contain metadata only and do not copy image files.
 
-- NGII POI points: internal activity and facility observations;
-- KLIP/UPIS facility polygons: external institutional and planning context;
-- OSM POIs and polygons: auxiliary amenities, places, and contextual features;
-- roads: access, frontage, and road-class context;
-- administrative boundaries: district, neighborhood, and validation context.
+### Seoul Street View Acquisition
 
-Research role:
+The Seoul Street View acquisition pipeline has been completed and validated for the final 40,000-panorama dataset.
 
-- distinguish internal activity from external context;
-- represent buildings with relation-aware evidence rather than flat labels;
-- avoid treating missing observations as true absence of meaning.
+Completed state:
 
-Preferred semantic framing:
+- 40,000 accepted unique panoramas.
+- 40,000 raw panoramas acquired.
+- 160,000 directional semantic crops.
+- Metadata-first acceptance and image materialization workflow implemented.
+- Final metadata is the authoritative sampling product.
 
-```text
-internal_activity:
-  NGII or OSM POIs inside or directly associated with a building
+Important locations:
 
-external_institutional_context:
-  KLIP/UPIS planning and facility polygons intersecting or containing a building
+- Final metadata: `~/fusedata/streetview/final/gsv_seoul_metadata_final_40000.parquet`.
+- Metadata and diagnostics: `~/fusedata/streetview/metadata/`.
+- Large image store and manifests: `~/fusedatalarge/streetview/`.
 
-spatial_morphology_context:
-  roads, administrative areas, open space, neighborhood context
+Important limitation:
 
-visual_context:
-  Street View samples and image embeddings near the building
-```
+- Current directional crop labels are fixed panorama-coordinate headings. They are not road-relative and not building-facing.
 
-Example relation-aware token pattern:
+### Gwanak Geometry and Geo2Vec Validation
 
-```text
-source:relation:level:value
-```
+Gwanak-gu has the strongest architecture-validation foundation.
 
-Examples:
+Completed Gwanak assets:
 
-- `ngii:inside:class:restaurant`
-- `upis:within:family:transport_facility`
-- `osm:near:amenity:cafe`
-- `road:frontage:class:primary`
-- `admin:within:district:gwanak`
+- Gwanak VWorld building subset: 38,547 buildings.
+- Gwanak geometry: `~/fusedatalarge/processed/gwanak_buildings_vworld.gpkg`.
+- Gwanak attributes: `~/fusedatalarge/processed/gwanak_buildings_vworld_attributes.parquet`.
+- Chunked Geo2Vec baseline.
+- Single-model shape-only Geo2Vec.
+- Strict XGBoost validation with random split, 500 m spatial block CV, and dong holdout.
+- Full `[location, shape]` Geo2Vec candidate pipeline and Gwanak evaluations.
 
-The exact token vocabulary is not finalized, but source and relation type should
-remain visible in downstream features.
+The most important geometry finding is that one shared latent space is required. Independent chunk embeddings are not suitable as canonical comparable object embeddings.
 
-## Visual Context
+### Geo2Vec Scaling Evidence
 
-Visual context comes from Google Street View.
+Large-scale shape-only Geo2Vec engineering prototypes have been completed at:
 
-Primary dataset:
+- 50k buildings.
+- 100k buildings.
+- 300k buildings.
+- 1M buildings.
 
-- Seoul Google Street View metadata and imagery sampled from the road network.
+The 1M run succeeded with:
 
-Research role:
+- 1,000,000 buildings.
+- 24,044,361 SDF samples.
+- One persistent global `Geo2Vec_Model(n_poly=1000000)`.
+- One global embedding table.
+- 1,000,000 finite 32D exported embeddings.
+- Historical/default output root: `~/fusedata/geo2vec_large_scale/`.
 
-- capture visual streetscape features around buildings and roads;
-- provide information not available in POIs, planning polygons, or geometry;
-- support visual embedding models for multimodal fusion.
+This proves scalability capacity, but it is no longer the organizing current objective. Use it as supporting evidence after the Gwanak scene architecture is validated. The current active filesystem no longer contains the `~/fusedata/geo2vec_large_scale/` output tree; the scientific findings are preserved in reports.
 
-Important conceptual decision:
+### Documentation and Report Organization
 
-- Current directional crop names are fixed panorama-coordinate directions:
-  front 0, right 90, rear 180, left 270. They are not road-relative or
-  building-facing directions.
+Generated reports have been consolidated under `reports/`, with `reports/0000_INDEX.md` as the report index.
 
-## Future Fusion and Scene Representation
+Important current documentation rule:
 
-The next project direction is to combine channels into fused object embeddings,
-then aggregate objects and their relationships into scene embeddings. A likely
-future pipeline is:
+- Generated Markdown reports belong under `reports/`.
+- Stable long-term docs may live under `docs/`.
+- `CONTEXT_v2.md` is a candidate replacement memory document and should be reviewed before replacing `CONTEXT.md`.
 
-1. Use VWorld footprints as the building entity table.
-2. Generate or load a geometry embedding for every building.
-3. Build relation-aware semantic features from NGII, KLIP/UPIS, OSM, roads, and
-   administrative context.
-4. Generate visual embeddings from validated Street View image crops.
-5. Link Street View samples to nearby buildings and roads.
-6. Fuse geometry, semantic, and visual channels into object embeddings.
-7. Aggregate object embeddings and relations into scene embeddings.
-8. Validate scene embeddings with spatially robust similarity and
-   generalization tasks.
+## What Has Been Learned
 
-# Major Design Decisions
+### Geometry Representation
 
-## Use VWorld Buildings Instead of OSM Buildings
+Single-model Geo2Vec beats independent chunked Geo2Vec in Gwanak strict validation.
 
-Decision:
+Representative strict XGBoost results:
 
-- VWorld is the authoritative building footprint source.
-- OSM buildings are not the primary building entity set.
+| Target | Chunked random R2 | Single-model random R2 | Single-model spatial CV R2 |
+|---|---:|---:|---:|
+| bbox area ratio | 0.302 | 0.738 | 0.733 |
+| compactness | 0.218 | 0.604 | 0.613 |
+| elongation | 0.368 | 0.754 | 0.747 |
+| log area | 0.010 | 0.104 | 0.089 |
+| log perimeter | 0.020 | 0.169 | 0.159 |
 
-Rationale:
+Interpretation:
 
-- OSM building coverage and attribution are not reliable enough for a national
-  building representation project.
-- VWorld provides a more appropriate authoritative footprint foundation.
-- OSM remains valuable for semantic and road context.
+- Shape-only Geo2Vec captures normalized footprint morphology.
+- It is strongest for compactness, elongation, and bounding-box area ratio.
+- It is weaker for absolute area and perimeter because shape normalization suppresses scale.
+- It should be used as a geometry channel, not a complete object representation.
 
-Implications:
+### Full Geo2Vec at Gwanak Scale
 
-- Building-level outputs should use VWorld `building_id`.
-- OSM features should be treated as contextual evidence, not as replacement
-  building entities.
+Full `[location, shape]` Geo2Vec has been implemented and evaluated at Gwanak scale.
 
-## Separate Geometry and Attributes
+Completed reports show:
 
-Decision:
+- Shape branch uses per-entity centering/scaling after dataset normalization.
+- Location branch uses dataset/global normalization only.
+- Full export order is `[location, shape]`.
+- Full dimension in the Gwanak experiments is 64D: 32D location + 32D shape.
+- No handcrafted geometry variables were added to embeddings.
 
-- Store large geometry in GeoPackage with a stable key.
-- Store large attributes and analytical tables in Parquet with the same key.
+Key full-data R evaluation finding:
 
-Rationale:
+- Full Geo2Vec preserves location strongly and retains shape signal.
+- Shape-only remains strongest for compactness and bbox aspect ratio.
+- Location-only is strongest or comparable for centroid recovery and also carries area/perimeter signal.
 
-- National-scale geometry and attributes are too large to duplicate casually.
-- Geometry is expensive to load and often unnecessary for analytical joins.
-- The split design makes validation, indexing, and downstream processing more
-  manageable.
+Selected spatial-split R xgboost R2 from full-data evaluation:
 
-Implications:
+| Target | Shape | Location | Full Geo2Vec |
+|---|---:|---:|---:|
+| area | 0.0605 | 0.0910 | 0.2094 |
+| perimeter | 0.1999 | 0.0820 | 0.3014 |
+| compactness | 0.8887 | 0.0298 | 0.8882 |
+| bbox aspect ratio | 0.9265 | 0.0140 | 0.9250 |
+| centroid x | -0.0423 | 0.9940 | 0.9943 |
+| centroid y | 0.0091 | 0.9924 | 0.9929 |
 
-- Future workflows must join by stable IDs.
-- Do not place large attribute tables inside GeoPackage unless there is a
-  specific interoperability reason.
+Interpretation for current work:
 
-## Standardize Spatial Analysis on EPSG:5186
+- Full Geo2Vec is useful for Gwanak architecture validation because it provides both shape and location information.
+- It must be handled carefully in scene modeling because absolute location can create leakage.
+- Scene-aware object work should test shape-only, location-only, and full geometry variants.
 
-Decision:
+### Geo2Vec Epoch and Gamma Findings
 
-- EPSG:5186 is the preferred projected CRS for spatial operations and canonical
-  processed outputs.
+The Gwanak full Geo2Vec epoch-saturation report tested epochs 1, 3, 5, and 10.
 
-Rationale:
+Current bounded finding:
 
-- The project operates primarily in Seoul and Korea, where projected metric
-  operations are needed for distances, areas, buffers, and sampling.
-- Consistent CRS reduces avoidable spatial errors.
+- Epoch 10 performed best among tested settings for the Gwanak full-branch setup.
 
-Implications:
+The gamma/code-regularization ablation tested four settings at epoch 10:
 
-- Verify CRS before spatial operations.
-- In R, use `sf::sf_use_s2(FALSE)` before project spatial processing.
-- Reproject source datasets such as NGII, KLIP/UPIS, and OSM into EPSG:5186 for
-  canonical outputs.
+| Setting | Shape code_reg_weight | Location code_reg_weight | Summary |
+|---|---:|---:|---|
+| A current controlled | 0.1 | 0.1 | Prior controlled setting |
+| B paper-like | 1.0 | 0.0 | Best selected spatial full-embedding score |
+| C none | 0.0 | 0.0 | Competitive on some metrics |
+| D mixed | 0.1 | 0.0 | Competitive but not best consolidated setting |
 
-## Treat NGII as the Primary Semantic Activity Source
+Mean selected spatial full Geo2Vec R2:
 
-Decision:
+| Setting | Ranger | XGBoost |
+|---|---:|---:|
+| A current | 0.6874 | 0.7185 |
+| B paper-like | 0.7013 | 0.7281 |
+| C none | 0.6983 | 0.7248 |
+| D mixed | 0.6982 | 0.7264 |
 
-- NGII POIs are the primary observed activity/facility signal for building
-  semantics.
+Interpretation for current work:
 
-Rationale:
+- Use these findings as bounded Gwanak geometry-channel evidence.
+- Do not convert them into a national scaling roadmap unless explicitly requested.
+- For scene-first validation, treat geometry variant choice as an ablation: shape-only, location-only, full, and possibly full with location-leakage controls.
 
-- NGII provides dense national point coverage and detailed classification.
-- It is more appropriate than OSM alone for Korean building activity
-  representation.
+### Sample Density and Scaling
 
-Implications:
+Gwanak sample-density experiments show that very low SDF density is engineering-only and not quality-saturated.
 
-- OSM POIs should supplement NGII, not replace it.
-- Semantic feature design should preserve NGII classification detail where
-  possible.
+Mean R2 by samples/building:
 
-## Use a Hybrid Semantic Framework
+| Mean samples/building | Mean R2 |
+|---:|---:|
+| 197.9 | 0.5778 |
+| 403.9 | 0.6212 |
+| 799.8 | 0.6291 |
+| 1613.2 | 0.6426 |
+| 3213.6 | 0.6543 |
+| 5026.3 | 0.6616 |
 
-Decision:
+Interpretation:
 
-- Building semantics should combine NGII, KLIP/UPIS, OSM, roads,
-  administrative context, and eventually Street View.
+- Around 800 samples/building reached 95% of the best observed mean R2 in that study.
+- Around 1,600 samples/building is a practical quality-oriented default.
+- The curve still improved slightly up to 5,000 samples/building, but marginal gains were small relative to cost.
 
-Rationale:
+Worker benchmark finding:
 
-- No single source captures building meaning.
-- Internal activity and external institutional context are different scientific
-  signals.
-- A building may have no observed internal POI but still be semantically
-  meaningful because of planning context, roads, or visual evidence.
-
-Implications:
-
-- Keep semantic channels separate.
-- Preserve source and relation type in feature names.
-- Treat missing observations carefully rather than converting them to false
-  negative semantic labels.
-
-## Use Metadata-First Street View Acquisition
-
-Decision:
-
-- Query Street View metadata and apply acceptance criteria before downloading
-  imagery.
-
-Rationale:
-
-- Image acquisition consumes API quota, bandwidth, and storage.
-- Metadata can enforce provider, capture year, distance, and uniqueness before
-  any image download.
-
-Implications:
-
-- The accepted metadata table is the authoritative Street View sample.
-- Image materialization is a downstream step validated against metadata and
-  manifests.
-
-## Use Fixed Panorama-Coordinate Street View Crops
-
-Decision:
-
-- Directional crops are generated at fixed headings: front 0, right 90, rear
-  180, left 270.
-
-Rationale:
-
-- This is reproducible and does not require estimating road-relative or
-  building-facing headings.
-
-Implications:
-
-- Do not interpret `front` as road-facing or building-facing.
-- A road-relative crop pipeline would be a separate methodological variant.
-
-## Use Single-Model Geo2Vec Instead of Independent Chunk Embeddings
-
-Decision:
-
-- Geo2Vec embeddings should be trained in one shared latent space for a given
-  entity set.
-- Independent chunk-trained embeddings are not a final method.
-
-Rationale:
-
-- Each independently trained chunk has its own latent coordinate system.
-- Chunk embeddings can rotate, scale, or otherwise drift relative to one
-  another.
-- Gwanak validation showed single-model embeddings are much stronger than
-  chunked embeddings.
-
-Implications:
-
-- Chunking is acceptable for I/O, sample generation, caching, validation, and
-  export.
-- Training must maintain one persistent model and one global entity embedding
-  table.
-
-## Use Disk-Backed Geo2Vec Scaling Architecture
-
-Decision:
-
-- Large-scale Geo2Vec should use deterministic ID maps, disk-backed SDF sample
-  caches, checksums, checkpoint/resume, and partitioned embedding export.
-
-Rationale:
-
-- The public GeoNeuralRepresentation code materializes too much in memory and
-  lacks production-scale restart behavior.
-- National-scale training needs reproducible cache generation and robust
-  failure recovery.
-
-Implications:
-
-- Cache manifests and checksums are part of the research record.
-- Resume must validate ID-map and sample-cache consistency.
-- Engineering optimizations must be distinguished from paper-faithful
-  reproduction.
-
-## Keep External Research Code Separate
-
-Decision:
-
-- External repositories such as `~/fuse_external/GeoNeuralRepresentation` are
-  not copied into `~/fuse`.
-- Project wrappers and adaptations live in `~/fuse`.
-
-Rationale:
-
-- Separation preserves reproducibility and makes methodological modifications
-  visible.
-
-Implications:
-
-- If external source code is modified, document why, how it changes the method,
-  and how reproducibility is affected.
-
-# Current Research Status
-
-Status date: 2026-06-09.
-
-## Completed
-
-Nationwide building processing:
-
-- VWorld national building footprints have been processed into canonical
-  geometry and attribute outputs.
-- Scale: 14,388,938 buildings.
-- This is the primary building entity set for future national representation.
-
-Nationwide NGII processing:
-
-- NGII POI points have been processed nationally.
-- Scale: 9,801,999 points.
-- This is the primary internal activity/facility dataset for semantic
-  representation.
-
-Nationwide KLIP/UPIS processing:
-
-- KLIP/UPIS Togieeum facility polygons have been inventoried and processed.
-- Scale: 470,928 facility/planning polygons.
-- This is the primary external institutional/planning context dataset.
-
-OSM road and POI processing:
-
-- Seoul and national OSM POI outputs exist.
-- Seoul road networks exist for canonical road storage and Street View sampling.
-- OSM is used for roads and auxiliary semantic context.
-
-Seoul Street View acquisition:
-
-- A final 40,000-panorama Seoul Street View metadata dataset exists.
-- Large image acquisition is complete and validated.
-- Raw panoramas and directional semantic crops are available.
-- The completion validation dated 2026-05-25 passed.
-
-Gwanak Geo2Vec validation:
-
-- Gwanak VWorld building subset is complete.
-- Chunked Geo2Vec embeddings were generated as an operational baseline.
-- Single-model Geo2Vec embeddings were generated and validated.
-- Strict validation showed single-model embeddings outperform chunked
-  embeddings.
-
-Geo2Vec scaling studies:
-
-- Global-model prototypes completed at 50k, 100k, 300k, and 1M buildings.
-- Worker scaling was tested.
-- Sample density sensitivity and saturation studies were completed.
-
-## In Progress or Designed but Not Complete
-
-Semantic embedding generation:
-
-- The conceptual framework is mature.
-- The final production semantic graph or semantic embedding table was not found.
-- Relation-aware feature design still needs implementation and validation.
-
-Visual embedding generation:
-
-- Street View images are acquired and validated.
-- A final visual embedding table was not found.
-- Image model choice, crop aggregation, and building linkage remain open.
-
-Multimodal fusion:
-
-- Fusion is the long-term research goal.
-- No final fused object representation was found.
-- No scene embedding or spatial scene similarity evaluation framework was found.
-- Evaluation tasks for fused object and scene embeddings still need to be
-  defined and run.
-
-Epoch-saturation Geo2Vec:
-
-- Some epoch-saturation artifacts exist under the large-scale Geo2Vec output
-  tree.
-- No final markdown report was recovered.
-- Treat this as incomplete until summarized and validated.
-
-## Not Yet Completed
-
-5M Geo2Vec stress test:
-
-- Not found as of 2026-06-09.
-- The recommended next engineering test is about 800 SDF samples/building with
-  the global-model cache architecture.
-
-Nationwide production Geo2Vec:
-
-- A full 14,388,938-building production run was not found.
-- The 1M run validates architecture, not national completion.
-
-Final semantic graph:
-
-- Not found.
-- Needs integration of VWorld buildings, NGII POIs, KLIP/UPIS polygons, OSM,
-  roads, admin areas, and Street View associations.
-
-Final fused representation:
-
-- Not found.
-- Requires geometry embeddings, semantic embeddings, visual embeddings, object
-  fusion, scene aggregation, and a similarity-evaluation strategy.
-
-# Major Experimental Findings
-
-## Single-Model Geo2Vec Beats Chunked Geo2Vec
-
-The most important Geo2Vec methodological finding is that independent chunk
-embeddings are not suitable as canonical object embeddings. They can be
-generated quickly, but each chunk learns its own latent space. Strict Gwanak
-validation showed that a single shared model outperforms chunked embeddings
-across all tested geometry targets and validation schemes.
-
-Representative Gwanak strict XGBoost findings:
-
-- Single-model random-split R2:
-  - bbox area ratio: 0.738;
-  - compactness: 0.604;
-  - elongation: 0.754;
-  - log area: 0.104;
-  - log perimeter: 0.169.
-- Chunked random-split R2:
-  - bbox area ratio: 0.302;
-  - compactness: 0.218;
-  - elongation: 0.368;
-  - log area: about 0.010;
-  - log perimeter: about 0.020.
-
-Lesson:
-
-- Latent-space consistency matters more than using more dimensions.
-
-## Geo2Vec Density Saturates Around 800-1600 Samples per Building
-
-Gwanak sample-density experiments showed that very low SDF sample density is
-useful for engineering tests but not final quality. Performance improves
-substantially through several hundred samples/building and then begins to
-flatten.
-
-Important saturation results:
-
-- about 198 samples/building: mean R2 0.5778;
-- about 404 samples/building: mean R2 0.6212;
-- about 800 samples/building: mean R2 0.6291;
-- about 1,613 samples/building: mean R2 0.6426;
-- about 3,214 samples/building: mean R2 0.6543;
-- about 5,026 samples/building: mean R2 0.6616.
-
-Lesson:
-
-- Use about 800 samples/building for engineering stress tests.
-- Use about 1,600 samples/building as the first quality-oriented production
-  candidate.
-- Do not treat low-density 1M results as final-quality embeddings.
-
-## Geo2Vec Worker Scaling Plateaus Around 8 Workers
-
-SDF sample generation was benchmarked with 8, 16, 24, 32, and 40 workers on a
-100k-building workload.
-
-Finding:
-
-- All worker counts produced valid equivalent outputs.
-- 16 workers was only about 1% faster than 8.
+- 8 workers is the stable default.
+- 16 workers improved throughput by only about 1%.
 - 24, 32, and 40 workers were slower.
 
-Lesson:
+Scaling interpretation:
 
-- Use 8 workers for the next 5M stress test unless there is a specific reason
-  to retest parallelism.
+- These findings are preserved for future production.
+- They are not the current top priority because architecture validation now precedes national deployment.
 
-## Disk-Backed Global Geo2Vec Scales to 1M Buildings
+### Street View Findings
 
-The large-scale Geo2Vec prototype successfully trained global models at 50k,
-100k, 300k, and 1M buildings.
-
-Important 1M result:
-
-- 1,000,000 buildings;
-- 24,044,361 SDF samples;
-- 5,400 training steps;
-- last validation L1 about 0.03554;
-- exported 1M finite embeddings.
-
-Lesson:
-
-- The architecture is viable beyond Gwanak scale.
-- The next unknown is not whether a global model can work at 1M, but how the
-  system behaves at 5M and full national scale with higher sample density.
-
-## Metadata-First Street View Acquisition Is Effective
-
-The Street View workflow successfully created a 40,000-panorama Seoul dataset
-through metadata-first filtering.
+Metadata-first Street View acquisition works.
 
 Important findings:
 
-- final accepted panoramas: 40,000;
-- duplicate accepted pano IDs: 0;
-- metadata success rate in diagnostics: 0.964533;
-- accepted panorama distance median: 4.383 m;
-- accepted maximum distance: 19.999 m;
-- large image acquisition validation: PASS.
+- Final accepted panoramas: 40,000.
+- Duplicate accepted pano IDs: 0.
+- Accepted maximum distance: just under 20 m in current memory.
+- Large image acquisition validation passed.
 
-Lesson:
+Interpretation:
 
-- Metadata-first acceptance avoids wasteful image acquisition and gives a clean
-  sample with provider, year, distance, and deduplication guarantees.
+- The accepted metadata table is the authoritative visual sampling product.
+- Image materialization is downstream from metadata.
+- The 40,000-panorama Seoul corpus can support visual embeddings.
 
-## Fixed Street View Crop Headings Are Reproducible but Limited
+Limitation:
 
-Current crop headings are fixed panorama-coordinate views. This avoids ambiguity
-and supports reproducible image extraction.
+- Current crops are fixed panorama-coordinate crops. They are reproducible but not road-relative or building-facing.
 
-Lesson:
+### Semantic Findings
 
-- Current crops are useful for general streetscape visual embeddings.
-- They should not be interpreted as road-facing or building-facing views.
-- Any future road-relative or building-facing crop design should be documented
-  as a distinct method.
+Hybrid semantics are necessary.
 
-## Hybrid Semantics Are Necessary
+The project should not rely on one semantic source because:
 
-Semantic framework analysis concluded that no single semantic source is
-sufficient.
+- NGII POIs provide dense observed activity/facility points.
+- KLIP/UPIS polygons provide institutional, planning, transport, public facility, and open-space context.
+- OSM provides auxiliary amenities, places, roads, and context.
+- Administrative boundaries support validation and contextual grouping.
+- Street View can add visible streetscape semantics after visual embedding.
 
-Findings:
+Current semantic representation remains unfinished. The next semantic work should be scene-aware: semantic evidence should be attached to objects inside scenes with source and relation type preserved.
 
-- NGII gives dense observed activity/facility points.
-- KLIP/UPIS provides institutional and planning context that POIs miss.
-- OSM contributes useful auxiliary amenities and places.
-- Roads and administrative areas provide contextual structure.
-- Street View adds visual evidence not captured by tabular or vector data.
+## Current Implementation State by Architecture Layer
 
-Lesson:
+### 1. Spatial Scene
 
-- Building semantics should be relation-aware and multi-source.
-- Missing internal POIs should not be interpreted as semantic emptiness.
+Status: not yet materialized as a canonical scene table.
 
-# Data Assets
+Available ingredients:
 
-This section lists only the major datasets needed to continue the project. For
-storage rules and conventions, read `AGENTS.md`.
+- Seoul 500 m grid exists.
+- Gwanak boundary/building subset exists.
+- Road and POI layers exist for Seoul.
+- Gwanak can be treated as the current architecture-validation study area.
 
-## VWorld Buildings
+Needed:
 
-Purpose:
+- Define `scene_id`.
+- Define scene geometry, likely fixed-size crops around grid cells or sampled anchors.
+- Decide inclusion rules for buildings, roads, polygon POIs, point POIs, and Street View evidence.
+- Store scene geometry and scene-object membership tables.
+- Represent object positions relative to scene geometry.
 
-- authoritative building entity set and footprint geometry;
-- source for geometry embeddings and building-level joins.
+Minimum Gwanak scene output:
 
-Scale:
+- `scene_id`
+- scene polygon or bounding box
+- scene centroid
+- scene scale metadata
+- object membership tables keyed by `scene_id` and object stable IDs
+- train/validation/test split metadata
 
-- 14,388,938 nationwide buildings;
-- Gwanak experimental subset: 38,547 buildings.
+### 2. Object Extraction
 
-Canonical locations:
+Status: source objects exist; scene-specific object extraction is not yet canonical.
 
-- nationwide geometry:
-  `~/fusedatalarge/processed/korea_buildings_vworld.gpkg`;
-- nationwide attributes:
-  `~/fusedatalarge/processed/korea_buildings_vworld_attributes.parquet`;
-- Gwanak geometry:
-  `~/fusedatalarge/processed/gwanak_buildings_vworld.gpkg`;
-- Gwanak attributes:
-  `~/fusedatalarge/processed/gwanak_buildings_vworld_attributes.parquet`.
+Primary object nodes:
 
-Research use:
+- Buildings.
+- Road segments.
+- Polygon POIs.
 
-- building morphology;
-- Geo2Vec shape embeddings;
-- base building nodes for semantic and visual fusion.
+Supporting evidence:
 
-## NGII POIs
+- Point POIs.
+- Street View imagery.
+- Administrative context.
+- Object attributes.
 
-Purpose:
+Needed:
 
-- primary internal activity and facility signal for buildings.
+- For each Gwanak scene, extract buildings, road segments, polygon POIs.
+- Attach point POIs to objects or scenes through explicit relations such as inside, near, contained_by, or within_buffer.
+- Attach Street View samples to roads, nearby buildings, or scenes through explicit relation metadata.
+- Preserve stable IDs and relation types.
 
-Scale:
+### 3. Initial Object Embeddings
 
-- 9,801,999 nationwide point POIs.
+Status: partially implemented.
 
-Canonical locations:
+Building geometry:
 
-- geometry:
-  `~/fusedatalarge/processed/korea_poi_ngii_point.gpkg`;
-- attributes:
-  `~/fusedatalarge/processed/korea_poi_ngii_attributes.parquet`.
+- Shape-only Gwanak Geo2Vec exists.
+- Full `[location, shape]` Gwanak Geo2Vec exists as bounded implementation evidence.
+- Shape/location/full variants should be evaluated in scene architecture validation.
 
-Research use:
+Building semantics:
 
-- building activity inference;
-- semantic graph edges from buildings to POIs;
-- relation-aware semantic tokens.
+- Source data exist.
+- No production semantic embedding table exists.
+- Relation-aware semantic features still need implementation.
 
-## KLIP/UPIS Togieeum Facility Polygons
+Building visual context:
 
-Purpose:
+- Street View images exist for Seoul.
+- No production visual embedding table exists.
+- Gwanak-specific Street View-to-object or Street View-to-scene linkage is not complete.
 
-- external institutional, planning, public facility, transport, open-space, and
-  urban facility context.
+Road embeddings:
 
-Scale:
+- Road geometries and attributes exist.
+- No road embedding model is currently canonical.
 
-- 470,928 nationwide polygons across UQ151-UQ159 facility/planning families.
+Polygon POI embeddings:
 
-Canonical locations:
+- Canonical KLIP/UPIS Togieeum polygon POI inputs for downstream embedding are the facility-filtered files: `~/fusedatalarge/processed/korea_polygon_poi_togieeum_facility.gpkg` and `~/fusedatalarge/processed/korea_polygon_poi_togieeum_facility_attributes.parquet`.
+- The broader cleaned files `~/fusedatalarge/processed/korea_polygon_poi_togieeum.gpkg` and `~/fusedatalarge/processed/korea_polygon_poi_togieeum_attributes.parquet` are legacy/provenance outputs and include 1,127 route-like transportation corridor polygons that should not be used by default for embedding.
+- OSM polygon POI data also exist as auxiliary context.
+- No polygon POI embedding model is currently canonical.
 
-- geometry:
-  `~/fusedatalarge/processed/korea_togieeum_polygon.gpkg`;
-- attributes:
-  `~/fusedatalarge/processed/korea_togieeum_polygon_attributes.parquet`.
+### 4. Scene-Aware Object Embedding
 
-Research use:
+Status: not implemented.
 
-- planning and institutional context for buildings;
-- semantic context where internal POIs are absent;
-- external facility relation features.
+This is the current main architecture gap.
 
-## OSM Roads and POIs
+Needed:
 
-Purpose:
+- A method to update object embeddings using within-scene context.
+- A relation graph or attention structure connecting buildings, roads, and polygon POIs.
+- A way to attach point POI and Street View evidence without treating them as primary nodes by default.
+- Missingness indicators for absent or weak semantic/visual evidence.
+- Ablations to compare isolated object embeddings against scene-aware object embeddings.
 
-- roads for sampling, accessibility, and frontage context;
-- auxiliary POI/place semantics.
+Candidate relation types:
 
-Scale:
+- building-building: proximity, adjacency, same scene.
+- building-road: nearest road, frontage candidate, distance band.
+- road-road: intersection, connectivity, same class, proximity.
+- building-polygon: contained_by, intersects, near.
+- road-polygon: intersects, near, serves.
+- polygon-polygon: overlap, containment, proximity.
+- point POI evidence: inside building, near building, near road, within scene.
+- Street View evidence: near road, near building, within scene.
 
-- Seoul canonical roads: 107,912 features;
-- current Seoul Street View sampling network: 47,824 no-tunnel, no-service road
-  features;
-- Seoul OSM POIs: 70,842 point and 20,229 polygon features;
-- Korea OSM POIs: 364,071 point and 185,369 polygon features.
+### 5. Scene Embedding
 
-Canonical locations:
+Status: not implemented.
 
-- Seoul canonical roads:
-  `~/fusedata/osm/canonical/seoul_roads_canonical.gpkg`;
-- Seoul Street View sampling network:
-  `~/fusedata/osm/sampling/seoul_roads_sampling_network.gpkg`;
-- OSM POIs:
-  `~/fusedata/osm/canonical/gpkg/` and
-  `~/fusedata/osm/canonical/parquet/`.
+Needed:
 
-Research use:
+- Aggregate scene-aware object embeddings into one vector per `scene_id`.
+- Preserve enough metadata to interpret which objects and modalities contributed.
+- Compare pooling strategies, such as mean pooling, attention pooling, graph pooling, or transformer readout.
 
-- Street View sampling frame;
-- road context and accessibility;
-- auxiliary semantic features.
+Minimum first baseline:
 
-## Seoul Street View
+- Build a simple scene embedding from aggregated building/road/polygon features.
+- Use modality summaries and object-count features as transparent baselines.
+- Compare against learned scene-aware embeddings later.
 
-Purpose:
+### 6. Scene Similarity Evaluation
 
-- visual streetscape context for multimodal representation.
+Status: not implemented.
 
-Scale:
+Needed:
 
-- 40,000 accepted unique Seoul panoramas;
-- 40,000 raw panoramas acquired;
-- 160,000 directional semantic crops.
+- Similarity/retrieval metrics over scene embeddings.
+- Random and spatial validation splits.
+- Qualitative retrieval inspection.
+- Ablations by modality and relation type.
+- Leakage diagnostics for absolute location and administrative identity.
 
-Canonical locations:
+Possible bounded Gwanak evaluation tasks:
 
-- final metadata:
-  `~/fusedata/streetview/final/gsv_seoul_metadata_final_40000.parquet`;
-- metadata and diagnostics:
-  `~/fusedata/streetview/metadata/`;
-- large image store and manifests:
-  `~/fusedatalarge/streetview/`.
+- Retrieve scenes with similar building morphology distributions.
+- Retrieve scenes with similar semantic composition.
+- Retrieve scenes with similar road/context structure.
+- Predict held-out scene attributes.
+- Compare random split vs spatial holdout.
+- Test whether scene-aware object embeddings improve over object-only aggregation.
 
-Research use:
+## Data Inventory for Current Work
 
-- visual embeddings;
-- road and neighborhood visual context;
-- future building-to-street multimodal associations.
+### Core Gwanak Scene Validation Data
 
-## Seoul Grid and Administrative Boundaries
+Gwanak buildings:
 
-Purpose:
+- Geometry: `~/fusedatalarge/processed/gwanak_buildings_vworld.gpkg`.
+- Attributes: `~/fusedatalarge/processed/gwanak_buildings_vworld_attributes.parquet`.
+- Scale: 38,547 buildings.
+- Current use: geometry channel, scene object extraction, validation labels.
 
-- spatial balancing, sampling diagnostics, joins, and validation folds.
+Gwanak Geo2Vec outputs:
 
-Scale:
+- Shape-only and full Geo2Vec products were historically written under `~/fusedata/gwanak_test/validation/` and `~/fusedata/geo2vec_large_scale/`.
+- These output trees are not currently present in the active filesystem; use the reports as provenance unless the derived outputs are restored or regenerated.
+- Current use: initial building geometry embeddings and geometry-channel ablations.
 
-- Seoul 500 m grid documented as 2,631 cells.
+Seoul roads and grid:
 
-Canonical locations:
+- Seoul canonical roads: `~/fusedatalarge/osm/canonical/seoul_roads_canonical.gpkg`.
+- Seoul Street View sampling network: `~/fusedatalarge/osm/sampling/seoul_roads_sampling_network.gpkg`.
+- Seoul 500 m grid derived-output location: `~/fusedata/grid_500m/seoul_grid_500m.gpkg`.
+- The grid output is not currently present in the active filesystem and should be regenerated only when needed.
+- Current use: Gwanak scene extraction, road objects, validation splits, Street View linkage.
 
-- grid:
-  `~/fusedata/grid_500m/seoul_grid_500m.gpkg`;
-- Korean administrative data:
-  `~/fusedata/geodata/koreanadm/`;
-- Seoul boundary:
-  `~/fusedata/geodata/seoul_boundary.gpkg`.
+Seoul Street View:
 
-Research use:
+- Final metadata: `~/fusedata/streetview/final/gsv_seoul_metadata_final_40000.parquet`.
+- Large imagery: `~/fusedatalarge/streetview/`.
+- Current use: visual evidence; embeddings/linkage unfinished.
 
-- Street View sample balancing;
-- spatial block validation;
-- district and administrative holdout tests.
+### National Data Preserved for Future Scaling
 
-## Geo2Vec Embeddings and Artifacts
+Nationwide VWorld:
 
-Purpose:
+- Geometry: `~/fusedatalarge/processed/korea_buildings_vworld.gpkg`.
+- Attributes: `~/fusedatalarge/processed/korea_buildings_vworld_attributes.parquet`.
 
-- building footprint geometry embeddings.
+Nationwide NGII:
 
-Canonical locations:
+- Geometry: `~/fusedatalarge/processed/korea_poi_ngii_point.gpkg`.
+- Attributes: `~/fusedatalarge/processed/korea_poi_ngii_attributes.parquet`.
 
-- Gwanak chunked baseline:
-  `~/fusedata/embeddings/gwanak_buildings_geo2vec_shape_full.parquet`;
-- Gwanak single-model preferred embedding:
-  `~/fusedata/gwanak_test/validation/gwanak_buildings_geo2vec_shape_single_model_lightweight.parquet`;
-- large-scale prototype outputs:
-  `~/fusedata/geo2vec_large_scale/`.
+Nationwide KLIP/UPIS:
 
-Research use:
+- Canonical downstream polygon POI geometry: `~/fusedatalarge/processed/korea_polygon_poi_togieeum_facility.gpkg`.
+- Canonical downstream polygon POI attributes: `~/fusedatalarge/processed/korea_polygon_poi_togieeum_facility_attributes.parquet`.
+- Legacy broader-cleaned polygon POI geometry: `~/fusedatalarge/processed/korea_polygon_poi_togieeum.gpkg`.
+- Legacy broader-cleaned polygon POI attributes: `~/fusedatalarge/processed/korea_polygon_poi_togieeum_attributes.parquet`.
+- Historical broader planning/facility merge geometry: `~/fusedatalarge/processed/korea_togieeum_polygon.gpkg`.
+- Historical broader planning/facility merge attributes: `~/fusedatalarge/processed/korea_togieeum_polygon_attributes.parquet`.
 
-- morphology channel of the final building representation;
-- validation of geometric embedding quality;
-- scaling testbed for national embeddings.
+Large-scale Geo2Vec:
 
-# Repository Architecture
+- Historical/default root: `~/fusedata/geo2vec_large_scale/`.
+- Current role: completed scalability evidence preserved in reports and reusable implementation infrastructure. The output tree is not currently present in the active filesystem.
 
-The repository is code and documentation only. Heavy generated outputs live in
-`~/fusedata` and `~/fusedatalarge`.
+## Relevant Implementation Reports
 
-Important local areas:
+Read these reports when continuing architecture validation:
 
-- `AGENTS.md`: operational rules and storage conventions for future Codex
-  sessions. Read it before running or editing workflows.
-- `CONTEXT.md`: this long-term research memory.
-- `README.md`: short project landing page.
-- `config/`: shared path configuration for R and Python.
-- `R/`: reusable R spatial helpers, especially road-environment sampling.
-- `src/`: reusable Python helpers, especially Street View production utilities.
-- `scripts/`: project workflows for grid, OSM/POI, buildings, Togieeum,
-  Street View, visualization, validation, and embeddings.
-- `docs/`: project notes and methodological documentation.
-- `tests/gwanak_test/docs/`: Gwanak Geo2Vec experiment reports.
-- `tests/geo2vec_large_scale/`: large-scale Geo2Vec prototype code and reports.
+1. `reports/20260608_0307_gwanak_geo2vec_strict_validation_xgboost.md`
+2. `reports/20260609_0000_geoneuralrepresentation_shape_location_audit.md`
+3. `reports/20260610_0359_gwanak_full_geo2vec_pipeline_and_evaluation.md`
+4. `reports/20260610_0427_gwanak_full_geo2vec_epoch_saturation.md`
+5. `reports/20260610_0447_geo2vec_parallel_runner_and_r_evaluation_refactor.md`
+6. `reports/20260610_0505_gwanak_full_geo2vec_full_r_evaluation.md`
+7. `reports/20260610_0533_gwanak_full_geo2vec_gamma_ablation.md`
+8. `reports/20260608_0000_geo2vec_sample_density_saturation.md`
+9. `reports/20260608_0000_sdf_worker_scaling_benchmark.md`
+10. `reports/20260608_0000_korea_geo2vec_large_scale_pipeline_1m.md`
 
-Important workflow families:
+Use the large-scale reports as engineering evidence, not as current priority justification.
 
-- building processing from VWorld;
-- semantic source processing from NGII, KLIP/UPIS, and OSM;
-- road sampling and Street View acquisition;
-- Geo2Vec embedding generation and scaling;
-- validation and experiment reporting.
+## Current Unfinished Work
 
-# External Research Method Context
+### Critical Architecture Gaps
 
-Geo2Vec work depends on the external repository:
+The following are required for the current Gwanak architecture-validation objective:
+
+1. Canonical Gwanak scene definition and scene table.
+2. Scene-object membership tables for buildings, roads, and polygon POIs.
+3. Scene-aware relation schema.
+4. Building semantic feature/embedding pipeline for Gwanak scenes.
+5. Street View visual embedding generation.
+6. Street View-to-road, Street View-to-building, or Street View-to-scene linkage.
+7. Road object features or embeddings.
+8. Polygon POI object features or embeddings.
+9. Scene-aware object embedding model or baseline.
+10. Scene embedding baseline.
+11. Scene similarity evaluation and retrieval diagnostics.
+12. Leakage diagnostics for absolute location and administrative identity.
+
+### Channel-Specific Gaps
+
+Geometry:
+
+- Shape-only and full Geo2Vec exist for Gwanak.
+- Need scene-relative position features.
+- Need geometry ablations inside the scene architecture.
+- Need decision on how much absolute location to allow.
+
+Semantics:
+
+- Source data exist.
+- Need relation-aware semantic features keyed by object and `scene_id`.
+- Need missingness handling.
+- Need source-specific metadata retained through fusion.
+
+Visual:
+
+- Images/crops exist.
+- Need visual embeddings.
+- Need linkage to roads/buildings/scenes.
+- Need crop-type metadata and model provenance.
+
+Relations:
+
+- Need graph schema.
+- Need edge construction rules.
+- Need distance/buffer thresholds or learned relation design.
+
+Evaluation:
+
+- Need scene-level retrieval tasks.
+- Need random and spatial validation splits.
+- Need ablations by modality and relation type.
+- Need qualitative retrieval review outputs.
+
+## Current Top Priority: Gwanak-gu Architecture Validation
+
+The next work should validate the architecture on Gwanak-gu before any national deployment work.
+
+### Priority 1: Build the Gwanak Scene Substrate
+
+Objective:
+
+- Materialize spatial scenes and scene-object memberships.
+
+Expected outputs:
+
+- Gwanak `scene_id` table.
+- Scene geometries at approximately 500 m scale.
+- Scene membership tables for buildings, roads, polygon POIs, point POI evidence, and Street View evidence.
+- Scene split metadata for random/spatial evaluation.
+
+Scientific value:
+
+- Converts the project from object infrastructure to scene-first implementation.
+
+Implementation difficulty:
+
+- Moderate. Data exist, but scene definitions and joins need careful, deterministic implementation.
+
+### Priority 2: Build Scene-Aware Object Inputs
+
+Objective:
+
+- Create initial object-level inputs that can be updated in scene context.
+
+Expected outputs:
+
+- Building geometry embedding variants: shape-only, location-only, full where available.
+- Building semantic features from NGII/OSM/KLIP/UPIS relation evidence.
+- Road features or road embeddings.
+- Polygon POI features or embeddings.
+- Visual feature placeholders or embeddings, depending on GPU/model availability.
+
+Scientific value:
+
+- Establishes multimodal object inputs without treating them as final outputs.
+
+Implementation difficulty:
+
+- Moderate to high because semantic and visual linkage are not yet productionized.
+
+### Priority 3: Implement First Scene-Aware Object Embedding Baseline
+
+Objective:
+
+- Test whether object representations improve when interpreted inside scenes.
+
+Expected outputs:
+
+- Relation graph or attention-ready edge table.
+- Baseline scene-aware object embeddings.
+- Ablations comparing object-only vs scene-aware variants.
+
+Scientific value:
+
+- Directly validates the current architecture's central claim.
+
+Implementation difficulty:
+
+- High, but bounded by Gwanak scope.
+
+### Priority 4: Build First Scene Embedding and Similarity Evaluation
+
+Objective:
+
+- Produce one embedding per scene and evaluate similarity/retrieval.
+
+Expected outputs:
+
+- Scene embedding table keyed by `scene_id`.
+- Similarity matrix or nearest-neighbor retrieval table.
+- Retrieval case-study outputs.
+- Quantitative diagnostics under random and spatial splits.
+
+Scientific value:
+
+- Provides the first end-to-end demonstration of the research architecture.
+
+Implementation difficulty:
+
+- High, because validation design matters as much as model code.
+
+## Deferred Work
+
+The following work is not deleted, but it is not the current priority:
+
+- 5M Geo2Vec stress test.
+- Full nationwide production Geo2Vec.
+- National deployment optimization.
+- Large-scale stress testing beyond what is needed for Gwanak architecture validation.
+- Road-relative or building-facing Street View crop redesign.
+- Nationwide visual embedding expansion.
+
+These should be revisited after the Gwanak scene-first architecture has a working end-to-end baseline and evaluation report.
+
+## Repository Guide
+
+Important root files:
+
+- `AGENTS.md`: authoritative working rules and current priority.
+- `research_vision.md`: authoritative research vision.
+- `CONTEXT.md`: current canonical memory until replaced.
+- `CONTEXT_v2.md`: proposed refactored memory.
+- `README.md`: short repository overview.
+
+Important implementation directories:
+
+- `scripts/buildings/`: VWorld building processing.
+- `scripts/poi/` and `scripts/POI/`: NGII and OSM POI processing.
+- `scripts/togieeum/`: KLIP/UPIS facility polygon processing.
+- `scripts/streetview/`: Street View sampling, metadata acceptance, image materialization, validation.
+- `scripts/embedding/`: Geo2Vec preparation and wrapper scripts.
+- `tests/gwanak_test/`: Gwanak Geo2Vec validation scripts.
+- `tests/geo2vec_large_scale/`: Geo2Vec scaling, full-branch candidate workflows, R evaluation, and related diagnostics.
+- `src/`: reusable Python helpers.
+- `R/`: reusable R spatial helpers.
+- `config/`: shared path configuration.
+- `reports/`: generated reports and project memory support.
+- `docs/`: stable methodological documentation and assets.
+
+Important scripts for the current priority:
+
+- `tests/geo2vec_large_scale/evaluate_geo2vec_embeddings.R`
+- `tests/geo2vec_large_scale/build_gwanak_evaluation_split.py`
+- `tests/geo2vec_large_scale/run_gwanak_full_geo2vec_pipeline.py`
+- `tests/geo2vec_large_scale/run_gwanak_full_geo2vec_epoch_saturation.py`
+- `tests/geo2vec_large_scale/run_gwanak_full_geo2vec_gamma_ablation.py`
+- `scripts/streetview/30_run_gsv_metadata_acceptance.py`
+- `scripts/streetview/45_materialize_gsv_large_semantic_images.py`
+- `scripts/streetview/80_validate_gsv_large_semantic_images.py`
+
+Scripts that likely need to be added next:
+
+- Gwanak scene construction.
+- Gwanak scene-object membership extraction.
+- Semantic evidence attachment to scene objects.
+- Street View evidence linkage to Gwanak scene objects.
+- Scene graph construction.
+- Scene embedding baseline.
+- Scene similarity evaluation.
+
+## External Research Method Context
+
+Geo2Vec depends on:
 
 - `~/fuse_external/GeoNeuralRepresentation`.
 
-Reference paper:
+Rules:
 
-- stored under `~/references/fuse_ref/`.
-
-Project interpretation:
-
-- GeoNeuralRepresentation implements a Geo2Vec-style neural SDF decoder with
-  entity latent vectors.
-- FUSE currently uses it for shape-only building footprint embeddings.
-- Public code is useful for methodology but not production-scale processing
-  without wrappers.
-
-Important constraints:
-
-- Do not copy the external repository into `~/fuse`.
+- Do not copy external repositories into `~/fuse`.
 - Prefer wrappers inside `~/fuse`.
-- If modifying external code, document the reason and methodological impact.
-- Keep paper-faithful reproduction, engineering scaling, and modified methods
-  clearly separated.
+- If modifying external code, document rationale, methodological impact, and reproducibility impact.
+- Distinguish paper-faithful reproduction, FUSE methodological extension, scalability experiment, and production pipeline.
 
-# Open Methodological Questions
+Current Geo2Vec interpretation:
 
-Semantic representation:
+- Shape-only Geo2Vec is a morphology channel.
+- Full `[location, shape]` Geo2Vec is available as a bounded Gwanak implementation/evaluation product.
+- Absolute location is useful for diagnostics but risky for scene similarity if it causes place memorization.
+- For scene-first validation, geometry embeddings should be evaluated as ablation inputs, not final outputs.
 
-- What is the best representation form for semantic context: sparse
-  relation-aware tokens, graph embeddings, learned text/category embeddings, or
-  hybrid engineered features?
-- How should conflicting or overlapping POI/facility signals be weighted?
-- How should missing internal POIs be encoded without implying absence of
-  activity?
+## Maintenance Rules for Future Sessions
 
-Street View to building linkage:
+Update this memory when:
 
-- How should road-sampled panoramas be associated with buildings?
-- Should linkage use nearest building, frontage, visibility, buffer-based
-  aggregation, street segment association, or a learned attention mechanism?
-- Should future crops be road-relative or building-facing?
+- A canonical Gwanak scene table is created.
+- Scene-object membership outputs are created.
+- A semantic feature or embedding table becomes canonical.
+- A visual embedding table becomes canonical.
+- A scene-aware object embedding experiment is completed.
+- A scene embedding or similarity evaluation is completed.
+- A major experimental result changes a design decision.
+- A report supersedes old implementation status.
 
-Geo2Vec production:
+When updating:
 
-- Will the 5M stress test confirm that the 1M architecture scales cleanly?
-- What density is affordable for full national production?
-- How should epoch count interact with sample density in final production?
-
-Fusion and validation:
-
-- What tasks best validate a fused object representation?
-- What tasks best validate a scene representation for similarity evaluation?
-- Which validation schemes are needed beyond random splits?
-- How can evaluation avoid leaking spatial or administrative context?
-
-Method claims:
-
-- Which outputs are paper-faithful Geo2Vec reproductions?
-- Which outputs are FUSE engineering adaptations?
-- Which outputs should be described as production pipelines rather than
-  methodological claims?
-
-# Future Priorities
-
-## 1. Reconcile Documentation
-
-Several older docs are stale relative to current outputs.
-
-Needed updates:
-
-- Street View docs that say full image acquisition was not launched should be
-  updated or clearly marked historical.
-- Large-scale Geo2Vec docs that point to older output roots should point to
-  `~/fusedata/geo2vec_large_scale`.
-- Epoch-saturation artifacts should be summarized or removed from the active
-  research narrative.
-
-## 2. Build the Semantic Embedding Pipeline
-
-Next research step:
-
-- implement the hybrid semantic framework for buildings.
-
-Minimum viable output:
-
-- building-level semantic feature or embedding table keyed by `building_id`;
-- explicit semantic channels for internal activity, external institutional
-  context, OSM auxiliary context, roads, and admin context;
-- documented handling of missing observations.
-
-## 3. Generate Visual Embeddings
-
-Next research step:
-
-- use the validated 40,000-panorama Street View dataset to create visual
-  embeddings.
-
-Key choices:
-
-- model family;
-- whether to embed raw directional crops or semantic crops;
-- how to aggregate multiple directions;
-- how to link road-level imagery to buildings.
-
-## 4. Run 5M Geo2Vec Stress Test
-
-Next engineering step:
-
-- run the global-model Geo2Vec pipeline on 5M buildings.
-
-Recommended starting configuration:
-
-- about 800 SDF samples/building;
-- 8 workers for sample generation;
-- disk-backed cache;
-- checkpoint/resume validation;
-- partitioned embedding export.
-
-Goal:
-
-- validate scaling behavior before full nationwide production.
-
-## 5. Run Nationwide Production Geo2Vec
-
-Next production geometry step:
-
-- generate geometry embeddings for all 14,388,938 VWorld buildings.
-
-Recommended starting point:
-
-- use lessons from the 5M stress test;
-- consider about 1,600 SDF samples/building for quality-oriented production;
-- document density, epochs, seed, cache checksums, and validation results.
-
-## 6. Build the Fused Object Representation
-
-Near-term representation milestone:
-
-- combine geometry, semantic, visual, road, and administrative context into a
-  fused object embedding.
-
-Expected output:
-
-- object-level fused embedding table keyed by `building_id` for buildings;
-- channel-specific metadata;
-- validation report comparing geometry-only, semantics-only, visual-only, and
-  fused representations.
-
-## 7. Build Scene Embeddings and Similarity Evaluation
-
-Long-term research milestone:
-
-- aggregate object embeddings and spatial relations into scene representations;
-- evaluate spatial scene similarity in a learned representation space.
-
-Expected output:
-
-- scene-level embedding table or model outputs;
-- documented scene definitions and scales;
-- similarity retrieval and clustering evaluations;
-- comparison against geography-aware validation schemes.
-
-## 8. Define Robust Evaluation Tasks
-
-Future validation should include:
-
-- random splits;
-- spatial block splits;
-- administrative holdout;
-- possibly temporal or source holdout if time-varying data become available.
-
-Evaluation should test both:
-
-- whether embeddings encode known geometry/semantic properties;
-- whether they generalize spatially without simply memorizing location.
-
-# Maintenance Notes for Future Sessions
-
-Use this file as the research-memory document. It should be updated when:
-
-- a major dataset is added, replaced, or reprocessed;
-- a new embedding run becomes canonical;
-- an experiment changes a methodological decision;
-- a stale report is superseded;
-- a final semantic, visual, or fused representation is produced.
-
-When updating, prefer:
-
-- research implications over file inventories;
-- decisions and rationale over command logs;
-- validated outcomes over intentions;
-- dates for all status claims;
-- clear distinction between completed, in-progress, and proposed work.
-
-Do not duplicate all operational rules from `AGENTS.md`; keep only research
-context here.
+- Preserve completed facts and validated findings.
+- Record current state and unfinished gaps clearly.
+- Avoid duplicating `research_vision.md`.
+- Avoid turning project memory into a proposal.
+- Distinguish active priority from deferred work.
+- Keep national scaling evidence, but do not let it dominate the current roadmap unless explicitly requested.

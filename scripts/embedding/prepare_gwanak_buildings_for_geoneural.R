@@ -297,7 +297,7 @@ main <- function() {
   target_epsg <- 5186L
   layer_name <- "buildings"
 
-  sigungu_path <- path.expand("~/fusedata/geodata/koreanadm/bnd_sigungu_00_2024_2Q.shp")
+  sigungu_path <- path.expand("~/fusedatalarge/geodata/koreanadm/bnd_sigungu_00_2024_2Q.shp")
   building_gpkg <- path.expand("~/fusedatalarge/processed/korea_buildings_vworld.gpkg")
   attributes_parquet <- path.expand("~/fusedatalarge/processed/korea_buildings_vworld_attributes.parquet")
 

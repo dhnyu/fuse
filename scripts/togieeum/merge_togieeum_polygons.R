@@ -19,7 +19,7 @@ options(stringsAsFactors = FALSE)
 }
 
 cfg <- list(
-  root = path.expand(Sys.getenv("TOGIEEUM_ROOT", "/members/dhnyu/fusedatalarge/togieeum")),
+  root = path.expand(Sys.getenv("TOGIEEUM_ROOT", "/members/dhnyu/fusedatalarge/raw/togieeum")),
   processed_dir = path.expand(Sys.getenv("TOGIEEUM_PROCESSED_DIR", "/members/dhnyu/fusedatalarge/processed")),
   temp_dir = path.expand(Sys.getenv("TOGIEEUM_TEMP_DIR", file.path(tempdir(), "korea_togieeum_polygon_merge"))),
   chunk_size = as.integer(Sys.getenv("TOGIEEUM_CHUNK_SIZE", "1000")),

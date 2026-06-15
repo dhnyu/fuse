@@ -23,7 +23,7 @@ dir.create(validation_dir, recursive = TRUE, showWarnings = FALSE)
 single_path <- file.path(validation_dir, "gwanak_buildings_geo2vec_shape_single_model_lightweight.parquet")
 chunked_path <- path.expand("~/fusedata/embeddings/gwanak_buildings_geo2vec_shape_full.parquet")
 building_path <- path.expand("~/fusedatalarge/processed/gwanak_buildings_vworld.gpkg")
-dong_path <- path.expand("~/fusedata/geodata/koreanadm/bnd_dong_00_2024_2Q.shp")
+dong_path <- path.expand("~/fusedatalarge/geodata/koreanadm/bnd_dong_00_2024_2Q.shp")
 
 results_path <- file.path(validation_dir, "gwanak_geo2vec_xgboost_strict_validation_results.parquet")
 summary_csv_path <- file.path(validation_dir, "gwanak_geo2vec_xgboost_strict_validation_summary.csv")

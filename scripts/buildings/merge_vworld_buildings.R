@@ -49,7 +49,7 @@ format_bytes <- function(bytes) {
   sprintf("%.2f %s", value, units[[unit]])
 }
 
-raw_dir <- path.expand(Sys.getenv("VWORLD_RAW_DIR", "~/fusedatalarge/Building_vworld"))
+raw_dir <- path.expand(Sys.getenv("VWORLD_RAW_DIR", "~/fusedatalarge/raw/Building_vworld"))
 output_tag <- Sys.getenv("VWORLD_OUTPUT_TAG", unset = "")
 target_epsg <- env_int("VWORLD_TARGET_EPSG", 5186L)
 zip_regex <- Sys.getenv("VWORLD_ZIP_REGEX", unset = "^AL_D010_.*[.]zip$")

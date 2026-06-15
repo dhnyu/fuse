@@ -8,8 +8,10 @@ from pathlib import Path
 
 
 DATA_ROOT_ENV = "FUSE_DATA_ROOT"
+LARGE_DATA_ROOT_ENV = "FUSE_LARGE_DATA_ROOT"
 REPO_ROOT_ENV = "FUSE_REPO_ROOT"
 DATA_ROOT_DEFAULT = Path("..") / "fusedata"
+LARGE_DATA_ROOT_DEFAULT = Path("..") / "fusedatalarge"
 LEGACY_DATA_ROOT = Path("data")
 
 DIRECTORIES = {
@@ -27,6 +29,7 @@ DIRECTORIES = {
     "sampling_global": Path("sampling_global"),
     "sampling_global_debug": Path("sampling_global/debug"),
     "streetview": Path("streetview"),
+    "streetview_final": Path("streetview/final"),
     "streetview_metadata": Path("streetview/metadata"),
     "streetview_panoramas_raw": Path("streetview/panoramas/raw"),
     "streetview_crops_front": Path("streetview/crops/front"),
@@ -37,6 +40,28 @@ DIRECTORIES = {
     "streetview_logs": Path("streetview/logs"),
     "streetview_manifests": Path("streetview/manifests"),
     "streetview_debug": Path("streetview/debug"),
+}
+
+LARGE_DIRECTORY_KEYS = {
+    "geodata",
+    "osm",
+    "osm_raw",
+    "osm_canonical",
+    "osm_canonical_gpkg",
+    "osm_canonical_parquet",
+    "osm_sampling",
+    "osm_metadata",
+    "osm_logs",
+    "osm_tmp",
+    "streetview_panoramas_raw",
+    "streetview_crops_front",
+    "streetview_crops_right",
+    "streetview_crops_rear",
+    "streetview_crops_left",
+    "streetview_previews",
+    "streetview_logs",
+    "streetview_manifests",
+    "streetview_debug",
 }
 
 FILES = {
@@ -56,8 +81,8 @@ FILES = {
     "gsv_metadata_checkpoint": Path("streetview/metadata/gsv_metadata_checkpoint.parquet"),
     "gsv_metadata_rejection_summary": Path("streetview/metadata/gsv_metadata_rejection_summary.parquet"),
     "gsv_sampling_network_composition": Path("streetview/metadata/gsv_sampling_network_composition.parquet"),
-    "gsv_final_manifest": Path("streetview/manifests/gsv_final_manifest.parquet"),
-    "gsv_image_manifest": Path("streetview/manifests/gsv_image_manifest.parquet"),
+    "gsv_final_manifest": Path("streetview/final/gsv_seoul_metadata_final_40000.parquet"),
+    "gsv_image_manifest": Path("streetview/manifests/gsv_large_image_acquisition_manifest.parquet"),
     "gsv_final_coverage_leaflet": Path("streetview/metadata/gsv_final_coverage_map.html"),
     "gsv_diagnostics_report": Path("streetview/metadata/gsv_diagnostics_report.md"),
     "streetview_metadata_test": Path("streetview/metadata/gsv_metadata_test.parquet"),
@@ -66,6 +91,17 @@ FILES = {
     "streetview_pano_duplication": Path("streetview/metadata/gsv_pano_duplication_counts.parquet"),
     "streetview_capture_year_distribution": Path("streetview/metadata/gsv_capture_year_distribution.parquet"),
     "streetview_manifest_100": Path("streetview/manifests/gsv_download_manifest_100.parquet"),
+}
+
+LARGE_FILE_KEYS = {
+    "seoul_boundary",
+    "gadm_dir",
+    "osm_pbf",
+    "osm_roads_canonical",
+    "osm_roads_sampling_network",
+    "osm_poi_tmp_gpkg",
+    "gsv_image_manifest",
+    "streetview_manifest_100",
 }
 
 
@@ -104,6 +140,23 @@ def data_root(create: bool = False) -> Path:
     return selected
 
 
+def large_data_root(create: bool = False) -> Path:
+    root = repo_root()
+    env_root = os.getenv(LARGE_DATA_ROOT_ENV)
+    selected = Path(env_root).expanduser() if env_root else root / LARGE_DATA_ROOT_DEFAULT
+    selected = selected.resolve()
+    if create:
+        selected.mkdir(parents=True, exist_ok=True)
+    return selected
+
+
+def _root_for_key(key: str, kind: str, create: bool = False) -> Path:
+    large_keys = LARGE_DIRECTORY_KEYS if kind == "directory" else LARGE_FILE_KEYS
+    if key in large_keys:
+        return large_data_root(create=create)
+    return data_root(create=create)
+
+
 def data_path(*parts: str | os.PathLike[str], create_parent: bool = False, must_exist: bool = False) -> Path:
     path = data_root(create=create_parent).joinpath(*parts)
     if create_parent:
@@ -115,7 +168,7 @@ def data_path(*parts: str | os.PathLike[str], create_parent: bool = False, must_
 
 def data_dir(key: str, create: bool = False, must_exist: bool = False) -> Path:
     try:
-        path = data_root(create=create) / DIRECTORIES[key]
+        path = _root_for_key(key, "directory", create=create) / DIRECTORIES[key]
     except KeyError as exc:
         raise KeyError(f"Unknown FUSE data directory key: {key}") from exc
     if create:
@@ -130,7 +183,12 @@ def data_file(key: str, create_parent: bool = False, must_exist: bool = False) -
         rel = FILES[key]
     except KeyError as exc:
         raise KeyError(f"Unknown FUSE data file key: {key}") from exc
-    return data_path(rel, create_parent=create_parent, must_exist=must_exist)
+    path = _root_for_key(key, "file", create=create_parent) / rel
+    if create_parent:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    if must_exist and not path.exists():
+        raise FileNotFoundError(f"Required data path does not exist: {path}")
+    return path
 
 
 def ensure_core_dirs() -> None:
@@ -140,7 +198,7 @@ def ensure_core_dirs() -> None:
 
 def relative_to_repo_or_data(path: Path) -> str:
     resolved = path.resolve()
-    for base in (repo_root(), data_root()):
+    for base in (repo_root(), data_root(), large_data_root()):
         try:
             return str(resolved.relative_to(base))
         except ValueError:
@@ -151,10 +209,13 @@ def relative_to_repo_or_data(path: Path) -> str:
 def environment_summary() -> dict[str, str | bool]:
     root = repo_root()
     droot = data_root()
+    lroot = large_data_root()
     return {
         "repo_root": str(root),
         "data_root": str(droot),
+        "large_data_root": str(lroot),
         DATA_ROOT_ENV: os.getenv(DATA_ROOT_ENV, "<unset>"),
+        LARGE_DATA_ROOT_ENV: os.getenv(LARGE_DATA_ROOT_ENV, "<unset>"),
         REPO_ROOT_ENV: os.getenv(REPO_ROOT_ENV, "<unset>"),
         "legacy_data_present": (root / LEGACY_DATA_ROOT).exists(),
         "platform": platform.platform(),

@@ -25,7 +25,7 @@ if (length(args) >= 1L) {
 root <- path.expand("~/fusedata/geo2vec_large_scale")
 manifest_path <- file.path(root, "metadata", study_name, "sample_density_sensitivity_manifest.json")
 geometry_path <- path.expand("~/fusedatalarge/processed/gwanak_buildings_vworld.gpkg")
-dong_path <- path.expand("~/fusedata/geodata/koreanadm/bnd_dong_00_2024_2Q.shp")
+dong_path <- path.expand("~/fusedatalarge/geodata/koreanadm/bnd_dong_00_2024_2Q.shp")
 out_dir <- file.path(root, "reports", study_name)
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 

@@ -15,7 +15,7 @@ options(stringsAsFactors = FALSE)
   if (is.null(x) || length(x) == 0 || all(is.na(x)) || identical(x, "")) y else x
 }
 
-root <- path.expand(Sys.getenv("TOGIEEUM_ROOT", "~/fusedatalarge/togieeum"))
+root <- path.expand(Sys.getenv("TOGIEEUM_ROOT", "~/fusedatalarge/raw/togieeum"))
 out_dir <- path.expand(Sys.getenv("TOGIEEUM_PROCESSED_DIR", "~/fusedatalarge/processed"))
 inventory_out <- file.path(out_dir, "togieeum_inventory.parquet")
 catalog_out <- file.path(out_dir, "togieeum_layer_catalog.parquet")

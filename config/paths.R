@@ -1,8 +1,41 @@
 FUSE_PATH_CONFIG <- list(
   data_root_env = "FUSE_DATA_ROOT",
+  large_data_root_env = "FUSE_LARGE_DATA_ROOT",
   repo_root_env = "FUSE_REPO_ROOT",
   data_root_default = "../fusedata",
+  large_data_root_default = "../fusedatalarge",
   legacy_data_root = "data",
+  large_directory_keys = c(
+    "geodata",
+    "osm",
+    "osm_raw",
+    "osm_canonical",
+    "osm_canonical_gpkg",
+    "osm_canonical_parquet",
+    "osm_sampling",
+    "osm_metadata",
+    "osm_logs",
+    "osm_tmp",
+    "streetview_panoramas_raw",
+    "streetview_crops_front",
+    "streetview_crops_right",
+    "streetview_crops_rear",
+    "streetview_crops_left",
+    "streetview_previews",
+    "streetview_logs",
+    "streetview_manifests",
+    "streetview_debug"
+  ),
+  large_file_keys = c(
+    "seoul_boundary",
+    "gadm_dir",
+    "osm_pbf",
+    "osm_roads_canonical",
+    "osm_roads_sampling_network",
+    "osm_poi_tmp_gpkg",
+    "gsv_image_manifest",
+    "streetview_manifest_100"
+  ),
   directories = list(
     geodata = "geodata",
     grid_500m = "grid_500m",
@@ -18,6 +51,7 @@ FUSE_PATH_CONFIG <- list(
     sampling_global = "sampling_global",
     sampling_global_debug = "sampling_global/debug",
     streetview = "streetview",
+    streetview_final = "streetview/final",
     streetview_metadata = "streetview/metadata",
     streetview_panoramas_raw = "streetview/panoramas/raw",
     streetview_crops_front = "streetview/crops/front",
@@ -46,8 +80,8 @@ FUSE_PATH_CONFIG <- list(
     gsv_metadata_checkpoint = "streetview/metadata/gsv_metadata_checkpoint.parquet",
     gsv_metadata_rejection_summary = "streetview/metadata/gsv_metadata_rejection_summary.parquet",
     gsv_sampling_network_composition = "streetview/metadata/gsv_sampling_network_composition.parquet",
-    gsv_final_manifest = "streetview/manifests/gsv_final_manifest.parquet",
-    gsv_image_manifest = "streetview/manifests/gsv_image_manifest.parquet",
+    gsv_final_manifest = "streetview/final/gsv_seoul_metadata_final_40000.parquet",
+    gsv_image_manifest = "streetview/manifests/gsv_large_image_acquisition_manifest.parquet",
     gsv_final_coverage_leaflet = "streetview/metadata/gsv_final_coverage_map.html",
     gsv_diagnostics_report = "streetview/metadata/gsv_diagnostics_report.md",
     streetview_metadata_test = "streetview/metadata/gsv_metadata_test.parquet",
@@ -118,6 +152,38 @@ fuse_data_root <- function(create = FALSE) {
   root
 }
 
+fuse_large_data_root <- function(create = FALSE) {
+  repo_root <- fuse_repo_root()
+  env_root <- Sys.getenv(FUSE_PATH_CONFIG$large_data_root_env, "")
+
+  root <- if (nzchar(env_root)) {
+    env_root
+  } else {
+    file.path(repo_root, FUSE_PATH_CONFIG$large_data_root_default)
+  }
+  root <- fuse_norm_path(root, must_work = FALSE)
+
+  if (create && !dir.exists(root)) {
+    dir.create(root, recursive = TRUE, showWarnings = FALSE)
+  }
+  root
+}
+
+fuse_key_root <- function(key, kind = c("directory", "file"), create = FALSE) {
+  kind <- match.arg(kind)
+  large_keys <- if (identical(kind, "directory")) {
+    FUSE_PATH_CONFIG$large_directory_keys
+  } else {
+    FUSE_PATH_CONFIG$large_file_keys
+  }
+
+  if (key %in% large_keys) {
+    fuse_large_data_root(create = create)
+  } else {
+    fuse_data_root(create = create)
+  }
+}
+
 fuse_path <- function(..., create_parent = FALSE, must_exist = FALSE) {
   path <- file.path(fuse_data_root(create = create_parent), ...)
   if (create_parent) {
@@ -134,7 +200,7 @@ fuse_dir <- function(key, create = FALSE, must_exist = FALSE) {
   if (is.null(rel)) {
     stop("Unknown FUSE data directory key: ", key, call. = FALSE)
   }
-  path <- file.path(fuse_data_root(create = create), rel)
+  path <- file.path(fuse_key_root(key, "directory", create = create), rel)
   if (create && !dir.exists(path)) {
     dir.create(path, recursive = TRUE, showWarnings = FALSE)
   }
@@ -149,7 +215,14 @@ fuse_file <- function(key, create_parent = FALSE, must_exist = FALSE) {
   if (is.null(rel)) {
     stop("Unknown FUSE data file key: ", key, call. = FALSE)
   }
-  fuse_path(rel, create_parent = create_parent, must_exist = must_exist)
+  path <- file.path(fuse_key_root(key, "file", create = create_parent), rel)
+  if (create_parent) {
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  }
+  if (must_exist && !file.exists(path)) {
+    stop("Required data path does not exist: ", path, call. = FALSE)
+  }
+  path
 }
 
 fuse_ensure_core_dirs <- function() {
@@ -159,10 +232,13 @@ fuse_ensure_core_dirs <- function() {
 fuse_print_environment <- function() {
   repo_root <- fuse_repo_root()
   data_root <- fuse_data_root(create = FALSE)
+  large_data_root <- fuse_large_data_root(create = FALSE)
   cat("FUSE path environment\n")
   cat("  repo_root: ", repo_root, "\n", sep = "")
   cat("  data_root: ", data_root, "\n", sep = "")
+  cat("  large_data_root: ", large_data_root, "\n", sep = "")
   cat("  FUSE_DATA_ROOT: ", Sys.getenv("FUSE_DATA_ROOT", "<unset>"), "\n", sep = "")
+  cat("  FUSE_LARGE_DATA_ROOT: ", Sys.getenv("FUSE_LARGE_DATA_ROOT", "<unset>"), "\n", sep = "")
   cat("  legacy_data_present: ", dir.exists(file.path(repo_root, "data")), "\n", sep = "")
-  invisible(list(repo_root = repo_root, data_root = data_root))
+  invisible(list(repo_root = repo_root, data_root = data_root, large_data_root = large_data_root))
 }

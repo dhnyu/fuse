@@ -53,8 +53,12 @@ extra_tags <- unique(c(
   "fee", "access", "entrance"
 ))
 
-data_root <- normalizePath(path.expand("~/fusedata"), winslash = "/", mustWork = FALSE)
-osm_root <- file.path(data_root, "osm")
+large_data_root <- normalizePath(
+  path.expand(Sys.getenv("FUSE_LARGE_DATA_ROOT", "~/fusedatalarge")),
+  winslash = "/",
+  mustWork = FALSE
+)
+osm_root <- file.path(large_data_root, "osm")
 
 paths <- list(
   pbf = file.path(osm_root, "raw", "geofabrik_south-korea-latest.osm.pbf"),

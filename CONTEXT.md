@@ -78,6 +78,47 @@ Important design implications:
 - Location should be represented relative to the scene whenever possible to reduce absolute-coordinate memorization.
 - Evaluation must test whether scene representations preserve useful geographic information, not only whether an embedding reconstructs its input.
 
+## Validation Dataset Infrastructure
+
+A standardized validation-region dataset framework now exists for geographic-generalization and transferability experiments.
+
+Supported validation regions:
+
+- Seoul.
+- Daegu.
+- Jeju.
+- Gangneung.
+- Ganghwa.
+- Sejong.
+- Danyang.
+- Seongnam.
+- Incheon.
+- Daejeon.
+- Changwon.
+- Suwon.
+- Gwanak.
+- Korea.
+
+All validation regions use a standardized schema, consistent naming conventions, and EPSG:5186. The regional datasets provide buildings, point POIs, polygon POIs, roads, and Street View metadata. Street View working-data files contain metadata only; image files remain outside the working-data subsets.
+
+This infrastructure supports:
+
+- Geographic generalization evaluation.
+- Transfer learning experiments.
+- Domain-shift analysis.
+- Embedding robustness assessment.
+- Cross-region validation.
+
+Canonical regeneration path:
+
+- `scripts/working_data/create_validation_working_data.R`.
+
+Working-data documentation:
+
+- `~/fusedatalarge/working_data/README.md`.
+
+Future validation regions should be generated through this pipeline so that schema, CRS, naming conventions, and modality availability remain comparable across regions.
+
 ## What Has Been Completed
 
 ### National Data Foundations
@@ -122,10 +163,11 @@ OSM road and POI processing exists for Seoul and Korea-level auxiliary context.
 
 Standardized validation-region working data has been created under `~/fusedatalarge/working_data`.
 
-- Purpose: regional subsets for spatial scene representation, validation, and downstream embedding workflows.
+- Purpose: canonical validation-region framework for spatial scene representation, geographic generalization, transferability, domain-shift analysis, and downstream embedding workflows.
 - README: `~/fusedatalarge/working_data/README.md`.
 - Reproducible script: `~/fuse/scripts/working_data/create_validation_working_data.R`.
 - Current region keys: `gwanak`, `seoul`, `daegu`, `jeju`, `gangneung`, `ganghwa`, `sejong`, `danyang`, `seongnam`, `incheon`, `daejeon`, `changwon`, `suwon`, and `korea`.
+- All regions follow a standardized schema, consistent naming conventions, and EPSG:5186.
 - Standard files per regional subset: `1_Building_vworld`, `2_pointPOI_osm`, `2_pointPOI_ngii`, `3_polygonPOI_osm`, `3_polygonPOI_togi`, `4_road_osm`, and `5_streetview`, using `.gpkg` plus `.parquet` for spatial layers and parquet only for Street View metadata.
 - The `korea` directory is a symlink alias to nationwide source datasets and should not duplicate large nationwide files.
 - A nationwide highway-tagged OSM road working source was derived under `~/fusedatalarge/working_data/_sources` because no documented nationwide canonical OSM road GPKG existed; source/raw OSM files were not modified.

@@ -286,6 +286,57 @@ Regional subset directories use the standard file names:
 Street View working-data files contain metadata only. Do not copy Street View
 image files into `working_data`.
 
+## Validation Working Data
+
+`working_data` is not merely a convenience subset directory.
+
+It is the canonical validation framework for geographic-generalization and
+transferability experiments.
+
+Future experiments should preferentially use:
+
+```text
+working_data/seoul
+```
+
+for primary training and development, and other validation regions for
+out-of-region validation when evaluating representation transferability.
+
+Currently supported validation regions:
+
+* gwanak
+* seoul
+* daegu
+* jeju
+* gangneung
+* ganghwa
+* sejong
+* danyang
+* seongnam
+* incheon
+* daejeon
+* changwon
+* suwon
+* korea
+
+All validation regions follow a common schema and consistent naming conventions.
+New regions should be created through:
+
+```text
+~/fuse/scripts/working_data/create_validation_working_data.R
+```
+
+Do not introduce ad hoc region subsets with incompatible names, CRS, or layer
+schemas.
+
+Research-proposal RQ2-5 explicitly concerns geographic generalization across
+heterogeneous regions.
+
+Therefore, when evaluating scene embeddings, representation learning models,
+retrieval systems, multimodal fusion architectures, or downstream prediction
+tasks, prefer cross-region validation whenever feasible rather than relying only
+on within-region evaluation.
+
 ---
 
 # External Research Repositories
@@ -532,20 +583,57 @@ Stable project documents:
 * CONTEXT.md
 * research_vision.md
 
-Long-term documentation:
+Long-term methodological, architectural, and research-design documents:
 
-~/fuse/docs
+~/fuse/reports/core
 
-Generated reports:
+Examples:
 
-~/fuse/reports
+* embedding architecture
+* methodological specifications
+* scene representation design
+* multimodal fusion design
+* scaling strategy
+* major project plans
+
+These documents are expected to remain relevant across multiple future project phases and should be treated as canonical project references.
+
+Experiment reports, validations, benchmarks, and implementation summaries:
+
+~/fuse/reports/experiments
+
+Examples:
+
+* sample density experiments
+* epoch sensitivity studies
+* hyperparameter ablations
+* validation reports
+* benchmark reports
+* implementation summaries
+
+These reports are expected to be numerous and are not considered canonical project references.
 
 Generated Markdown files must:
 
-* be written only under reports/
+* be written only under reports/core or reports/experiments
+* never be written under src/, scripts/, tests/, or data directories
 * use sortable filenames
 
-Format:
+Core report format:
+
+```text
+descriptive_name.md
+```
+
+Examples:
+
+```text
+gwanak_building_object_geometry_embedding_plan.md
+scene_representation_design.md
+multimodal_fusion_architecture.md
+```
+
+Experiment report format:
 
 ```text
 YYYYMMDD_HHMM_short_description.md
@@ -567,5 +655,13 @@ Do not create generated reports inside:
 When creating a report:
 
 * inspect existing reports first
-* update when appropriate
+* update an existing report when appropriate
 * avoid duplicate reports
+* place long-lived design documents in reports/core
+* place experiments, validations, benchmarks, and implementation notes in reports/experiments
+
+Maintain:
+
+* reports/core/0000_INDEX.md
+
+Whenever a new core document is created, renamed, or substantially revised, update the core index accordingly.

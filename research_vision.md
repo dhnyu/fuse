@@ -186,6 +186,26 @@ The critical question is whether the representation captures meaningful geograph
 
 ---
 
+## Geographic Generalization
+
+Spatial scene representation learning must be evaluated as a geographic generalization problem.
+
+A representation that performs well only within one city may capture local regularities, administrative conventions, sampling artifacts, or region-specific correlations rather than general spatial structure. Such a representation can be useful as a bounded prototype, but it has limited scientific value as a general framework for geographic similarity.
+
+Geographic environments are heterogeneous. Dense metropolitan districts, planned administrative cities, industrial corridors, rural counties, coastal settlements, island regions, historical urban cores, and suburban residential landscapes differ in object density, road morphology, land-use composition, visual appearance, semantic category distributions, and data completeness. These differences create geographic domain shift.
+
+The project therefore treats transferability as a core scientific requirement.
+
+Scene embeddings should be tested not only on held-out scenes from the same region, but also on scenes from geographically distinct regions. A model trained in one region should be evaluated on whether it can preserve meaningful similarity, retrieval structure, and downstream predictive signal in another region with different spatial organization.
+
+Train-on-one-region and test-on-another-region experiments are central to this goal. They help distinguish representations that learn transferable spatial relationships from representations that rely on local memorization.
+
+Cross-region evaluation also clarifies the role of modality fusion. Geometry, semantics, visual context, and relations may shift differently across regions. A robust scene representation should remain meaningful when some modalities are regionally biased, sparse, or distributed differently from the training region.
+
+Generalization is therefore not a secondary deployment concern. It is part of the scientific definition of a successful spatial scene representation.
+
+---
+
 # Research Questions
 
 ## RQ1: Spatial Object Representation

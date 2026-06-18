@@ -628,7 +628,7 @@ descriptive_name.md
 Examples:
 
 ```text
-gwanak_building_object_geometry_embedding_plan.md
+geometry_embedding_guide.md
 scene_representation_design.md
 multimodal_fusion_architecture.md
 ```

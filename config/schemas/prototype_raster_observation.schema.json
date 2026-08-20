@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-raster-observation-1.0.0.json",
+  "title": "Prototype raster observation contracts",
+  "$defs": {
+    "object_context_row": {
+      "type": "object",
+      "required": [
+        "scene_id", "scene_footprint_id", "split", "entity_type",
+        "source_entity_id", "local_entity_id", "vector_observation_dataset_id",
+        "raster_observation_dataset_id", "lc_total_support", "lc_valid_support",
+        "lc_nodata_support", "lc_valid_support_ratio", "dem_total_support",
+        "dem_valid_support", "dem_nodata_support", "dem_valid_support_ratio",
+        "dem_mean_m", "dem_sd_m", "lc_valid_cell_count", "dem_valid_cell_count"
+      ],
+      "properties": {
+        "scene_id": {"type": "string"},
+        "scene_footprint_id": {"type": "string"},
+        "split": {"enum": ["training", "validation", "evaluation"]},
+        "entity_type": {"enum": ["B", "R", "P"]},
+        "source_entity_id": {"type": "string"},
+        "local_entity_id": {"type": "integer", "minimum": 0},
+        "vector_observation_dataset_id": {"type": "string"},
+        "raster_observation_dataset_id": {"type": "string"}
+      },
+      "patternProperties": {
+        "^lc_(support|fraction)_[0-9]{2}$": {"type": "number"}
+      },
+      "additionalProperties": true
+    },
+    "scene_index_row": {
+      "type": "object",
+      "required": [
+        "scene_id", "scene_footprint_id", "split", "branch_id", "zarr_index",
+        "xmin", "ymin", "xmax", "ymax", "lc_height", "lc_width",
+        "dem_height", "dem_width", "row_order", "column_order"
+      ],
+      "properties": {
+        "scene_id": {"type": "string"},
+        "scene_footprint_id": {"type": "string"},
+        "split": {"enum": ["training", "validation", "evaluation"]},
+        "branch_id": {"type": "string"},
+        "zarr_index": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    }
+  }
+}

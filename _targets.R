@@ -10,7 +10,8 @@ research_function_files <- c(
   "R/research_scene_index.R",
   "R/research_prototype.R",
   "R/research_membership.R",
-  "R/research_observation.R"
+  "R/research_observation.R",
+  "R/research_raster_observation.R"
 )
 targets::tar_source(research_function_files)
 
@@ -48,5 +49,11 @@ targets::tar_option_set(
 targets::tar_source("targets/research_scene_index.R")
 targets::tar_source("targets/research_membership.R")
 targets::tar_source("targets/research_observation.R")
+targets::tar_source("targets/research_raster_observation.R")
 
-c(list_research_scene_index, list_research_membership, list_research_observation)
+c(
+  list_research_scene_index,
+  list_research_membership,
+  list_research_observation,
+  list_research_raster_observation
+)

@@ -27,6 +27,7 @@
 | `prototype_membership_acceptance` | `IMPLEMENTED/PASS` | 237,121 memberships, source/checksum/brute-force aggregate gate |
 | `prototype_observation_plan` | `IMPLEMENTED/PASS` | 15 aligned specs; 3 dense singleton + 12 capped/cost-balanced shards |
 | `prototype_vector_observation_shard` | `IMPLEMENTED/PASS` | 15 dynamic branches; B/R/P GeoParquet 1.1.0, clipped attrs/local IDs/QC |
+| `prototype_raster_observation_shard` | `IMPLEMENTED/PASS` | 15 aligned dynamic branches; LC/DEM Zarr v2, 237,121 object contexts, branch QC/checksums |
 
 `research_config_files`, `research_implementation_files`, `study_data_inventory`는 파일
 추적과 validation 결과를 targets store의 대형 R object 없이 연결하기 위한 기술 보조

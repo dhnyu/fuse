@@ -1,0 +1,22 @@
+schema_version: "1.0.0"
+controller: controller_10
+selected_max_concurrency: 10
+branch_workers: 1
+threads_per_worker: 1
+retry:
+  maximum_attempts: 2
+  retry_failed_branch_only: true
+publish:
+  staging: branch_local_same_filesystem
+  atomic_publish: directory_rename
+  overwrite_existing: false
+thread_environment:
+  OMP_NUM_THREADS: 1
+  OPENBLAS_NUM_THREADS: 1
+  MKL_NUM_THREADS: 1
+  VECLIB_MAXIMUM_THREADS: 1
+  NUMEXPR_NUM_THREADS: 1
+  GDAL_NUM_THREADS: 1
+  ARROW_NUM_THREADS: 1
+  DATATABLE_NUM_THREADS: 1
+  TERRA_THREADS: 1

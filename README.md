@@ -11,6 +11,7 @@ files에서 시작하는 research pipeline만 조립하며 `seoul_data_preproces
 - `targets/research_scene_index.R`: source contract와 scene-index target을 선언한다.
 - `targets/research_membership.R`: prototype membership plan/branch/acceptance를 선언한다.
 - `targets/research_observation.R`: aligned observation plan과 vector observation branch를 선언한다.
+- `targets/research_raster_observation.R`: aligned raster observation branch를 선언한다.
 - `_targets.R`: research pipeline과 CPU controller만 등록한다.
 - `_targets_maintenance.R`: `seoul_data_preprocess` 전용 maintenance graph다.
 - `tools/targets-network/`: target을 계산하지 않고 dependency HTML을 생성한다.
@@ -19,7 +20,7 @@ files에서 시작하는 research pipeline만 조립하며 `seoul_data_preproces
 - `scripts/run_maintenance_targets.R`: 별도 maintenance store 진입점이다.
 - `scripts/preprocess/`: targets graph에 포함되지 않는 전국 canonical ingest 코드다.
 
-현재 research 구현은 scene index, prototype membership, prototype vector observation 승인 단위로 구성된다.
+현재 research 구현은 scene index, prototype membership, prototype vector/raster observation 승인 단위로 구성된다.
 
 | 구분 | target | 역할 |
 |---|---|---|
@@ -37,29 +38,33 @@ files에서 시작하는 research pipeline만 조립하며 `seoul_data_preproces
 | 보조 | `observation_contract_files` | vector scientific/runtime/schema/writer/implementation 추적 |
 | 핵심 | `prototype_observation_plan` | vector/raster/relation 공통 15-branch scene grouping |
 | 핵심 | `prototype_vector_observation_shard` | B/R/P clipped observation GeoParquet 1.1 dynamic branch |
+| 보조 | `raster_observation_contract_files` | raster scientific/runtime/schema/Zarr writer contract 추적 |
+| 핵심 | `prototype_raster_observation_shard` | aligned scene LC/DEM Zarr와 object context Parquet dynamic branch |
 
 ## Research Pipeline 실행
 
-Prototype vector observation까지 실행한다. 각 branch 내부 worker/thread는 1이다.
-Membership은 `controller_20`, GEOS clipping과 GeoParquet write는 `controller_10`을 사용한다.
+Prototype raster observation까지 실행한다. 각 branch 내부 worker/thread는 1이다.
+Membership은 `controller_20`, vector clipping과 raster extraction은 `controller_10`을 사용한다.
 
 ```bash
 FUSE_CONTROLLER_10_WORKERS=10 \
-Rscript scripts/run_targets.R prototype_vector_observation_shard
+Rscript scripts/run_targets.R prototype_raster_observation_shard
 ```
 
 Research store는 `/mnt/hdd002/dhnyu/fusedata/targets/fuse-research`, derived artifact는
 `/mnt/hdd002/dhnyu/fusedata/scene_data/v1`에 저장된다. Scene index는 GeoParquet,
-contract/manifest/QC는 JSON, membership은 geometry 없는 Parquet, observed geometry는
-GeoParquet 1.1.0 WKB다. 모든 대규모 산출물은 staging에서 검증한 뒤
+contract/manifest/QC는 JSON, membership과 object raster context는 geometry 없는 Parquet,
+observed geometry는 GeoParquet 1.1.0 WKB, scene raster는 Zarr v2다. 모든 대규모 산출물은 staging에서 검증한 뒤
 content-addressed directory로 atomic publish한다.
 
 `prototype_membership_plan`은 branch spec JSON을 외부에 publish한 뒤 작은 spec list를
 `format="rds", iteration="list"`로 반환한다. `targets 1.12.0`은 정적
 `format="file"` stem을 직접 `map()`하는 것을 허용하지 않기 때문이다. I07은
 `pattern=map(prototype_membership_plan)`이며 branch output은 `format="file"`이다.
-I09도 같은 atomic JSON + small RDS list convention을 사용하고 I10은
-`pattern=map(prototype_observation_plan)`, `format="file"`이다.
+I09도 같은 atomic JSON + small RDS list convention을 사용한다. I10은
+`pattern=map(prototype_observation_plan)`, I11은 aligned
+`pattern=map(prototype_observation_plan, prototype_vector_observation_shard)`이며 둘 다
+`format="file"`이다.
 
 Maintenance는 research graph와 다른 script/store를 명시적으로 사용한다.
 
@@ -99,7 +104,7 @@ Research `_targets.R`은 `controller_05`,
 `controller_10`, `controller_20`, `controller_40`을 `crew_controller_group()`으로
 등록한다. Controller 이름은 CPU 할당량이 아니라 동시에 실행 가능한 crew worker
 pool이다. Static plan/acceptance는 `controller_05`, membership dynamic branch는
-`controller_20`, vector observation dynamic branch는 `controller_10`을 사용한다. 모든 research target 내부 병렬도는
+`controller_20`, vector/raster observation dynamic branch는 `controller_10`을 사용한다. 모든 research target 내부 병렬도는
 `workers=1`, `threads=1`, GPU 0개다.
 
 Maintenance의 `controller_20`은 CPU 20개를 target에 직접 할당하는 설정이 아니라,

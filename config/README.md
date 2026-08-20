@@ -11,6 +11,9 @@
 - `vector_observation.yml`: clipping, observed attributes, local IDs, numerical tolerance, GeoParquet 1.1 writer와 cost-balanced shard 계약.
 - `vector_observation_runtime.yml`: I10 `controller_10`, 1x1 native threads, retry와 atomic publish 설정.
 - `schemas/prototype_vector_observation.schema.json`: B/R/P observed row의 공통 field와 geometry 계약.
+- `raster_observation.yml`: scene LC 100x100, DEM 17x17, observed-geometry object support, nodata와 Zarr/Parquet 저장 계약.
+- `raster_observation_runtime.yml`: I11 `controller_10`, branch 1x1 thread, concurrency pilot와 atomic publish 설정.
+- `schemas/prototype_raster_observation.schema.json`: scene raster index, object context, branch manifest/QC의 JSON Schema 계약.
 
 `research_config_files`가 세 파일을 `format="file"`로 추적한다. 따라서 내용 변경은
 `methodology_contract`와 필요한 downstream을 outdated시킨다. Thesis commit, dirty
@@ -30,6 +33,13 @@ status, PDF SHA-256과 mtime은 config나 scientific hash에 포함되지 않고
 
 Runtime worker/controller changes belong in environment or runtime config and must not alter
 scientific IDs unless they change numeric execution semantics.
+
+## Raster observations
+
+- Land cover scene tensor: 22-class area composition `float32` `(scene, 22, 100, 100)` plus validity ratio/mask. Categorical interpolation, silent category `0`, padding은 금지한다.
+- DEM scene tensor: raw metre area mean `float32` `(scene, 17, 17)` plus validity ratio/mask. normalization과 imputation은 training 단계로 미룬다.
+- Object support: I10 observed Building area, Road length, POI containing cell만 사용한다. LC는 raw class support와 valid-normalized composition, DEM은 overlap-weighted mean/population SD를 저장한다.
+- Zarr v2는 scene당 chunk, Blosc Zstd level 5 + bitshuffle, consolidated metadata를 사용한다. `zarr_member_manifest.json`은 staging 경로를 포함하지 않는 ordered member array와 SHA-256을 기록한다.
 
 ## Membership predicates
 

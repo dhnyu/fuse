@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype_membership.schema.json",
+  "title": "Prototype membership branch specification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec_schema_version", "branch_id", "membership_dataset_id", "prototype_id",
+    "scene_index_id", "scene_ids", "scenes", "split_counts", "estimated_counts",
+    "estimated_cost", "sources", "membership_contract", "output", "execution"
+  ],
+  "properties": {
+    "spec_schema_version": {"const": "1.0.0"},
+    "branch_id": {"type": "string", "pattern": "^pmb_[0-9a-f]{24}$"},
+    "membership_dataset_id": {"type": "string", "pattern": "^pmd_[0-9a-f]{24}$"},
+    "prototype_id": {"type": "string", "pattern": "^pro_[0-9a-f]{24}$"},
+    "scene_index_id": {"type": "string", "pattern": "^idx_[0-9a-f]{24}$"},
+    "scene_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "scenes": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["scene_id", "scene_footprint_id", "split", "xmin", "ymin", "xmax", "ymax", "estimated_cost"],
+        "properties": {
+          "scene_id": {"type": "string"}, "scene_footprint_id": {"type": "string"},
+          "split": {"enum": ["training", "validation", "evaluation"]},
+          "xmin": {"type": "number"}, "ymin": {"type": "number"},
+          "xmax": {"type": "number"}, "ymax": {"type": "number"},
+          "estimated_cost": {"type": "number", "minimum": 0}
+        }
+      }
+    },
+    "split_counts": {"type": "object"},
+    "estimated_counts": {"type": "object"},
+    "estimated_cost": {"type": "number", "minimum": 0},
+    "sources": {"type": "object"},
+    "membership_contract": {"type": "object"},
+    "output": {"type": "object"},
+    "execution": {"type": "object"}
+  }
+}

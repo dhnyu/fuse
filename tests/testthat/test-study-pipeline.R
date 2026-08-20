@@ -24,8 +24,10 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
   expect_equal(
     research_manifest$name,
     c(
-      "research_config_files", "research_implementation_files", "study_data_inputs", "study_data_inventory",
-      "methodology_contract", "spatial_scene_index", "prototype_scene_selection"
+      "research_config_files", "membership_contract_files", "research_implementation_files",
+      "study_data_inputs", "study_data_inventory", "methodology_contract", "spatial_scene_index",
+      "prototype_scene_selection", "prototype_membership_plan", "prototype_membership_shard",
+      "prototype_membership_acceptance"
     )
   )
   expect_false("seoul_data_preprocess" %in% research_manifest$name)

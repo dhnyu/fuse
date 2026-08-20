@@ -8,7 +8,8 @@ research_function_files <- c(
   "R/io_spatial.R",
   "R/research_contracts.R",
   "R/research_scene_index.R",
-  "R/research_prototype.R"
+  "R/research_prototype.R",
+  "R/research_membership.R"
 )
 targets::tar_source(research_function_files)
 
@@ -30,7 +31,7 @@ controller_40 <- crew::crew_controller_local(
 )
 
 targets::tar_option_set(
-  packages = c("data.table", "digest", "jsonlite", "sf", "sfarrow", "terra", "yaml"),
+  packages = c("arrow", "data.table", "digest", "jsonlite", "sf", "sfarrow", "terra", "yaml"),
   controller = crew::crew_controller_group(
     controller_05,
     controller_10,
@@ -44,5 +45,6 @@ targets::tar_option_set(
 )
 
 targets::tar_source("targets/research_scene_index.R")
+targets::tar_source("targets/research_membership.R")
 
-list_research_scene_index
+c(list_research_scene_index, list_research_membership)

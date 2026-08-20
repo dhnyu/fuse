@@ -22,6 +22,9 @@
 | `methodology_contract` | `IMPLEMENTED/PASS` | scientific JSON Schema contract + dependency-free record-only provenance |
 | `spatial_scene_index` | `IMPLEMENTED/PASS` | 12,690-row EPSG:5186 GeoParquet, manifest, QC |
 | `prototype_scene_selection` | `IMPLEMENTED/PASS` | 320-row GeoParquet with pre-membership density proxies, manifest, QC |
+| `prototype_membership_plan` | `IMPLEMENTED/PASS` | 9 cost-balanced specs; 4 dense singleton + 5 regular shards |
+| `prototype_membership_shard` | `IMPLEMENTED/PASS` | 9 dynamic branches, B/R/P geometry-free Parquet + sidecars |
+| `prototype_membership_acceptance` | `IMPLEMENTED/PASS` | 237,121 memberships, source/checksum/brute-force aggregate gate |
 
 `research_config_files`, `research_implementation_files`, `study_data_inventory`는 파일
 추적과 validation 결과를 targets store의 대형 R object 없이 연결하기 위한 기술 보조
@@ -65,7 +68,11 @@ target이며 scientific phase target 수에는 포함하지 않는다. Root rese
 2. branch 하나는 자기 파일만 쓰고 동일 GeoPackage, Parquet, Zarr group, tar에 여러 writer가 접근하지 않는다.
 3. 모든 대규모 artifact는 branch-local staging -> branch QC -> checksum -> same-filesystem atomic rename -> aggregate acceptance 순서다.
 4. 최종 artifact target은 `format = "file"`이다. Directory dataset은 file list와 SHA-256을 가진 manifest가 대표 artifact다.
-5. Dynamic plan target은 branch-spec JSON path vector를 `format = "file", iteration = "vector"`로 반환한다. Branch는 `pattern = map(plan_target)`으로 생성한다.
+5. Dynamic plan target은 branch-spec JSON을 외부에 atomic publish하고 작은 spec list를
+   `format = "rds", iteration = "list"`로 반환한다. 사용 중인 `targets 1.12.0`은
+   정적 `format="file"` stem을 직접 `map()`하는 것을 금지한다. Branch는
+   `pattern = map(plan_target)`, `format="file"`로 생성하며 spec 내용 hash와 branch
+   file hash가 각각 계산 identity와 partial recovery를 보장한다.
 6. 매우 저비용이며 항상 같이 수행되는 manifest와 cross-QC는 하나의 `*_acceptance` target으로 합친다.
 7. 비싼 branch와 aggregate gate는 합치지 않는다. 성공 branch 재사용이 가능해야 한다.
 8. Prototype과 production은 동일 target factory, R/Python 함수, schema를 사용하고 input scene index와 output root만 다르게 한다.

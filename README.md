@@ -8,7 +8,8 @@ files에서 시작하는 research pipeline만 조립하며 `seoul_data_preproces
 ## 코드 구조
 
 - `R/`: 재사용 가능한 함수. 함수 파일에는 `tar_target()`을 두지 않는다.
-- `targets/research_scene_index.R`: research pipeline의 초기 target을 선언한다.
+- `targets/research_scene_index.R`: source contract와 scene-index target을 선언한다.
+- `targets/research_membership.R`: prototype membership plan/branch/acceptance를 선언한다.
 - `_targets.R`: research pipeline과 CPU controller만 등록한다.
 - `_targets_maintenance.R`: `seoul_data_preprocess` 전용 maintenance graph다.
 - `tools/targets-network/`: target을 계산하지 않고 dependency HTML을 생성한다.
@@ -17,7 +18,7 @@ files에서 시작하는 research pipeline만 조립하며 `seoul_data_preproces
 - `scripts/run_maintenance_targets.R`: 별도 maintenance store 진입점이다.
 - `scripts/preprocess/`: targets graph에 포함되지 않는 전국 canonical ingest 코드다.
 
-초기 research 구현은 다음 네 scientific target과 세 기술 보조 file target으로 구성된다.
+현재 research 구현은 scene index 승인 단위와 prototype membership 승인 단위로 구성된다.
 
 | 구분 | target | 역할 |
 |---|---|---|
@@ -28,19 +29,30 @@ files에서 시작하는 research pipeline만 조립하며 `seoul_data_preproces
 | 핵심 | `methodology_contract` | scientific contract와 record-only thesis provenance |
 | 핵심 | `spatial_scene_index` | training 250 m lattice와 fixed off-lattice index |
 | 핵심 | `prototype_scene_selection` | 320-scene pre-membership proxy 표본 |
+| 보조 | `membership_contract_files` | membership scientific/runtime config와 JSON Schema 추적 |
+| 핵심 | `prototype_membership_plan` | 320 scenes의 cost-balanced 9-branch spec |
+| 핵심 | `prototype_membership_shard` | B/R/P exact membership 일반 Parquet dynamic branch |
+| 핵심 | `prototype_membership_acceptance` | checksum/source ID/brute-force/aggregate QC gate |
 
 ## Research Pipeline 실행
 
-초기 graph 전체를 실행한다. `prototype_scene_selection`의 필요한 upstream만 실행된다.
+Prototype membership gate까지 실행한다. 각 branch 내부 worker/thread는 1이며
+`controller_20`의 최대 동시 branch 수는 pilot 결과에 따라 20으로 설정했다.
 
 ```bash
-Rscript scripts/run_targets.R prototype_scene_selection
+FUSE_CONTROLLER_20_WORKERS=20 \
+Rscript scripts/run_targets.R prototype_membership_acceptance
 ```
 
 Research store는 `/mnt/hdd002/dhnyu/fusedata/targets/fuse-research`, derived artifact는
 `/mnt/hdd002/dhnyu/fusedata/scene_data/v1`에 저장된다. Scene index는 GeoParquet,
-contract/manifest/QC는 JSON이다. 모든 대규모 산출물은 staging에서 검증한 뒤
+contract/manifest/QC는 JSON이고 membership은 geometry 없는 Parquet다. 모든 대규모 산출물은 staging에서 검증한 뒤
 content-addressed directory로 atomic publish한다.
+
+`prototype_membership_plan`은 branch spec JSON을 외부에 publish한 뒤 작은 spec list를
+`format="rds", iteration="list"`로 반환한다. `targets 1.12.0`은 정적
+`format="file"` stem을 직접 `map()`하는 것을 허용하지 않기 때문이다. I07은
+`pattern=map(prototype_membership_plan)`이며 branch output은 `format="file"`이다.
 
 Maintenance는 research graph와 다른 script/store를 명시적으로 사용한다.
 
@@ -79,7 +91,8 @@ Rscript tools/targets-network/render_targets_network.R \
 Research `_targets.R`은 `controller_05`,
 `controller_10`, `controller_20`, `controller_40`을 `crew_controller_group()`으로
 등록한다. Controller 이름은 CPU 할당량이 아니라 동시에 실행 가능한 crew worker
-pool이다. 현재 7개 target은 모두 `controller_05`를 사용하고 target 내부
+pool이다. Static plan/acceptance는 `controller_05`, membership dynamic branch는
+`controller_20`을 사용한다. 모든 research target 내부 병렬도는
 `workers=1`, `threads=1`, GPU 0개다.
 
 Maintenance의 `controller_20`은 CPU 20개를 target에 직접 할당하는 설정이 아니라,

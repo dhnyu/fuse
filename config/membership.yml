@@ -1,0 +1,75 @@
+schema_version: "1.0.0"
+membership_predicate_version: "1.0.0"
+processing_epsg: 5186
+
+predicates:
+  building:
+    entity_type: B
+    geometry_family: polygon
+    rule: positive_area_intersection
+    measure_tolerance: 0.0
+    boundary_only_contact: exclude
+  road:
+    entity_type: R
+    geometry_family: line
+    rule: positive_length_intersection
+    measure_tolerance: 0.0
+    boundary_only_contact: exclude
+  poi:
+    entity_type: P
+    geometry_family: point
+    rule: covered_by_closed_scene_footprint
+    boundary_only_contact: include
+
+geometry_policy:
+  multipart: retain_as_one_source_entity
+  invalid: fail_branch
+  empty: fail_branch
+  geometry_collection: fail_branch
+  duplicate_source_id: fail_branch
+  numerical_engine: GEOS
+  boundary_convention: closed_for_points_positive_measure_for_lines_and_polygons
+
+sources:
+  building:
+    input_role: building
+    layer_role: building
+    source_layer: buildings
+    source_id_column: building_feature_id
+  road:
+    input_role: road
+    layer_role: road_links
+    source_layer: links
+    source_id_column: LINK_ID
+  poi:
+    input_role: poi
+    layer_role: poi
+    source_layer: points
+    source_id_column: NF_ID
+
+membership_columns:
+  scene_id: string
+  scene_footprint_id: string
+  split: string
+  entity_type: string
+  source_entity_id: string
+  source_layer: string
+  membership_predicate_version: string
+  branch_id: string
+  source_artifact_id: string
+  scene_index_id: string
+  prototype_id: string
+
+sharding:
+  target_shards: 8
+  maximum_scenes_per_shard: 64
+  oversize_singleton_cost: 4000.0
+  proxy_weights:
+    building: 1.0
+    road: 1.0
+    poi: 1.0
+  algorithm: deterministic_lpt_with_oversize_singletons
+
+brute_force_qc:
+  sample_count: 12
+  selection_algorithm: deterministic_density_boundary_split_stratified_v1

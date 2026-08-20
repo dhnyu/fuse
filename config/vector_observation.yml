@@ -1,0 +1,90 @@
+schema_version: "1.0.0"
+observation_contract_version: "1.0.0"
+processing_epsg: 5186
+
+local_entity_id:
+  type: int32
+  base: 0
+  ordering: entity_type_rank_then_utf8_source_entity_id
+  entity_type_rank: [B, R, P]
+
+geometry:
+  clip_engine: GEOS
+  building_family: polygonal
+  road_family: lineal
+  poi_family: point
+  normalize_before_fingerprint: false
+  fingerprint_encoding: source_order_little_endian_ogc_wkb
+  fingerprint_algorithm: sha256
+  numerical_tolerance:
+    coordinate_m: 1.0e-7
+    area_absolute_m2: 1.0e-4
+    length_absolute_m: 1.0e-7
+    measure_relative: 1.0e-10
+    basis: IEEE754_GEOS_boundary_roundoff_only
+  scientific_buffer_m: 0.0
+  invalid_source: fail_branch
+  empty_source: fail_branch
+  geometry_collection_source: fail_branch
+  zero_dimension_observation: fail_branch
+
+attributes:
+  building:
+    preserved: [A9, A11, A14, A14_source_state]
+    observed_footprint: observed_area_m2
+    source_footprint: source_area_m2
+    extensive_source: A14
+    extensive_observed: observed_gross_floor_area_m2
+    unavailable_rule: "is.na(A14) || A14 <= 0"
+    allocation: "A14 * observed_area_m2 / source_area_m2"
+  road:
+    preserved: [LANES, ROAD_RANK, ROAD_TYPE, F_NODE, T_NODE]
+    observed_length: observed_length_m
+    source_length: source_length_m
+  poi:
+    preserved:
+      - POI_CL_DC
+      - CLASS_L1_CODE
+      - CLASS_L1_LABEL
+      - CLASS_L1_STATE
+      - CLASS_L2_CODE
+      - CLASS_L2_LABEL
+      - CLASS_L2_STATE
+      - CLASS_L3_CODE
+      - CLASS_L3_LABEL
+      - CLASS_L3_STATE
+      - CLASS_L4_CODE
+      - CLASS_L4_LABEL
+      - CLASS_L4_STATE
+      - CLASS_L5_CODE
+      - CLASS_L5_LABEL
+      - CLASS_L5_STATE
+      - CLASS_L6_CODE
+      - CLASS_L6_LABEL
+      - CLASS_L6_STATE
+    vocabulary_or_missing_mapping: deferred
+
+writer:
+  implementation: python_geopandas_pyarrow
+  geoparquet_version: "1.1.0"
+  geometry_encoding: WKB
+  primary_geometry_column: observed_geometry
+  compression: zstd
+  row_group_size: 65536
+  write_covering_bbox: true
+  deterministic_bytes_required: true
+
+sharding:
+  target_shards: 12
+  maximum_scenes_per_shard: 40
+  maximum_entities_per_shard: 20000
+  maximum_estimated_geometry_bytes: 268435456
+  oversize_singleton_cost: 18000.0
+  cost_weights:
+    building_membership: 8.0
+    road_membership: 4.0
+    poi_membership: 1.0
+    coordinate: 0.05
+    geometry_kib: 0.25
+    multipart_component: 1.0
+  algorithm: deterministic_cost_cap_then_lpt

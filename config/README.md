@@ -8,6 +8,9 @@
 - `membership.yml`: B/R/P exact membership predicate, source ID/layer, row schema와 cost-balanced shard 계약.
 - `membership_runtime.yml`: controller, concurrency, retry, atomic publish와 native thread 상한. Runtime concurrency는 scientific ID에서 제외한다.
 - `schemas/prototype_membership.schema.json`: I06 branch spec의 JSON Schema 2020-12 계약.
+- `vector_observation.yml`: clipping, observed attributes, local IDs, numerical tolerance, GeoParquet 1.1 writer와 cost-balanced shard 계약.
+- `vector_observation_runtime.yml`: I10 `controller_10`, 1x1 native threads, retry와 atomic publish 설정.
+- `schemas/prototype_vector_observation.schema.json`: B/R/P observed row의 공통 field와 geometry 계약.
 
 `research_config_files`가 세 파일을 `format="file"`로 추적한다. 따라서 내용 변경은
 `methodology_contract`와 필요한 downstream을 outdated시킨다. Thesis commit, dirty

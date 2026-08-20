@@ -42,6 +42,7 @@ target_group <- function(names) {
   result[grepl("spatial_scene_index", names)] <- "scene_index"
   result[grepl("prototype_scene_selection", names)] <- "prototype"
   result[grepl("membership", names)] <- "membership"
+  result[grepl("observation", names)] <- "observation"
   result[grepl("boundary|buffer400", names)] <- "boundary"
   result[grepl("building", names)] <- "buildings"
   result[grepl("road", names)] <- "roads"
@@ -98,6 +99,7 @@ build_widget <- function(network, title) {
     scene_index = "#047857",
     prototype = "#B45309",
     membership = "#9333EA",
+    observation = "#0E7490",
     boundary = "#0F766E",
     buildings = "#B45309",
     roads = "#1D4ED8",

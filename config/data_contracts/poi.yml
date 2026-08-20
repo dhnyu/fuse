@@ -1,0 +1,16 @@
+schema_version: "1.0.0"
+approved: true
+approved_by: "user production instruction 2026-08-20"
+source: "POI_ngii_20260525.zip"
+canonical_crs: "EPSG:5179"
+layers: [points, addresses, foreign_names, aliases, category_lookup, metadata]
+required_fields: [NF_ID, POI_CL_DC, CLASS_L1_CODE, CLASS_L1_LABEL, CLASS_L1_STATE, CLASS_L6_CODE, CLASS_L6_LABEL, CLASS_L6_STATE]
+rules:
+  retain_all_source_valid_points: true
+  apply_existing_category_filter: false
+  apply_fuzzy_deduplication: false
+  require_unique_nf_id: true
+  require_codebook_match: true
+  preserve_terminal_dash_na_empty_null_states: true
+  create_model_missing_token: false
+

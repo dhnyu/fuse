@@ -1,0 +1,33 @@
+study_area:
+  name: Seoul
+  source_code: "11"
+  source_name: "서울특별시"
+  output_crs: EPSG:5186
+  source_buffer_m: 400
+
+scene:
+  width_m: 500
+  stride_m: 250
+
+landcover:
+  resolution_m: 5
+  resampling: none
+  nodata: 0
+
+dem:
+  resolution_m: 30
+  resampling: bilinear
+  source_nodata: -32767
+  output_nodata: -32767
+  grid_anchor_x_m: 0
+  grid_anchor_y_m: 0
+
+road:
+  source_to_output_pipeline: "+proj=pipeline +step +proj=axisswap +order=2,1"
+  endpoint_tolerance_m: 0.001
+  node_candidate_padding_m: 1
+
+contract:
+  study_subset_version: 1.0.0
+  canonical_schema_version: 1.0.0
+  canonical_snapshot: "20260820"

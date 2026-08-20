@@ -1,0 +1,15 @@
+schema_version: "1.0.0"
+approved: true
+approved_by: "user production instruction 2026-08-20"
+source: "ITS_nodelink_20260612.zip"
+canonical_crs: "source custom ITRF2000_Central_Belt_60 WKT"
+layers: [links, nodes, multilink, turninfo, metadata]
+required_fields: [LINK_ID, NODE_ID, F_NODE, T_NODE, LANES, ROAD_RANK, ROAD_TYPE]
+rules:
+  preserve_source_wkt: true
+  relabel_epsg_5186: false
+  transform_datum: false
+  require_referential_integrity: true
+  require_endpoint_coordinate_match: true
+  create_con_relations: false
+

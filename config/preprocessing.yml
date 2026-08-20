@@ -1,0 +1,90 @@
+schema_version: "1.0.0"
+snapshot_id: "20260820"
+
+paths:
+  repo: "/members/dhnyu/fuse"
+  thesis_repo: "/members/dhnyu/dhnyu-masters-dissertation"
+  source_dir: "/mnt/hdd002/dhnyu/fusedata/original_data"
+  admin_dir: "/mnt/hdd002/dhnyu/fusedata/koreaadmin"
+  output_dir: "/mnt/hdd002/dhnyu/fusedata/main_data"
+  staging_dir: "/mnt/hdd002/dhnyu/fusedata/tmp/core_preprocessing"
+  report_dir: "/members/dhnyu/fuse/reports/preprocessing"
+  log_dir: "/members/dhnyu/fuse/logs/preprocessing"
+
+sources:
+  building: "Building_vworld_20260509.zip"
+  road: "ITS_nodelink_20260612.zip"
+  poi: "POI_ngii_20260525.zip"
+  landcover: "egis_2025.zip"
+  dem: "SRTM_2014.zip"
+
+outputs:
+  building: "korea_B.gpkg"
+  road: "korea_R.gpkg"
+  poi: "korea_P.gpkg"
+  landcover: "korea_lc.tif"
+  dem: "korea_dem.tif"
+
+runtime:
+  workers: 40
+  io_workers: 6
+  building_workers: 6
+  poi_workers: 6
+  landcover_workers: 8
+  dem_workers: 4
+  worker_threads: 1
+  min_free_bytes: "322122547200"
+
+building:
+  expected_source_records: 14388940
+  expected_valid_records: 14388603
+  expected_null_or_empty_records: 2
+  expected_invalid_geometry_records: 335
+  source_encoding: "CP949"
+  a14_outlier_method: "positive_log_iqr_3x"
+  staging_format: "FlatGeobuf"
+
+road:
+  expected_links: 1555150
+  expected_nodes: 1178457
+  expected_multilink: 18916
+  expected_turninfo: 44218
+  source_encoding: "CP949"
+  endpoint_tolerance_m: 0.000001
+
+poi:
+  expected_source_records: 9801999
+  expected_category_rows: 2329
+  source_encoding: "CP949"
+  valid_lon_min: 120.0
+  valid_lon_max: 135.0
+  valid_lat_min: 30.0
+  valid_lat_max: 43.0
+
+landcover:
+  expected_tiles: 831
+  expected_source_records: 9278792
+  expected_within_tile_duplicates: 117414
+  expected_classes: 22
+  resolution: 5.0
+  nodata: 0
+  blocksize: 512
+  compression: "DEFLATE"
+  overview_resampling: "NEAREST"
+
+dem:
+  expected_tiles: 30
+  expected_tile_width: 3601
+  expected_tile_height: 3601
+  resolution_degrees: 0.0002777777777777778
+  nodata: -32767
+  datatype: "Int16"
+  unit: "m"
+  vertical_datum: "E96"
+  blocksize: 512
+  compression: "DEFLATE"
+  overview_resampling: "AVERAGE"
+  approved_source_size: 176723448
+  approved_source_sha256: "20b04ed3df7cbbc67cd83ad321aca85276c08cbaada9bb52245df2c5564c4371"
+  historical_source_size: 176713066
+  historical_source_sha256: "bab88a025d164d365d91225524224f613c32d6d9945e9e5d01f4f049aa19d93f"

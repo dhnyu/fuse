@@ -1,0 +1,4 @@
+main:
+  store: /mnt/hdd002/dhnyu/fusedata/targets/fuse
+  use_crew: true
+  reporter_make: timestamp

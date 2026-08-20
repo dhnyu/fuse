@@ -1,0 +1,21 @@
+schema_version: "1.0.0"
+approved: true
+approved_by: "user production instruction 2026-08-20"
+source: "egis_2025.zip"
+canonical_crs: "EPSG:5186"
+geometry_source: "EGIS L2 polygons"
+resolution_m: 5
+datatype: "Byte"
+nodata: 0
+value_mapping: "numeric ascending L2_CODE -> contiguous 1..22"
+rules:
+  preserve_fractional_source_lattice: true
+  reuse_outdated_extent_or_origin: false
+  all_touched: false
+  remove_exact_same_geometry_category_duplicates: true
+  conflicting_category_overlap: "fail"
+  bigtiff: true
+  cog: true
+  lossless_compression: true
+  overview_resampling: "nearest"
+

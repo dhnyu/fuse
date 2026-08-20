@@ -1,0 +1,15 @@
+/reports
+/logs
+/_targets
+/artifacts/targets-network/
+*.gpkg
+*.gpkg-shm
+*.gpkg-wal
+*.tif
+*.vrt
+*.parquet
+*.arrow
+*.feather
+*.pt
+*.pth
+*.ckpt

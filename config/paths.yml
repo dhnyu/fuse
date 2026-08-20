@@ -1,0 +1,33 @@
+canonical:
+  root: /mnt/hdd002/dhnyu/fusedata/main_data
+  manifest: /mnt/hdd002/dhnyu/fusedata/main_data/core_data_manifest.json
+  building: /mnt/hdd002/dhnyu/fusedata/main_data/korea_B.gpkg
+  road: /mnt/hdd002/dhnyu/fusedata/main_data/korea_R.gpkg
+  poi: /mnt/hdd002/dhnyu/fusedata/main_data/korea_P.gpkg
+  landcover: /mnt/hdd002/dhnyu/fusedata/main_data/korea_lc.tif
+  dem: /mnt/hdd002/dhnyu/fusedata/main_data/korea_dem.tif
+
+administrative:
+  sido: /mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_sido_00_2025_2Q.shp
+
+study:
+  root: /mnt/hdd002/dhnyu/fusedata/study_data
+  boundary: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_boundary.gpkg
+  buffer400: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_buffer400.gpkg
+  building: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_B.gpkg
+  road: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_R.gpkg
+  poi: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_P.gpkg
+  landcover: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_lc.tif
+  dem: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_dem.tif
+  manifest: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_data_manifest.json
+  staging: /mnt/hdd002/dhnyu/fusedata/study_data/.staging
+
+targets:
+  store: /mnt/hdd002/dhnyu/fusedata/targets/fuse
+
+repository:
+  root: /members/dhnyu/fuse
+  thesis: /members/dhnyu/dhnyu-masters-dissertation
+  reports: /members/dhnyu/fuse/reports
+  logs: /members/dhnyu/fuse/logs
+

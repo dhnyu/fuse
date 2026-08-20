@@ -1,0 +1,19 @@
+schema_version: "1.0.0"
+approved: true
+approved_by: "user production instruction and invalid-geometry approval 2026-08-20"
+source: "Building_vworld_20260509.zip"
+canonical_crs: "EPSG:5186"
+layer: "buildings"
+geometry: "Polygon"
+required_fields: [building_feature_id, A9, A11, A14, source_archive, source_region, source_layer, source_record_index]
+rules:
+  preserve_all_source_attributes: true
+  preserve_a14_raw: true
+  model_unavailable_a14: "is.na(A14) || A14 <= 0"
+  remove_null_or_empty_geometry: true
+  remove_invalid_geometry_without_repair: true
+  invalid_geometry_reason_code: "INVALID_GEOMETRY"
+  invalid_geometry_ledger_fields: [building_feature_id, source_A0, source_A1, source_archive, source_layer, source_record_index, ST_IsValidReason, original_wkb_sha256]
+  deduplicate_by_a0_or_a1: false
+  compute_scene_observed_attributes: false
+  deterministic_key: "snapshot_id|source_region|source_layer|source_record_index"

@@ -1,0 +1,26 @@
+schema_version: "1.0.0"
+approved: true
+approved_by: "user production instruction 2026-08-20"
+source: "SRTM_2014.zip"
+approved_source_size: 176723448
+approved_source_sha256: "20b04ed3df7cbbc67cd83ad321aca85276c08cbaada9bb52245df2c5564c4371"
+historical_audit:
+  path: "/mnt/hdd002/dhnyu/fusedata/original_data/SRTM_2014.zip"
+  size: 176713066
+  mtime: "2026-08-20 15:36:08 Asia/Seoul"
+  sha256: "bab88a025d164d365d91225524224f613c32d6d9945e9e5d01f4f049aa19d93f"
+canonical_crs: "EPSG:4326"
+resolution: "1 arc-second"
+datatype: "Int16"
+nodata: -32767
+unit: "m"
+vertical_datum: "E96"
+rules:
+  preserve_source_grid: true
+  preserve_negative_values: true
+  reproject_epsg_5186: false
+  shared_edge_rule: "validate equality; deterministic sorted source order"
+  cog: true
+  lossless_compression: true
+  allow_pam_statistics_sidecars: true
+  require_tiff_payload_inventory: true

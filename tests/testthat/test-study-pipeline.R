@@ -7,18 +7,32 @@ test_that("configuration schema and approved methodology are valid", {
   expect_equal(config$paths$targets$store, "/mnt/hdd002/dhnyu/fusedata/targets/fuse")
 })
 
-test_that("the root pipeline loads exactly one target declaration file", {
+test_that("research and maintenance pipelines use separate scripts and stores", {
   root_pipeline <- readLines(file.path(fuse_test_root, "_targets.R"), warn = FALSE)
   expect_false(any(grepl("tar_target\\(", root_pipeline)))
+  expect_false(any(grepl("seoul_data_preprocess.R", root_pipeline, fixed = TRUE)))
+  expect_true(any(grepl("targets/research_scene_index.R", root_pipeline, fixed = TRUE)))
 
-  target_files <- list.files(file.path(fuse_test_root, "targets"), pattern = "[.]R$", full.names = TRUE)
-  expect_equal(basename(target_files), "seoul_data_preprocess.R")
-  declaration <- readLines(target_files, warn = FALSE)
-  expect_equal(sum(grepl("tar_target\\(", declaration)), 1L)
-  expect_true(any(grepl("format = \"file\"", declaration, fixed = TRUE)))
-  expect_true(any(grepl("workers = 5", declaration, fixed = TRUE)))
-  expect_true(any(grepl("threads = 4", declaration, fixed = TRUE)))
-  expect_true(any(grepl("controller = \"controller_20\"", declaration, fixed = TRUE)))
+  maintenance_pipeline <- readLines(file.path(fuse_test_root, "_targets_maintenance.R"), warn = FALSE)
+  expect_true(any(grepl("targets/seoul_data_preprocess.R", maintenance_pipeline, fixed = TRUE)))
+  research_paths <- yaml::read_yaml(file.path(fuse_test_root, "config/research_paths.yml"))
+  expect_false(identical(research_paths$targets$research_store, research_paths$targets$maintenance_store))
+
+  research_manifest <- targets::tar_manifest(
+    script = file.path(fuse_test_root, "_targets.R"), callr_arguments = list(wd = fuse_test_root)
+  )
+  expect_equal(
+    research_manifest$name,
+    c(
+      "research_config_files", "research_implementation_files", "study_data_inputs", "study_data_inventory",
+      "methodology_contract", "spatial_scene_index", "prototype_scene_selection"
+    )
+  )
+  expect_false("seoul_data_preprocess" %in% research_manifest$name)
+  maintenance_manifest <- targets::tar_manifest(
+    script = file.path(fuse_test_root, "_targets_maintenance.R"), callr_arguments = list(wd = fuse_test_root)
+  )
+  expect_equal(maintenance_manifest$name, "seoul_data_preprocess")
 })
 
 test_that("controller and target-level parallel specifications are validated", {

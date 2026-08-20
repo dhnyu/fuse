@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dhnyu.github.io/fuse/schemas/methodology-contract-1.0.0.json",
+  "title": "FUSE methodology contract",
+  "type": "object",
+  "required": [
+    "contract_schema_version", "contract_id", "scientific_hash",
+    "input_contract", "crs", "scene", "off_lattice", "retrieval",
+    "randomness", "identifiers", "modes", "implementation"
+  ],
+  "properties": {
+    "contract_schema_version": {"const": "1.0.0"},
+    "contract_id": {"type": "string", "pattern": "^mth_[0-9a-f]{24}$"},
+    "scientific_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "input_contract": {
+      "type": "object",
+      "required": ["inventory_id", "study_manifest_sha256", "files"],
+      "properties": {
+        "inventory_id": {"type": "string"},
+        "study_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "files": {"type": "array", "minItems": 12}
+      },
+      "additionalProperties": true
+    },
+    "crs": {
+      "type": "object",
+      "required": ["processing_epsg", "official_grid_epsg"],
+      "properties": {
+        "processing_epsg": {"const": 5186},
+        "official_grid_epsg": {"const": 5179}
+      }
+    },
+    "scene": {
+      "type": "object",
+      "required": ["width_m", "training_stride_m", "training_center_predicate", "source_buffer_m"],
+      "properties": {
+        "width_m": {"const": 500},
+        "training_stride_m": {"const": 250},
+        "training_center_predicate": {"const": "within"},
+        "source_buffer_m": {"const": 400}
+      }
+    },
+    "off_lattice": {
+      "type": "object",
+      "required": ["validation_count", "evaluation_count", "minimum_training_center_distance_m", "sampling_distribution"],
+      "properties": {
+        "validation_count": {"const": 1000},
+        "evaluation_count": {"const": 2000},
+        "minimum_training_center_distance_m": {"const": 50}
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "required": ["query_count", "candidate_rule", "unrestricted_candidate_count", "include_other_queries"],
+      "properties": {
+        "query_count": {"const": 10},
+        "candidate_rule": {"const": "evaluation_scene_id_not_equal_query_scene_id"},
+        "unrestricted_candidate_count": {"const": 1999},
+        "include_other_queries": {"const": true}
+      }
+    },
+    "randomness": {"type": "object"},
+    "identifiers": {"type": "object"},
+    "modes": {"type": "object"},
+    "implementation": {"type": "object"}
+  },
+  "additionalProperties": true
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-required_packages <- c("targets", "visNetwork", "htmlwidgets")
+required_packages <- c("targets", "visNetwork", "htmlwidgets", "yaml")
 
 script_path <- function() {
   file_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
@@ -12,7 +12,8 @@ parse_network_args <- function(args) {
   output <- list(
     output_dir = "artifacts/targets-network",
     focus = character(),
-    degree = 1L
+    degree = 1L,
+    store = NULL
   )
   for (arg in args) {
     if (grepl("^--output-dir=", arg)) {
@@ -22,6 +23,8 @@ parse_network_args <- function(args) {
       output$focus <- unique(Filter(nzchar, trimws(strsplit(value, ",", fixed = TRUE)[[1L]])))
     } else if (grepl("^--degree=", arg)) {
       output$degree <- suppressWarnings(as.integer(sub("^--degree=", "", arg)))
+    } else if (grepl("^--store=", arg)) {
+      output$store <- sub("^--store=", "", arg)
     } else {
       stop("Unknown argument: ", arg, call. = FALSE)
     }
@@ -34,6 +37,10 @@ parse_network_args <- function(args) {
 target_group <- function(names) {
   result <- rep("initialization", length(names))
   result[names == "seoul_data_preprocess"] <- "preprocessing"
+  result[grepl("study_data", names)] <- "inputs"
+  result[grepl("methodology_contract", names)] <- "contracts"
+  result[grepl("spatial_scene_index", names)] <- "scene_index"
+  result[grepl("prototype_scene_selection", names)] <- "prototype"
   result[grepl("boundary|buffer400", names)] <- "boundary"
   result[grepl("building", names)] <- "buildings"
   result[grepl("road", names)] <- "roads"
@@ -85,6 +92,10 @@ build_widget <- function(network, title) {
   palette <- c(
     preprocessing = "#0F766E",
     initialization = "#6B7280",
+    inputs = "#0369A1",
+    contracts = "#7C3AED",
+    scene_index = "#047857",
+    prototype = "#B45309",
     boundary = "#0F766E",
     buildings = "#B45309",
     roads = "#1D4ED8",
@@ -119,11 +130,12 @@ save_widget_atomic <- function(widget, output_file) {
   normalizePath(output_file, mustWork = TRUE)
 }
 
-render_targets_network <- function(output_dir, focus = character(), degree = 1L) {
+render_targets_network <- function(output_dir, focus = character(), degree = 1L, store = targets::tar_config_get("store")) {
   network <- targets::tar_network(
     targets_only = TRUE,
     outdated = FALSE,
-    callr_function = NULL
+    callr_function = NULL,
+    store = store
   )
   full_file <- file.path(output_dir, "targets-network.html")
   outputs <- save_widget_atomic(build_widget(network, "fuse targets dependency network"), full_file)
@@ -145,7 +157,10 @@ main <- function() {
   project_root <- normalizePath(file.path(dirname(script_path()), "..", ".."), mustWork = TRUE)
   setwd(project_root)
   options <- parse_network_args(commandArgs(trailingOnly = TRUE))
-  outputs <- render_targets_network(options$output_dir, options$focus, options$degree)
+  if (is.null(options$store)) {
+    options$store <- yaml::read_yaml("config/research_paths.yml")$targets$research_store
+  }
+  outputs <- render_targets_network(options$output_dir, options$focus, options$degree, options$store)
   message("Created dependency HTML:\n", paste0("- ", outputs, collapse = "\n"))
 }
 

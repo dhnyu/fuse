@@ -5,7 +5,8 @@
 vertex/edge metadata를 사용하고 `visNetwork`로 검색, 확대·이동, 인접 node 강조,
 기능 그룹 색상을 제공한다.
 
-필요 패키지는 현재 환경에 설치된 `targets`, `visNetwork`, `htmlwidgets`이다.
+필요 패키지는 현재 환경에 설치된 `targets`, `visNetwork`, `htmlwidgets`, `yaml`이다.
+기본 store는 `config/research_paths.yml`의 `targets.research_store`다.
 
 ## 전체 graph
 
@@ -19,12 +20,13 @@ Rscript tools/targets-network/render_targets_network.R
 
 ```bash
 Rscript tools/targets-network/render_targets_network.R \
-  --focus=seoul_data_preprocess \
+  --focus=spatial_scene_index \
   --degree=1
 ```
 
 `--degree`는 선택 target에서 양방향으로 포함할 dependency hop 수다. 위 명령은
-전체 graph와 `targets-network-focus-seoul_data_preprocess.html`을
+전체 graph와 `targets-network-focus-spatial_scene_index.html`을
 함께 생성한다. 다른 출력 위치는 `--output-dir=/path/to/output`으로 지정한다.
+다른 store를 검사할 때는 `--store=/absolute/store/path`를 사용한다.
 
 HTML은 self-contained이며 `artifacts/targets-network/`는 `.gitignore`에 포함된다.

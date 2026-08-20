@@ -12,6 +12,22 @@
 
 ## 1. 설계 목적과 범위
 
+### 구현 상태 (2026-08-21)
+
+첫 승인 단위가 `feature/research-scene-index`에서 구현되었다.
+
+| Blueprint target | 상태 | 구현 artifact |
+|---|---|---|
+| `study_data_inputs` | `IMPLEMENTED/PASS` | 12 source files `format="file"`; `study_data_inventory.json` hard QC |
+| `methodology_contract` | `IMPLEMENTED/PASS` | scientific JSON Schema contract + dependency-free record-only provenance |
+| `spatial_scene_index` | `IMPLEMENTED/PASS` | 12,690-row EPSG:5186 GeoParquet, manifest, QC |
+| `prototype_scene_selection` | `IMPLEMENTED/PASS` | 320-row GeoParquet with pre-membership density proxies, manifest, QC |
+
+`research_config_files`, `research_implementation_files`, `study_data_inventory`는 파일
+추적과 validation 결과를 targets store의 대형 R object 없이 연결하기 위한 기술 보조
+target이며 scientific phase target 수에는 포함하지 않는다. Root research graph에는
+`seoul_data_preprocess`가 없고 maintenance는 `_targets_maintenance.R`과 별도 store를 쓴다.
+
 이 blueprint는 target을 논문의 절 순서가 아니라 재계산 비용, 독립 실행 가능성, QC gate와 partial recovery 경계에 따라 배치한다. 목표는 다음 네 가지다.
 
 1. 완료된 study-data maintenance와 연구 계산 graph를 target 수준에서 완전히 분리한다.

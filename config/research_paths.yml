@@ -1,0 +1,35 @@
+schema_version: "1.0.0"
+
+inputs:
+  boundary: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_boundary.gpkg
+  buffer400: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_buffer400.gpkg
+  building: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_B.gpkg
+  road: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_R.gpkg
+  poi: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_P.gpkg
+  landcover: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_lc.tif
+  dem: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_dem.tif
+  study_manifest: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_data_manifest.json
+  official_grid_shp: /mnt/hdd002/dhnyu/fusedata/koreaadmin/빈격자(500m).shp
+  official_grid_shx: /mnt/hdd002/dhnyu/fusedata/koreaadmin/빈격자(500m).shx
+  official_grid_dbf: /mnt/hdd002/dhnyu/fusedata/koreaadmin/빈격자(500m).dbf
+  official_grid_prj: /mnt/hdd002/dhnyu/fusedata/koreaadmin/빈격자(500m).prj
+
+layers:
+  boundary: research_area
+  buffer400: research_area
+  building: buildings
+  road_links: links
+  road_nodes: nodes
+  poi: points
+  official_grid: 빈격자(500m)
+
+outputs:
+  scene_root: /mnt/hdd002/dhnyu/fusedata/scene_data/v1
+
+targets:
+  research_store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-research
+  maintenance_store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-maintenance
+
+repository:
+  root: /members/dhnyu/fuse
+  thesis_template: /members/dhnyu/dhnyu-masters-dissertation/template

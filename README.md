@@ -1,22 +1,55 @@
 # fuse
 
-`fuse`의 전국 canonical ingest와 논문 방법론 파이프라인은 분리되어 있다.
-`scripts/preprocess/`는 canonical 데이터 생성 전용이며, 루트 `_targets.R`은
-검증된 canonical snapshot에서 시작하는 방법론 target만 조립한다.
+`fuse`의 study-data maintenance와 논문 research pipeline은 target script와
+targets store 수준에서 분리되어 있다. 루트 `_targets.R`은 승인된 서울 study
+files에서 시작하는 research pipeline만 조립하며 `seoul_data_preprocess`를 등록하거나
+참조하지 않는다.
 
 ## 코드 구조
 
 - `R/`: 재사용 가능한 함수. 함수 파일에는 `tar_target()`을 두지 않는다.
-- `targets/seoul_data_preprocess.R`: 단일 preprocessing target 선언만 제공한다.
-- `_targets.R`: 패키지, 공통 옵션과 함수/target 로딩 순서를 정의한다.
+- `targets/research_scene_index.R`: research pipeline의 초기 target을 선언한다.
+- `_targets.R`: research pipeline과 CPU controller만 등록한다.
+- `_targets_maintenance.R`: `seoul_data_preprocess` 전용 maintenance graph다.
 - `tools/targets-network/`: target을 계산하지 않고 dependency HTML을 생성한다.
 - `artifacts/targets-network/`: 생성된 HTML. 재생성 가능한 산출물이므로 Git에서 제외한다.
-- `scripts/run_targets.R`: 사용자가 실행하는 짧은 `tar_make()` 진입점이다.
+- `scripts/run_targets.R`: research store를 사용하는 `tar_make()` 진입점이다.
+- `scripts/run_maintenance_targets.R`: 별도 maintenance store 진입점이다.
 - `scripts/preprocess/`: targets graph에 포함되지 않는 전국 canonical ingest 코드다.
 
-새 공간처리 함수는 책임에 맞는 `R/process_*.R`, I/O 함수는 `R/io_*.R`,
-검증 함수는 `R/validate_*.R`에 추가한다. `targets/seoul_data_preprocess.R`에는
-선언만 두고 전체 orchestration은 `R/pipeline_seoul_data_preprocess.R`에서 관리한다.
+초기 research 구현은 다음 네 scientific target과 세 기술 보조 file target으로 구성된다.
+
+| 구분 | target | 역할 |
+|---|---|---|
+| 보조 | `research_config_files` | config와 JSON Schema를 `format="file"`로 추적 |
+| 보조 | `research_implementation_files` | methodology contract 구현 source hash 추적 |
+| 핵심 | `study_data_inputs` | study artifacts 8개와 official-grid components 4개 추적 |
+| 보조 | `study_data_inventory` | read-only input/schema/CRS/coverage 검증 JSON |
+| 핵심 | `methodology_contract` | scientific contract와 record-only thesis provenance |
+| 핵심 | `spatial_scene_index` | training 250 m lattice와 fixed off-lattice index |
+| 핵심 | `prototype_scene_selection` | 320-scene pre-membership proxy 표본 |
+
+## Research Pipeline 실행
+
+초기 graph 전체를 실행한다. `prototype_scene_selection`의 필요한 upstream만 실행된다.
+
+```bash
+Rscript scripts/run_targets.R prototype_scene_selection
+```
+
+Research store는 `/mnt/hdd002/dhnyu/fusedata/targets/fuse-research`, derived artifact는
+`/mnt/hdd002/dhnyu/fusedata/scene_data/v1`에 저장된다. Scene index는 GeoParquet,
+contract/manifest/QC는 JSON이다. 모든 대규모 산출물은 staging에서 검증한 뒤
+content-addressed directory로 atomic publish한다.
+
+Maintenance는 research graph와 다른 script/store를 명시적으로 사용한다.
+
+```bash
+Rscript scripts/run_maintenance_targets.R seoul_data_preprocess
+```
+
+Maintenance store는 `/mnt/hdd002/dhnyu/fusedata/targets/fuse-maintenance`다. Research
+target을 실행해도 maintenance target이 실행되거나 outdated되지 않는다.
 
 `R/preprocessing_utils.R`는 canonical ingest 전용이다. 방법론 `_targets.R`은
 이 파일을 source하지 않아 두 파이프라인의 이름과 실행 상태가 섞이지 않는다.
@@ -33,7 +66,7 @@ Rscript tools/targets-network/render_targets_network.R
 
 ```bash
 Rscript tools/targets-network/render_targets_network.R \
-  --focus=seoul_data_preprocess --degree=1
+  --focus=spatial_scene_index --degree=1
 ```
 
 출력은 `artifacts/targets-network/targets-network.html` 및 선택 시
@@ -43,9 +76,13 @@ Rscript tools/targets-network/render_targets_network.R \
 
 ## 병렬 실행
 
-target은 `seoul_data_preprocess` 하나다. `_targets.R`은 `controller_05`,
+Research `_targets.R`은 `controller_05`,
 `controller_10`, `controller_20`, `controller_40`을 `crew_controller_group()`으로
-등록한다. `controller_20`은 CPU 20개를 target에 직접 할당하는 설정이 아니라,
+등록한다. Controller 이름은 CPU 할당량이 아니라 동시에 실행 가능한 crew worker
+pool이다. 현재 7개 target은 모두 `controller_05`를 사용하고 target 내부
+`workers=1`, `threads=1`, GPU 0개다.
+
+Maintenance의 `controller_20`은 CPU 20개를 target에 직접 할당하는 설정이 아니라,
 해당 target을 실행할 수 있는 crew worker pool의 이름이다.
 
 실제 target 내부 병렬도는 `targets/seoul_data_preprocess.R`의 command에 직접 적힌
@@ -56,12 +93,6 @@ Boundary/buffer 생성은 병렬 구간 전에, 전체 QC/manifest/report는 이
 target은 실행 전에 `workers * threads`를 available logical CPUs와 비교한다. 실행
 범위에서만 OMP/OpenBLAS/MKL/Veclib/NumExpr/GDAL 환경과 `data.table` thread를
 설정하며, future plan을 포함한 이전 상태는 성공 또는 오류 후 모두 복원한다.
-
-기본 실행:
-
-```bash
-Rscript scripts/run_targets.R
-```
 
 crew pool 크기는 다음 환경변수로 덮어쓸 수 있다. 이는 target 내부의
 `workers`/`threads` 값을 변경하지 않는다.

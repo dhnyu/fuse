@@ -31,10 +31,10 @@ serialization, model/training/evaluation은 구현하거나 실행하지 않았�
 ## 주요 산출물
 
 - Input inventory: `/mnt/hdd002/dhnyu/fusedata/scene_data/v1/input_contracts/inp_2130597372e7425fd844127a/study_data_inventory.json`
-- Methodology contract: `/mnt/hdd002/dhnyu/fusedata/scene_data/v1/contracts/mth_3738c6f51291a20797b6466a/methodology_contract.json`
+- Methodology contract: `/mnt/hdd002/dhnyu/fusedata/scene_data/v1/contracts/mth_d3b51aa3399d56734be03be7/methodology_contract.json`
 - Record-only provenance: 같은 contract directory의 `methodology_provenance.json`
-- Scene index root: `/mnt/hdd002/dhnyu/fusedata/scene_data/v1/index/idx_b88d7386751960d070d775f2/`
-- Prototype root: scene index root 아래 `prototype/pro_d3382fb1bcafa5e6be5a2d65/`
+- Scene index root: `/mnt/hdd002/dhnyu/fusedata/scene_data/v1/index/idx_717d7ae7a88e370a79cf9bd4/`
+- Prototype root: scene index root 아래 `prototype/pro_17040a91f3aee12b91c0bcd4/`
 
 Content-addressed directory별로 staging 작성, round-trip/QC, atomic directory rename을
 수행했다. 기존 동일 ID bundle은 덮어쓰지 않고 determinism comparison 후 재사용한다.
@@ -48,9 +48,9 @@ Rscript scripts/run_targets.R prototype_scene_selection
 Rscript tools/targets-network/render_targets_network.R
 ```
 
-최종 production-size 초기 graph 실행은 29초였다. Target metadata 기준
-`study_data_inventory` 2.56초, `methodology_contract` 1.82초,
-`spatial_scene_index` 4.8초, `prototype_scene_selection` 18.1초였다. 동일 seed 독립
+커밋된 최종 설정을 사용한 production-size 초기 graph 실행은 32.4초였다. Target
+metadata 기준 `study_data_inventory` 2.5초, `methodology_contract` 1.7초,
+`spatial_scene_index` 4.7초, `prototype_scene_selection` 18.1초였다. 동일 seed 독립
 재계산은 scene index 4.88초, prototype 17.04초였고 기존 artifact와 일치했다.
 모든 계산은 CPU-only, target 내부 worker 1, thread 1이었다. Peak RSS와 disk queue
 depth는 이번 target에 계측 hook이 없어 기록하지 못했다.

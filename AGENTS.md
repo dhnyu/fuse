@@ -85,6 +85,94 @@ Canonical 데이터는 원본의 값, 식별자, 좌표계 및 provenance를 보
 - 병렬 worker 수는 고정하지 말고 I/O 및 메모리 pilot 결과에 따라 정한다.
 - 사용자 소유 데이터와 기존 산출물을 덮어쓰거나 삭제하지 않는다.
 
+# targets 구현 및 검증 절차
+
+새 target을 만들거나 기존 target의 command, dependency, pattern, resources, format 또는 출력 계약을 변경할 때 다음 절차를 따른다.
+
+## 구현 전
+
+- `blueprint/targets_implementation_blueprint.md`와 최신 논문 방법론을 확인한다.
+- target의 입력, 출력, dependency, 파일 형식, QC 조건과 병렬처리 자원을 먼저 정의한다.
+- 논문이나 blueprint와 구현이 충돌하면 임의로 방법론을 변경하지 말고 차이를 보고한다.
+- `seoul_data_preprocess`는 maintenance pipeline으로 취급하며 연구 pipeline의 target과 dependency로 연결하지 않는다.
+- maintenance pipeline과 research pipeline은 서로 다른 target script, 실행 진입점 및 targets store를 사용한다.
+
+## 코드 배치
+
+- target 정의는 `targets/`에 둔다.
+- 재사용 가능한 계산 함수는 `R/` 또는 `python/`에 둔다.
+- target command에는 가능한 한 orchestration만 남기고 긴 계산 로직을 직접 넣지 않는다.
+- 각 파일 target은 고정되고 문서화된 출력 경로를 사용한다.
+- 여러 파일을 반환하는 target은 모든 파일의 존재와 QC 통과를 확인한 뒤 경로를 반환한다.
+- 중간 파일은 staging 경로에서 생성하고 검증 완료 후 최종 경로에 publish한다.
+
+## 병렬처리와 자원
+
+- 각 target은 `_targets.R`에 등록된 controller 중 적절한 controller를 `resources`에 명시한다.
+- worker 수와 target 내부 thread 수를 별도로 기록한다.
+- 총 예상 CPU 사용량은 대략 `동시 workers × target당 threads`로 계산하고 가용 CPU를 초과하지 않게 한다.
+- GPU target에는 전용 GPU controller와 GPU lock을 사용한다.
+- 하나의 GPU에 여러 학습 process를 무분별하게 동시에 배치하지 않는다.
+- target 내부 병렬처리를 사용하는 경우 nested parallelism과 BLAS/OpenMP oversubscription을 방지한다.
+- worker, thread, GPU 수는 configuration 또는 환경변수로 재현 가능하게 설정한다.
+
+## 검증 순서
+
+변경 범위에 맞게 아래 검증을 순서대로 수행한다.
+
+1. 변경된 R 및 Python 파일의 parse 또는 syntax 검사
+2. 관련 단위 테스트와 데이터 계약 테스트
+3. `targets::tar_manifest()`로 target 정의 확인
+4. `targets::tar_network()` 또는 이에 준하는 방법으로 dependency 확인
+5. `targets::tar_validate()` 실행
+6. 변경된 target과 필요한 upstream dependency 실행
+7. 실행 결과의 파일 존재, schema, CRS, row count, checksum 및 QC 확인
+8. 필요하면 전체 research pipeline에 대해 `tar_make()` 실행
+9. 성공 후 dependency network HTML 갱신
+
+대규모, 장시간 또는 GPU production 실행은 작은 fixture 또는 pilot 검증을 먼저 통과해야 한다. 예상 시간이나 자원 사용량이 큰 경우 전체 실행 전에 사용자에게 범위와 예상 비용을 알린다.
+
+`tar_make()` 실행 중 오류가 발생하면 로그와 `targets::tar_meta()`를 확인하여 원인을 수정하고 다시 실행한다. 이미 성공한 target을 불필요하게 강제 재실행하지 않는다. 다음 상황에서는 자동 수정을 중단하고 사용자에게 보고한다.
+
+- 논문 방법론 또는 blueprint 변경이 필요한 경우
+- 원본이나 사용자 소유 데이터를 삭제·이동·덮어써야 하는 경우
+- 대규모 산출물을 처음부터 다시 생성해야 하는 경우
+- 필요한 입력, 권한, 패키지 또는 GPU가 없는 경우
+- 수정 방향이 결과의 과학적 의미를 바꿀 수 있는 경우
+
+## dependency network
+
+target 구조가 변경되면 다음 명령으로 dependency network를 갱신한다.
+
+    Rscript tools/targets-network/render_targets_network.R
+
+생성된 HTML이 현재 manifest와 일치하는지 확인한다. target 추가·삭제·이름 변경·dependency 변경이 있었는데 그래프가 갱신되지 않은 상태로 작업을 완료하지 않는다.
+
+## 완료 조건
+
+target 관련 작업은 다음 조건을 모두 만족해야 완료된 것으로 본다.
+
+- 변경된 코드가 parse된다.
+- 관련 테스트가 통과한다.
+- `tar_validate()`가 통과한다.
+- 요청된 target 실행이 성공한다.
+- 산출물의 파일 및 데이터 계약 QC가 통과한다.
+- dependency network HTML이 최신 상태다.
+- 실패, 경고, 실행하지 않은 검증 및 남은 위험이 최종 보고에 명시되어 있다.
+- 저장소에 대용량 데이터, credential, targets store 또는 임시 산출물이 포함되지 않았다.
+
+## Git 작업
+
+- 먼저 `git status`와 diff를 검토하고 이번 작업에 해당하는 파일만 stage한다.
+- `git add .`, `git add -A`, `git add --all`을 사용하지 않는다.
+- 데이터 파일, `_targets/` store, 로그, checkpoint 및 임시 산출물을 commit하지 않는다.
+- commit 전에 테스트 결과와 생성된 dependency network를 다시 확인한다.
+- commit 및 push는 사용자가 현재 작업에서 명시적으로 요청한 경우에만 수행한다.
+- 사용자가 commit과 push를 모두 요청했고 모든 완료 조건이 통과한 경우에만 push한다.
+- 검증 실패 상태에서는 push하지 않는다.
+- 기본 branch에서 직접 작업 중이라면 사용자의 명시적 지시가 없는 한 새 작업 branch를 사용한다.
+- push 후 commit SHA, branch, 실행한 검증과 미실행 검증을 보고한다.
+
 # 저장소 디렉터리 관리
 
 저장소의 파일은 다음 원칙에 따라 배치한다.

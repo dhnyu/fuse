@@ -17,7 +17,8 @@ research_function_files <- c(
   "R/research_serialization_plan.R",
   "R/research_serialization_shard.R",
   "R/research_training_dataset_acceptance.R",
-  "R/research_dataloader_smoke.R"
+  "R/research_dataloader_smoke.R",
+  "R/research_encoder_smoke.R"
 )
 targets::tar_source(research_function_files)
 
@@ -37,6 +38,10 @@ controller_40 <- crew::crew_controller_local(
   name = "controller_40",
   workers = fuse_controller_worker_count("FUSE_CONTROLLER_40_WORKERS", 40L)
 )
+controller_gpu_02 <- crew::crew_controller_local(
+  name = "controller_gpu_02",
+  workers = 2L
+)
 
 targets::tar_option_set(
   packages = c("arrow", "data.table", "digest", "jsonlite", "sf", "sfarrow", "terra", "yaml"),
@@ -44,7 +49,8 @@ targets::tar_option_set(
     controller_05,
     controller_10,
     controller_20,
-    controller_40
+    controller_40,
+    controller_gpu_02
   ),
   error = "stop",
   garbage_collection = TRUE,
@@ -62,6 +68,7 @@ targets::tar_source("targets/research_serialization_plan.R")
 targets::tar_source("targets/research_serialization_shard.R")
 targets::tar_source("targets/research_training_dataset_acceptance.R")
 targets::tar_source("targets/research_dataloader_smoke.R")
+targets::tar_source("targets/research_encoder_smoke.R")
 
 c(
   list_research_scene_index,
@@ -73,5 +80,6 @@ c(
   list_research_serialization_plan,
   list_research_serialization_shard,
   list_research_training_dataset_acceptance,
-  list_research_dataloader_smoke
+  list_research_dataloader_smoke,
+  list_research_encoder_smoke
 )

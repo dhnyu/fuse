@@ -1,0 +1,8 @@
+jsonschema==4.26.0
+numpy==2.4.6
+pyarrow==22.0.0
+PyYAML==6.0.3
+safetensors==0.8.0
+shapely==2.1.2
+triangle==20250106
+torch==2.12.0

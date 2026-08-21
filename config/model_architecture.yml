@@ -1,0 +1,94 @@
+schema_version: "1.0.0"
+encoder_contract_version: "1.0.0"
+
+identity:
+  accepted_dataset_id: ptd_140215eef2c1fa6da8304c6e
+  dataloader_smoke_id: pdl_a402b7ac668ddabfb6ba50f0
+  dissertation_commit: 73c7f5a65ae18960ac1990af035bca9076210f69
+
+execution:
+  controller: controller_gpu_02
+  requested_gpu_count: 1
+  precision: float32
+  dataloader_workers: 0
+  threads: 1
+  lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
+  lock_timeout_seconds: 120
+
+dimensions:
+  latent: 128
+  type_embedding: 16
+  relation_embedding: 32
+  categorical_embedding: 32
+  poi_hierarchy_embeddings: [8, 12, 16, 16, 24, 32]
+  poi_common_projection: 32
+  landcover_embedding: 16
+  contrastive: 128
+
+position:
+  input_unit: meter
+  wavelengths: 16
+  minimum_wavelength_m: 10.0
+  maximum_wavelength_m: 1000.0
+  spacing: geometric
+
+geometry:
+  input_unit: meter
+  normalization_length_m: 500.0
+  radial_frequencies: 8
+  angular_orientations: 16
+  minimum_radial_frequency: 0.5
+  maximum_radial_frequency: 50.0
+  radial_spacing: geometric
+  angular_interval: [0.0, pi_exclusive]
+  line_measure: arc_length
+  polygon_measure: area
+  polygon_decomposition: constrained_delaunay_triangles
+  poi_geometry_available: false
+
+architecture:
+  dropout: 0.1
+  relation_layers: 3
+  attention_heads: 4
+  head_dimension: 32
+  relation_order: [SN, CNT, WIT, INT, CON]
+  relation_mask_bits: [0, 1, 2, 3, 4]
+  empty_neighbor_message: zero
+  empty_type_summary: zero
+  zero_node_object_summaries: three_zero_vectors
+  final_fusion_input: 640
+  raster:
+    landcover_classes: 22
+    landcover_shape: [100, 100]
+    dem_shape: [17, 17]
+    conv_channels: [64, 128, 128]
+    kernel: 3
+    stride: 2
+    padding: 1
+    group_norm_groups: 8
+  vocabulary_sizes:
+    A9: 511
+    A11: 24
+    ROAD_RANK: 9
+    ROAD_TYPE: 7
+    CLASS_L1: 6
+    CLASS_L2: 19
+    CLASS_L3: 360
+    CLASS_L4: 1001
+    CLASS_L5: 1400
+    CLASS_L6: 150
+
+smoke:
+  seed: 20260822
+  representative_roles: [zero_node, node_only, median, maximum_node, maximum_edge, geometry_heavy]
+  gradient_minimum_absolute: 0.0
+  normalization_tolerance: 1.0e-5
+  reference_tolerance: 1.0e-5
+
+output:
+  subdirectory: smoke/encoder
+  manifest: prototype_encoder_manifest.json
+  parameters: prototype_encoder_parameters.parquet
+  shapes: prototype_encoder_shapes.parquet
+  qc: prototype_encoder_qc.json
+  log: prototype_encoder_smoke.jsonl

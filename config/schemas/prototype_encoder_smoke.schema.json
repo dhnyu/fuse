@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-encoder-smoke-1.0.0.json",
+  "title": "Prototype encoder smoke manifest",
+  "type": "object",
+  "required": [
+    "schema_version", "status", "encoder_acceptance_id", "accepted_dataset_id",
+    "dataloader_smoke_id", "scientific_identity", "architecture", "smoke",
+    "gpu_runtime", "outputs"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "encoder_acceptance_id": {"type": "string", "pattern": "^pea_[0-9a-f]{24}$"},
+    "accepted_dataset_id": {"const": "ptd_140215eef2c1fa6da8304c6e"},
+    "dataloader_smoke_id": {"const": "pdl_a402b7ac668ddabfb6ba50f0"},
+    "scientific_identity": {"type": "object"},
+    "architecture": {"type": "object"},
+    "smoke": {"type": "object"},
+    "gpu_runtime": {"type": "object"},
+    "outputs": {"type": "array", "minItems": 4}
+  },
+  "additionalProperties": true
+}

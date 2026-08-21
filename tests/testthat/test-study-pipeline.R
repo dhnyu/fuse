@@ -24,16 +24,16 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
   expect_equal(
     research_manifest$name,
     c(
-      "relation_contract_files", "membership_contract_files", "research_config_files",
-      "spatial_acceptance_contract_files", "observation_contract_files", "research_implementation_files",
-      "dataloader_smoke_contract_files", "training_dataset_acceptance_contract_files", "serialization_plan_contract_files",
-      "serialization_shard_contract_files", "raster_observation_contract_files",
+      "encoder_smoke_contract_files", "spatial_acceptance_contract_files", "membership_contract_files",
+      "research_config_files", "serialization_plan_contract_files", "observation_contract_files",
+      "dataloader_smoke_contract_files", "research_implementation_files", "serialization_shard_contract_files",
+      "raster_observation_contract_files", "relation_contract_files", "training_dataset_acceptance_contract_files",
       "study_data_inputs", "study_data_inventory", "methodology_contract", "spatial_scene_index",
       "prototype_scene_selection", "prototype_membership_plan", "prototype_membership_shard",
       "prototype_membership_acceptance", "prototype_observation_plan",
-      "prototype_vector_observation_shard", "prototype_relation_shard", "prototype_raster_observation_shard",
+      "prototype_vector_observation_shard", "prototype_raster_observation_shard", "prototype_relation_shard",
       "prototype_spatial_acceptance", "prototype_serialization_plan", "prototype_serialization_shard",
-      "prototype_training_dataset_acceptance", "prototype_dataloader_smoke"
+      "prototype_training_dataset_acceptance", "prototype_dataloader_smoke", "prototype_encoder_smoke"
     )
   )
   expect_false("seoul_data_preprocess" %in% research_manifest$name)

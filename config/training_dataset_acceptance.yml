@@ -1,0 +1,49 @@
+schema_version: "1.0.0"
+acceptance_contract_version: "1.0.0"
+
+identity:
+  spatial_dataset_id: psa_4e43932fc998fed94385addc
+  serialization_plan_id: psp_c3f6659d47486417567d55c1
+  serialization_dataset_id: psd_c3f6659d47486417567d55c1
+  accepted_dataset_prefix: ptd
+
+execution:
+  controller: controller_05
+  workers: 1
+  threads_per_worker: 1
+  gpu: 0
+
+expected:
+  branch_count: 51
+  scene_count: 320
+  split_counts: {training: 256, validation: 32, evaluation: 32}
+  node_count: 237121
+  ordered_edge_count: 2756444
+  coordinate_count: 794540
+  empty_edge_scene_count: 59
+  estimated_uncompressed_bytes: 393493986
+  actual_payload_bytes: 411569130
+  tar_bytes: 413112320
+
+ordering:
+  splits: [training, validation, evaluation]
+  shards: split_then_branch_id
+  scenes: shard_order_then_i14_spec_scene_order
+
+archive:
+  member_order: [meta.json, entities.safetensors, geometry.safetensors, edges.safetensors, rasters.safetensors]
+  member_count_per_scene: 5
+  tar_block_bytes: 512
+  end_blocks: 2
+
+output:
+  directory: acceptance
+  manifest: accepted_training_dataset_manifest.json
+  shard_catalog: shard_catalog.parquet
+  global_scene_index: global_scene_index.parquet
+  dataset_index: dataset_index.json
+  qc: aggregate_qc.json
+  diagnostics: actual_byte_resource_diagnostics.parquet
+  log: acceptance_log.jsonl
+  parquet_compression: zstd
+  parquet_row_group_size: 65536

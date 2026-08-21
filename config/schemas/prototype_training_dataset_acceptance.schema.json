@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-training-dataset-acceptance-1.0.0.json",
+  "title": "Prototype accepted training dataset manifest",
+  "type": "object",
+  "required": [
+    "manifest_schema_version", "status", "training_dataset_id",
+    "spatial_dataset_id", "serialization_plan_id", "serialization_dataset_id",
+    "totals", "scientific_identity", "accepted_artifacts", "outputs", "qc"
+  ],
+  "properties": {
+    "manifest_schema_version": {"const": "1.0.0"},
+    "status": {"const": "READY"},
+    "training_dataset_id": {"type": "string", "pattern": "^ptd_[0-9a-f]{24}$"},
+    "spatial_dataset_id": {"const": "psa_4e43932fc998fed94385addc"},
+    "serialization_plan_id": {"const": "psp_c3f6659d47486417567d55c1"},
+    "serialization_dataset_id": {"const": "psd_c3f6659d47486417567d55c1"},
+    "totals": {
+      "type": "object",
+      "required": [
+        "branch_count", "scene_count", "node_count", "ordered_edge_count",
+        "coordinate_count", "empty_edge_scene_count", "estimated_uncompressed_bytes",
+        "actual_payload_bytes", "tar_bytes"
+      ]
+    },
+    "scientific_identity": {"type": "object"},
+    "accepted_artifacts": {"type": "object"},
+    "outputs": {"type": "array", "minItems": 6},
+    "qc": {"type": "object", "required": ["status", "error_count"]}
+  },
+  "additionalProperties": true
+}

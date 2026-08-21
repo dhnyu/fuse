@@ -1,0 +1,112 @@
+schema_version: "1.0.0"
+serialization_shard_contract_version: "1.0.0"
+
+identity:
+  spatial_dataset_id: psa_4e43932fc998fed94385addc
+  serialization_plan_id: psp_c3f6659d47486417567d55c1
+  serialization_dataset_id: psd_c3f6659d47486417567d55c1
+
+serialization:
+  algorithm: accepted_source_to_scene_ragged_tensor_v1
+  entity_order: scene_id_then_local_entity_id
+  edge_order: source_local_entity_id_then_destination_local_entity_id_then_relation_mask
+  safetensors_version: "0.8.0"
+  compression: none
+
+tensor:
+  float_tolerance: 1.0e-5
+  geometry_normalization_length_m: 500.0
+  entity_type_codes: {B: 0, R: 1, P: 2}
+  geometry_type_codes: {POINT: 0, MULTIPOINT: 1, LINESTRING: 2, MULTILINESTRING: 3, POLYGON: 4, MULTIPOLYGON: 5}
+  geometry_available: {B: true, R: true, P: false}
+  object_raster_features:
+    - lc_fraction_01
+    - lc_fraction_02
+    - lc_fraction_03
+    - lc_fraction_04
+    - lc_fraction_05
+    - lc_fraction_06
+    - lc_fraction_07
+    - lc_fraction_08
+    - lc_fraction_09
+    - lc_fraction_10
+    - lc_fraction_11
+    - lc_fraction_12
+    - lc_fraction_13
+    - lc_fraction_14
+    - lc_fraction_15
+    - lc_fraction_16
+    - lc_fraction_17
+    - lc_fraction_18
+    - lc_fraction_19
+    - lc_fraction_20
+    - lc_fraction_21
+    - lc_fraction_22
+    - lc_valid_support_ratio
+    - object_dem_mean_standardized
+    - object_dem_sd_standardized
+    - dem_valid_support_ratio
+  categorical_attributes:
+    B: [A9, A11]
+    R: [ROAD_RANK, ROAD_TYPE]
+    P: [CLASS_L1, CLASS_L2, CLASS_L3, CLASS_L4, CLASS_L5, CLASS_L6]
+  numerical_attributes:
+    B: [building_observed_area_m2, building_observed_gross_floor_area_m2]
+    R: [road_lanes]
+  safetensors:
+    entities:
+      local_entity_id: {dtype: int64, shape: ["N"]}
+      entity_type: {dtype: uint8, shape: ["N"]}
+      relative_position_m: {dtype: float32, shape: ["N", 2]}
+      object_raster: {dtype: float32, shape: ["N", 26]}
+      object_dem_missing: {dtype: uint8, shape: ["N", 2]}
+      building_row_index: {dtype: int64, shape: [NB]}
+      building_category: {dtype: int32, shape: [NB, 2]}
+      building_numerical: {dtype: float32, shape: [NB, 2]}
+      building_missing: {dtype: uint8, shape: [NB, 2]}
+      road_row_index: {dtype: int64, shape: [NR]}
+      road_category: {dtype: int32, shape: [NR, 2]}
+      road_numerical: {dtype: float32, shape: [NR, 1]}
+      road_missing: {dtype: uint8, shape: [NR, 1]}
+      poi_row_index: {dtype: int64, shape: [NP]}
+      poi_category: {dtype: int32, shape: [NP, 6]}
+    geometry:
+      coordinates_xy: {dtype: float32, shape: [C, 2]}
+      geometry_type: {dtype: uint8, shape: ["N"]}
+      geometry_available: {dtype: uint8, shape: ["N"]}
+      entity_coordinate_offsets: {dtype: int64, shape: [N_plus_1]}
+      entity_component_offsets: {dtype: int64, shape: [N_plus_1]}
+      component_coordinate_offsets: {dtype: int64, shape: [COMPONENT_plus_1]}
+      entity_part_offsets: {dtype: int64, shape: [N_plus_1]}
+      part_coordinate_offsets: {dtype: int64, shape: [PART_plus_1]}
+      entity_ring_offsets: {dtype: int64, shape: [N_plus_1]}
+      ring_component_index: {dtype: int64, shape: [RING]}
+      ring_coordinate_start: {dtype: int64, shape: [RING]}
+      ring_coordinate_end: {dtype: int64, shape: [RING]}
+      ring_is_hole: {dtype: uint8, shape: [RING]}
+    edges:
+      edge_index: {dtype: int64, shape: [2, E]}
+      relation_mask: {dtype: uint8, shape: [E]}
+    rasters:
+      landcover_class_fraction: {dtype: float32, shape: [22, 100, 100]}
+      landcover_valid_support: {dtype: float32, shape: [100, 100]}
+      landcover_valid_mask: {dtype: uint8, shape: [100, 100]}
+      dem_standardized_mean: {dtype: float32, shape: [17, 17]}
+      dem_valid_support: {dtype: float32, shape: [17, 17]}
+      dem_valid_mask: {dtype: uint8, shape: [17, 17]}
+
+archive:
+  format: webdataset_tar
+  tar_format: ustar
+  member_order: [meta.json, entities.safetensors, geometry.safetensors, edges.safetensors, rasters.safetensors]
+  member_name: "{scene_id}.{member}"
+  index_extension: .idx
+  metadata: {mtime: 0, uid: 0, gid: 0, uname: "", gname: "", mode: 420}
+  canonical_json: sorted_object_keys_compact_utf8_lf
+  parquet_compression: zstd
+  parquet_row_group_size: 65536
+
+round_trip:
+  scope: every_scene
+  exact: [integer, id, offset, mask, category, edge_order, raster_shape]
+  float: float32_source_cast_tolerance

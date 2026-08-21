@@ -12,6 +12,9 @@ files에서 시작하는 research pipeline만 조립하며 `seoul_data_preproces
 - `targets/research_membership.R`: prototype membership plan/branch/acceptance를 선언한다.
 - `targets/research_observation.R`: aligned observation plan과 vector observation branch를 선언한다.
 - `targets/research_raster_observation.R`: aligned raster observation branch를 선언한다.
+- `targets/research_spatial_acceptance.R`: prototype spatial aggregate acceptance를 선언한다.
+- `targets/research_serialization_plan.R`: deterministic serialization branch plan을 선언한다.
+- `targets/research_serialization_shard.R`: WebDataset+safetensors cache dynamic branch를 선언한다.
 - `_targets.R`: research pipeline과 CPU controller만 등록한다.
 - `_targets_maintenance.R`: `seoul_data_preprocess` 전용 maintenance graph다.
 - `tools/targets-network/`: target을 계산하지 않고 dependency HTML을 생성한다.
@@ -40,15 +43,25 @@ files에서 시작하는 research pipeline만 조립하며 `seoul_data_preproces
 | 핵심 | `prototype_vector_observation_shard` | B/R/P clipped observation GeoParquet 1.1 dynamic branch |
 | 보조 | `raster_observation_contract_files` | raster scientific/runtime/schema/Zarr writer contract 추적 |
 | 핵심 | `prototype_raster_observation_shard` | aligned scene LC/DEM Zarr와 object context Parquet dynamic branch |
+| 핵심 | `prototype_spatial_acceptance` | vector/raster/relation checksum과 320-scene scientific contract 승인 |
+| 핵심 | `prototype_serialization_plan` | split별 deterministic cost-balanced I15 branch spec 생성 |
+| 핵심 | `prototype_serialization_shard` | scene 단위 WebDataset tar+safetensors와 index/QC 생성 |
 
 ## Research Pipeline 실행
 
-Prototype raster observation까지 실행한다. 각 branch 내부 worker/thread는 1이다.
-Membership은 `controller_20`, vector clipping과 raster extraction은 `controller_10`을 사용한다.
+각 dynamic branch 내부 worker/thread는 1이다. Membership은 `controller_20`, vector
+clipping, raster extraction과 serialization은 `controller_10`을 사용한다.
 
 ```bash
 FUSE_CONTROLLER_10_WORKERS=10 \
 Rscript scripts/run_targets.R prototype_raster_observation_shard
+```
+
+승인된 I14 plan에서 I15의 51개 serialization branch만 실행:
+
+```bash
+FUSE_CONTROLLER_10_WORKERS=10 \
+Rscript scripts/run_targets.R prototype_serialization_shard
 ```
 
 Research store는 `/mnt/hdd002/dhnyu/fusedata/targets/fuse-research`, derived artifact는
@@ -64,7 +77,8 @@ content-addressed directory로 atomic publish한다.
 I09도 같은 atomic JSON + small RDS list convention을 사용한다. I10은
 `pattern=map(prototype_observation_plan)`, I11은 aligned
 `pattern=map(prototype_observation_plan, prototype_vector_observation_shard)`이며 둘 다
-`format="file"`이다.
+`format="file"`이다. I14도 atomic JSON spec과 small R list convention을 사용하며,
+I15는 `pattern=map(prototype_serialization_plan)`, `format="file"`이다.
 
 Maintenance는 research graph와 다른 script/store를 명시적으로 사용한다.
 

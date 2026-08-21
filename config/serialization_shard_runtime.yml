@@ -1,0 +1,7 @@
+controller: controller_10
+workers: 1
+threads_per_worker: 1
+gpu: 0
+python: python
+serializer: python/serialize_prototype_shard.py
+global_validator: python/validate_prototype_serialization_shards.py

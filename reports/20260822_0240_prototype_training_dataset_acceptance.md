@@ -10,7 +10,7 @@
 - I13 spatial dataset: `psa_4e43932fc998fed94385addc`
 - I14 serialization plan: `psp_c3f6659d47486417567d55c1`
 - I15 serialization dataset: `psd_c3f6659d47486417567d55c1`
-- I16 accepted training dataset: `ptd_2c24b52e132d37eab6a9d94e`
+- I16 accepted training dataset: `ptd_140215eef2c1fa6da8304c6e`
 
 I16 static aggregate gate와 필요한 scoped contract/schema/validator/test만 구현했다.
 I15 tar, safetensors 및 sidecar는 read-only로 검사했으며 새 tensor, shard, DataLoader,
@@ -97,7 +97,7 @@ scientific identity에서 제외했다.
 rebuild한 결과 accepted dataset ID, shard catalog, global/split order와 7개 output
 checksum이 모두 byte-identical했다. 기존 동일 output directory 재실행은 identical
 reuse PASS였고 same ID/different content fixture는 hard failure PASS였다. Accepted
-manifest SHA-256은 `f67b6a26c628d0d3d73c8b2cc008a2b3908c387b417f3c91b7452ca248e9d25a`다.
+manifest SHA-256은 `2614028e4f5e5f111e4f8d074576adf49acc60c64a6e2f4f33580c1954492945`다.
 
 ## Tests와 Targets
 
@@ -119,8 +119,9 @@ manifest SHA-256은 `f67b6a26c628d0d3d73c8b2cc008a2b3908c387b417f3c91b7452ca248e
 전체 test 첫 실행에서 기존 manifest expected-order fixture의 raster/relation 두 target
 순서가 새 topological manifest와 반대로 기록되어 한 건 실패했다. 실제 graph를 기준으로
 fixture를 수정한 뒤 전체 suite를 재실행해 PASS했다. EOF whitespace 정리로 scoped
-contract target만 한 번 재실행했으며 I09--I15는 모든 실행에서 skipped였다. Scientific
-artifact, checksum, tensor 또는 random-access failure는 없었다.
+contract target만 한 번 재실행했고 content-addressed accepted ID도 최종 contract hash로
+갱신한 뒤 shuffle/reuse를 다시 검증했다. I09--I15는 모든 실행에서 skipped였다.
+Scientific artifact, checksum, tensor 또는 random-access failure는 없었다.
 
 검사는 warm page cache에서 수행되어 cold-storage random I/O 성능을 의미하지 않는다.
 실제 DataLoader worker 수, batching, throughput과 RSS는 다음 I17 smoke의 범위다. 다음

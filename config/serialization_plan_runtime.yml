@@ -1,0 +1,4 @@
+controller: controller_05
+workers: 1
+threads_per_worker: 1
+gpu: 0

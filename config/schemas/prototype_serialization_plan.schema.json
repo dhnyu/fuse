@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-serialization-plan-1.0.0.json",
+  "title": "Prototype serialization branch specification",
+  "type": "object",
+  "required": [
+    "spec_schema_version", "plan_id", "serialization_dataset_id", "branch_id",
+    "split", "scene_ids", "totals", "caps", "utilization",
+    "oversize_singleton", "spatial_dataset_id", "accepted_artifacts",
+    "upstream_datasets", "scientific_identity", "output", "execution"
+  ],
+  "properties": {
+    "spec_schema_version": {"const": "1.0.0"},
+    "plan_id": {"type": "string", "pattern": "^psp_[0-9a-f]{24}$"},
+    "serialization_dataset_id": {"type": "string", "pattern": "^psd_[0-9a-f]{24}$"},
+    "branch_id": {"type": "string", "pattern": "^psb_[0-9a-f]{24}$"},
+    "split": {"enum": ["training", "validation", "evaluation"]},
+    "scene_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "totals": {
+      "type": "object",
+      "required": ["scene_count", "node_count", "ordered_edge_count", "coordinate_count", "estimated_uncompressed_bytes"]
+    },
+    "caps": {
+      "type": "object",
+      "required": ["node_count", "ordered_edge_count", "coordinate_count", "estimated_uncompressed_bytes"]
+    },
+    "utilization": {
+      "type": "object",
+      "required": ["node_count", "ordered_edge_count", "coordinate_count", "estimated_uncompressed_bytes"]
+    },
+    "oversize_singleton": {"type": "boolean"},
+    "spatial_dataset_id": {"const": "psa_4e43932fc998fed94385addc"},
+    "accepted_artifacts": {"type": "object"},
+    "upstream_datasets": {"type": "object"},
+    "scientific_identity": {"type": "object"},
+    "output": {"type": "object", "required": ["root", "directory"]},
+    "execution": {"type": "object", "required": ["controller", "workers", "threads", "gpu"]}
+  },
+  "additionalProperties": true
+}

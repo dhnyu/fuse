@@ -1,0 +1,62 @@
+schema_version: "1.0.0"
+serialization_plan_contract_version: "1.0.0"
+
+estimator:
+  policy: conservative_uncompressed_tensor_bytes
+  compression_assumption: none
+  fixed_scene_overhead_bytes: 16384
+  dtypes:
+    node_type: {name: uint8, bytes: 1}
+    category_index: {name: int32, bytes: 4}
+    numerical_value: {name: float32, bytes: 4}
+    missing_indicator: {name: uint8, bytes: 1}
+    object_raster_value: {name: float32, bytes: 4}
+    geometry_offset: {name: int64, bytes: 8}
+    geometry_type: {name: uint8, bytes: 1}
+    coordinate: {name: float32, bytes: 4, dimensions: 2}
+    edge_index: {name: int64, bytes: 8, dimensions: 2}
+    relation_mask: {name: uint8, bytes: 1}
+  per_entity_slots:
+    B: {category: 2, numerical: 4, missing_indicator: 2}
+    R: {category: 2, numerical: 3, missing_indicator: 1}
+    P: {category: 6, numerical: 2, missing_indicator: 0}
+  object_raster_dimension: 26
+  geometry_offsets:
+    entity_offsets: node_count_plus_one
+    component_offsets: component_count_plus_one
+    ring_offsets: polygon_ring_count_plus_one
+  scene_raster:
+    landcover_class_fraction: {elements: 220000, dtype: float32, bytes_per_element: 4}
+    landcover_valid_support: {elements: 10000, dtype: float32, bytes_per_element: 4}
+    landcover_valid_mask: {elements: 10000, dtype: uint8, bytes_per_element: 1}
+    dem_raw_mean: {elements: 289, dtype: float32, bytes_per_element: 4}
+    dem_valid_support: {elements: 289, dtype: float32, bytes_per_element: 4}
+    dem_valid_mask: {elements: 289, dtype: uint8, bytes_per_element: 1}
+
+sharding:
+  algorithm: deterministic_decreasing_normalized_cost_bin_packing
+  split_homogeneous: true
+  atomic_scene: true
+  cap_quantile: 0.95
+  cap_multiplier: 4
+  cap_rounding:
+    node_count: 1000
+    ordered_edge_count: 10000
+    coordinate_count: 10000
+    estimated_uncompressed_bytes: 1048576
+  tie_break:
+    scene_order: decreasing_max_normalized_cost_then_scene_id
+    eligible_shard: lowest_max_normalized_load_then_sum_load_then_stable_scene_key
+    output_order: split_then_branch_id
+  system_feasibility_limits:
+    node_count: 1000000
+    ordered_edge_count: 20000000
+    coordinate_count: 10000000
+    estimated_uncompressed_bytes: 1073741824
+
+output:
+  training_root: /mnt/hdd002/dhnyu/fusedata/training_data/v1/prototype
+  i15_directory: serialization
+  parquet_compression: zstd
+  parquet_row_group_size: 65536
+  canonical_json: sorted_object_keys_compact_utf8_lf

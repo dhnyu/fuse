@@ -1,0 +1,90 @@
+schema_version: "1.0.0"
+relation_contract_version: "1.0.0"
+processing_epsg: 5186
+source_geometry: I10_observed_geometry_only
+
+relations:
+  order: [SN, CNT, WIT, INT, CON]
+  bits:
+    SN: 0
+    CNT: 1
+    WIT: 2
+    INT: 3
+    CON: 4
+  mask_type: uint8
+  representation: one_row_per_ordered_pair_bit_mask
+  self_edges: forbidden
+  multiple_relations: preserve_all_bits
+
+entity_states: [B, R, P_in, P_out]
+applicability:
+  B:
+    B: [SN, INT]
+    R: [SN, INT]
+    P_in: [CNT]
+    P_out: [SN]
+  R:
+    B: [SN, INT]
+    R: [SN, INT, CON]
+    P_in: []
+    P_out: [SN]
+  P_in:
+    B: [WIT]
+    R: []
+    P_in: []
+    P_out: []
+  P_out:
+    B: [SN]
+    R: [SN]
+    P_in: []
+    P_out: [SN]
+
+sn:
+  radius_m: 100.0
+  radius_boundary: inclusive
+  top_k: 16
+  candidate_query: GEOS_within_distance_spatial_index
+  final_distance: exact_observed_geometry_to_geometry
+  distance_tie_tolerance_m: 1.0e-9
+  ranking: quantized_distance_then_destination_local_entity_id
+  cutoff_ties: retain_exactly_top_k
+  symmetrization: retain_both_directions_if_either_direction_selects
+
+containment:
+  eligible_pair: Building_contains_POI_only
+  predicate: GEOS_strict_within
+  boundary_poi_state: P_out
+  host_order: observed_area_m2_then_source_entity_id_then_local_entity_id
+  maximum_hosts_per_poi: 1
+  cnt_direction: Building_to_POI_in
+  wit_direction: POI_in_to_Building
+
+intersection:
+  eligible_unordered_pairs: [B_B, B_R, R_R]
+  predicate: GEOS_intersects
+  includes: [boundary_contact, crossing, partial_overlap]
+  symmetric_expansion: both_directions
+
+connectivity:
+  eligible_pair: R_R_only
+  shared_node: same_original_F_NODE_or_T_NODE
+  node_location: original_node_geometry_EPSG_5186
+  scene_predicate: closed_footprint_covers_node
+  clipped_endpoint: forbidden
+  coincident_coordinate_without_same_node_id: forbidden
+  shared_node_serialization: sorted_unique_pipe_delimited
+  symmetric_expansion: both_directions
+
+edge:
+  ordering: [scene_id, source_local_entity_id, destination_local_entity_id, relation_mask]
+  edge_id: sha256_of_canonical_scene_ordered_endpoints_and_mask
+  directed_field: true_only_if_CNT_or_WIT_bit_present
+  distance_nullable: null_unless_SN
+  host_nullable: null_unless_CNT_or_WIT
+  shared_original_node_nullable: null_unless_CON
+
+storage:
+  parquet_compression: zstd
+  parquet_row_group_size: 65536
+  deterministic_bytes_required: true
+

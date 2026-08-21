@@ -1,0 +1,54 @@
+schema_version: "1.0.0"
+dataloader_contract_version: "1.0.0"
+
+identity:
+  accepted_dataset_id: ptd_140215eef2c1fa6da8304c6e
+  spatial_dataset_id: psa_4e43932fc998fed94385addc
+  serialization_plan_id: psp_c3f6659d47486417567d55c1
+  serialization_dataset_id: psd_c3f6659d47486417567d55c1
+
+execution:
+  controller: controller_05
+  gpu: 0
+  candidate_workers: [0, 4]
+  candidate_pin_memory: [false, true]
+  candidate_persistent_workers: [false, true]
+  prefetch_factor: 2
+  multiprocessing_sharing_strategy: file_system
+  benchmark_repetitions: 1
+  warm_cache: true
+
+coordinates:
+  output_crs: EPSG:5186
+  entity_relative_position_storage_unit: meter
+  entity_relative_position_output_unit: meter
+  intrinsic_geometry_storage_unit: scene_width_fraction
+  intrinsic_geometry_output_unit: meter
+  geometry_scale_to_m: 500.0
+  reference_tolerance_m: 0.001
+
+batching:
+  algorithm: stable_order_greedy_hard_multiresource_budget_v1
+  shuffle_algorithm: numpy_pcg64_permutation
+  seed: 20260822
+  budgets:
+    scenes: 8
+    nodes: 14000
+    ordered_edges: 140000
+    coordinates: 50000
+    actual_payload_bytes: 10485760
+  rationale: rounded_up_four_times_training_p95_with_every_scene_below_each_cap
+
+expected:
+  shards: 51
+  scenes: 320
+  split_counts: {training: 256, validation: 32, evaluation: 32}
+  nodes: 237121
+  ordered_edges: 2756444
+  coordinates: 794540
+  empty_edge_scenes: 59
+
+output:
+  subdirectory: smoke/dataloader
+  result: prototype_dataloader_smoke.json
+  log: prototype_dataloader_smoke.jsonl

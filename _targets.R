@@ -16,7 +16,8 @@ research_function_files <- c(
   "R/research_spatial_acceptance.R",
   "R/research_serialization_plan.R",
   "R/research_serialization_shard.R",
-  "R/research_training_dataset_acceptance.R"
+  "R/research_training_dataset_acceptance.R",
+  "R/research_dataloader_smoke.R"
 )
 targets::tar_source(research_function_files)
 
@@ -60,6 +61,7 @@ targets::tar_source("targets/research_spatial_acceptance.R")
 targets::tar_source("targets/research_serialization_plan.R")
 targets::tar_source("targets/research_serialization_shard.R")
 targets::tar_source("targets/research_training_dataset_acceptance.R")
+targets::tar_source("targets/research_dataloader_smoke.R")
 
 c(
   list_research_scene_index,
@@ -70,5 +72,6 @@ c(
   list_research_spatial_acceptance,
   list_research_serialization_plan,
   list_research_serialization_shard,
-  list_research_training_dataset_acceptance
+  list_research_training_dataset_acceptance,
+  list_research_dataloader_smoke
 )

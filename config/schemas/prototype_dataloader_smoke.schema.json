@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-dataloader-smoke-1.0.0.json",
+  "title": "Prototype DataLoader smoke result",
+  "type": "object",
+  "required": [
+    "schema_version", "status", "smoke_id", "accepted_dataset_id",
+    "coordinate_contract", "batching", "correctness", "performance",
+    "recommendation", "environment"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "READY"},
+    "smoke_id": {"type": "string", "pattern": "^pdl_[0-9a-f]{24}$"},
+    "accepted_dataset_id": {"const": "ptd_140215eef2c1fa6da8304c6e"},
+    "coordinate_contract": {"type": "object"},
+    "batching": {"type": "object"},
+    "correctness": {"type": "object"},
+    "performance": {"type": "array", "minItems": 1},
+    "recommendation": {"type": "object"},
+    "environment": {"type": "object"}
+  },
+  "additionalProperties": true
+}

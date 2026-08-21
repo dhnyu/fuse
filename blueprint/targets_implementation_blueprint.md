@@ -438,7 +438,7 @@ Augmentation에서 entity가 제거돼도 retained entity의 original `entity_lo
 
 **Relation Parquet:** one row per ordered pair with any relation: `scene_id`, `src_local_id`, `dst_local_id`, types, `relation_mask uint8` bits `SN/CNT/WIT/INT/CON`, individual bools, SN distance/rank, host tie-break evidence, shared source-node IDs. Unique key는 `(scene_id,src_local_id,dst_local_id)`다.
 
-**Entity dictionary:** `prototype_spatial_acceptance`/`full_spatial_acceptance`가 별도 Parquet을 출력한다. Long schema는 entity type, attribute, kind, raw code/state/parent, model token/index, training count, transform, mean/SD, missing rule, dictionary/schema/source hash다. Vocab/statistics는 training scenes만 사용한다.
+**Entity dictionary:** `prototype_spatial_acceptance`/`full_spatial_acceptance`가 entity key dictionary와 semantic vocabulary/statistics Parquet을 별도로 출력한다. Vocabulary universe와 index는 frequency나 observed subset이 아니라 versioned official source codebook 전체로 고정하며 source category 뒤에 `MISSING`, `MASK`를 둔다(`OOV` token 없음). Validation/evaluation 관측은 vocabulary를 확장하거나 재정렬하지 않는다. Data-derived numerical mean/SD와 training count는 training scenes만 사용한다. Semantic long schema는 entity type, attribute, kind, raw code/state/parent, model token/index, training count, transform, mean/SD, missing rule, dictionary/schema/source hash를 기록한다.
 
 ### 9.5 Training-ready cache
 
@@ -749,7 +749,7 @@ Model/augmentation/training config 변경은 I17 이후 prototype model targets�
 - raster shapes/class composition/support/nodata
 - SN/CNT/WIT/INT/CON inverse/symmetry/host/top-k/source-node rule
 - scene/local entity ID가 vector/raster/relation에서 동일한지
-- training-only vocabulary/statistics와 missing mapping
+- official source-codebook vocabulary(관측 subset/frequency 학습 없음), training-only numerical statistics와 missing mapping
 
 Outgoing production edge는 C01 `full_membership_plan`이다. Model, augmentation, training config는 이 gate의 input이 아니다.
 

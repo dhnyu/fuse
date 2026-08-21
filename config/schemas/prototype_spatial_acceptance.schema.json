@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-spatial-acceptance-1.0.0.json",
+  "title": "Prototype spatial acceptance artifact contracts",
+  "$defs": {
+    "entity_dictionary_row": {
+      "type": "object",
+      "required": ["scene_id", "split", "local_entity_id", "entity_type", "source_entity_id", "branch_id", "vector_observation_dataset_id", "raster_observation_dataset_id", "relation_dataset_id", "vector_artifact_path", "raster_object_context_path", "relation_node_index_path"],
+      "properties": {
+        "scene_id": {"type": "string"},
+        "split": {"enum": ["training", "validation", "evaluation"]},
+        "local_entity_id": {"type": "integer", "minimum": 0},
+        "entity_type": {"enum": ["B", "R", "P"]},
+        "source_entity_id": {"type": "string"},
+        "branch_id": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "vocabulary_row": {
+      "type": "object",
+      "required": ["attribute", "category_key", "source_code", "source_label", "index", "entry_type", "ordering_rule", "source_codebook_hash"],
+      "properties": {
+        "index": {"type": "integer", "minimum": 0},
+        "entry_type": {"enum": ["SOURCE", "MISSING", "MASK"]}
+      },
+      "additionalProperties": true
+    },
+    "normalization_row": {
+      "type": "object",
+      "required": ["attribute", "transform", "population", "valid_count", "mean", "raw_sd", "applied_scale", "constant_training_field"],
+      "additionalProperties": true
+    },
+    "categorical_alias_row": {
+      "type": "object",
+      "required": ["entity_type", "attribute", "raw_field", "code_field_in_canonical_source", "raw_value", "official_code", "official_label", "mapping_type", "match_type", "case_sensitive", "source_codebook_file", "source_codebook_inner_file", "source_codebook_sha256", "canonical_source_file", "canonical_source_sha256", "verified_source_row_count", "verified_i10_observation_count", "verification_policy", "scientific_rationale"],
+      "properties": {
+        "mapping_type": {"const": "exact_source_alias"},
+        "match_type": {"const": "exact"},
+        "case_sensitive": {"const": true}
+      },
+      "additionalProperties": true
+    }
+  }
+}

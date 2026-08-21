@@ -1,0 +1,101 @@
+schema_version: "1.0.0"
+spatial_acceptance_contract_version: "1.0.0"
+processing_epsg: 5186
+controller: controller_05
+workers: 1
+threads: 1
+
+expected:
+  branches: 15
+  scenes: 320
+  split_counts: {training: 256, validation: 32, evaluation: 32}
+  entities: {B: 81693, R: 7898, P: 147530, total: 237121}
+  relation_dataset_id: pre_b94858c3ea31d9eb2376ee00
+  relation_regression:
+    ordered_pairs: 2756444
+    SN: 2539932
+    CNT: 108255
+    WIT: 108255
+    INT: 44412
+    CON: 25892
+    multi_relation_ordered_pairs: 44412
+    empty_edge_scenes: 59
+
+vocabulary:
+  universe: official_source_codebook_full
+  observed_subset: forbidden
+  frequency_filtering: forbidden
+  ordering: official_source_order_then_utf8_category_key
+  reserved_tokens: [MISSING, MASK]
+  reserved_position: after_all_source_categories
+  oov_policy: hard_failure_no_oov_token
+  raw_mask_allowed: false
+  poi_category_key: slash_joined_ancestor_and_current_source_codes
+  building_structure_category_key: official_A10_code_verified_by_stable_source_entity_id
+  alias_policy: explicit_exact_source_alias_only
+  attributes:
+    building: [A9, A11]
+    road: [ROAD_RANK, ROAD_TYPE]
+    poi: [CLASS_L1, CLASS_L2, CLASS_L3, CLASS_L4, CLASS_L5, CLASS_L6]
+
+missing_mapping:
+  generic_missing_values: [null, ""]
+  building:
+    state_column: null
+    missing_values: [null, ""]
+  road:
+    state_column: null
+    missing_values: [null, ""]
+  poi:
+    valid_states: [VALUE]
+    missing_states: [TERMINAL_DASH, "NULL", EMPTY]
+    dash_like_markers:
+      labels: ["-"]
+      source: spatial_categories.json/missing_markers/poi_by_level
+      codes_by_level:
+        CLASS_L1: []
+        CLASS_L2: []
+        CLASS_L3: [A000]
+        CLASS_L4: [D00, D01, D02]
+        CLASS_L5: [F00, F01, F02, F03, F04, F06, F12, F13, F14, F15]
+        CLASS_L6: [G00]
+    valid_state_missing_value: hard_failure
+    missing_state_non_sentinel_value: hard_failure
+  contradiction_policy: hard_failure
+
+normalization:
+  fit_split: training
+  scene_count: 256
+  estimator: population
+  sd_denominator: "N"
+  accumulator_dtype: float64
+  clipping: none
+  missing_representation: {standardized_value: 0.0, missing_indicator: 1}
+  valid_representation: {missing_indicator: 0}
+  zero_variance: {raw_sd: 0.0, applied_scale: 1.0, constant_training_field: true, status: warning}
+  no_valid_observation: hard_failure
+  weighting:
+    vector: scene_entity_observation_row
+    object_dem: scene_entity_observation_row
+    scene_dem: valid_scene_pixel_instance
+  fields:
+    - {attribute: building_observed_area_m2, source_column: observed_area_m2, entity_type: B, transform: log1p, validity: positive_required}
+    - {attribute: building_observed_gross_floor_area_m2, source_column: observed_gross_floor_area_m2, entity_type: B, transform: log1p, validity: nonnegative_or_missing}
+    - {attribute: road_lanes, source_column: LANES, entity_type: R, transform: identity, validity: positive_required}
+    - {attribute: object_dem_mean_m, source_column: dem_mean_m, entity_type: ALL, transform: identity, validity: finite_or_missing}
+    - {attribute: object_dem_sd_m, source_column: dem_sd_m, entity_type: ALL, transform: identity, validity: nonnegative_or_missing}
+    - {attribute: scene_dem_mean_m, source_column: raw_mean_m, entity_type: SCENE, transform: identity, validity: valid_mask_only}
+  not_standardized:
+    - landcover_scene_class_code
+    - landcover_object_composition_22
+    - lc_valid_support_ratio
+    - dem_valid_support_ratio
+
+determinism:
+  dictionary_order: [scene_id, local_entity_id]
+  vocabulary_order: [attribute, index]
+  scene_statistics_order: [scene_id]
+  parquet_compression: zstd
+  parquet_row_group_size: 65536
+  canonical_json: sorted_object_keys_compact_utf8_lf
+  scientific_runtime_separation: true

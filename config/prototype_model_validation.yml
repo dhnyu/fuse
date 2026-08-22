@@ -1,0 +1,85 @@
+schema_version: "1.0.0"
+
+identity:
+  training_plan_id: ptp_3b100622bdb733351db6e458
+  training_run_id: ptr_473911a4828ae5540a9d4eb9
+  training_acceptance_id: pta_cf6bc4679a06305fb1185a8e
+  training_dataset_id: ptd_cee61a525ca92f1b7951c40d
+  augmentation_acceptance_id: paa_8d73a94e574dcdbc5c5106d2
+  augmentation_manifest_sha256: cd81f7921625a3cec4d1f2954c02869431a26cc75c24d7d7601029d3b86fe836
+  checkpoint_name: epoch-005.pt
+  checkpoint_sha256: a17477a647d68024cb59ce6c3ce66a703e12143f37340b90c82cd3549b303704
+  dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
+
+scientific:
+  population:
+    scene_count: 320
+    split_counts: {training: 256, validation: 32, evaluation: 32}
+    canonical_order: scene_id_ascending
+  inference:
+    model: accepted_best_checkpoint_online_encoder
+    input: original_observed_scene
+    augmentation: forbidden
+    masking: forbidden
+    momentum_encoder: forbidden
+    reconstruction_decoders: forbidden
+    queue: forbidden
+    projection_head: excluded
+    output: pre_projection_scene_embedding
+    dimension: 128
+    normalization: l2
+    scientific_float64_encoder_input: forbidden
+  original_retrieval:
+    name: self_excluding_original_scene_cosine_ranking
+    query_population: all_original_prototype_scenes
+    candidate_population: all_original_prototype_scenes_except_query
+    candidate_count: 319
+    similarity: cosine
+    tie_break: candidate_scene_id_ascending
+    full_ranking_required: true
+    relevance_ground_truth: absent
+    relevance_metrics: forbidden
+  augmented_source_retrieval:
+    name: fixed_augmented_source_scene_retrieval
+    query_population: one_fixed_augmented_view_per_prototype_scene
+    candidate_population: all_unaugmented_prototype_scenes
+    candidate_count: 320
+    unique_relevant_candidate: unaugmented_source_scene
+    augmentation_epoch: 0
+    view_id: 0
+    similarity: cosine
+    tie_break: candidate_scene_id_ascending
+    metrics: [MRR, HIT@1, HIT@5, HIT@10]
+  checkpoint_validation:
+    mutation: forbidden
+    additional_optimizer_steps: 0
+    controlled_resume_evidence: exact_digest_equality
+    required_rank_states: 2
+    accumulation_at_safe_boundary: true
+
+execution:
+  process_workers: 40
+  workers_per_gpu: 20
+  gpu_count: 2
+  devices: [0, 1]
+  native_threads_per_worker: 1
+  persistent_workers: true
+  pin_memory: true
+  prefetch_factor: 1
+  process_start_method: spawn
+  campaigns:
+    - canonical_order_canonical_partition
+    - deterministic_shuffle_alternate_partition
+  parity_subset_size: 8
+  parity_subset_workers: 1
+  gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
+  gpu_lock_timeout_seconds: 120
+
+output:
+  subdirectory: validation/prototype-model
+  manifest: prototype_model_validation_manifest.json
+  embeddings: prototype_original_scene_embeddings.parquet
+  original_rankings: prototype_original_scene_rankings.parquet
+  augmented_source_rankings: prototype_augmented_source_rankings.parquet
+  qc: prototype_model_validation_qc.json
+  report: prototype_model_validation_report.md

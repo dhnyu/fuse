@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-model-validation-1.0.0.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "status", "model_validation_id", "parents", "checkpoint",
+    "scientific_identity", "checkpoint_state", "original_inference",
+    "original_retrieval", "augmented_source_retrieval", "determinism",
+    "execution_evidence", "immutable_publication", "outputs"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "model_validation_id": {"type": "string", "pattern": "^pmv_[0-9a-f]{24}$"},
+    "parents": {
+      "type": "object", "additionalProperties": false,
+      "required": ["training_plan_id", "training_run_id", "training_acceptance_id", "training_dataset_id", "prototype_selection_id", "augmentation_acceptance_id"],
+      "properties": {
+        "training_plan_id": {"const": "ptp_3b100622bdb733351db6e458"},
+        "training_run_id": {"const": "ptr_473911a4828ae5540a9d4eb9"},
+        "training_acceptance_id": {"const": "pta_cf6bc4679a06305fb1185a8e"},
+        "training_dataset_id": {"const": "ptd_cee61a525ca92f1b7951c40d"},
+        "prototype_selection_id": {"type": "string", "pattern": "^pro_[0-9a-f]{24}$"},
+        "augmentation_acceptance_id": {"const": "paa_8d73a94e574dcdbc5c5106d2"}
+      }
+    },
+    "checkpoint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "path", "size_bytes", "sha256", "epoch", "optimizer_step", "checksum_unchanged"],
+      "properties": {
+        "name": {"const": "epoch-005.pt"},
+        "path": {"type": "string"},
+        "size_bytes": {"const": 44745909},
+        "sha256": {"const": "a17477a647d68024cb59ce6c3ce66a703e12143f37340b90c82cd3549b303704"},
+        "epoch": {"const": 5},
+        "optimizer_step": {"const": 40},
+        "checksum_unchanged": {"const": true}
+      }
+    },
+    "scientific_identity": {"type": "object"},
+    "checkpoint_state": {
+      "type": "object", "additionalProperties": true,
+      "required": ["status", "additional_optimizer_steps", "controlled_resume_status", "rank_state_count", "queue_state", "rng_sampler_accumulation"],
+      "properties": {
+        "status": {"const": "PASS"},
+        "additional_optimizer_steps": {"const": 0},
+        "controlled_resume_status": {"const": "PASS"},
+        "rank_state_count": {"const": 2},
+        "queue_state": {"const": "PASS"},
+        "rng_sampler_accumulation": {"const": "PASS"}
+      }
+    },
+    "original_inference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scene_count", "dimension", "normalized_count", "nonfinite_count", "embedding_digest", "projection_head_used", "scientific_float64_used"],
+      "properties": {
+        "scene_count": {"const": 320}, "dimension": {"const": 128},
+        "normalized_count": {"const": 320}, "nonfinite_count": {"const": 0},
+        "embedding_digest": {"$ref": "#/$defs/sha"},
+        "projection_head_used": {"const": false}, "scientific_float64_used": {"const": false}
+      }
+    },
+    "original_retrieval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["query_count", "candidate_count_per_query", "ranking_row_count", "ranking_digest", "self_candidate_count", "relevance_metrics_status"],
+      "properties": {
+        "query_count": {"const": 320}, "candidate_count_per_query": {"const": 319},
+        "ranking_row_count": {"const": 102080}, "ranking_digest": {"$ref": "#/$defs/sha"},
+        "self_candidate_count": {"const": 0}, "relevance_metrics_status": {"const": "not_computed_no_ground_truth"}
+      }
+    },
+    "augmented_source_retrieval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["query_count", "candidate_count_per_query", "rank_count", "MRR", "HIT@1", "HIT@5", "HIT@10", "query_embedding_digest", "ranking_digest", "augmentation_digest"],
+      "properties": {
+        "query_count": {"const": 320}, "candidate_count_per_query": {"const": 320}, "rank_count": {"const": 320},
+        "MRR": {"$ref": "#/$defs/metric"}, "HIT@1": {"$ref": "#/$defs/metric"},
+        "HIT@5": {"$ref": "#/$defs/metric"}, "HIT@10": {"$ref": "#/$defs/metric"},
+        "query_embedding_digest": {"$ref": "#/$defs/sha"}, "ranking_digest": {"$ref": "#/$defs/sha"},
+        "augmentation_digest": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "determinism": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fresh_process_reload", "input_order", "worker_repeat", "gpu_partition", "parity_subset", "canonical_merge"],
+      "properties": {
+        "fresh_process_reload": {"const": "PASS"}, "input_order": {"const": "PASS"},
+        "worker_repeat": {"const": "PASS"}, "gpu_partition": {"const": "PASS"},
+        "parity_subset": {"const": "PASS"}, "canonical_merge": {"const": "PASS"}
+      }
+    },
+    "execution_evidence": {"type": "object"},
+    "immutable_publication": {
+      "type": "object", "additionalProperties": false,
+      "required": ["atomic", "identical_rebuild_reuse", "same_id_different_content_hard_failure"],
+      "properties": {"atomic": {"const": "PASS"}, "identical_rebuild_reuse": {"const": "PASS"}, "same_id_different_content_hard_failure": {"const": "PASS"}}
+    },
+    "outputs": {
+      "type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/output"}
+    }
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "metric": {"type": "number", "minimum": 0, "maximum": 1},
+    "output": {
+      "type": "object", "additionalProperties": false,
+      "required": ["relative_path", "role", "size_bytes", "sha256"],
+      "properties": {
+        "relative_path": {"type": "string"},
+        "role": {"enum": ["original_embeddings", "original_qualitative_rankings", "augmented_source_quantitative_rankings", "validation_qc", "validation_report"]},
+        "size_bytes": {"type": "integer", "minimum": 1}, "sha256": {"$ref": "#/$defs/sha"}
+      }
+    }
+  }
+}

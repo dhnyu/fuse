@@ -23,6 +23,7 @@ research_function_files <- c(
   "R/research_joint_model_smoke.R",
   "R/research_distributed_joint_model_smoke.R",
   "R/research_prototype_training.R",
+  "R/research_prototype_model_validation.R",
   "R/research_training_plan.R"
 )
 targets::tar_source(research_function_files)
@@ -79,6 +80,7 @@ targets::tar_source("targets/research_joint_model_smoke.R")
 targets::tar_source("targets/research_distributed_joint_model_smoke.R")
 targets::tar_source("targets/research_training_plan.R")
 targets::tar_source("targets/research_prototype_training.R")
+targets::tar_source("targets/research_prototype_model_validation.R")
 
 c(
   list_research_scene_index,
@@ -96,5 +98,6 @@ c(
   list_research_joint_model_smoke,
   list_research_distributed_joint_model_smoke,
   list_research_training_plan,
-  list_research_prototype_training
+  list_research_prototype_training,
+  list_research_prototype_model_validation
 )

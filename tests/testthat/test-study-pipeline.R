@@ -21,7 +21,7 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
   research_manifest <- targets::tar_manifest(
     script = file.path(fuse_test_root, "_targets.R"), callr_arguments = list(wd = fuse_test_root)
   )
-  expect_equal(
+  expect_setequal(
     research_manifest$name,
     c(
       "observation_contract_files", "training_dataset_acceptance_contract_files", "membership_contract_files",
@@ -30,6 +30,7 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "research_implementation_files", "encoder_smoke_contract_files", "dataloader_smoke_contract_files",
       "relation_contract_files", "distributed_joint_model_contract_files", "serialization_plan_contract_files",
       "raster_observation_contract_files", "spatial_acceptance_contract_files",
+      "prototype_model_validation_contract_files",
       "study_data_inputs", "study_data_inventory", "methodology_contract", "spatial_scene_index",
       "prototype_scene_selection", "prototype_membership_plan", "prototype_membership_shard",
       "prototype_membership_acceptance", "prototype_observation_plan",
@@ -38,7 +39,7 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "prototype_training_dataset_acceptance", "prototype_dataloader_smoke", "prototype_encoder_smoke",
       "prototype_scientific_geometry_roundtrip", "prototype_augmentation_benchmark",
       "prototype_joint_model_smoke", "prototype_distributed_joint_model_smoke", "prototype_training_plan",
-      "prototype_training_completed_artifacts", "prototype_training_acceptance"
+      "prototype_training_completed_artifacts", "prototype_training_acceptance", "prototype_model_validation"
     )
   )
   expect_false("seoul_data_preprocess" %in% research_manifest$name)

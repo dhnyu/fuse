@@ -223,6 +223,8 @@ flowchart TD
 
 `prototype_model_validation`은 checkpoint/resume, fixed prototype embedding과 cosine retrieval smoke를 한 번에 수행한다. 이들은 작은 prototype run 뒤 항상 함께 수행되는 저비용 validation이므로 별도 target 3개로 분해하지 않는다.
 
+I23의 retrieval 출력은 두 계약을 구분한다. 320개 original prototype scene의 projection-head 이전 L2-normalized embedding은 query 자신만 제외한 cosine 전 순위를 생성하지만, 서로 다른 original scene 사이의 relevance ground truth가 없으므로 MRR/HIT를 계산하지 않는다. 별도의 fixed-seed I19 augmented query는 대응하는 unaugmented source scene을 유일한 relevant candidate로 사용하며, 이 source-scene retrieval에만 MRR와 HIT@1/5/10을 계산한다. 두 경로 모두 accepted best checkpoint의 online encoder를 read-only로 사용하고 optimizer, EMA, queue, masking 및 checkpoint state를 변경하지 않는다.
+
 ### 6.3 Production serialization 및 training pipeline
 
 ```mermaid

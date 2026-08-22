@@ -40,7 +40,7 @@ I12 selected-host ordering과 I15 Building standardization은 I10 `building_obse
 | no-op gate | prior failed lineage | `pgr_fb3209bda9fb0fa9a0e15bd1` |
 | I18 | prior lineage | `pea_5784252434798d9dfa05d796` |
 | I19 | none accepted | `paa_8d73a94e574dcdbc5c5106d2` |
-| I20 | none | `ptp_68ded3dd6889ea23233081a5` |
+| I20 | none | `ptp_8a862b669ae917bcddda9e28` |
 
 - I14 estimated bytes: 410,952,111; authoritative area increment: 653,544 bytes (81,693 Buildings x 8).
 - I15 actual payload: 429,871,747 bytes; tar bytes: 431,616,000.
@@ -94,7 +94,7 @@ I12 selected-host ordering과 I15 Building standardization은 I10 `building_obse
 
 ## I20
 
-- PASS; plan `ptp_68ded3dd6889ea23233081a5`, run `ptr_20fd01f2504f56ee71913aa1`, run count 1, seed 20260822.
+- PASS; plan `ptp_8a862b669ae917bcddda9e28`, run `ptr_dc7d6b862dadd63d9b7f62d0`, run count 1, seed 20260822.
 - AdamW, lr 1e-4, weight decay 1e-4, 200 epochs, 10-epoch warmup 후 cosine, EMA 0.999, queue 8192, temperature 0.1, geographic exclusion 750 m.
 - effective batch 32 scenes; exact 32-scene optimizer group를 I17 hard-budget microbatch로 분할하는 accumulation contract.
 - validation/checkpoint 5 epochs; primary MRR; tie-break HIT@1 then earliest epoch.
@@ -108,7 +108,7 @@ I12 selected-host ordering과 I15 Building standardization은 I10 `building_obse
 - Python unittest 30 tests: PASS; full `Rscript tests/testthat.R`: PASS.
 - selected-host/R parity, float32 ULP, topology, serialization, acceptance, DataLoader, encoder, augmentation, I20 fixtures: PASS.
 - `tar_manifest()` 35 targets; `tar_network()` 328 vertices/615 edges; `tar_validate()`: PASS.
-- scoped `tar_make(prototype_training_plan)`: 135 skipped, 0 built; I09-I17 skipped 확인.
+- initial scoped `tar_make(prototype_training_plan)`: 135 skipped, 0 built. Commit 직전 EOF normalization 후 current I20 contract를 재승인한 final scoped run은 contract/I20 2 completed, 133 skipped; I09-I19 skipped 확인.
 - research-store `tar_outdated()`: empty.
 - current I14-I20 `tar_meta()` warning/error: 0. 2026-08-21 upstream retry에서 남은 historical I01/I10 branch records 6건은 current lineage와 무관.
 - direct rebuild, immutable identical reuse, same-ID/different-content hard failure fixtures: PASS.
@@ -118,6 +118,7 @@ I12 selected-host ordering과 I15 Building standardization은 I10 `building_obse
 
 - 첫 full test에서 intentional payload 증가와 5개 새 target을 반영하지 않은 정적 기대값 3건이 실패했으며 accepted manifests/manifest order로 수정 후 전체 PASS.
 - direct graph 검사에서 내부 function/file vertices를 target 수로 잘못 가정한 진단 assertion 1건을 바로잡았고 pipeline에는 영향 없음.
+- commit 직전 I20 파일의 EOF normalization이 contract hash를 바꿔 final `tar_outdated()`에서 I20만 검출되었다. I14-I19를 재실행하지 않고 정상 graph로 I20만 재승인하여 최종 identity를 갱신했다.
 - I19 p95는 대형 scene과 40-process 동시 실행의 tail을 포함한다. I20 wall/storage 값은 실제 training 결과가 아닌 승인된 deterministic planning estimate이다.
 - 40-worker 합산 RSS 외부 관측과 runner resource field의 계측 범위가 다르므로 production capacity planning에서는 약 26 GB 관측치를 사용해야 한다.
 

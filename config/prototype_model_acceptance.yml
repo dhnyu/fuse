@@ -1,0 +1,77 @@
+schema_version: "1.0.0"
+
+identity:
+  training_dataset_id: ptd_cee61a525ca92f1b7951c40d
+  dataloader_smoke_id: pdl_4037d275d729c82ea9b19d97
+  encoder_acceptance_id: pea_5784252434798d9dfa05d796
+  augmentation_acceptance_id: paa_8d73a94e574dcdbc5c5106d2
+  joint_model_acceptance_id: pjm_056c0d32b223808fd8dabc75
+  distributed_joint_acceptance_id: pjd_13aff4a58d3d6022ee2dd62f
+  training_plan_id: ptp_3b100622bdb733351db6e458
+  training_run_id: ptr_473911a4828ae5540a9d4eb9
+  training_acceptance_id: pta_cf6bc4679a06305fb1185a8e
+  model_validation_id: pmv_1d5412a7b035635a4187fbf6
+  best_checkpoint_name: epoch-005.pt
+  best_checkpoint_sha256: a17477a647d68024cb59ce6c3ce66a703e12143f37340b90c82cd3549b303704
+  dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
+
+artifact_sha256:
+  dataset: 73aae3512f1a8a34f9b38fff71656cb5f5bd7e837f351264e3257031c3bb515a
+  dataloader: f9ecea81f42f3450a77993330f1cf4c3242399c0efc677b5ee137407a933195b
+  encoder: 40a5bb613df60638b237f87b41b8bac27a3f9a48ec3f922be80086449382c7f1
+  augmentation: cd81f7921625a3cec4d1f2954c02869431a26cc75c24d7d7601029d3b86fe836
+  no_op_gate: 724fb7dba6c067108b40ed72f130e6c2ae8fd554d82d80663001625a2bcd2351
+  joint_model: a1ab0fd3cdf50836495dbc897b787183c17ec2895bde19b37147f6f31fc9d27a
+  distributed_joint: e911d44b88f79f86dfe6026d80f94b0fb03e6b83b175361183197e001da38696
+  training_plan_manifest: 8cec8d13aa437661e83e494ad6b208154a494ff024a580aa8086b8f76ad78674
+  training_run_spec: af9c763c22de66d27a970deab17bd5589fa71518451fb3da66106f7cb8ef4f05
+  training_acceptance: 7668a45b5f2525e2929379084e18560b33a4b3d419e80df3e018f6746592fc83
+  model_validation: a0722a4c4e7864bbad779c9a81fba1421b38f12caea87b210f85c9deedd2f060
+
+scientific:
+  direct_parents:
+    - prototype_dataloader_smoke
+    - prototype_encoder_smoke
+    - prototype_augmentation_benchmark
+    - prototype_training_acceptance
+    - prototype_model_validation
+  gate_mode: read_only_zero_compute
+  forbidden_operations:
+    - forward
+    - augmentation
+    - optimizer_update
+    - scheduler_update
+    - ema_update
+    - queue_update
+    - checkpoint_mutation
+  retrieval:
+    original_scene_ranking: qualitative_no_relevance_ground_truth
+    original_relevance_metrics: forbidden
+    augmented_source_ranking: quantitative_unique_source_relevant
+    augmented_source_metrics: [MRR, HIT@1, HIT@5, HIT@10]
+  model:
+    architecture: accepted_online_scene_encoder_with_six_reconstruction_decoders
+    encoder_trainable_parameters: 1996534
+    encoder_trainable_parameter_tensors: 231
+    joint_trainable_parameters: 2665140
+    joint_trainable_parameter_tensors: 280
+    scene_embedding_dimension: 128
+    inference_embedding: online_pre_projection_l2_normalized
+  dataset:
+    scenes: 320
+    split: {training: 256, validation: 32, evaluation: 32}
+    entities: 237121
+    ordered_relations: 2756444
+    coordinates: 794540
+    empty_edge_scenes: 59
+  limitations:
+    - prototype_population_only
+    - augmented_source_retrieval_is_a_wiring_and_identity_preservation_smoke
+    - original_scene_similarity_has_no_objective_pairwise_relevance_ground_truth
+    - prototype_acceptance_does_not_establish_final_scientific_performance
+    - full_population_production_and_evaluation_remain_unexecuted
+
+output:
+  subdirectory: acceptance/prototype-model
+  manifest: prototype_model_acceptance.json
+  summary: prototype_model_acceptance.md

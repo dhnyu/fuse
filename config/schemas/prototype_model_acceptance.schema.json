@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-model-acceptance-1.0.0.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "status", "model_acceptance_id", "direct_parents",
+    "forwarded_lineage", "checkpoint", "gates", "contracts", "zero_compute",
+    "scientific_identity", "immutable_publication", "outputs"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "model_acceptance_id": {"type": "string", "pattern": "^pma_[0-9a-f]{24}$"},
+    "direct_parents": {
+      "type": "array", "minItems": 5, "maxItems": 5,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "forwarded_lineage": {
+      "type": "array", "minItems": 6,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "checkpoint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "path", "size_bytes", "sha256", "epoch", "optimizer_step", "read_only"],
+      "properties": {
+        "name": {"const": "epoch-005.pt"}, "path": {"type": "string"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"const": "a17477a647d68024cb59ce6c3ce66a703e12143f37340b90c82cd3549b303704"},
+        "epoch": {"const": 5}, "optimizer_step": {"const": 40}, "read_only": {"const": true}
+      }
+    },
+    "gates": {"type": "object"},
+    "contracts": {"type": "object"},
+    "zero_compute": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "additional_optimizer_steps", "forward_calls", "augmentation_calls", "state_update_calls", "checkpoint_sha256_before", "checkpoint_sha256_after"],
+      "properties": {
+        "status": {"const": "PASS"}, "additional_optimizer_steps": {"const": 0},
+        "forward_calls": {"const": 0}, "augmentation_calls": {"const": 0},
+        "state_update_calls": {"const": 0},
+        "checkpoint_sha256_before": {"$ref": "#/$defs/sha"},
+        "checkpoint_sha256_after": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "scientific_identity": {"type": "object"},
+    "immutable_publication": {
+      "type": "object", "additionalProperties": false,
+      "required": ["atomic", "identical_rebuild_reuse", "same_id_different_content_hard_failure"],
+      "properties": {
+        "atomic": {"const": "PASS"}, "identical_rebuild_reuse": {"const": "PASS"},
+        "same_id_different_content_hard_failure": {"const": "PASS"}
+      }
+    },
+    "outputs": {
+      "type": "array", "minItems": 1, "maxItems": 1,
+      "items": {"$ref": "#/$defs/output"}
+    }
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "identity", "path", "size_bytes", "sha256", "schema_version", "status"],
+      "properties": {
+        "role": {"type": "string"}, "identity": {"type": "string"},
+        "path": {"type": "string"}, "size_bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha"}, "schema_version": {"type": "string"},
+        "status": {"enum": ["PASS", "READY"]}
+      }
+    },
+    "output": {
+      "type": "object", "additionalProperties": false,
+      "required": ["relative_path", "role", "size_bytes", "sha256"],
+      "properties": {
+        "relative_path": {"const": "prototype_model_acceptance.md"},
+        "role": {"const": "acceptance_summary"},
+        "size_bytes": {"type": "integer", "minimum": 1}, "sha256": {"$ref": "#/$defs/sha"}
+      }
+    }
+  }
+}

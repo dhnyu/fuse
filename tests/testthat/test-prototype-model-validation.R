@@ -15,7 +15,7 @@ test_that("I23 contract separates qualitative and quantitative retrieval", {
   expect_identical(config$scientific$checkpoint_validation$additional_optimizer_steps, 0L)
 })
 
-test_that("I23 target has only accepted scientific parents and no I24", {
+test_that("I23 retains only its accepted scientific parents after I24 declaration", {
   manifest <- targets::tar_manifest(
     script = file.path(fuse_test_root, "_targets.R"), callr_arguments = list(wd = fuse_test_root)
   )
@@ -24,5 +24,6 @@ test_that("I23 target has only accepted scientific parents and no I24", {
   expect_match(command, "prototype_training_acceptance")
   expect_match(command, "prototype_training_dataset_acceptance")
   expect_match(command, "prototype_scene_selection")
-  expect_false("prototype_model_acceptance" %in% manifest$name)
+  expect_true("prototype_model_acceptance" %in% manifest$name)
+  expect_false("full_membership_plan" %in% manifest$name)
 })

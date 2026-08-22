@@ -34,11 +34,10 @@
     "sn_destination_rank": {"type": ["integer", "null"], "minimum": 1},
     "host_building_local_entity_id": {"type": ["integer", "null"], "minimum": 0},
     "shared_original_node_id": {"type": ["string", "null"]},
-    "relation_contract_version": {"const": "1.0.0"},
+    "relation_contract_version": {"const": "1.1.0"},
     "vector_observation_dataset_id": {"type": "string"},
     "relation_dataset_id": {"type": "string"},
     "branch_id": {"type": "string"}
   },
   "additionalProperties": false
 }
-

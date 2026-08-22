@@ -39,9 +39,9 @@ def validate_scene_tensors(archive: tarfile.TarFile, scene_id: str, split: str, 
     meta = json.loads(archive.extractfile(f"{scene_id}.meta.json").read())
     tensors = {
         group: load_safetensors(archive.extractfile(f"{scene_id}.{group}.safetensors").read())
-        for group in ("entities", "geometry", "edges", "rasters")
+        for group in ("entities", "geometry", "edges", "topology", "rasters")
     }
-    entities, geometry, edges, rasters = (tensors[name] for name in ("entities", "geometry", "edges", "rasters"))
+    entities, geometry, edges, topology, rasters = (tensors[name] for name in ("entities", "geometry", "edges", "topology", "rasters"))
     n = len(meta["local_entity_ids"])
     e = int(meta["counts"]["edges"])
     c = int(meta["counts"]["coordinates"])
@@ -56,6 +56,7 @@ def validate_scene_tensors(archive: tarfile.TarFile, scene_id: str, split: str, 
         "N": n, "NB": nb, "NR": nr, "NP": np_count, "C": c, "E": e,
         "N_plus_1": n + 1, "PART_plus_1": part_count + 1, "COMPONENT_plus_1": part_count + 1,
         "RING": ring_count,
+        "TN": len(topology["node_incident_road_count"]),
     }
     groups = config["tensor"]["safetensors"]
     for group_name, arrays in tensors.items():
@@ -73,10 +74,46 @@ def validate_scene_tensors(archive: tarfile.TarFile, scene_id: str, split: str, 
         raise ValueError(f"geometry terminal offset mismatch: {scene_id}")
     if not np.array_equal(geometry["entity_part_offsets"], geometry["entity_component_offsets"]) or not np.array_equal(geometry["part_coordinate_offsets"], geometry["component_coordinate_offsets"]):
         raise ValueError(f"part/component topology mismatch: {scene_id}")
+    if meta.get("crs") != "EPSG:5186":
+        raise ValueError(f"scientific reference CRS mismatch: {scene_id}")
+    absolute = geometry["coordinates_absolute_xy_5186"]
+    centers = geometry["reference_center_absolute_xy_5186"]
+    reconstructed_model = np.empty((c, 2), dtype=np.float32)
+    offsets = geometry["entity_coordinate_offsets"]
+    for row in range(n):
+        start, end = int(offsets[row]), int(offsets[row + 1])
+        reconstructed_model[start:end] = np.asarray(
+            (absolute[start:end] - centers[row]) / float(config["tensor"]["geometry_normalization_length_m"]),
+            dtype=np.float32,
+        )
+    if not np.array_equal(reconstructed_model, geometry["coordinates_xy"]):
+        raise ValueError(f"model/scientific geometry representation mismatch: {scene_id}")
+    reference = config.get("geometry_representations", {}).get("scientific_reference", {})
+    if (reference.get("inverse_reconstruction_from_model_float32") != "forbidden" or
+            reference.get("relation_predicate_input") != "float64_absolute_geometry_only" or
+            reference.get("encoder_input") != "forbidden"):
+        raise ValueError("scientific/model geometry role contract mismatch")
+    area_reference = geometry["building_observed_area_m2_reference"]
+    area_missing = entities["building_missing"][:, 0].astype(bool)
+    if (np.any(area_reference[~area_missing] <= 0) or np.any(area_reference[area_missing] != 0) or
+            reference.get("building_observed_area_m2_reference", {}).get("encoder_input") != "forbidden"):
+        raise ValueError(f"Building scientific reference area contract mismatch: {scene_id}")
     if np.any(edges["relation_mask"] < 1) or np.any(edges["relation_mask"] > 31):
         raise ValueError(f"relation mask range mismatch: {scene_id}")
     if bool(meta["empty_edge"]) != (edges["edge_index"].shape == (2, 0)):
         raise ValueError(f"empty edge tensor mismatch: {scene_id}")
+    if topology["road_endpoint_node_index"].size and (
+        np.any(topology["road_endpoint_node_index"] < 0) or
+        np.any(topology["road_endpoint_node_index"] >= dimensions["TN"])
+    ):
+        raise ValueError(f"road topology endpoint index out of range: {scene_id}")
+    if len(meta["road_topology"]["original_node_ids"]) != dimensions["TN"]:
+        raise ValueError(f"road topology metadata dictionary mismatch: {scene_id}")
+    road_rows = entities["road_row_index"]
+    if meta["road_topology"]["road_local_entity_ids"] != entities["local_entity_id"][road_rows].tolist():
+        raise ValueError(f"road topology road-row mapping mismatch: {scene_id}")
+    if np.any(topology["road_endpoint_retained"] > 1):
+        raise ValueError(f"road topology endpoint-retained range mismatch: {scene_id}")
     for key in ("building_category", "road_category", "poi_category"):
         if np.any(entities[key] < 0):
             raise ValueError(f"negative categorical index: {scene_id}:{key}")

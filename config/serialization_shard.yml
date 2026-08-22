@@ -1,10 +1,10 @@
 schema_version: "1.0.0"
-serialization_shard_contract_version: "1.0.0"
+serialization_shard_contract_version: "1.3.0"
 
 identity:
-  spatial_dataset_id: psa_4e43932fc998fed94385addc
-  serialization_plan_id: psp_c3f6659d47486417567d55c1
-  serialization_dataset_id: psd_c3f6659d47486417567d55c1
+  spatial_dataset_id: psa_c2155cf081312a31edfdb191
+  serialization_plan_id: psp_72c5e4e5c3e4c84eb47aad85
+  serialization_dataset_id: psd_72c5e4e5c3e4c84eb47aad85
 
 serialization:
   algorithm: accepted_source_to_scene_ragged_tensor_v1
@@ -12,6 +12,33 @@ serialization:
   edge_order: source_local_entity_id_then_destination_local_entity_id_then_relation_mask
   safetensors_version: "0.8.0"
   compression: none
+
+geometry_representations:
+  model:
+    relative_position: {dtype: float32, unit: meter}
+    intrinsic_coordinates: {dtype: float32, unit: scene_width_fraction, scale_to_m: 500.0}
+    purpose: encoder_input
+  scientific_reference:
+    crs: EPSG:5186
+    absolute_coordinates: {dtype: float64, authoritative: true}
+    accepted_center: {dtype: float64, validation_only: true}
+    building_observed_area_m2_reference:
+      dtype: float64
+      unit: square_meter
+      crs: EPSG:5186
+      scope: building_entities_only
+      source_stage: I10_vector_observation
+      source_column: observed_area_m2
+      forwarding: I13_accepted_dictionary_to_I14_verified_vector_manifest
+      extraction_algorithm: verified_building_observed_parquet_local_entity_join
+      authoritative_for: [original_selected_host_ordering, original_model_standardization, augmentation_start_value]
+      geometry_area_role: cross_runtime_qc_and_accepted_augmented_geometry_only
+      encoder_input: forbidden
+    purpose: [exact_geometry_reconstruction, augmentation, no_op_round_trip, geometry_derived_attributes, spatial_relations, source_to_model_numerical_round_trip]
+    inverse_reconstruction_from_model_float32: forbidden
+    relation_predicate_input: float64_absolute_geometry_only
+    model_conversion: after_scientific_qc_only
+    encoder_input: forbidden
 
 tensor:
   float_tolerance: 1.0e-5
@@ -72,6 +99,9 @@ tensor:
       poi_category: {dtype: int32, shape: [NP, 6]}
     geometry:
       coordinates_xy: {dtype: float32, shape: [C, 2]}
+      coordinates_absolute_xy_5186: {dtype: float64, shape: [C, 2]}
+      reference_center_absolute_xy_5186: {dtype: float64, shape: ["N", 2]}
+      building_observed_area_m2_reference: {dtype: float64, shape: [NB]}
       geometry_type: {dtype: uint8, shape: ["N"]}
       geometry_available: {dtype: uint8, shape: ["N"]}
       entity_coordinate_offsets: {dtype: int64, shape: [N_plus_1]}
@@ -87,6 +117,12 @@ tensor:
     edges:
       edge_index: {dtype: int64, shape: [2, E]}
       relation_mask: {dtype: uint8, shape: [E]}
+    topology:
+      road_endpoint_node_index: {dtype: int64, shape: [NR, 2]}
+      road_endpoint_retained: {dtype: uint8, shape: [NR, 2]}
+      node_incident_road_count: {dtype: int32, shape: [TN]}
+      node_state: {dtype: uint8, shape: [TN]}
+      node_xy_5186: {dtype: float64, shape: [TN, 2]}
     rasters:
       landcover_class_fraction: {dtype: float32, shape: [22, 100, 100]}
       landcover_valid_support: {dtype: float32, shape: [100, 100]}
@@ -98,7 +134,7 @@ tensor:
 archive:
   format: webdataset_tar
   tar_format: ustar
-  member_order: [meta.json, entities.safetensors, geometry.safetensors, edges.safetensors, rasters.safetensors]
+  member_order: [meta.json, entities.safetensors, geometry.safetensors, edges.safetensors, topology.safetensors, rasters.safetensors]
   member_name: "{scene_id}.{member}"
   index_extension: .idx
   metadata: {mtime: 0, uid: 0, gid: 0, uname: "", gname: "", mode: 420}

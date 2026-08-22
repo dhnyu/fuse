@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-scientific-geometry-roundtrip-1.0.0.json",
+  "title": "Prototype scientific geometry no-op round-trip manifest",
+  "type": "object",
+  "required": [
+    "schema_version", "status", "gate_id", "accepted_dataset_id",
+    "dataloader_smoke_id", "scientific_identity", "logical_result", "outputs"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "gate_id": {"type": "string", "pattern": "^pgr_[0-9a-f]{24}$"},
+    "accepted_dataset_id": {"const": "ptd_cee61a525ca92f1b7951c40d"},
+    "dataloader_smoke_id": {"const": "pdl_4037d275d729c82ea9b19d97"},
+    "scientific_identity": {"type": "object"},
+    "logical_result": {
+      "type": "object",
+      "required": ["scene_count", "totals", "regression_scenes", "scene_result_digest"]
+    },
+    "outputs": {"type": "array", "minItems": 1}
+  },
+  "additionalProperties": true
+}

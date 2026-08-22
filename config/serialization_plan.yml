@@ -14,8 +14,16 @@ estimator:
     geometry_offset: {name: int64, bytes: 8}
     geometry_type: {name: uint8, bytes: 1}
     coordinate: {name: float32, bytes: 4, dimensions: 2}
+    scientific_absolute_coordinate: {name: float64, bytes: 8, dimensions: 2}
+    scientific_absolute_center: {name: float64, bytes: 8, dimensions: 2}
+    building_observed_area_reference: {name: float64, bytes: 8}
     edge_index: {name: int64, bytes: 8, dimensions: 2}
     relation_mask: {name: uint8, bytes: 1}
+    topology_endpoint_index: {name: int64, bytes: 8}
+    topology_endpoint_retained: {name: uint8, bytes: 1}
+    topology_incident_count: {name: int32, bytes: 4}
+    topology_node_state: {name: uint8, bytes: 1}
+    topology_node_xy: {name: float64, bytes: 8}
   per_entity_slots:
     B: {category: 2, numerical: 4, missing_indicator: 2}
     R: {category: 2, numerical: 3, missing_indicator: 1}
@@ -35,6 +43,8 @@ estimator:
 
 sharding:
   algorithm: deterministic_decreasing_normalized_cost_bin_packing
+  expected_branch_count: 51
+  branch_count_reconciliation: split_highest_normalized_load_bin_then_highest_cost_scene
   split_homogeneous: true
   atomic_scene: true
   cap_quantile: 0.95

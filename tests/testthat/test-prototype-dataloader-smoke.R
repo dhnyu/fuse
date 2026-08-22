@@ -1,6 +1,6 @@
 test_that("I17 DataLoader smoke contract is fixed", {
   contract <- load_dataloader_smoke_config(dataloader_smoke_contract_paths(fuse_test_root))
-  expect_equal(contract$config$identity$accepted_dataset_id, "ptd_140215eef2c1fa6da8304c6e")
+  expect_equal(contract$config$identity$accepted_dataset_id, "ptd_cee61a525ca92f1b7951c40d")
   expect_equal(contract$config$execution$controller, "controller_05")
   expect_equal(unname(unlist(contract$config$execution$candidate_workers)), c(0, 4))
   expect_equal(contract$config$coordinates$geometry_scale_to_m, 500)

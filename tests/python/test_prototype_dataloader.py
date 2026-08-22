@@ -72,6 +72,17 @@ def sample(scene_id, n, edges, coordinates, empty=False, split="training", globa
         "ring_component_index": ring_component, "ring_coordinate_start": ring_start,
         "ring_coordinate_end": ring_end, "ring_is_hole": ring_hole,
     }
+    scientific_reference = {
+        "coordinates_absolute_xy_5186": torch.tensor(coordinates, dtype=torch.float64).reshape(c, 2),
+        "reference_center_absolute_xy_5186": torch.zeros((n, 2), dtype=torch.float64),
+        "building_observed_area_m2_reference": torch.ones((n,), dtype=torch.float64),
+        "geometry_type": geometry["geometry_type"],
+        **{key: geometry[key] for key in (
+            "entity_coordinate_offsets", "entity_component_offsets", "component_coordinate_offsets",
+            "entity_part_offsets", "part_coordinate_offsets", "entity_ring_offsets",
+            "ring_component_index", "ring_coordinate_start", "ring_coordinate_end", "ring_is_hole",
+        )},
+    }
     edge_index = torch.tensor(edges, dtype=torch.int64).reshape(2, -1)
     edge_count = edge_index.shape[1]
     rasters = {
@@ -81,11 +92,19 @@ def sample(scene_id, n, edges, coordinates, empty=False, split="training", globa
         "dem_standardized_mean": torch.zeros((17, 17)), "dem_valid_support": torch.zeros((17, 17)),
         "dem_valid_mask": torch.zeros((17, 17), dtype=torch.uint8),
     }
+    topology = {
+        "road_endpoint_node_index": torch.empty((0, 2), dtype=torch.int64),
+        "road_endpoint_retained": torch.empty((0, 2), dtype=torch.uint8),
+        "node_incident_road_count": torch.empty((0,), dtype=torch.int32),
+        "node_state": torch.empty((0,), dtype=torch.uint8),
+        "node_xy_5186": torch.empty((0, 2), dtype=torch.float64),
+    }
     return {
         "scene_id": scene_id, "split": split, "global_index": global_index, "split_local_index": global_index,
         "meta": {"scene_id": scene_id}, "entities": entities, "geometry": geometry,
+        "scientific_reference": scientific_reference,
         "edges": {"edge_index": edge_index, "relation_mask": torch.full((edge_count,), 5, dtype=torch.uint8)},
-        "rasters": rasters,
+        "topology": topology, "rasters": rasters,
         "resources": {"nodes": n, "ordered_edges": edge_count, "coordinates": c, "actual_payload_bytes": 10},
         "units": {"relative_position": "meter", "intrinsic_geometry": "meter", "crs": "EPSG:5186", "geometry_storage_scale_to_m": 500.0},
     }
@@ -127,6 +146,11 @@ class PrototypeDataLoaderFixtureTest(unittest.TestCase):
         self.assertEqual(batch["edge_ptr"].tolist(), [0, 0, 0])
         self.assertEqual(batch["geometry"]["ring_is_hole"].tolist(), [1])
         self.assertEqual(batch["coordinate_ptr"].tolist(), [0, 0, 3])
+        self.assertEqual(batch["topology_node_ptr"].tolist(), [0, 0, 0])
+        self.assertEqual(batch["scientific_reference"]["coordinates_absolute_xy_5186"].dtype, torch.float64)
+        self.assertEqual(batch["scientific_reference"]["reference_center_absolute_xy_5186"].dtype, torch.float64)
+        self.assertEqual(batch["scientific_reference"]["building_observed_area_m2_reference"].dtype, torch.float64)
+        self.assertNotIn("coordinates_absolute_xy_5186", batch["geometry"])
 
     def test_multiple_scene_edge_rebasing_and_local_mapping(self):
         first = sample("first", 2, [[0], [1]], [[0, 0], [1, 0]], global_index=0)
@@ -135,6 +159,32 @@ class PrototypeDataLoaderFixtureTest(unittest.TestCase):
         self.assertEqual(batch["edges"]["edge_index"].tolist(), [[0, 3], [1, 2]])
         self.assertEqual(batch["entity_scene_index"].tolist(), [0, 0, 1, 1])
         self.assertEqual(batch["entity_local_index"].tolist(), [0, 1, 0, 1])
+        for index, original in enumerate((first, second)):
+            coordinate_start, coordinate_end = batch["coordinate_ptr"][index:index + 2].tolist()
+            self.assertTrue(torch.equal(
+                batch["scientific_reference"]["coordinates_absolute_xy_5186"][coordinate_start:coordinate_end],
+                original["scientific_reference"]["coordinates_absolute_xy_5186"],
+            ))
+
+    def test_scene_local_topology_index_rebase_and_round_trip(self):
+        first = sample("first", 1, [[], []], [[0, 0]], global_index=0)
+        second = sample("second", 1, [[], []], [[0, 0]], global_index=1)
+        for value, xy in ((first, 1.0), (second, 2.0)):
+            value["topology"] = {
+                "road_endpoint_node_index": torch.tensor([[0, 1]], dtype=torch.int64),
+                "road_endpoint_retained": torch.tensor([[1, 0]], dtype=torch.uint8),
+                "node_incident_road_count": torch.tensor([1, 2], dtype=torch.int32),
+                "node_state": torch.tensor([0, 2], dtype=torch.uint8),
+                "node_xy_5186": torch.tensor([[xy, 0], [xy, 1]], dtype=torch.float64),
+            }
+        batch = ragged_collate([first, second], BUDGETS)
+        self.assertEqual(batch["topology_node_ptr"].tolist(), [0, 2, 4])
+        self.assertEqual(batch["topology"]["road_endpoint_node_index"].tolist(), [[0, 1], [2, 3]])
+        self.assertEqual(batch["topology"]["road_endpoint_retained"].tolist(), [[1, 0], [1, 0]])
+        for index, original in enumerate((first, second)):
+            start, end = batch["topology_node_ptr"][index:index + 2].tolist()
+            restored = batch["topology"]["road_endpoint_node_index"][index] - start
+            self.assertTrue(torch.equal(restored, original["topology"]["road_endpoint_node_index"][0]))
 
     def test_coordinate_scale_restoration(self):
         stored = torch.tensor([[0.5, -0.25]], dtype=torch.float32)

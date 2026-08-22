@@ -11,8 +11,8 @@
   "properties": {
     "manifest_schema_version": {"const": "1.0.0"},
     "status": {"const": "PASS"},
-    "plan_id": {"const": "psp_c3f6659d47486417567d55c1"},
-    "serialization_dataset_id": {"const": "psd_c3f6659d47486417567d55c1"},
+    "plan_id": {"const": "psp_72c5e4e5c3e4c84eb47aad85"},
+    "serialization_dataset_id": {"const": "psd_72c5e4e5c3e4c84eb47aad85"},
     "branch_id": {"type": "string", "pattern": "^psb_[0-9a-f]{24}$"},
     "split": {"enum": ["training", "validation", "evaluation"]},
     "scene_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},

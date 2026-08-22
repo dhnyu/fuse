@@ -1,0 +1,87 @@
+schema_version: "1.0.0"
+training_plan_contract_version: "1.0.0"
+
+identity:
+  accepted_dataset_id: ptd_cee61a525ca92f1b7951c40d
+  encoder_acceptance_id: pea_5784252434798d9dfa05d796
+  augmentation_acceptance_id: paa_8d73a94e574dcdbc5c5106d2
+  dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
+
+runs:
+  seeds: [20260822]
+  order: ascending_seed
+  execution_mode: single_gpu
+  requested_gpu_count: 1
+  precision: float32
+
+data:
+  training_scenes: 256
+  validation_scenes: 32
+  evaluation_scenes: 32
+  epoch_order: numpy_pcg64_permutation_keyed_by_seed_and_epoch
+  effective_batch_scenes: 32
+  accumulation: partition_epoch_into_exact_32_scene_optimizer_groups_then_apply_hard_budget_microbatching
+  hard_budgets:
+    scenes: 8
+    nodes: 14000
+    ordered_edges: 140000
+    coordinates: 50000
+    actual_payload_bytes: 10485760
+  dataloader_workers: 0
+
+optimization:
+  optimizer: AdamW
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+  maximum_epochs: 200
+  scheduler: linear_warmup_then_cosine_decay
+  warmup_epochs: 10
+  gradient_norm_clip: 1.0
+  ema_momentum: 0.999
+  queue_size: 8192
+  temperature: 0.1
+  geographic_negative_exclusion_radius_m: 750
+
+validation:
+  interval_epochs: 5
+  checkpoint_interval_epochs: 5
+  early_stopping_patience_evaluations: 10
+  primary_metric: MRR
+  supplementary_metrics: [HIT@1, HIT@5, HIT@10]
+  checkpoint_selection: highest_MRR_then_HIT@1_then_earliest_epoch
+  evaluation_split_for_selection: validation_only
+
+resume:
+  policy: exact_last_checkpoint
+  required_state:
+    - online_model
+    - target_model
+    - optimizer
+    - scheduler
+    - ema
+    - queue_values
+    - queue_scene_ids
+    - queue_scene_centers
+    - queue_pointer
+    - python_rng
+    - numpy_rng
+    - torch_cpu_rng
+    - torch_cuda_rng
+    - sampler_epoch
+    - sampler_permutation
+    - sampler_position
+    - accumulation_scene_count
+    - accumulation_gradient_state
+
+resource_estimate:
+  maximum_optimizer_steps: 1600
+  maximum_microbatches: 7800
+  checkpoint_count_range: [11, 40]
+  wall_time_method: I18_elapsed_per_representative_batch_times_I17_maximum_microbatches
+  checkpoint_bytes_method: float32_online_target_adam_moments_queue_and_1MiB_control_state
+
+output:
+  root: /mnt/hdd002/dhnyu/fusedata/training_data/v1/prototype/plans/prototype_train
+  spec_name: run-spec.json
+  manifest_name: prototype_training_plan_manifest.json
+  qc_name: prototype_training_plan_qc.json

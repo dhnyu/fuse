@@ -78,20 +78,21 @@ serialization_i13_context <- function(prototype_spatial_acceptance) {
   required <- c("prototype_spatial_manifest.json", "prototype_entity_dictionary.parquet",
                 "prototype_spatial_qc.json", "prototype_categorical_vocabulary.parquet",
                 "prototype_normalization_statistics.parquet", "prototype_missing_mapping.json",
-                "prototype_scene_spatial_statistics.parquet", "prototype_categorical_aliases.parquet")
+                "prototype_scene_spatial_statistics.parquet", "prototype_categorical_aliases.parquet",
+                "prototype_road_topology.parquet")
   missing <- setdiff(required, names(paths))
   if (length(missing)) stop("I13 returned artifact is incomplete: ", paste(missing, collapse = ", "), call. = FALSE)
   manifest <- jsonlite::read_json(paths[["prototype_spatial_manifest.json"]], simplifyVector = FALSE)
   qc <- jsonlite::read_json(paths[["prototype_spatial_qc.json"]], simplifyVector = FALSE)
   if (!identical(manifest$status, "PASS") || !identical(qc$status, "PASS") ||
-      !identical(manifest$spatial_dataset_id, "psa_4e43932fc998fed94385addc")) stop("I13 is not the approved PASS dataset", call. = FALSE)
+      !identical(manifest$spatial_dataset_id, "psa_c2155cf081312a31edfdb191")) stop("I13 is not the approved PASS dataset", call. = FALSE)
   recorded <- setNames(manifest$outputs, vapply(manifest$outputs, function(x) basename(x$path), character(1L)))
   for (name in intersect(names(recorded), required)) {
     if (!identical(normalizePath(recorded[[name]]$path, mustWork = TRUE), paths[[name]])) stop("I13 returned path differs from manifest: ", name, call. = FALSE)
     serialization_verify_record(recorded[[name]], paste0("I13 ", name))
   }
-  accepted <- setNames(lapply(required[c(1,2,4,5,6,7,8)], function(name) serialization_sha_record(paths[[name]])),
-                       c("manifest", "dictionary", "vocabulary", "normalization", "missing_mapping", "scene_statistics", "alias"))
+  accepted <- setNames(lapply(required[c(1,2,4,5,6,7,8,9)], function(name) serialization_sha_record(paths[[name]])),
+                       c("manifest", "dictionary", "vocabulary", "normalization", "missing_mapping", "scene_statistics", "alias", "road_topology"))
   list(paths = paths, manifest = manifest, qc = qc, accepted = accepted)
 }
 
@@ -185,9 +186,13 @@ serialization_raster_contract <- function(estimator) {
   c(elements = elements, bytes = bytes)
 }
 
-serialization_estimate_resources <- function(statistics, geometry, estimator) {
+serialization_estimate_resources <- function(statistics, geometry, estimator, topology = NULL) {
   value <- serialization_coalesce_i13_counts(statistics)
   value <- merge(value, geometry, by = "scene_id", all.x = TRUE, sort = FALSE)
+  topology_counts <- if (is.null(topology) || !nrow(topology)) data.table::data.table(scene_id = character(), topology_node_count = integer()) else
+    data.table::as.data.table(topology)[, .(topology_node_count = data.table::uniqueN(scene_node_index)), by = scene_id]
+  value <- merge(value, topology_counts, by = "scene_id", all.x = TRUE, sort = FALSE)
+  value[is.na(topology_node_count), topology_node_count := 0L]
   geometry_columns <- c("coordinate_count", "component_count", "ring_count", "hole_count", "geometry_wkb_bytes")
   value[is.na(coordinate_count), (geometry_columns) := 0]
   value[is.na(object_context_row_count), object_context_row_count := 0]
@@ -205,13 +210,23 @@ serialization_estimate_resources <- function(statistics, geometry, estimator) {
     missing_indicator_bytes = missing_slots * bytes$missing_indicator$bytes,
     object_raster_bytes = object_context_row_count * estimator$object_raster_dimension * bytes$object_raster_value$bytes,
     geometry_offset_bytes = (node_count + 1 + component_count + 1 + ring_count + 1) * bytes$geometry_offset$bytes + node_count * bytes$geometry_type$bytes,
-    coordinate_bytes = coordinate_count * bytes$coordinate$bytes * bytes$coordinate$dimensions,
+    coordinate_bytes = coordinate_count * (
+      bytes$coordinate$bytes * bytes$coordinate$dimensions +
+        bytes$scientific_absolute_coordinate$bytes * bytes$scientific_absolute_coordinate$dimensions
+    ),
+    scientific_center_bytes = node_count *
+      bytes$scientific_absolute_center$bytes * bytes$scientific_absolute_center$dimensions,
+    building_area_reference_bytes = building_count * bytes$building_observed_area_reference$bytes,
     edge_index_bytes = ordered_pair_count * bytes$edge_index$bytes * bytes$edge_index$dimensions,
     relation_mask_bytes = ordered_pair_count * bytes$relation_mask$bytes,
+    topology_bytes = road_count * 2 * (bytes$topology_endpoint_index$bytes + bytes$topology_endpoint_retained$bytes) +
+      topology_node_count * (bytes$topology_incident_count$bytes + bytes$topology_node_state$bytes + 2 * bytes$topology_node_xy$bytes),
     metadata_bytes = estimator$fixed_scene_overhead_bytes
   )]
   value[, estimated_uncompressed_bytes := node_type_bytes + category_bytes + numerical_bytes + missing_indicator_bytes +
-          object_raster_bytes + geometry_offset_bytes + coordinate_bytes + edge_index_bytes + relation_mask_bytes +
+          object_raster_bytes + geometry_offset_bytes + coordinate_bytes + scientific_center_bytes +
+          building_area_reference_bytes +
+          edge_index_bytes + relation_mask_bytes + topology_bytes +
           raster_expected_bytes + metadata_bytes]
   data.table::setnames(value, c("ordered_pair_count", "empty_edge"), c("ordered_edge_count", "empty_edge"), skip_absent = TRUE)
   required <- c("building_count", "road_count", "poi_count", "node_count", "ordered_edge_count", "coordinate_count",
@@ -281,6 +296,29 @@ serialization_pack_all <- function(resources, caps, limits) {
   bins
 }
 
+serialization_reconcile_branch_count <- function(resources, bins, caps, expected_count) {
+  expected_count <- as.integer(expected_count)
+  if (length(bins) > expected_count) {
+    stop("Serialization cap packing exceeds the prescribed branch count", call. = FALSE)
+  }
+  columns <- names(caps)
+  while (length(bins) < expected_count) {
+    eligible <- which(lengths(bins) > 1L)
+    if (!length(eligible)) stop("Cannot reach prescribed serialization branch count", call. = FALSE)
+    bin_score <- vapply(eligible, function(index) {
+      max(colSums(as.matrix(resources[bins[[index]], ..columns])) / caps)
+    }, numeric(1L))
+    stable_key <- vapply(eligible, function(index) min(resources$scene_id[bins[[index]]]), character(1L))
+    chosen <- eligible[order(-bin_score, stable_key, method = "radix")[[1L]]]
+    rows <- bins[[chosen]]
+    scene_cost <- apply(sweep(as.matrix(resources[rows, ..columns]), 2L, caps, "/"), 1L, max)
+    split_row <- rows[order(-scene_cost, resources$scene_id[rows], method = "radix")[[1L]]]
+    bins[[chosen]] <- setdiff(rows, split_row)
+    bins[[length(bins) + 1L]] <- split_row
+  }
+  bins
+}
+
 serialization_plan_qc <- function(resources, bins, caps, specs = NULL) {
   cap_names <- names(caps)
   ids <- unlist(lapply(bins, function(bin) resources$scene_id[bin]), use.names = FALSE)
@@ -314,11 +352,15 @@ build_prototype_serialization_plan <- function(prototype_spatial_acceptance,
   vector_paths <- unique(dictionary$vector_artifact_path)
   geometry <- serialization_geometry_metrics(vector_paths)
   statistics <- arrow::read_parquet(context$paths[["prototype_scene_spatial_statistics.parquet"]], as_data_frame = TRUE)
+  topology <- arrow::read_parquet(context$paths[["prototype_road_topology.parquet"]], as_data_frame = TRUE)
   if (!is.null(input_order)) statistics <- statistics[input_order, , drop = FALSE]
-  resources <- serialization_estimate_resources(statistics, geometry, config$scientific$estimator)
+  resources <- serialization_estimate_resources(statistics, geometry, config$scientific$estimator, topology)
   if (nrow(resources) != 320L || anyDuplicated(resources$scene_id)) stop("I14 requires exactly 320 unique scenes", call. = FALSE)
   caps <- serialization_derive_caps(resources, config$scientific$sharding)
   bins <- serialization_pack_all(resources, caps, config$scientific$sharding$system_feasibility_limits)
+  bins <- serialization_reconcile_branch_count(
+    resources, bins, caps, config$scientific$sharding$expected_branch_count
+  )
   diagnostics_identity <- canonical_sha256(resources[, .(scene_id, split, node_count, ordered_edge_count, coordinate_count, estimated_uncompressed_bytes)])
   scientific_identity <- list(
     spatial_dataset_id = context$manifest$spatial_dataset_id,
@@ -372,7 +414,7 @@ build_prototype_serialization_plan <- function(prototype_spatial_acceptance,
   expected <- c(scene_count = 320, duplicate_scene_count = 0, missing_scene_count = 0, cross_split_shard_count = 0,
                 empty_edge_scene_count = 59, node_total = 237121, edge_total = 2756444,
                 unsupported_geometry_count = 0, negative_or_null_resource_count = 0, non_singleton_cap_violation_count = 0,
-                branch_id_duplicate_count = 0)
+                branch_id_duplicate_count = 0, branch_count = config$scientific$sharding$expected_branch_count)
   failed <- names(expected)[vapply(names(expected), function(name) !identical(as.numeric(qc[[name]]), as.numeric(expected[[name]])), logical(1L))]
   if (!identical(as.integer(unlist(qc$split_counts)), c(256L, 32L, 32L))) failed <- c(failed, "split_counts")
   if (length(failed)) stop("Serialization plan QC failed: ", paste(failed, collapse = ", "), call. = FALSE)
@@ -399,7 +441,8 @@ build_prototype_serialization_plan <- function(prototype_spatial_acceptance,
       ordered_edge_count, empty_edge, coordinate_count, component_count, ring_count, hole_count,
       geometry_wkb_bytes, raster_element_count, raster_expected_bytes, object_context_row_count,
       node_type_bytes, category_bytes, numerical_bytes, missing_indicator_bytes, object_raster_bytes,
-      geometry_offset_bytes, coordinate_bytes, edge_index_bytes, relation_mask_bytes, metadata_bytes,
+      geometry_offset_bytes, coordinate_bytes, edge_index_bytes, relation_mask_bytes, topology_node_count,
+      topology_bytes, metadata_bytes,
       estimated_uncompressed_bytes)]
     data.table::setorder(diagnostics, scene_id)
     arrow::write_parquet(diagnostics, file.path(stage, fixed_names[[4L]]), compression = config$scientific$output$parquet_compression,

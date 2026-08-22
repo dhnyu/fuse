@@ -61,6 +61,34 @@ test_that("strict POI containment selects the smallest deterministic host and ex
                data.table::data.table(source_local_entity_id = 3L, destination_local_entity_id = 2L))
 })
 
+test_that("R and Python selected-host predicates emit identical ordered masks", {
+  config <- relation_test_config()
+  scene <- relation_test_sf(
+    c("B", "B", "B", "P", "P"), c("large", "small-z", "small-a", "inside", "boundary"),
+    list(
+      relation_square(0, 0, 20, 20), relation_square(2, 2, 12, 12), relation_square(2, 2, 12, 12),
+      sf::st_point(c(5, 5)), sf::st_point(c(0, 10))
+    ),
+    areas = c(400, 100, 100, NA, NA)
+  )
+  classification <- classify_relation_pois(scene, config)
+  r_edges <- scene_containment_edges(classification, config)
+  r_rows <- r_edges[, .(
+    source_local_entity_id, destination_local_entity_id,
+    relation_mask = relation_bit
+  )]
+  data.table::setorder(r_rows, source_local_entity_id, destination_local_entity_id)
+  output <- system2(
+    "python", file.path(fuse_test_root, "tests/python/emit_selected_host_parity.py"),
+    stdout = TRUE, stderr = TRUE
+  )
+  expect_null(attr(output, "status"), info = paste(output, collapse = "\n"))
+  python_rows <- data.table::rbindlist(jsonlite::fromJSON(paste(output, collapse = "\n"), simplifyDataFrame = FALSE))
+  data.table::setcolorder(python_rows, names(r_rows))
+  data.table::setorder(python_rows, source_local_entity_id, destination_local_entity_id)
+  expect_equal(python_rows, r_rows)
+})
+
 test_that("SN includes POI(out)-POI(out), exact radius, top-16, and union symmetrization", {
   config <- relation_test_config()
   points <- c(
@@ -136,6 +164,31 @@ test_that("CON uses only shared original nodes inside the closed scene", {
   expect_setequal(paste(edges$source_local_entity_id, edges$destination_local_entity_id), c("0 1", "1 0"))
   expect_true(all(edges$shared_original_node_id == "shared-in"))
   expect_false(any(grepl("same-coordinate", edges$shared_original_node_id)))
+})
+
+test_that("original road topology preserves deterministic node and endpoint evidence", {
+  config <- relation_test_config()
+  entities <- data.table::data.table(
+    scene_id = "scene", scene_footprint_id = "foot", split = "training", entity_type = "R",
+    source_entity_id = c("road-b", "road-a"), local_entity_id = c(1L, 0L),
+    F_NODE = c("node-2", "node-1"), T_NODE = c("node-3", "node-2"),
+    source_f_node_endpoint_retained = c(TRUE, TRUE),
+    source_t_node_endpoint_retained = c(FALSE, TRUE)
+  )
+  nodes <- data.table::data.table(
+    node_id = c("node-3", "node-1", "node-2"),
+    x = c(250, 0, 100), y = c(100, 20, 100)
+  )
+  scene_specs <- list(scene = relation_test_scene_spec())
+  value <- relation_road_topology(entities, nodes, scene_specs, relation_test_spec(),
+                                  "relation", list(path = "road", size_bytes = 1,
+                                  sha256 = strrep("0", 64), artifact_id = "source"), config)
+  expect_equal(value$road_local_entity_id, c(0L, 0L, 1L, 1L))
+  expect_equal(value$endpoint_order, c(0L, 1L, 0L, 1L))
+  expect_equal(value$scene_node_index, c(0L, 1L, 1L, 2L))
+  expect_equal(value$scene_incident_road_count, c(1L, 2L, 2L, 1L))
+  expect_equal(value$node_state, c("BOUNDARY", "INTERIOR", "INTERIOR", "OUTSIDE"))
+  expect_equal(value$original_endpoint_retained, c(TRUE, TRUE, TRUE, FALSE))
 })
 
 test_that("INT and CON survive in one deterministic pair mask", {

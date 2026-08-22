@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader, Dataset, Sampler
 
 MEMBER_SUFFIXES = (
     "meta.json", "entities.safetensors", "geometry.safetensors",
-    "edges.safetensors", "rasters.safetensors",
+    "edges.safetensors", "topology.safetensors", "rasters.safetensors",
 )
 RESOURCE_COLUMNS = {
     "scenes": None,
@@ -205,7 +205,7 @@ class AcceptedPrototypeDataset(Dataset):
         self, scene_id: str, groups: dict[str, dict[str, torch.Tensor]], n: int, e: int, c: int
     ) -> None:
         dtype_map = {
-            "float32": torch.float32, "int64": torch.int64,
+            "float32": torch.float32, "float64": torch.float64, "int64": torch.int64,
             "int32": torch.int32, "uint8": torch.uint8,
         }
         entities = groups["entities"]
@@ -214,6 +214,7 @@ class AcceptedPrototypeDataset(Dataset):
             "NB": entities["building_row_index"].numel(),
             "NR": entities["road_row_index"].numel(),
             "NP": entities["poi_row_index"].numel(), "N_plus_1": n + 1,
+            "TN": groups["topology"]["node_incident_road_count"].numel(),
         }
         for group_name, tensor_specs in self.tensor_contract["tensor"]["safetensors"].items():
             tensors = groups[group_name]
@@ -285,34 +286,53 @@ class AcceptedPrototypeDataset(Dataset):
             meta = json.loads(payloads[f"{scene_id}.meta.json"])
             groups = {
                 group: numpy_group_to_torch(load_safetensors(payloads[f"{scene_id}.{group}.safetensors"]))
-                for group in ("entities", "geometry", "edges", "rasters")
+        for group in ("entities", "geometry", "edges", "topology", "rasters")
             }
         except Exception as error:
             raise ValueError(f"corrupted scene payload: {scene_id}") from error
         if meta["scene_id"] != scene_id or meta["split"] != row["split"]:
             raise ValueError(f"scene metadata split/index mismatch: {scene_id}")
-        entities, geometry, edges, rasters = (groups[key] for key in ("entities", "geometry", "edges", "rasters"))
+        entities, geometry, edges, topology, rasters = (groups[key] for key in ("entities", "geometry", "edges", "topology", "rasters"))
         n, e, c = int(row["node_count"]), int(row["ordered_edge_count"]), int(row["coordinate_count"])
         self._validate_tensor_contract(scene_id, groups, n, e, c)
         if entities["local_entity_id"].shape != (n,) or edges["edge_index"].shape != (2, e) or geometry["coordinates_xy"].shape != (c, 2):
             raise ValueError(f"tensor count/shape mismatch: {scene_id}")
         if e and (int(edges["edge_index"].min()) < 0 or int(edges["edge_index"].max()) >= n):
             raise ValueError(f"dangling scene-local edge: {scene_id}")
+        topology_node_count = topology["node_incident_road_count"].numel()
+        endpoint_index = topology["road_endpoint_node_index"]
+        if endpoint_index.numel() and (int(endpoint_index.min()) < 0 or int(endpoint_index.max()) >= topology_node_count):
+            raise ValueError(f"road topology endpoint index out of range: {scene_id}")
+        if topology["road_endpoint_retained"].numel() and int(topology["road_endpoint_retained"].max()) > 1:
+            raise ValueError(f"road topology endpoint-retained range mismatch: {scene_id}")
         if bool(row["empty_edge"]) != (e == 0 and edges["relation_mask"].shape == (0,)):
             raise ValueError(f"empty-edge shape mismatch: {scene_id}")
+        scientific_reference = {
+            "coordinates_absolute_xy_5186": geometry.pop("coordinates_absolute_xy_5186"),
+            "reference_center_absolute_xy_5186": geometry.pop("reference_center_absolute_xy_5186"),
+            "building_observed_area_m2_reference": geometry.pop("building_observed_area_m2_reference"),
+            "geometry_type": geometry["geometry_type"],
+            **{key: geometry[key] for key in (
+                "entity_coordinate_offsets", "entity_component_offsets", "component_coordinate_offsets",
+                "entity_part_offsets", "part_coordinate_offsets", "entity_ring_offsets",
+                "ring_component_index", "ring_coordinate_start", "ring_coordinate_end", "ring_is_hole",
+            )},
+        }
         geometry["coordinates_xy_m"] = restore_geometry_coordinates(
             geometry.pop("coordinates_xy"), self.geometry_scale_to_m
         )
         return {
             "scene_id": scene_id, "split": row["split"], "global_index": int(row["global_order"]),
             "split_local_index": int(row["split_local_order"]), "meta": meta,
-            "entities": entities, "geometry": geometry, "edges": edges, "rasters": rasters,
+            "entities": entities, "geometry": geometry, "scientific_reference": scientific_reference,
+            "edges": edges, "topology": topology, "rasters": rasters,
             "resources": {
                 "nodes": n, "ordered_edges": e, "coordinates": c,
                 "actual_payload_bytes": int(row["actual_payload_bytes"]),
             },
             "units": {
                 "relative_position": "meter", "intrinsic_geometry": "meter",
+                "scientific_reference": "absolute_float64_EPSG:5186",
                 "crs": meta["crs"], "geometry_storage_scale_to_m": self.geometry_scale_to_m,
             },
         }
@@ -389,6 +409,8 @@ def ragged_collate(samples: list[dict[str, Any]], budgets: dict[str, int] | None
     ring_counts = [sample["geometry"]["ring_is_hole"].numel() for sample in samples]
     part_ptr = torch.tensor([0, *np.cumsum(part_counts).tolist()], dtype=torch.int64)
     ring_ptr = torch.tensor([0, *np.cumsum(ring_counts).tolist()], dtype=torch.int64)
+    topology_node_counts = [sample["topology"]["node_incident_road_count"].numel() for sample in samples]
+    topology_node_ptr = torch.tensor([0, *np.cumsum(topology_node_counts).tolist()], dtype=torch.int64)
 
     entities: dict[str, torch.Tensor] = {}
     simple_entity_keys = ("local_entity_id", "entity_type", "relative_position_m", "object_raster", "object_dem_missing")
@@ -437,11 +459,60 @@ def ragged_collate(samples: list[dict[str, Any]], budgets: dict[str, int] | None
         ])
     geometry["ring_is_hole"] = _cat(samples, "geometry", "ring_is_hole")
 
+    scientific_reference: dict[str, torch.Tensor] = {
+        "coordinates_absolute_xy_5186": _cat(samples, "scientific_reference", "coordinates_absolute_xy_5186"),
+        "reference_center_absolute_xy_5186": _cat(samples, "scientific_reference", "reference_center_absolute_xy_5186"),
+        "building_observed_area_m2_reference": _cat(samples, "scientific_reference", "building_observed_area_m2_reference"),
+        "geometry_type": _cat(samples, "scientific_reference", "geometry_type"),
+    }
+    scientific_reference["entity_coordinate_offsets"] = torch.cat([
+        samples[0]["scientific_reference"]["entity_coordinate_offsets"][:1],
+        *[sample["scientific_reference"]["entity_coordinate_offsets"][1:] + coordinate_ptr[index]
+          for index, sample in enumerate(samples)],
+    ])
+    for key in ("entity_part_offsets", "entity_component_offsets"):
+        scientific_reference[key] = torch.cat([
+            samples[0]["scientific_reference"][key][:1],
+            *[sample["scientific_reference"][key][1:] + part_ptr[index]
+              for index, sample in enumerate(samples)],
+        ])
+    for key in ("part_coordinate_offsets", "component_coordinate_offsets"):
+        scientific_reference[key] = torch.cat([
+            samples[0]["scientific_reference"][key][:1],
+            *[sample["scientific_reference"][key][1:] + coordinate_ptr[index]
+              for index, sample in enumerate(samples)],
+        ])
+    scientific_reference["entity_ring_offsets"] = torch.cat([
+        samples[0]["scientific_reference"]["entity_ring_offsets"][:1],
+        *[sample["scientific_reference"]["entity_ring_offsets"][1:] + ring_ptr[index]
+          for index, sample in enumerate(samples)],
+    ])
+    scientific_reference["ring_component_index"] = torch.cat([
+        sample["scientific_reference"]["ring_component_index"] + part_ptr[index]
+        for index, sample in enumerate(samples)
+    ])
+    for key in ("ring_coordinate_start", "ring_coordinate_end"):
+        scientific_reference[key] = torch.cat([
+            sample["scientific_reference"][key] + coordinate_ptr[index]
+            for index, sample in enumerate(samples)
+        ])
+    scientific_reference["ring_is_hole"] = _cat(samples, "scientific_reference", "ring_is_hole")
+
     edges = {
         "edge_index": torch.cat([
             sample["edges"]["edge_index"] + scene_ptr[index] for index, sample in enumerate(samples)
         ], dim=1),
         "relation_mask": _cat(samples, "edges", "relation_mask"),
+    }
+    topology = {
+        "road_endpoint_node_index": torch.cat([
+            sample["topology"]["road_endpoint_node_index"] + topology_node_ptr[index]
+            for index, sample in enumerate(samples)
+        ]),
+        "road_endpoint_retained": _cat(samples, "topology", "road_endpoint_retained"),
+        "node_incident_road_count": _cat(samples, "topology", "node_incident_road_count"),
+        "node_state": _cat(samples, "topology", "node_state"),
+        "node_xy_5186": _cat(samples, "topology", "node_xy_5186"),
     }
     rasters = {
         key: torch.stack([sample["rasters"][key] for sample in samples])
@@ -460,8 +531,11 @@ def ragged_collate(samples: list[dict[str, Any]], budgets: dict[str, int] | None
         "global_indices": torch.tensor([sample["global_index"] for sample in samples], dtype=torch.int64),
         "split_local_indices": torch.tensor([sample["split_local_index"] for sample in samples], dtype=torch.int64),
         "scene_ptr": scene_ptr, "edge_ptr": edge_ptr, "coordinate_ptr": coordinate_ptr,
-        "part_ptr": part_ptr, "ring_ptr": ring_ptr, "entities": entities, "geometry": geometry,
-        "edges": edges, "rasters": rasters, "resources": batch_resources,
+        "part_ptr": part_ptr, "ring_ptr": ring_ptr, "topology_node_ptr": topology_node_ptr,
+        "building_ptr": torch.tensor([0, *np.cumsum([sample["entities"]["building_row_index"].numel() for sample in samples]).tolist()], dtype=torch.int64),
+        "entities": entities, "geometry": geometry, "scientific_reference": scientific_reference,
+        "edges": edges, "topology": topology,
+        "rasters": rasters, "resources": batch_resources,
         "oversize_singleton": oversize,
         "entity_scene_index": torch.repeat_interleave(torch.arange(len(samples), dtype=torch.int64), torch.tensor(node_counts)),
         "entity_local_index": entities["local_entity_id"].clone(),

@@ -22,7 +22,7 @@ import pyarrow.parquet as pq
 import yaml
 from safetensors.numpy import load as load_safetensors
 
-from serialize_prototype_shard import canonical_json_bytes, sha256_file
+from serialize_prototype_shard import canonical_json_bytes, normalization_maps, sha256_file, standardized
 from validate_prototype_serialization_shards import validate_scene_tensors
 
 
@@ -41,6 +41,7 @@ I13_FILES = {
     "missing_mapping": "prototype_missing_mapping.json",
     "scene_statistics": "prototype_scene_spatial_statistics.parquet",
     "alias": "prototype_categorical_aliases.parquet",
+    "road_topology": "prototype_road_topology.parquet",
     "log": "prototype_spatial_log.jsonl",
 }
 
@@ -191,7 +192,7 @@ def validate_category_arrays(entities: dict[str, np.ndarray], config: dict[str, 
 
 def validate_direct_scene(
     stream: io.BufferedReader, scene_entry: dict[str, Any], scene_id: str, split: str,
-    config: dict[str, Any], limits: dict[str, int], masks: dict[str, int], expected_offset: int,
+    config: dict[str, Any], limits: dict[str, int], masks: dict[str, int], norm: dict[str, dict[str, Any]], expected_offset: int,
 ) -> tuple[dict[str, int], dict[str, Any]]:
     suffixes = list(config["archive"]["member_order"])
     members = scene_entry.get("members", [])
@@ -213,12 +214,31 @@ def validate_direct_scene(
     metrics = validate_scene_tensors(MemoryArchive(payloads), scene_id, split, config)
     entities = load_safetensors(payloads[f"{scene_id}.entities.safetensors"])
     edges = load_safetensors(payloads[f"{scene_id}.edges.safetensors"])
+    topology = load_safetensors(payloads[f"{scene_id}.topology.safetensors"])
+    geometry = load_safetensors(payloads[f"{scene_id}.geometry.safetensors"])
     n = metrics["node_count"]
     if edges["edge_index"].size and (np.any(edges["edge_index"] < 0) or np.any(edges["edge_index"] >= n)):
         raise ValueError(f"dangling relation endpoint: {scene_id}")
     if np.any(np.bitwise_and(edges["relation_mask"], np.uint8(224)) != 0):
         raise ValueError(f"unknown relation mask bit: {scene_id}")
+    topology_node_count = len(topology["node_incident_road_count"])
+    if topology["road_endpoint_node_index"].size and (
+        np.any(topology["road_endpoint_node_index"] < 0) or
+        np.any(topology["road_endpoint_node_index"] >= topology_node_count)
+    ):
+        raise ValueError(f"road topology endpoint index out of range: {scene_id}")
+    if np.any(topology["road_endpoint_retained"] > 1):
+        raise ValueError(f"road topology endpoint-retained range mismatch: {scene_id}")
     validate_category_arrays(entities, config, limits, masks)
+    references = geometry["building_observed_area_m2_reference"]
+    expected_area = np.asarray([
+        standardized(None if bool(missing) else float(reference), "building_observed_area_m2", norm)[0]
+        for reference, missing in zip(references, entities["building_missing"][:, 0])
+    ], dtype=np.float32)
+    stored_area = entities["building_numerical"][:, 0]
+    if not np.array_equal(expected_area.view(np.uint32), stored_area.view(np.uint32)):
+        mismatch = np.flatnonzero(expected_area.view(np.uint32) != stored_area.view(np.uint32))[0]
+        raise ValueError(f"Building reference-area/model bit mismatch: {scene_id}:{int(mismatch)}")
     return metrics, {
         "sample_offset": expected_offset,
         "sample_length": int(scene_entry["length"]),
@@ -285,6 +305,7 @@ def build_acceptance(
             raise ValueError(f"I13 artifact identity differs across specs: {spec['branch_id']}")
 
     limits, masks = vocabulary_limits(i13[I13_FILES["vocabulary"]])
+    norm = normalization_maps(pq.read_table(i13[I13_FILES["normalization"]]).to_pylist())
     branch_rows: list[dict[str, Any]] = []
     global_rows: list[dict[str, Any]] = []
     expected_scene_splits = {scene: spec["split"] for spec in specs for scene in spec["scene_ids"]}
@@ -324,6 +345,13 @@ def build_acceptance(
             tensor_contract_hash = manifest["tensor_contract_sha256"]
         if manifest["tensor_schema_hash"] != tensor_schema_hash or manifest["tensor_contract_sha256"] != tensor_contract_hash:
             raise ValueError(f"tensor scientific identity mismatch: {branch_id}")
+        area_provenance = manifest.get("building_observed_area_reference_provenance", {})
+        source_records = area_provenance.get("source_artifacts", [])
+        if (area_provenance.get("source_column") != "observed_area_m2" or
+                area_provenance.get("dtype") != "float64" or not source_records):
+            raise ValueError(f"Building reference-area provenance missing: {branch_id}")
+        for record in source_records:
+            verify_record(record, Path(record["path"]), f"Building reference area source {branch_id}")
 
         tar_name, idx_name = f"scenes-{branch_id}.tar", f"scenes-{branch_id}.idx"
         tar_path, idx_path = files[tar_name], files[idx_name]
@@ -344,7 +372,7 @@ def build_acceptance(
             next_offset = 0
             for scene_order, (scene_id, index_entry, sidecar_row) in enumerate(zip(spec["scene_ids"], json_index["scenes"], sidecar)):
                 metrics, access = validate_direct_scene(
-                    stream, index_entry, scene_id, spec["split"], i15_config, limits, masks, next_offset
+                    stream, index_entry, scene_id, spec["split"], i15_config, limits, masks, norm, next_offset
                 )
                 next_offset += access["sample_length"]
                 if (

@@ -1,5 +1,5 @@
 schema_version: "1.0.0"
-relation_contract_version: "1.0.0"
+relation_contract_version: "1.1.0"
 processing_epsg: 5186
 source_geometry: I10_observed_geometry_only
 
@@ -75,6 +75,19 @@ connectivity:
   shared_node_serialization: sorted_unique_pipe_delimited
   symmetric_expansion: both_directions
 
+original_road_topology:
+  representation: one_row_per_observed_road_endpoint
+  node_index_type: int64
+  node_index_scope: scene_local
+  node_order: original_node_id_utf8_byte_order
+  endpoint_order: F_then_T
+  incident_count: observed_scene_roads_before_augmentation
+  node_state_codes: {INTERIOR: 0, BOUNDARY: 1, OUTSIDE: 2}
+  boundary_tolerance_m: 1.0e-8
+  coordinate_crs: EPSG:5186
+  coordinate_provenance: tracked_seoul_R_gpkg_nodes_layer
+  source_record: [path, size_bytes, sha256, artifact_id, links_layer, nodes_layer]
+
 edge:
   ordering: [scene_id, source_local_entity_id, destination_local_entity_id, relation_mask]
   edge_id: sha256_of_canonical_scene_ordered_endpoints_and_mask
@@ -87,4 +100,3 @@ storage:
   parquet_compression: zstd
   parquet_row_group_size: 65536
   deterministic_bytes_required: true
-

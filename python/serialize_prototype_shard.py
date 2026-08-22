@@ -40,6 +40,7 @@ MEMBER_SUFFIXES = (
     "entities.safetensors",
     "geometry.safetensors",
     "edges.safetensors",
+    "topology.safetensors",
     "rasters.safetensors",
 )
 
@@ -256,6 +257,8 @@ def create_scene(
     vector_rows: dict[str, list[dict[str, Any]]],
     object_rows: list[dict[str, Any]],
     relation_rows: list[dict[str, Any]],
+    topology_rows: list[dict[str, Any]],
+    topology_source: dict[str, Any],
     raster_row: dict[str, Any],
     raster_arrays: dict[str, np.ndarray],
     vocab: dict[str, dict[str, int]],
@@ -296,6 +299,7 @@ def create_scene(
     building_category: list[list[int]] = []
     building_numerical: list[list[np.float32]] = []
     building_missing: list[list[np.uint8]] = []
+    building_area_reference: list[np.float64] = []
     road_index: list[int] = []
     road_category: list[list[int]] = []
     road_numerical: list[list[np.float32]] = []
@@ -304,6 +308,8 @@ def create_scene(
     poi_category: list[list[int]] = []
 
     coordinates: list[np.ndarray] = []
+    absolute_reference_coordinates: list[np.ndarray] = []
+    absolute_reference_centers = np.empty((expected_nodes, 2), dtype=np.float64)
     geometry_type: list[int] = []
     geometry_available: list[int] = []
     entity_coordinate_offsets = [0]
@@ -348,6 +354,14 @@ def create_scene(
             gross, gross_missing = standardized(entity["observed_gross_floor_area_m2"], "building_observed_gross_floor_area_m2", norm)
             building_numerical.append([area, gross])
             building_missing.append([area_missing, gross_missing])
+            area_reference = entity["observed_area_m2"]
+            if area_missing:
+                building_area_reference.append(np.float64(0.0))
+            else:
+                area_reference = np.float64(area_reference)
+                if not np.isfinite(area_reference) or area_reference <= 0:
+                    raise ValueError(f"invalid Building reference area for {scene_id}:{local_id}")
+                building_area_reference.append(area_reference)
         elif entity_kind == "R":
             road_index.append(tensor_row)
             road_category.append([
@@ -368,11 +382,20 @@ def create_scene(
         geometry = from_wkb(entity["observed_geometry"])
         parts, rings, ring_parts = geometry_parts(geometry)
         center = np.asarray([entity["observed_center_x_5186"], entity["observed_center_y_5186"]], dtype=np.float64)
+        if not np.isfinite(center).all():
+            raise ValueError(f"non-finite scientific reference center for {scene_id}:{local_id}")
+        xmin, ymin, xmax, ymax = geometry.bounds
+        geometry_center = np.asarray([(xmin + xmax) / 2.0, (ymin + ymax) / 2.0], dtype=np.float64)
+        if not np.allclose(geometry_center, center, rtol=0.0, atol=1e-8):
+            raise ValueError(f"scientific reference center/geometry mismatch for {scene_id}:{local_id}")
+        absolute_reference_centers[tensor_row] = center
         normalized_parts = [np.asarray((part[:, :2] - center) / length, dtype=np.float32) for part in parts]
+        reference_parts = [np.asarray(part[:, :2], dtype=np.float64) for part in parts]
         normalized_rings = [np.asarray((ring[:, :2] - center) / length, dtype=np.float32) for ring, _ in rings]
         for part in normalized_parts:
             coordinates.append(part)
             part_coordinate_offsets.append(part_coordinate_offsets[-1] + len(part))
+        absolute_reference_coordinates.extend(reference_parts)
         entity_coordinate_start = entity_coordinate_offsets[-1]
         part_base = entity_part_offsets[-1]
         ring_cursor = entity_coordinate_start
@@ -389,6 +412,7 @@ def create_scene(
         geometry_available.append(int(config["tensor"]["geometry_available"][entity_kind]))
 
     coordinate_array = np.concatenate(coordinates, axis=0) if coordinates else np.empty((0, 2), dtype=np.float32)
+    reference_coordinate_array = np.concatenate(absolute_reference_coordinates, axis=0) if absolute_reference_coordinates else np.empty((0, 2), dtype=np.float64)
     if len(coordinate_array) != int(sum(int(source_by_id[key]["observed_coordinate_count"]) for key in local_ids)):
         raise ValueError(f"geometry coordinate count mismatch for {scene_id}")
     if entity_coordinate_offsets[-1] != len(coordinate_array) or part_coordinate_offsets[-1] != len(coordinate_array):
@@ -413,6 +437,9 @@ def create_scene(
     }
     geometry_tensors = {
         "coordinates_xy": coordinate_array,
+        "coordinates_absolute_xy_5186": reference_coordinate_array,
+        "reference_center_absolute_xy_5186": absolute_reference_centers,
+        "building_observed_area_m2_reference": np.asarray(building_area_reference, dtype=np.float64),
         "geometry_type": np.asarray(geometry_type, dtype=np.uint8),
         "geometry_available": np.asarray(geometry_available, dtype=np.uint8),
         "entity_coordinate_offsets": np.asarray(entity_coordinate_offsets, dtype=np.int64),
@@ -432,6 +459,47 @@ def create_scene(
     if len(relation_rows) != expected_edges:
         raise ValueError(f"ordered edge count mismatch for {scene_id}")
     edge_tensors = build_edge_tensors(relation_rows, id_to_row, scene_id)
+
+    road_rows = sorted((source_by_id[key] for key in local_ids if source_by_id[key]["entity_type"] == "R"),
+                       key=lambda row: int(row["local_entity_id"]))
+    topology_rows = sorted(topology_rows, key=lambda row: (int(row["road_local_entity_id"]), int(row["endpoint_order"])))
+    if len(topology_rows) != 2 * len(road_rows):
+        raise ValueError(f"road topology endpoint count mismatch for {scene_id}")
+    by_endpoint = {(int(row["road_local_entity_id"]), int(row["endpoint_order"])): row for row in topology_rows}
+    endpoint_node_index = np.empty((len(road_rows), 2), dtype=np.int64)
+    endpoint_retained = np.empty((len(road_rows), 2), dtype=np.uint8)
+    for road_offset, road in enumerate(road_rows):
+        for endpoint_order, source_field in ((0, "F_NODE"), (1, "T_NODE")):
+            row = by_endpoint.get((int(road["local_entity_id"]), endpoint_order))
+            if row is None or str(row["road_source_entity_id"]) != str(road["source_entity_id"]) or str(row["original_node_id"]) != str(road[source_field]):
+                raise ValueError(f"road topology exact join mismatch for {scene_id}:{road['local_entity_id']}")
+            endpoint_node_index[road_offset, endpoint_order] = int(row["scene_node_index"])
+            endpoint_retained[road_offset, endpoint_order] = int(bool(row["original_endpoint_retained"]))
+    node_rows: dict[int, dict[str, Any]] = {}
+    for row in topology_rows:
+        index = int(row["scene_node_index"])
+        signature = (str(row["original_node_id"]), int(row["scene_incident_road_count"]), int(row["node_state_code"]),
+                     float(row["original_node_x_5186"]), float(row["original_node_y_5186"]))
+        if index in node_rows:
+            previous = node_rows[index]
+            previous_signature = (str(previous["original_node_id"]), int(previous["scene_incident_road_count"]), int(previous["node_state_code"]),
+                                  float(previous["original_node_x_5186"]), float(previous["original_node_y_5186"]))
+            if signature != previous_signature:
+                raise ValueError(f"inconsistent original road node dictionary for {scene_id}:{index}")
+        else:
+            node_rows[index] = row
+    if sorted(node_rows) != list(range(len(node_rows))):
+        raise ValueError(f"road topology node index is not dense for {scene_id}")
+    ordered_nodes = [node_rows[index] for index in range(len(node_rows))]
+    topology_tensors = {
+        "road_endpoint_node_index": endpoint_node_index,
+        "road_endpoint_retained": endpoint_retained,
+        "node_incident_road_count": np.asarray([row["scene_incident_road_count"] for row in ordered_nodes], dtype=np.int32),
+        "node_state": np.asarray([row["node_state_code"] for row in ordered_nodes], dtype=np.uint8),
+        "node_xy_5186": np.asarray([[row["original_node_x_5186"], row["original_node_y_5186"]] for row in ordered_nodes], dtype=np.float64).reshape((-1, 2)),
+    }
+    if len(ordered_nodes) and (endpoint_node_index.min() < 0 or endpoint_node_index.max() >= len(ordered_nodes)):
+        raise ValueError(f"road topology endpoint index out of range for {scene_id}")
 
     lc = np.asarray(raster_arrays["landcover_class_fraction"], dtype=np.float32)
     lc_support = np.asarray(raster_arrays["landcover_valid_support"], dtype=np.float32)
@@ -473,11 +541,26 @@ def create_scene(
         "entity_types": [row["entity_type"] for row in dictionary_rows],
         "empty_edge": expected_edges == 0,
         "counts": {"nodes": expected_nodes, "edges": expected_edges, "coordinates": len(coordinate_array)},
+        "road_topology": {
+            "road_local_entity_ids": [int(row["local_entity_id"]) for row in road_rows],
+            "original_node_ids": [str(row["original_node_id"]) for row in ordered_nodes],
+            "source_artifact": topology_source,
+            "endpoint_order": ["F", "T"],
+            "node_state_codes": {"INTERIOR": 0, "BOUNDARY": 1, "OUTSIDE": 2},
+        },
+        "building_observed_area_reference": {
+            "source_column": "observed_area_m2",
+            "dtype": "float64",
+            "unit": "square_meter",
+            "crs": "EPSG:5186",
+            "building_local_entity_ids": [int(row["local_entity_id"]) for row in dictionary_rows if row["entity_type"] == "B"],
+        },
     }
     tensors_by_member = {
         "entities.safetensors": entity_tensors,
         "geometry.safetensors": geometry_tensors,
         "edges.safetensors": edge_tensors,
+        "topology.safetensors": topology_tensors,
         "rasters.safetensors": raster_tensors,
     }
     tolerance = float(config["tensor"]["float_tolerance"])
@@ -570,6 +653,7 @@ def build_branch(spec_path: Path, config_path: Path, schema_path: Path, output_d
             "object": output_path(stage_manifests["raster"], "object_raster_context.parquet"),
             "raster_index": output_path(stage_manifests["raster"], "scene_raster_index.parquet"),
             "relation": output_path(stage_manifests["relation"], "relation_edges.parquet"),
+            "topology": output_path(stage_manifests["relation"], "road_topology.parquet"),
             "landcover": output_path(stage_manifests["raster"], "scene_landcover.zarr"),
             "dem": output_path(stage_manifests["raster"], "scene_dem.zarr"),
         }
@@ -589,6 +673,8 @@ def build_branch(spec_path: Path, config_path: Path, schema_path: Path, output_d
                 "vectors": {entity: [row for row in rows[entity] if row["scene_id"] == scene_id] for entity in ("building", "road", "poi")},
                 "objects": [row for row in rows["object"] if row["scene_id"] == scene_id],
                 "relations": [row for row in rows["relation"] if row["scene_id"] == scene_id],
+                "topology": [row for row in rows["topology"] if row["scene_id"] == scene_id],
+                "topology_source": stage_manifests["relation"]["inputs"]["road_topology"],
                 "raster_index": index,
                 "rasters": {
                     "landcover_class_fraction": lc_group["class_fraction"][zarr_index],
@@ -619,7 +705,8 @@ def build_branch(spec_path: Path, config_path: Path, schema_path: Path, output_d
                 scene = data[scene_id]
                 payloads, metrics = create_scene(
                     scene_id, split, stats_by_scene[scene_id], dictionary_by_scene[scene_id], scene["vectors"],
-                    scene["objects"], scene["relations"], scene["raster_index"], scene["rasters"],
+                    scene["objects"], scene["relations"], scene["topology"], scene["topology_source"],
+                    scene["raster_index"], scene["rasters"],
                     vocab, missing, norm, config,
                 )
                 start = archive.fileobj.tell()
@@ -703,6 +790,14 @@ def build_branch(spec_path: Path, config_path: Path, schema_path: Path, output_d
                 "serialization_algorithm": config["serialization"],
             },
             "accepted_artifacts": spec["accepted_artifacts"], "upstream_datasets": spec["upstream_datasets"],
+            "building_observed_area_reference_provenance": {
+                "source_column": "observed_area_m2", "dtype": "float64", "unit": "square_meter", "crs": "EPSG:5186",
+                "extraction_algorithm": "verified_building_observed_parquet_local_entity_join",
+                "source_artifacts": sorted(
+                    [record for record in used_source_records if Path(record["path"]).name == "building_observed.parquet"],
+                    key=lambda record: record["path"],
+                ),
+            },
             "outputs": outputs, "qc": qc, "execution": {"controller": "controller_10", "workers": 1, "threads": 1, "gpu": 0},
         }
         jsonschema.validate(instance=manifest, schema=read_json(schema_path))

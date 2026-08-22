@@ -1,0 +1,108 @@
+schema_version: "1.0.0"
+augmentation_contract_version: "1.0.0"
+dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
+
+rng:
+  algorithm: numpy_pcg64
+  base_seed: 20260822
+  key: [base_seed, epoch, scene_id, view_id, operation, local_entity_id, attempt]
+  view_streams: independent
+
+entity_removal:
+  maximum_fraction: 0.10
+  building_hosted_poi_cascade: true
+  road_propagation:
+    source: original_scene_topology
+    traverse_node_degree: 2
+    stop_node_degrees: [1, 3_or_more]
+    cycles: deterministic_visited_set
+
+geometry:
+  complexity_quantile: 0.90
+  threshold_population: unaugmented_training_scene_entity_observations_by_type
+  simplification_tolerance_m: {distribution: uniform, minimum: 0.0, maximum: 2.0}
+  vertex_jitter:
+    probability: 0.50
+    displacement_m: {distribution: uniform, minimum: 0.0, maximum: 2.0}
+    direction_radian: {distribution: uniform, minimum: 0.0, maximum: 6.283185307179586}
+  fixed_vertices: [road_endpoints, scene_boundary_origin]
+  scene_boundary_tolerance_m: 1.0e-8
+  scene_window: closed_500m_footprint
+  outside_source_requery: forbidden
+  outside_reclip: forbidden
+  preserve: [multipart_components, polygon_holes]
+  sliver_removal: forbidden
+  entity_order: ascending_local_entity_id
+  invariant_relations: [CNT, WIT, INT, CON]
+  maximum_attempts: 10
+  exhausted_action: original_geometry_fallback
+
+attributes:
+  geometry_independent_continuous:
+    status: disabled_no_eligible_fields
+    eligible_fields: []
+    gaussian_perturbation: forbidden
+  building:
+    observed_area_m2: recompute_from_final_accepted_geometry
+    observed_gross_floor_area_m2: preserve_source_to_observed_footprint_allocation_ratio
+    fallback: restore_values_corresponding_to_original_geometry
+    preserve_missingness: true
+  road_lanes:
+    probability: 0.10
+    intensity_rule: "min(1, lambda_aug * p_lane)"
+    offset_support: [-1, 1]
+    offset_probabilities: [0.5, 0.5]
+    draws_per_selected_lane: 1
+    minimum: 1
+    lower_bound_action: clamp_without_resampling
+    preserve_missing_value_and_indicator: true
+    output_dtype: integer
+    standardization: i13_unaugmented_training_population_mean_and_applied_scale
+
+categorical:
+  mask_probability: 0.10
+  building_road_replacement: forbidden
+  poi:
+    replacement_probability: 0.10
+    earliest_replacement_level: 4
+    preserve_missing_levels: true
+    descendant_rule: valid_same_prefix_hierarchy_branch
+
+raster:
+  landcover:
+    valid_cell_mask_fraction: 0.10
+    nodata_unchanged: true
+    recompute_object_context: true
+  dem:
+    valid_cell_gaussian_sd_m: 1.0
+    nodata_unchanged: true
+    recompute_object_context: true
+
+relations:
+  recompute_after_final_geometry: true
+  SN:
+    distance_m: 100.0
+    inclusive: true
+    per_source_top_k: 16
+    tie_break: [distance_m, destination_local_entity_id]
+    symmetric_union: true
+
+benchmark:
+  prototype_scene_count: 320
+  views: [0, 1]
+  epoch: 0
+  repetitions: 2
+  worker_counts: [40]
+  adversarial_worker_parity: [1, 40]
+  process_start_method: spawn
+  native_threads_per_worker: 1
+  devices: [cpu, cuda]
+  require_cuda: true
+
+output:
+  subdirectory: benchmark/augmentation
+  manifest: prototype_augmentation_manifest.json
+  scene_results: prototype_augmentation_scene_results.parquet
+  qc: prototype_augmentation_qc.json
+  report: prototype_augmentation_report.md
+  log: prototype_augmentation_benchmark.jsonl

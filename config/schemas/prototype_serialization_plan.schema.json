@@ -29,7 +29,7 @@
       "required": ["node_count", "ordered_edge_count", "coordinate_count", "estimated_uncompressed_bytes"]
     },
     "oversize_singleton": {"type": "boolean"},
-    "spatial_dataset_id": {"const": "psa_4e43932fc998fed94385addc"},
+    "spatial_dataset_id": {"const": "psa_c2155cf081312a31edfdb191"},
     "accepted_artifacts": {"type": "object"},
     "upstream_datasets": {"type": "object"},
     "scientific_identity": {"type": "object"},

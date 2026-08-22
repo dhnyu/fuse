@@ -2,9 +2,9 @@ schema_version: "1.0.0"
 encoder_contract_version: "1.0.0"
 
 identity:
-  accepted_dataset_id: ptd_140215eef2c1fa6da8304c6e
-  dataloader_smoke_id: pdl_a402b7ac668ddabfb6ba50f0
-  dissertation_commit: 73c7f5a65ae18960ac1990af035bca9076210f69
+  accepted_dataset_id: ptd_cee61a525ca92f1b7951c40d
+  dataloader_smoke_id: pdl_4037d275d729c82ea9b19d97
+  dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
 
 execution:
   controller: controller_gpu_02

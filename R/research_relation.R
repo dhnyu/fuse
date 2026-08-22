@@ -93,6 +93,8 @@ relation_entity_table <- function(observations) {
       observed_area_m2 = if (role == "building") as.numeric(x$observed_area_m2) else NA_real_,
       F_NODE = if (role == "road") as.character(x$F_NODE) else NA_character_,
       T_NODE = if (role == "road") as.character(x$T_NODE) else NA_character_,
+      source_f_node_endpoint_retained = if (role == "road") as.logical(x$source_f_node_endpoint_retained) else NA,
+      source_t_node_endpoint_retained = if (role == "road") as.logical(x$source_t_node_endpoint_retained) else NA,
       geometry = I(sf::st_geometry(x))
     )
   })
@@ -409,6 +411,70 @@ relation_node_index <- function(entities, spec, relation_dataset_id, config) {
   value
 }
 
+# Appendix B entity removal: preserve the original, pre-augmentation road
+# endpoint incidence instead of attempting to infer node degree from CON edges.
+relation_road_topology <- function(entities, node_positions, scene_specs, spec, relation_dataset_id, road_record, config) {
+  roads <- entities[entity_type == "R"]
+  columns <- c(
+    "scene_id", "scene_footprint_id", "split", "road_local_entity_id", "road_source_entity_id",
+    "endpoint_order", "endpoint_label", "original_node_id", "scene_node_index",
+    "scene_incident_road_count", "node_state", "node_state_code", "original_node_x_5186",
+    "original_node_y_5186", "original_endpoint_retained", "relation_dataset_id", "branch_id"
+  )
+  if (!nrow(roads)) return(data.table::data.table(
+    scene_id = character(), scene_footprint_id = character(), split = character(),
+    road_local_entity_id = integer(), road_source_entity_id = character(),
+    endpoint_order = integer(), endpoint_label = character(), original_node_id = character(),
+    scene_node_index = integer(), scene_incident_road_count = integer(), node_state = character(),
+    node_state_code = integer(), original_node_x_5186 = numeric(), original_node_y_5186 = numeric(),
+    original_endpoint_retained = logical(), relation_dataset_id = character(), branch_id = character()
+  ))
+  endpoints <- data.table::rbindlist(list(
+    roads[, .(scene_id, scene_footprint_id, split, road_local_entity_id = as.integer(local_entity_id),
+              road_source_entity_id = source_entity_id, endpoint_order = 0L, endpoint_label = "F",
+              original_node_id = F_NODE)],
+    roads[, .(scene_id, scene_footprint_id, split, road_local_entity_id = as.integer(local_entity_id),
+              road_source_entity_id = source_entity_id, endpoint_order = 1L, endpoint_label = "T",
+              original_node_id = T_NODE)]
+  ))
+  retained <- data.table::rbindlist(list(
+    roads[, .(scene_id, road_local_entity_id = as.integer(local_entity_id), endpoint_order = 0L,
+              original_endpoint_retained = as.logical(source_f_node_endpoint_retained))],
+    roads[, .(scene_id, road_local_entity_id = as.integer(local_entity_id), endpoint_order = 1L,
+              original_endpoint_retained = as.logical(source_t_node_endpoint_retained))]
+  ))
+  endpoints <- retained[endpoints, on = .(scene_id, road_local_entity_id, endpoint_order)]
+  endpoints <- merge(endpoints, node_positions, by.x = "original_node_id", by.y = "node_id",
+                     all.x = TRUE, sort = FALSE)
+  if (anyNA(endpoints$x) || anyNA(endpoints$y) || anyNA(endpoints$original_node_id)) stop("Road topology endpoint lacks original-node evidence", call. = FALSE)
+  endpoints[, scene_incident_road_count := data.table::uniqueN(road_local_entity_id), by = .(scene_id, original_node_id)]
+  endpoints[, scene_node_index := match(original_node_id, sort(unique(original_node_id), method = "radix")) - 1L, by = scene_id]
+  tolerance <- as.numeric(config$scientific$original_road_topology$boundary_tolerance_m)
+  endpoints[, c("xmin", "ymin", "xmax", "ymax") := {
+    box <- scene_specs[[scene_id[[1L]]]]
+    list(as.numeric(box$xmin), as.numeric(box$ymin), as.numeric(box$xmax), as.numeric(box$ymax))
+  }, by = scene_id]
+  endpoints[, node_state := data.table::fcase(
+    x < xmin - tolerance | x > xmax + tolerance | y < ymin - tolerance | y > ymax + tolerance, "OUTSIDE",
+    abs(x - xmin) <= tolerance | abs(x - xmax) <= tolerance | abs(y - ymin) <= tolerance | abs(y - ymax) <= tolerance, "BOUNDARY",
+    default = "INTERIOR"
+  )]
+  state_codes <- unlist(config$scientific$original_road_topology$node_state_codes)
+  endpoints[, node_state_code := as.integer(state_codes[node_state])]
+  endpoints[, `:=`(original_node_x_5186 = as.numeric(x), original_node_y_5186 = as.numeric(y),
+                    relation_dataset_id = relation_dataset_id, branch_id = spec$branch_id)]
+  data.table::setorder(endpoints, scene_id, road_local_entity_id, endpoint_order)
+  value <- endpoints[, ..columns]
+  if (anyDuplicated(value[, .(scene_id, road_local_entity_id, endpoint_order)]) ||
+      any(value$endpoint_order != rep(c(0L, 1L), length.out = nrow(value))) ||
+      anyNA(value$original_endpoint_retained) ||
+      any(value$scene_incident_road_count < 1L) || any(value$scene_node_index < 0L)) {
+    stop("Road topology endpoint/index contract failed", call. = FALSE)
+  }
+  attr(value, "source_record") <- road_record
+  value
+}
+
 relation_scene_statistics <- function(spec, entities, results, relation_dataset_id, config) {
   bits <- relation_bit_values(config)
   data.table::rbindlist(lapply(seq_along(spec$scenes), function(i) {
@@ -510,7 +576,7 @@ write_relation_edges <- function(edges, path, config) {
 }
 
 relation_output_names <- function() c(
-  "relation_edges.parquet", "relation_node_index.parquet", "scene_relation_statistics.parquet",
+  "relation_edges.parquet", "relation_node_index.parquet", "scene_relation_statistics.parquet", "road_topology.parquet",
   "branch_manifest.json", "branch_qc.json", "branch_log.jsonl"
 )
 
@@ -559,16 +625,18 @@ build_prototype_relation_shard <- function(prototype_observation_plan,
   statistics <- relation_scene_statistics(spec, entities, results, relation_dataset_id, config)
   data.table::setorder(statistics, scene_id)
   validate_relation_edges(edges, node_index, statistics, spec, config)
+  road_topology <- relation_road_topology(entities, node_positions, scene_specs, spec, relation_dataset_id, road_record, config)
   observations_root <- dirname(dirname(dirname(dirname(spec$output$directory))))
   final_dir <- file.path(observations_root, relation_dataset_id, "relations", "branches", spec$branch_id)
   output_names <- relation_output_names()
   paths <- publish_deterministic_directory(
-    final_dir, output_names, compare_basenames = output_names[1:3],
+    final_dir, output_names, compare_basenames = output_names[1:4],
     writer = function(stage) {
       parquet_started <- Sys.time()
       write_relation_edges(edges, file.path(stage, output_names[[1L]]), config)
       arrow::write_parquet(node_index, file.path(stage, output_names[[2L]]), compression = "zstd", chunk_size = 65536L)
       arrow::write_parquet(statistics, file.path(stage, output_names[[3L]]), compression = "zstd", chunk_size = 65536L)
+      arrow::write_parquet(road_topology, file.path(stage, output_names[[4L]]), compression = "zstd", chunk_size = 65536L)
       parquet_seconds <- as.numeric(difftime(Sys.time(), parquet_started, units = "secs"))
       bits <- relation_bit_values(config)
       relation_counts <- setNames(lapply(names(bits), function(relation) sum(bitwAnd(edges$relation_mask, bits[[relation]]) != 0L)), names(bits))
@@ -598,13 +666,16 @@ build_prototype_relation_shard <- function(prototype_observation_plan,
         ),
         warnings = list()
       )
-      write_json_file(qc, file.path(stage, output_names[[5L]]))
+      qc$road_topology_endpoint_count <- nrow(road_topology)
+      qc$road_topology_node_count <- data.table::uniqueN(road_topology[, .(scene_id, scene_node_index)])
+      qc$road_topology_source <- road_record
+      write_json_file(qc, file.path(stage, output_names[[6L]]))
       log_records <- list(
         list(time = format(started, "%Y-%m-%dT%H:%M:%S%z", tz = "Asia/Seoul"), event = "branch_started", branch_id = spec$branch_id),
         list(time = kst_now(), event = "branch_completed", branch_id = spec$branch_id, status = "PASS", scenes = length(scene_ids), nodes = nrow(node_index), edges = nrow(edges))
       )
-      write_json_lines(log_records, file.path(stage, output_names[[6L]]))
-      output_records <- lapply(file.path(stage, output_names[1:3]), function(path) list(
+      write_json_lines(log_records, file.path(stage, output_names[[7L]]))
+      output_records <- lapply(file.path(stage, output_names[1:4]), function(path) list(
         path = file.path(final_dir, basename(path)), size_bytes = unname(file.info(path)$size), sha256 = sha256_file(path)
       ))
       manifest <- list(
@@ -630,11 +701,11 @@ build_prototype_relation_shard <- function(prototype_observation_plan,
         sn_distance_m = qc$sn_distance_m, scene_edge_count = summary_numeric(statistics$ordered_pair_count),
         outputs = output_records,
         runtime_sidecars = list(
-          qc = file.path(final_dir, output_names[[5L]]), log = file.path(final_dir, output_names[[6L]])
+          qc = file.path(final_dir, output_names[[6L]]), log = file.path(final_dir, output_names[[7L]])
         ),
         warnings = list(), status_final = "PASS"
       )
-      write_json_file(manifest, file.path(stage, output_names[[4L]]))
+      write_json_file(manifest, file.path(stage, output_names[[5L]]))
     }
   )
   normalizePath(paths, mustWork = TRUE)

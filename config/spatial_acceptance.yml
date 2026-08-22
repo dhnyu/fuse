@@ -10,7 +10,7 @@ expected:
   scenes: 320
   split_counts: {training: 256, validation: 32, evaluation: 32}
   entities: {B: 81693, R: 7898, P: 147530, total: 237121}
-  relation_dataset_id: pre_b94858c3ea31d9eb2376ee00
+  relation_dataset_id: pre_0a6fb2ee7cadd33aa0ae20dd
   relation_regression:
     ordered_pairs: 2756444
     SN: 2539932

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-training-plan-1.0.0.json",
+  "type": "object",
+  "required": ["schema_version", "status", "plan_id", "run_count", "dataset_identity", "encoder_identity", "augmentation_identity", "runs", "outputs"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "plan_id": {"type": "string", "pattern": "^ptp_[0-9a-f]{24}$"},
+    "run_count": {"const": 1},
+    "dataset_identity": {"const": "ptd_cee61a525ca92f1b7951c40d"},
+    "encoder_identity": {"const": "pea_5784252434798d9dfa05d796"},
+    "augmentation_identity": {"const": "paa_8d73a94e574dcdbc5c5106d2"},
+    "runs": {"type": "array", "minItems": 1, "maxItems": 1},
+    "outputs": {"type": "array", "minItems": 2}
+  },
+  "additionalProperties": true
+}

@@ -42,7 +42,11 @@ class TrainingDatasetAcceptanceFixtureTest(unittest.TestCase):
                 "poi_category": np.empty((0, 6), np.int32),
             },
             "geometry": {
-                "coordinates_xy": np.empty((0, 2), np.float32), "geometry_type": np.empty((0,), np.uint8),
+                "coordinates_xy": np.empty((0, 2), np.float32),
+                "coordinates_absolute_xy_5186": np.empty((0, 2), np.float64),
+                "reference_center_absolute_xy_5186": np.empty((0, 2), np.float64),
+                "building_observed_area_m2_reference": np.empty((0,), np.float64),
+                "geometry_type": np.empty((0,), np.uint8),
                 "geometry_available": np.empty((0,), np.uint8), "entity_coordinate_offsets": np.asarray([0], np.int64),
                 "entity_component_offsets": np.asarray([0], np.int64), "component_coordinate_offsets": np.asarray([0], np.int64),
                 "entity_part_offsets": np.asarray([0], np.int64), "part_coordinate_offsets": np.asarray([0], np.int64),
@@ -51,6 +55,13 @@ class TrainingDatasetAcceptanceFixtureTest(unittest.TestCase):
                 "ring_is_hole": np.empty((0,), np.uint8),
             },
             "edges": {"edge_index": np.empty(edge_shape, np.int64), "relation_mask": np.empty((0,), np.uint8)},
+            "topology": {
+                "road_endpoint_node_index": np.empty((0, 2), np.int64),
+                "road_endpoint_retained": np.empty((0, 2), np.uint8),
+                "node_incident_road_count": np.empty((0,), np.int32),
+                "node_state": np.empty((0,), np.uint8),
+                "node_xy_5186": np.empty((0, 2), np.float64),
+            },
             "rasters": {
                 "landcover_class_fraction": np.zeros(raster_shape, np.float32),
                 "landcover_valid_support": np.zeros((100, 100), np.float32),
@@ -61,8 +72,10 @@ class TrainingDatasetAcceptanceFixtureTest(unittest.TestCase):
             },
         }
         meta = {
-            "scene_id": "scene", "split": "training", "local_entity_ids": [], "empty_edge": True,
+            "scene_id": "scene", "split": "training", "crs": "EPSG:5186",
+            "local_entity_ids": [], "empty_edge": True,
             "counts": {"nodes": 0, "edges": 0, "coordinates": 0},
+            "road_topology": {"road_local_entity_ids": [], "original_node_ids": []},
         }
         payloads = {"scene.meta.json": json.dumps(meta).encode()}
         payloads.update({f"scene.{group}.safetensors": tensor_bytes(value) for group, value in arrays.items()})

@@ -28,9 +28,9 @@ load_training_dataset_acceptance_config <- function(contract_files) {
   if (length(missing)) stop("Missing I16 contract files: ", paste(missing, collapse = ", "), call. = FALSE)
   config <- yaml::read_yaml(by_name[["training_dataset_acceptance.yml"]])
   expected <- list(
-    spatial = c(config$identity$spatial_dataset_id, "psa_4e43932fc998fed94385addc"),
-    plan = c(config$identity$serialization_plan_id, "psp_c3f6659d47486417567d55c1"),
-    serialization = c(config$identity$serialization_dataset_id, "psd_c3f6659d47486417567d55c1"),
+    spatial = c(config$identity$spatial_dataset_id, "psa_c2155cf081312a31edfdb191"),
+    plan = c(config$identity$serialization_plan_id, "psp_72c5e4e5c3e4c84eb47aad85"),
+    serialization = c(config$identity$serialization_dataset_id, "psd_72c5e4e5c3e4c84eb47aad85"),
     controller = c(config$execution$controller, "controller_05"),
     workers = c(config$execution$workers, 1), threads = c(config$execution$threads_per_worker, 1),
     gpu = c(config$execution$gpu, 0), branches = c(config$expected$branch_count, 51),

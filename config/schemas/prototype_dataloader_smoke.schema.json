@@ -12,7 +12,7 @@
     "schema_version": {"const": "1.0.0"},
     "status": {"const": "READY"},
     "smoke_id": {"type": "string", "pattern": "^pdl_[0-9a-f]{24}$"},
-    "accepted_dataset_id": {"const": "ptd_140215eef2c1fa6da8304c6e"},
+    "accepted_dataset_id": {"const": "ptd_cee61a525ca92f1b7951c40d"},
     "coordinate_contract": {"type": "object"},
     "batching": {"type": "object"},
     "correctness": {"type": "object"},

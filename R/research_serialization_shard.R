@@ -32,17 +32,20 @@ load_serialization_shard_config <- function(contract_files) {
 
 validate_serialization_shard_config <- function(scientific, runtime) {
   expected <- list(
-    contract = c(scientific$serialization_shard_contract_version, "1.0.0"),
-    spatial = c(scientific$identity$spatial_dataset_id, "psa_4e43932fc998fed94385addc"),
-    plan = c(scientific$identity$serialization_plan_id, "psp_c3f6659d47486417567d55c1"),
-    dataset = c(scientific$identity$serialization_dataset_id, "psd_c3f6659d47486417567d55c1"),
+    contract = c(scientific$serialization_shard_contract_version, "1.3.0"),
+    spatial = c(scientific$identity$spatial_dataset_id, "psa_c2155cf081312a31edfdb191"),
+    plan = c(scientific$identity$serialization_plan_id, "psp_72c5e4e5c3e4c84eb47aad85"),
+    dataset = c(scientific$identity$serialization_dataset_id, "psd_72c5e4e5c3e4c84eb47aad85"),
     archive = c(scientific$archive$format, "webdataset_tar"),
     controller = c(runtime$controller, "controller_10"),
     workers = c(runtime$workers, 1), threads = c(runtime$threads_per_worker, 1), gpu = c(runtime$gpu, 0)
   )
   bad <- names(expected)[vapply(expected, function(x) !identical(as.character(x[[1L]]), as.character(x[[2L]])), logical(1L))]
   if (length(bad)) stop("Serialization-shard contract mismatch: ", paste(bad, collapse = ", "), call. = FALSE)
-  expected_members <- c("meta.json", "entities.safetensors", "geometry.safetensors", "edges.safetensors", "rasters.safetensors")
+  expected_members <- c(
+    "meta.json", "entities.safetensors", "geometry.safetensors", "edges.safetensors",
+    "topology.safetensors", "rasters.safetensors"
+  )
   if (!identical(unlist(scientific$archive$member_order, use.names = FALSE), expected_members)) {
     stop("Serialization tar member order changed", call. = FALSE)
   }

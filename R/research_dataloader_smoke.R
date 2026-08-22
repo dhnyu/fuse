@@ -27,7 +27,7 @@ load_dataloader_smoke_config <- function(contract_files) {
   if (length(missing)) stop("Missing I17 contract files: ", paste(missing, collapse = ", "), call. = FALSE)
   config <- yaml::read_yaml(by_name[["dataloader_smoke.yml"]])
   expected <- list(
-    accepted = c(config$identity$accepted_dataset_id, "ptd_140215eef2c1fa6da8304c6e"),
+    accepted = c(config$identity$accepted_dataset_id, "ptd_cee61a525ca92f1b7951c40d"),
     controller = c(config$execution$controller, "controller_05"),
     gpu = c(config$execution$gpu, 0), scenes = c(config$expected$scenes, 320),
     scale = c(config$coordinates$geometry_scale_to_m, 500)

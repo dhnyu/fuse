@@ -48,7 +48,7 @@ validate_spatial_acceptance_config <- function(config, codebook, aliases) {
     threads = identical(as.integer(config$threads), 1L),
     branches = identical(as.integer(config$expected$branches), 15L),
     scenes = identical(as.integer(config$expected$scenes), 320L),
-    relation_id = identical(config$expected$relation_dataset_id, "pre_b94858c3ea31d9eb2376ee00"),
+    relation_id = identical(config$expected$relation_dataset_id, "pre_0a6fb2ee7cadd33aa0ae20dd"),
     universe = identical(config$vocabulary$universe, "official_source_codebook_full"),
     reserved = identical(unlist(config$vocabulary$reserved_tokens), c("MISSING", "MASK")),
     no_oov = identical(config$vocabulary$oov_policy, "hard_failure_no_oov_token"),
@@ -440,6 +440,7 @@ acceptance_relation_audit <- function(relation_bundles, dictionary, expected) {
   edges <- data.table::rbindlist(lapply(relation_bundles, read_acceptance_parquet, basename_value = "relation_edges.parquet"))
   nodes <- data.table::rbindlist(lapply(relation_bundles, read_acceptance_parquet, basename_value = "relation_node_index.parquet"))
   stats <- data.table::rbindlist(lapply(relation_bundles, read_acceptance_parquet, basename_value = "scene_relation_statistics.parquet"))
+  topology <- data.table::rbindlist(lapply(relation_bundles, read_acceptance_parquet, basename_value = "road_topology.parquet"))
   key <- function(scene, local) paste(scene, local, sep = ":")
   dict_key <- key(dictionary$scene_id, dictionary$local_entity_id)
   source_key <- key(edges$scene_id, edges$source_local_entity_id)
@@ -463,6 +464,37 @@ acceptance_relation_audit <- function(relation_bundles, dictionary, expected) {
   if (any(edges$has_sn & (source_key %in% contained_nodes | destination_key %in% contained_nodes))) failures <- c(failures, "contained_poi_sn")
   if (any(edges$has_con & (edges$source_entity_type != "R" | edges$destination_entity_type != "R" | is.na(edges$shared_original_node_id)))) failures <- c(failures, "con_contract")
   if (any(edges$has_sn & (is.na(edges$distance_m) | edges$distance_m > 100 + 1e-7))) failures <- c(failures, "sn_radius")
+  roads <- dictionary[entity_type == "R", .(scene_id, road_local_entity_id = local_entity_id, road_source_entity_id = source_entity_id)]
+  topology_key <- topology[, .(scene_id, road_local_entity_id, road_source_entity_id)]
+  endpoint_counts <- topology[, .N, by = .(scene_id, road_local_entity_id)]
+  node_rows <- unique(topology[, .(scene_id, scene_node_index, original_node_id,
+                                   scene_incident_road_count, node_state, node_state_code,
+                                   original_node_x_5186, original_node_y_5186)])
+  node_attribute_counts <- topology[, data.table::uniqueN(paste(
+    original_node_id, scene_incident_road_count, node_state, node_state_code,
+    sprintf("%.17g", original_node_x_5186), sprintf("%.17g", original_node_y_5186), sep = "\r"
+  )), by = .(scene_id, scene_node_index)]
+  recomputed_degree <- topology[, .(degree = data.table::uniqueN(road_local_entity_id)),
+                                by = .(scene_id, original_node_id)]
+  degree_join <- recomputed_degree[topology, on = .(scene_id, original_node_id)]
+  expected_index <- node_rows[order(scene_id, original_node_id),
+                              .(scene_id, scene_node_index, expected = seq_len(.N) - 1L), by = scene_id]
+  topology_failures <- c(
+    if (!setequal(unique(topology_key), roads)) "topology_road_join" else character(),
+    if (any(endpoint_counts$N != 2L)) "topology_endpoint_count" else character(),
+    if (anyDuplicated(topology[, .(scene_id, road_local_entity_id, endpoint_order)])) "topology_endpoint_duplicate" else character(),
+    if (any(!topology$endpoint_order %in% c(0L, 1L)) ||
+        any(topology$endpoint_label != c("F", "T")[topology$endpoint_order + 1L])) "topology_endpoint_order" else character(),
+    if (anyNA(topology$original_endpoint_retained)) "topology_retained_missing" else character(),
+    if (any(topology$scene_node_index < 0L | topology$scene_incident_road_count < 1L)) "topology_index_or_degree" else character(),
+    if (any(node_attribute_counts$V1 != 1L)) "topology_node_attribute_inconsistent" else character(),
+    if (any(degree_join$degree != degree_join$scene_incident_road_count)) "topology_degree_mismatch" else character(),
+    if (any(expected_index$scene_node_index != expected_index$expected)) "topology_node_index_not_dense_sorted" else character(),
+    if (any(!topology$node_state %in% c("INTERIOR", "BOUNDARY", "OUTSIDE"))) "topology_node_state" else character(),
+    if (any(topology$node_state_code != c(INTERIOR = 0L, BOUNDARY = 1L, OUTSIDE = 2L)[topology$node_state])) "topology_node_state_code" else character(),
+    if (any(!is.finite(topology$original_node_x_5186) | !is.finite(topology$original_node_y_5186))) "topology_node_xy" else character()
+  )
+  failures <- c(failures, topology_failures)
   counts <- list(
     ordered_pairs = nrow(edges), SN = sum(edges$has_sn), CNT = sum(edges$has_cnt), WIT = sum(edges$has_wit),
     INT = sum(edges$has_int), CON = sum(edges$has_con), multi_relation_ordered_pairs = sum(rowSums(cbind(edges$has_sn, edges$has_cnt, edges$has_wit, edges$has_int, edges$has_con)) > 1L),
@@ -471,7 +503,16 @@ acceptance_relation_audit <- function(relation_bundles, dictionary, expected) {
   regression <- unlist(expected$relation_regression)
   observed <- unlist(counts[names(regression)])
   if (!identical(as.numeric(observed), as.numeric(regression))) failures <- c(failures, "relation_regression")
-  list(edges = edges, nodes = nodes, statistics = stats, counts = counts, failures = unique(failures))
+  topology_summary <- list(
+    endpoint_count = nrow(topology), node_count = nrow(node_rows),
+    retained_endpoint_count = sum(topology$original_endpoint_retained),
+    derived_endpoint_count = sum(!topology$original_endpoint_retained),
+    state_counts = as.list(table(factor(node_rows$node_state, levels = c("INTERIOR", "BOUNDARY", "OUTSIDE")))),
+    degree_counts = as.list(table(factor(node_rows$scene_incident_road_count, levels = sort(unique(node_rows$scene_incident_road_count)))))
+  )
+  names(topology_summary$state_counts) <- c("INTERIOR", "BOUNDARY", "OUTSIDE")
+  list(edges = edges, nodes = nodes, statistics = stats, topology = topology,
+       topology_summary = topology_summary, counts = counts, failures = unique(failures))
 }
 
 acceptance_output_names <- function() c(
@@ -479,7 +520,7 @@ acceptance_output_names <- function() c(
   "prototype_spatial_qc.json", "prototype_categorical_vocabulary.parquet",
   "prototype_normalization_statistics.parquet", "prototype_missing_mapping.json",
   "prototype_scene_spatial_statistics.parquet", "prototype_categorical_aliases.parquet",
-  "prototype_spatial_log.jsonl"
+  "prototype_road_topology.parquet", "prototype_spatial_log.jsonl"
 )
 
 build_prototype_spatial_acceptance <- function(prototype_observation_plan,
@@ -532,7 +573,7 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
   prototype_root <- dirname(dirname(dirname(dirname(plan[[1L]]$.path))))
   final_dir <- file.path(prototype_root, "acceptance", spatial_dataset_id)
   output_names <- acceptance_output_names()
-  result <- publish_deterministic_directory(final_dir, output_names, compare_basenames = output_names[1:8], writer = function(stage) {
+  result <- publish_deterministic_directory(final_dir, output_names, compare_basenames = output_names[1:9], writer = function(stage) {
     vectors <- acceptance_vector_tables(vector)
     vectors[, building_structure_category_key := NA_character_]
     alias_audit <- acceptance_building_alias_audit(plan, vectors, config)
@@ -545,6 +586,7 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
     raster_index <- data.table::rbindlist(lapply(raster, read_acceptance_parquet, basename_value = "scene_raster_index.parquet"))
     relation_audit <- acceptance_relation_audit(relation, dictionary, expected)
     relation_nodes <- relation_audit$nodes
+    road_topology <- relation_audit$topology
     dictionary[, `:=`(
       vector_observation_dataset_id = vector_ids,
       raster_observation_dataset_id = raster_ids,
@@ -609,6 +651,11 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
       vector_validation = acceptance_check("vector_branch_global_gate", "15 PASS branch QC and manifests", 15L, sum(vapply(vector, function(x) x$qc$status == "PASS", logical(1L)))),
       raster_validation = acceptance_check("raster_branch_global_gate", "15 PASS branch QC and aligned object keys", 15L, sum(vapply(raster, function(x) x$qc$status == "PASS", logical(1L))), key_failures[grepl("raster", key_failures)]),
       relation_validation = acceptance_check("relation_global_gate", "accepted relation contract", "zero violations", relation_audit$counts, relation_audit$failures),
+      road_topology_validation = acceptance_check(
+        "original_road_topology_evidence", "every observed road has exact F/T endpoint evidence",
+        0L, length(relation_audit$failures[grepl("topology", relation_audit$failures)]),
+        relation_audit$failures[grepl("topology", relation_audit$failures)]
+      ),
       empty_edge_scene_validation = acceptance_check("empty_edge_scenes_preserved", "all modalities", as.integer(expected$relation_regression$empty_edge_scenes), sum(scene_stats$empty_edge), if (sum(scene_stats$empty_edge) != expected$relation_regression$empty_edge_scenes) "count" else character()),
       training_only_vocabulary_validation = acceptance_check("source_codebook_vocabulary_no_oov", "all categorical attributes", 0L, length(category$failures), category$failures),
       normalization_statistics_validation = acceptance_check("training_population_statistics", "256 training scenes", 256L, length(unique(vectors[split == "training"]$scene_id))),
@@ -622,13 +669,15 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
     arrow::write_parquet(normalization, file.path(stage, output_names[[5L]]), compression = "zstd", chunk_size = 65536L)
     arrow::write_parquet(scene_stats, file.path(stage, output_names[[7L]]), compression = "zstd", chunk_size = 65536L)
     arrow::write_parquet(alias_audit$artifact, file.path(stage, output_names[[8L]]), compression = "zstd", chunk_size = 65536L)
+    data.table::setorder(road_topology, scene_id, road_local_entity_id, endpoint_order)
+    arrow::write_parquet(road_topology, file.path(stage, output_names[[9L]]), compression = "zstd", chunk_size = 65536L)
     missing_mapping <- list(schema_version = config$scientific$schema_version,
                             policy = config$scientific$missing_mapping,
                             observed_category_states = category$counts,
                             categorical_aliases = lapply(seq_len(nrow(alias_audit$artifact)), function(i) as.list(alias_audit$artifact[i])),
                             raw_mask_count = 0L, oov_count = length(category$failures))
     write_acceptance_json(missing_mapping, file.path(stage, output_names[[6L]]))
-    scientific_outputs <- output_names[c(2L, 4L, 5L, 6L, 7L, 8L)]
+    scientific_outputs <- output_names[c(2L, 4L, 5L, 6L, 7L, 8L, 9L)]
     output_records <- lapply(scientific_outputs, function(filename) list(
       path = file.path(final_dir, filename), size_bytes = as.numeric(file.info(file.path(stage, filename))$size),
       sha256 = sha256_file(file.path(stage, filename))
@@ -638,6 +687,7 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
       artifact_identity = identity, branch_ids = as.list(common_branches), scene_count = nrow(scene_plan),
       split_counts = split_counts, entity_counts = c(entity_counts, list(total = nrow(dictionary))),
       relation_counts = relation_audit$counts, vocabulary_category_counts = as.list(table(vocabulary[entry_type == "SOURCE"]$attribute)),
+      road_topology = relation_audit$topology_summary,
       categorical_alias_validation = as.list(alias_audit$artifact[1L]),
       normalization = lapply(seq_len(nrow(normalization)), function(i) as.list(normalization[i])),
       outputs = output_records, warnings = as.list(normalization[constant_training_field == TRUE]$attribute)
@@ -647,6 +697,7 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
                branch_alignment = checks$branch_alignment, scene_completeness = checks$scene_completeness,
                entity_dictionary = checks$entity_dictionary, vector_validation = checks$vector_validation,
                raster_validation = checks$raster_validation, relation_validation = checks$relation_validation,
+               road_topology_validation = checks$road_topology_validation,
                empty_edge_scene_validation = checks$empty_edge_scene_validation,
                training_only_vocabulary_validation = checks$training_only_vocabulary_validation,
                normalization_statistics_validation = checks$normalization_statistics_validation,
@@ -660,7 +711,7 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
                        max_rss_kb = proc_max_rss_kb(),
                        read_bytes = io_finished$read_bytes - io_started$read_bytes,
                        write_bytes = io_finished$write_bytes - io_started$write_bytes)
-    write_acceptance_json(log_record, file.path(stage, output_names[[9L]]))
+    write_acceptance_json(log_record, file.path(stage, output_names[[10L]]))
   })
   result
 }

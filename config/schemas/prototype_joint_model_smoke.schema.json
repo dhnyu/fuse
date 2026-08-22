@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Prototype joint-model smoke manifest",
+  "type": "object",
+  "required": ["schema_version", "status", "joint_model_acceptance_id", "scientific_identity", "architecture", "gradient_routing", "loss", "ema_queue", "gpu_runtime", "outputs"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "joint_model_acceptance_id": {"type": "string", "pattern": "^pjm_[0-9a-f]{24}$"},
+    "scientific_identity": {"type": "object"},
+    "architecture": {"type": "object"},
+    "gradient_routing": {"type": "object"},
+    "loss": {"type": "object"},
+    "ema_queue": {"type": "object"},
+    "gpu_runtime": {"type": "object"},
+    "outputs": {"type": "array", "minItems": 3}
+  },
+  "additionalProperties": true
+}

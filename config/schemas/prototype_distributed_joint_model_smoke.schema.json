@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "status", "distributed_joint_acceptance_id", "parent_joint_model_identity", "scientific_identity", "parity", "execution", "outputs"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "distributed_joint_acceptance_id": {"type": "string", "pattern": "^pjd_[0-9a-f]{24}$"},
+    "parent_joint_model_identity": {"type": "string", "pattern": "^pjm_[0-9a-f]{24}$"},
+    "scientific_identity": {"type": "object"},
+    "parity": {"type": "object"},
+    "execution": {"type": "object"},
+    "outputs": {"type": "array", "minItems": 1}
+  },
+  "additionalProperties": true
+}

@@ -20,6 +20,9 @@ research_function_files <- c(
   "R/research_dataloader_smoke.R",
   "R/research_encoder_smoke.R",
   "R/research_augmentation_benchmark.R",
+  "R/research_joint_model_smoke.R",
+  "R/research_distributed_joint_model_smoke.R",
+  "R/research_prototype_training.R",
   "R/research_training_plan.R"
 )
 targets::tar_source(research_function_files)
@@ -72,7 +75,10 @@ targets::tar_source("targets/research_training_dataset_acceptance.R")
 targets::tar_source("targets/research_dataloader_smoke.R")
 targets::tar_source("targets/research_encoder_smoke.R")
 targets::tar_source("targets/research_augmentation_benchmark.R")
+targets::tar_source("targets/research_joint_model_smoke.R")
+targets::tar_source("targets/research_distributed_joint_model_smoke.R")
 targets::tar_source("targets/research_training_plan.R")
+targets::tar_source("targets/research_prototype_training.R")
 
 c(
   list_research_scene_index,
@@ -87,5 +93,8 @@ c(
   list_research_dataloader_smoke,
   list_research_encoder_smoke,
   list_research_augmentation_benchmark,
-  list_research_training_plan
+  list_research_joint_model_smoke,
+  list_research_distributed_joint_model_smoke,
+  list_research_training_plan,
+  list_research_prototype_training
 )

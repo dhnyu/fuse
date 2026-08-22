@@ -1,0 +1,36 @@
+schema_version: "1.0.0"
+identity:
+  plan_id: ptp_3b100622bdb733351db6e458
+  run_id: ptr_473911a4828ae5540a9d4eb9
+  joint_model_acceptance_id: pjm_056c0d32b223808fd8dabc75
+  distributed_joint_acceptance_id: pjd_13aff4a58d3d6022ee2dd62f
+  dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
+preflight:
+  controlled_resume_checkpoint_step: 1
+  controlled_resume_comparison_steps: 1
+  numerical_equivalence:
+    scalar_loss: {atol: 1.0e-7, rtol: 1.0e-6}
+    gradient_elementwise: {atol: 1.0e-7, rtol: 1.0e-5}
+    gradient_relative_l2_max: 1.0e-6
+    gradient_cosine_min: 0.9999999
+    parameter_after_update: {atol: 1.0e-6, rtol: 1.0e-5}
+execution:
+  workers: 40
+  workers_per_rank: 20
+  world_size: 2
+  strategy: pytorch_distributed_data_parallel
+  persistent_workers: true
+  pin_memory: true
+  prefetch_factor: 2
+  native_threads_per_worker: 1
+  process_start_method: spawn
+  telemetry_interval_seconds: 60
+  gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
+  gpu_lock_timeout_seconds: 120
+output:
+  manifest_name: prototype_training_acceptance_manifest.json
+  qc_name: prototype_training_qc.json
+  validation_name: validation_history.json
+  steps_name: optimizer_steps.jsonl
+  telemetry_name: resource_telemetry.jsonl
+  checkpoints_directory: checkpoints

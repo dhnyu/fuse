@@ -1,0 +1,92 @@
+schema_version: "1.0.0"
+joint_model_contract_version: "1.0.0"
+
+identity:
+  accepted_dataset_id: ptd_cee61a525ca92f1b7951c40d
+  dataloader_smoke_id: pdl_4037d275d729c82ea9b19d97
+  encoder_acceptance_id: pea_5784252434798d9dfa05d796
+  augmentation_acceptance_id: paa_8d73a94e574dcdbc5c5106d2
+  no_op_gate_id: pgr_fb3209bda9fb0fa9a0e15bd1
+  dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
+
+numerical_policy:
+  precision: float32
+  tf32: false
+  mixed_precision: false
+  deterministic_algorithms: true
+
+modality_masking:
+  selection_probability: 0.30
+  modalities_per_selected_entity: 1
+  operation_order: post_augmentation_post_encoding_pre_fusion
+  missing_and_mask_states_distinct: true
+  rng_key: [seed, epoch, scene_id, view_id, modality_mask, local_entity_id]
+
+decoders:
+  relative: {input: 128, hidden: 128, output: 2, activation: GELU}
+  geometry: {input: 128, hidden: 256, magnitude_output: 128, phase_output: 256, activation: GELU}
+  building:
+    input: 128
+    hidden: 128
+    activation: GELU
+    categorical_heads: {A9: 511, A11: 24}
+    numerical_heads: [building_observed_area_m2, building_observed_gross_floor_area_m2]
+  road:
+    input: 128
+    hidden: 128
+    activation: GELU
+    categorical_heads: {ROAD_RANK: 9, ROAD_TYPE: 7}
+    numerical_heads: [road_lanes]
+  poi:
+    input: 128
+    hidden: 128
+    activation: GELU
+    categorical_heads: {CLASS_L1: 6, CLASS_L2: 19, CLASS_L3: 360, CLASS_L4: 1001, CLASS_L5: 1400, CLASS_L6: 150}
+  environmental:
+    input: 128
+    hidden: 128
+    activation: GELU
+    composition_output: 22
+    continuous_output: 4
+
+loss:
+  continuous: {name: Huber, delta: 1.0}
+  categorical: cross_entropy
+  compositional: soft_target_cross_entropy
+  phase: {name: cosine_distance, relative_magnitude_threshold: 0.05}
+  reduction: component_then_entity_then_modality_equal_active_mean
+  information_preservation_weight: 0.5
+  total: L_scene_plus_0.5_L_IP
+
+contrastive:
+  temperature: 0.1
+  geographic_negative_exclusion_radius_m: 750.0
+  current_batch_keys: both_views_other_scenes
+  positive_pairs: [q1_k2, q2_k1]
+  same_view_positive: forbidden
+  queue_size: 8192
+  queue_order: scene_id_then_view_id
+  ema_momentum: 0.999
+  update_order: [optimizer, scheduler, ema, queue]
+
+smoke:
+  seed: 20260822
+  logical_effective_batch_scenes: 32
+  microbatch_scene_limit: 8
+  gradient_tolerance: 0.0
+  equivalence_atol: 1.0e-6
+
+execution:
+  controller: controller_gpu_02
+  requested_gpu_count: 1
+  workers: 1
+  threads: 1
+  lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
+  lock_timeout_seconds: 120
+
+output:
+  subdirectory: smoke/joint-model
+  manifest: prototype_joint_model_manifest.json
+  qc: prototype_joint_model_qc.json
+  parameters: prototype_joint_model_parameters.parquet
+  log: prototype_joint_model_smoke.jsonl

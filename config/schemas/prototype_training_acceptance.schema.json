@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/prototype-training-acceptance-1.0.0.json",
+  "type": "object",
+  "required": [
+    "schema_version", "status", "training_acceptance_id", "plan_id", "run_id",
+    "scientific_identity", "completion", "validation_history", "best_checkpoint",
+    "final_checkpoint", "exact_resume", "fresh_process_validation", "resources", "outputs"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "training_acceptance_id": {"type": "string", "pattern": "^pta_[0-9a-f]{24}$"},
+    "plan_id": {"const": "ptp_3b100622bdb733351db6e458"},
+    "run_id": {"const": "ptr_473911a4828ae5540a9d4eb9"},
+    "scientific_identity": {"type": "object"},
+    "completion": {
+      "type": "object",
+      "required": ["epochs_completed", "optimizer_steps", "training_scene_consumptions", "termination", "additional_optimizer_steps"],
+      "properties": {
+        "epochs_completed": {"const": 55},
+        "optimizer_steps": {"const": 440},
+        "training_scene_consumptions": {"const": 14080},
+        "termination": {"const": "early_stopping"},
+        "additional_optimizer_steps": {"const": 0}
+      }
+    },
+    "validation_history": {
+      "type": "array", "minItems": 11, "maxItems": 11,
+      "items": {
+        "type": "object",
+        "required": ["epoch", "MRR", "HIT@1", "HIT@5", "HIT@10", "population", "embedding_digest", "retrieval_digest", "scene_ids_digest"]
+      }
+    },
+    "best_checkpoint": {"$ref": "#/$defs/checkpoint"},
+    "final_checkpoint": {"$ref": "#/$defs/checkpoint"},
+    "exact_resume": {
+      "type": "object",
+      "required": ["status", "checkpoint_step", "comparison_steps", "direct_state_digest", "replay_state_digest"],
+      "properties": {"status": {"const": "PASS"}}
+    },
+    "fresh_process_validation": {
+      "type": "object", "required": ["status", "mode", "best_epoch", "metrics", "embedding_digest", "retrieval_digest"],
+      "properties": {"status": {"const": "PASS"}}
+    },
+    "resources": {"type": "object"},
+    "outputs": {
+      "type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/output"},
+      "allOf": [
+        {"contains": {"properties": {"role": {"const": "run_completion"}}, "required": ["role"]}, "minContains": 1, "maxContains": 1},
+        {"contains": {"properties": {"role": {"const": "validation_early_stopping_history"}}, "required": ["role"]}, "minContains": 1, "maxContains": 1},
+        {"contains": {"properties": {"role": {"const": "checkpoint_catalog"}}, "required": ["role"]}, "minContains": 1, "maxContains": 1},
+        {"contains": {"properties": {"role": {"const": "publication_recovery_qc"}}, "required": ["role"]}, "minContains": 1, "maxContains": 1}
+      ]
+    }
+  },
+  "$defs": {
+    "checkpoint": {
+      "type": "object",
+      "required": ["path", "size_bytes", "sha256", "optimizer_step", "scene_consumptions", "epoch", "role"],
+      "properties": {
+        "path": {"type": "string"}, "size_bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "output": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "size_bytes", "sha256", "role"],
+      "properties": {
+        "path": {"type": "string"}, "size_bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "role": {"enum": ["run_completion", "validation_early_stopping_history", "checkpoint_catalog", "publication_recovery_qc"]}
+      }
+    }
+  },
+  "additionalProperties": true
+}

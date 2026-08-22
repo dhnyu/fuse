@@ -1,0 +1,41 @@
+schema_version: "1.0.0"
+strategy:
+  name: pytorch_distributed_data_parallel
+  backend: nccl
+  world_size: 2
+  global_effective_batch_scenes: 32
+  rank_logical_batch_scenes: 16
+  canonical_rank_order: ascending_rank_with_scene_id_order_within_rank
+  info_nce_dictionary: all_gather_current_target_keys_and_metadata
+  reconstruction: all_reduce_valid_numerator_and_count_then_global_active_modality_mean
+  ddp_loss_scale: world_size
+  update_order: [backward, gradient_clip, optimizer, scheduler, ema, canonical_queue_insert]
+numerical_equivalence:
+  finite_required: true
+  scalar_loss: {atol: 1.0e-7, rtol: 1.0e-6}
+  gradient_elementwise: {atol: 1.0e-7, rtol: 1.0e-5}
+  gradient_relative_l2_max: 1.0e-6
+  gradient_cosine_min: 0.9999999
+  parameter_after_update: {atol: 1.0e-6, rtol: 1.0e-5}
+  gradient_routing_membership_exact: true
+  ddp_repeat_exact: true
+  ddp_resume_exact: true
+execution:
+  total_dataloader_workers: 40
+  workers_per_rank: 20
+  native_threads_per_worker: 1
+  persistent_workers: true
+  pin_memory: true
+  prefetch_factor: 2
+  nccl_p2p_disable: true
+  nccl_ib_disable: true
+  lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
+  lock_timeout_seconds: 120
+acceptance:
+  minimum_measured_speedup: 1.0
+  parity_scenes: 32
+  optimizer_parity_steps: [1, 5]
+output:
+  subdirectory: distributed_joint
+  qc: distributed_joint_model_qc.json
+  manifest: distributed_joint_model_manifest.json

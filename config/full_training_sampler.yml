@@ -1,0 +1,21 @@
+schema_version: "1.0.0"
+population:
+  training_scenes: 2421
+distributed:
+  global_batch_scenes: 32
+  world_size: 2
+  rank_logical_batch_scenes: 16
+padding:
+  policy: deterministic_epoch_rotating_padding
+  scenes_per_epoch: 2432
+  padding_scenes_per_epoch: 11
+  optimizer_steps_per_epoch: 76
+  every_scene_consumed_at_least_once: true
+  rotation_key: approved_seed_epoch_stable_scene_id
+  duplicate_scene_id_negative_policy: excluded
+resume:
+  exact_state: [epoch, permutation, padding_scene_ids, logical_group_position]
+prototype:
+  training_scenes: 256
+  padding_scenes_per_epoch: 0
+forbidden: [drop_last, arbitrary_padding, reduced_final_batch]

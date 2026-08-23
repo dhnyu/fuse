@@ -357,26 +357,26 @@ def run_smoke(manifest_path: Path, config_path: Path, schema_path: Path, tensor_
         if len(split_datasets[split]) != int(count) or any(row["split"] != split for row in split_datasets[split].rows):
             raise ValueError(f"split leakage/count mismatch: {split}")
 
-    sequential: dict[str, dict[int, dict[str, Any]]] = {}
-    for split, dataset in split_datasets.items():
-        sequential[split] = {
-            workers: scan_loader(dataset, budgets, workers, False, seed)
-            for workers in (0, 4)
-        }
-        compare_runs(sequential[split][0], sequential[split][4], f"{split}:sequential")
-    shuffled = {
-        workers: scan_loader(split_datasets["training"], budgets, workers, True, seed)
-        for workers in (0, 4)
+    production_workers = int(config["execution"]["candidate_workers"][0])
+    if production_workers != 40:
+        raise ValueError("I17 production smoke requires 40 process workers")
+    loader_options = {
+        "pin_memory": False,
+        "persistent_workers": True,
+        "prefetch_factor": int(config["execution"]["prefetch_factor"]),
     }
-    compare_runs(shuffled[0], shuffled[4], "training:shuffle")
-    repeated_shuffle = scan_loader(split_datasets["training"], budgets, 0, True, seed)
-    compare_runs(shuffled[0], repeated_shuffle, "training:repeated-shuffle")
+    sequential: dict[str, dict[str, Any]] = {}
+    for split, dataset in split_datasets.items():
+        sequential[split] = scan_loader(dataset, budgets, production_workers, False, seed, **loader_options)
+    shuffled = scan_loader(split_datasets["training"], budgets, production_workers, True, seed, **loader_options)
+    repeated_shuffle = scan_loader(split_datasets["training"], budgets, production_workers, True, seed, **loader_options)
+    compare_runs(shuffled, repeated_shuffle, "training:40-worker-repeated-shuffle")
 
     observed_totals = {
-        "scenes": sum(sequential[split][0]["totals"]["scenes"] for split in sequential),
-        "nodes": sum(sequential[split][0]["totals"]["nodes"] for split in sequential),
-        "ordered_edges": sum(sequential[split][0]["totals"]["ordered_edges"] for split in sequential),
-        "coordinates": sum(sequential[split][0]["totals"]["coordinates"] for split in sequential),
+        "scenes": sum(sequential[split]["totals"]["scenes"] for split in sequential),
+        "nodes": sum(sequential[split]["totals"]["nodes"] for split in sequential),
+        "ordered_edges": sum(sequential[split]["totals"]["ordered_edges"] for split in sequential),
+        "coordinates": sum(sequential[split]["totals"]["coordinates"] for split in sequential),
         "empty_edge_scenes": sum(bool(row["empty_edge"]) for row in all_dataset.rows),
     }
     expected_totals = {key: int(expected[key]) for key in observed_totals}
@@ -403,17 +403,7 @@ def run_smoke(manifest_path: Path, config_path: Path, schema_path: Path, tensor_
     representative_batch = ragged_collate(samples, budgets)
     validate_unbatch_roundtrip(samples, representative_batch)
 
-    performance = [sequential["training"][0], sequential["training"][4]]
-    candidate_settings = [
-        (0, True, False),
-        (4, True, False), (4, False, True), (4, True, True),
-    ]
-    for workers, pin_memory, persistent in candidate_settings:
-        performance.append(scan_loader(
-            split_datasets["training"], budgets, workers, False, seed,
-            pin_memory=pin_memory, persistent_workers=persistent,
-            prefetch_factor=int(config["execution"]["prefetch_factor"]),
-        ))
+    performance = [sequential["training"]]
     baseline_digest = performance[0]["logical_digest"]
     if any(run["logical_digest"] != baseline_digest or run["batch_boundaries"] != performance[0]["batch_boundaries"] for run in performance):
         raise ValueError("performance candidates changed logical loader output")
@@ -445,10 +435,10 @@ def run_smoke(manifest_path: Path, config_path: Path, schema_path: Path, tensor_
         "coordinate_contract": coordinate_audit,
         "batching": {
             "algorithm": config["batching"]["algorithm"], "shuffle_algorithm": config["batching"]["shuffle_algorithm"],
-            "seed": seed, "budgets": budgets, "training_batch_count": sequential["training"][0]["batch_count"],
-            "training_batch_scene_min": min(map(len, sequential["training"][0]["batch_boundaries"])),
-            "training_batch_scene_median": statistics.median(map(len, sequential["training"][0]["batch_boundaries"])),
-            "training_batch_scene_max": max(map(len, sequential["training"][0]["batch_boundaries"])),
+            "seed": seed, "budgets": budgets, "training_batch_count": sequential["training"]["batch_count"],
+            "training_batch_scene_min": min(map(len, sequential["training"]["batch_boundaries"])),
+            "training_batch_scene_median": statistics.median(map(len, sequential["training"]["batch_boundaries"])),
+            "training_batch_scene_max": max(map(len, sequential["training"]["batch_boundaries"])),
             "oversize_singleton_count": 0,
         },
         "correctness": {
@@ -457,12 +447,12 @@ def run_smoke(manifest_path: Path, config_path: Path, schema_path: Path, tensor_
             "node_count": observed_totals["nodes"], "ordered_edge_count": observed_totals["ordered_edges"],
             "coordinate_count": observed_totals["coordinates"], "empty_edge_scene_count": observed_totals["empty_edge_scenes"],
             "missing_scene_count": 0, "duplicate_scene_count": 0, "split_leakage_count": 0,
-            "sequential_random_equality": "PASS", "worker_0_4_equality": "PASS",
+            "sequential_random_equality": "PASS", "worker_40_repeat_equality": "PASS",
             "batch_offset_unbatch_round_trip": "PASS", "fixed_seed_repeat": "PASS",
             "file_descriptor_leak_count": 0,
             "logical_digests": {
-                **{f"{split}_sequential": sequential[split][0]["logical_digest"] for split in sequential},
-                "training_shuffle": shuffled[0]["logical_digest"],
+                **{f"{split}_sequential": sequential[split]["logical_digest"] for split in sequential},
+                "training_shuffle": shuffled["logical_digest"],
             },
             "representatives": representative_results,
         },

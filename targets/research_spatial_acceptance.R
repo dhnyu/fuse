@@ -12,6 +12,7 @@ list_research_spatial_acceptance <- list(
       prototype_vector_observation_shard = prototype_vector_observation_shard,
       prototype_raster_observation_shard = prototype_raster_observation_shard,
       prototype_relation_shard = prototype_relation_shard,
+      prototype_runtime_inputs = prototype_runtime_inputs,
       methodology_contract = methodology_contract,
       spatial_acceptance_contract_files = spatial_acceptance_contract_files,
       workers = 1L,

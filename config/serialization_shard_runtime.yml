@@ -1,4 +1,4 @@
-controller: controller_10
+controller: controller_40
 workers: 1
 threads_per_worker: 1
 gpu: 0

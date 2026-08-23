@@ -66,6 +66,20 @@ def worker_execute(task: tuple[str, int]) -> tuple[dict[str, Any], float]:
     return result, time.perf_counter() - before
 
 
+def worker_geometry_counts(scene_id: str) -> tuple[str, int, dict[int, list[int]]]:
+    if _WORKER_DATASET is None:
+        raise RuntimeError("geometry-threshold worker was not initialized")
+    sample = _WORKER_DATASET.get_by_scene_id(scene_id)
+    offsets = sample["geometry"]["entity_coordinate_offsets"]
+    types = sample["entities"]["entity_type"]
+    counts: dict[int, list[int]] = {0: [], 1: []}
+    for row in range(len(types)):
+        code = int(types[row])
+        if code in counts:
+            counts[code].append(int(offsets[row + 1] - offsets[row]))
+    return scene_id, len(types), counts
+
+
 def run_process_campaign(tasks: list[tuple[str, int]], workers: int, accepted_path: Path,
                          tensor_contract: str, config: dict[str, Any], thresholds: dict[int, float],
                          epoch: int) -> list[tuple[dict[str, Any], float]]:
@@ -149,18 +163,21 @@ def load_resources(manifest: dict[str, Any]) -> AugmentationResources:
     return AugmentationResources(normalizations, masks, missing)
 
 
-def geometry_thresholds(dataset: AcceptedPrototypeDataset) -> tuple[dict[int, float], str]:
+def geometry_thresholds(dataset: AcceptedPrototypeDataset, accepted_path: Path, tensor_contract: str,
+                        config: dict[str, Any], workers: int) -> tuple[dict[int, float], str]:
     counts = {0: [], 1: []}
     evidence = []
-    for position in range(len(dataset)):
-        sample = dataset[position]
-        offsets = sample["geometry"]["entity_coordinate_offsets"]
-        types = sample["entities"]["entity_type"]
-        for row in range(len(types)):
-            code = int(types[row])
-            if code in counts:
-                counts[code].append(int(offsets[row + 1] - offsets[row]))
-        evidence.append((sample["scene_id"], len(types)))
+    scene_ids = sorted(row["scene_id"] for row in dataset.rows)
+    context = get_context("spawn")
+    with ProcessPoolExecutor(
+        max_workers=workers, mp_context=context, initializer=initialize_worker,
+        initargs=(str(accepted_path), tensor_contract, config, {}, 0),
+    ) as pool:
+        results = list(pool.map(worker_geometry_counts, scene_ids, chunksize=1))
+    for scene_id, entity_count, scene_counts in sorted(results):
+        evidence.append((scene_id, entity_count))
+        for code in counts:
+            counts[code].extend(scene_counts[code])
     thresholds = {code: float(np.quantile(values, 0.90, method="linear")) for code, values in counts.items()}
     return thresholds, logical_digest({"population": evidence, "counts": counts, "quantile": 0.90})
 
@@ -197,11 +214,13 @@ def select_scenes(dataset: AcceptedPrototypeDataset, dataloader_result: dict[str
 
 def adversarial_scene_subset(dataset: AcceptedPrototypeDataset, dataloader_result: dict[str, Any],
                              first_results: list[dict[str, Any]]) -> list[str]:
-    known = [
+    available = {row["scene_id"] for row in dataset.rows}
+    historical_regressions = [
         "scn_3e1fb01511497ec3fd8e984b", "scn_6db492fed1b26a915e27759a",
         "scn_aa160d43b2f2411038ace102", "scn_3943062e027f61a18ae5cda2",
         "scn_62344300076ce1f87edff43f", "scn_1f40aa20639e2b32c602b8f6",
     ]
+    known = [scene_id for scene_id in historical_regressions if scene_id in available]
     representatives = dataloader_result["correctness"]["representatives"]
     known.extend(representatives[key]["scene_id"] for key in ("maximum_node", "maximum_edge", "geometry_heavy", "empty_edge"))
     topology_rank: list[tuple[int, int, str]] = []
@@ -225,6 +244,7 @@ def adversarial_scene_subset(dataset: AcceptedPrototypeDataset, dataloader_resul
     known.extend([max(topology_rank)[2], max(multipart_rank)[1], max(boundary_rank)[1]])
     fallback = max(first_results, key=lambda result: (result["statistics"]["fallbacks"], result["scene_id"]))
     known.append(fallback["scene_id"])
+    known.extend(select_scenes(dataset, dataloader_result, 16))
     unique: list[str] = []
     for scene_id in known:
         if scene_id not in unique:
@@ -258,14 +278,16 @@ def main() -> None:
     training_dataset = AcceptedPrototypeDataset(accepted_path, args.tensor_contract, split="training")
     dataset = AcceptedPrototypeDataset(accepted_path, args.tensor_contract, split=None)
     resources = load_resources(accepted)
-    thresholds, threshold_population_digest = geometry_thresholds(training_dataset)
+    worker_count = int(config["benchmark"]["worker_counts"][0])
+    thresholds, threshold_population_digest = geometry_thresholds(
+        training_dataset, accepted_path, args.tensor_contract, config, worker_count
+    )
     scene_ids = sorted(select_scenes(dataset, loader, int(config["benchmark"]["prototype_scene_count"])))
     fixtures = contract_fixtures()
 
     epoch = int(config["benchmark"]["epoch"])
     views = [int(value) for value in config["benchmark"]["views"]]
     tasks = [(scene_id, view) for scene_id in scene_ids for view in sorted(views)]
-    worker_count = int(config["benchmark"]["worker_counts"][0])
     first = canonical_results(run_process_campaign(
         tasks, worker_count, accepted_path, args.tensor_contract, config, thresholds, epoch
     ))

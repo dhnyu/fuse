@@ -46,7 +46,7 @@ validate_membership_config <- function(scientific, runtime) {
     building_touch = c(scientific$predicates$building$boundary_only_contact, "exclude"),
     road_touch = c(scientific$predicates$road$boundary_only_contact, "exclude"),
     poi_touch = c(scientific$predicates$poi$boundary_only_contact, "include"),
-    controller = c(runtime$controller, "controller_20"),
+    controller = c(runtime$controller, "controller_40"),
     workers = c(runtime$branch_workers, 1),
     threads = c(runtime$threads_per_worker, 1)
   )
@@ -433,6 +433,7 @@ validate_membership_table <- function(value, spec, entity_type) {
 }
 
 build_prototype_membership_shard <- function(prototype_membership_plan, study_data_inputs,
+                                             prototype_runtime_inputs,
                                              membership_contract_files,
                                              workers = 1L, threads = 1L) {
   fuse_parallel_spec(workers, threads)
@@ -448,7 +449,10 @@ build_prototype_membership_shard <- function(prototype_membership_plan, study_da
   result <- withCallingHandlers({
     scenes <- membership_scene_sf(spec)
     roles <- c("building", "road", "poi")
-    candidates <- setNames(lapply(roles, function(role) read_membership_candidates(spec$sources[[role]], scenes)), roles)
+    runtime_sources <- setNames(lapply(roles, function(role) {
+      runtime_source_record(spec$sources[[role]], prototype_runtime_inputs, role)
+    }), roles)
+    candidates <- setNames(lapply(roles, function(role) read_membership_candidates(runtime_sources[[role]], scenes)), roles)
     geometry_counts <- Map(validate_membership_candidates, candidates, roles, MoreArgs = list(geometry_policy = config$scientific$geometry_policy))
     tables <- Map(exact_membership_pairs, MoreArgs = list(scenes = scenes, spec = spec), entities = candidates, role = roles)
     names(tables) <- roles
@@ -505,7 +509,7 @@ build_prototype_membership_shard <- function(prototype_membership_plan, study_da
           implementation_source_hash = config$implementation_source_hash
         ),
         execution = list(
-          controller = "controller_20", workers = 1L, threads = 1L,
+          controller = "controller_40", workers = 1L, threads = 1L,
           wall_time_seconds = elapsed, max_rss_kb = proc_max_rss_kb(),
           read_bytes = io_end$read_bytes - io_start$read_bytes,
           write_bytes = io_end$write_bytes - io_start$write_bytes
@@ -658,14 +662,17 @@ build_prototype_membership_acceptance <- function(prototype_membership_plan,
     "membership_statistics_by_entity_type.parquet", "membership_statistics_by_scene.parquet",
     "shard_cost_model.parquet", "global_qc.json"
   )
-  outputs <- publish_deterministic_directory(final_dir, output_names, compare_basenames = output_names[c(2:6)], writer = function(stage) {
+  # Runtime telemetry is retained for cost calibration, but it is not part of
+  # scientific immutable reuse. Worker count and timing must not change an
+  # accepted membership dataset.
+  outputs <- publish_deterministic_directory(final_dir, output_names, compare_basenames = output_names[c(2L, 4L, 5L)], writer = function(stage) {
     plan_table <- data.table::rbindlist(lapply(specs, function(x) data.table::data.table(
       branch_id = x$branch_id, membership_dataset_id = x$membership_dataset_id,
       prototype_id = x$prototype_id, scene_index_id = x$scene_index_id,
       scene_count = length(x$scene_ids), scene_ids_json = canonical_json(x$scene_ids),
       estimated_building = x$estimated_counts$building, estimated_road = x$estimated_counts$road,
       estimated_poi = x$estimated_counts$poi, estimated_cost = x$estimated_cost,
-      spec_path = x$.path
+      spec_path = paste0("spec-", x$branch_id, ".json")
     )), use.names = TRUE)
     branch_index <- data.table::rbindlist(Map(function(x, paths) data.table::data.table(
       branch_id = x$branch_id, status = x$status_final, scene_count = x$scene_count,

@@ -1,12 +1,12 @@
 test_that("I16 aggregate acceptance contract is fixed", {
   contract <- load_training_dataset_acceptance_config(training_dataset_acceptance_contract_paths(fuse_test_root))
-  expect_equal(contract$config$identity$spatial_dataset_id, "psa_c2155cf081312a31edfdb191")
-  expect_equal(contract$config$identity$serialization_plan_id, "psp_72c5e4e5c3e4c84eb47aad85")
-  expect_equal(contract$config$identity$serialization_dataset_id, "psd_72c5e4e5c3e4c84eb47aad85")
+  expect_equal(contract$config$identity$spatial_dataset_id, "psa_319c2d2c43cdcfb31478a7d1")
+  expect_equal(contract$config$identity$serialization_plan_id, "psp_aa295747ee7814efbd1d177c")
+  expect_equal(contract$config$identity$serialization_dataset_id, "psd_aa295747ee7814efbd1d177c")
   expect_equal(contract$config$execution$controller, "controller_05")
   expect_equal(unname(unlist(contract$config$expected$split_counts)), c(256, 32, 32))
-  expect_equal(contract$config$expected$actual_payload_bytes, 429871747)
-  expect_equal(contract$config$expected$tar_bytes, 431616000)
+  expect_equal(contract$config$expected$actual_payload_bytes, 421433195)
+  expect_equal(contract$config$expected$tar_bytes, 423168000)
 })
 
 test_that("I16 Python corruption and determinism fixtures pass", {

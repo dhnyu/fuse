@@ -54,7 +54,7 @@ validate_raster_observation_config <- function(scientific, runtime) {
     dem_statistics = identical(unlist(scientific$object_level$dem$statistics), c("overlap_weighted_mean_m", "overlap_weighted_population_sd_m")),
     observed_geometry = identical(scientific$object_level$source_geometry, "I10_observed_geometry_only"),
     zarr_format = identical(as.integer(scientific$storage$zarr_format), 2L),
-    controller = identical(runtime$controller, "controller_10"),
+    controller = identical(runtime$controller, "controller_40"),
     workers = identical(as.integer(runtime$branch_workers), 1L),
     threads = identical(as.integer(runtime$threads_per_worker), 1L)
   )
@@ -575,6 +575,7 @@ raster_output_names <- function() c(
 build_prototype_raster_observation_shard <- function(prototype_observation_plan,
                                                       prototype_vector_observation_shard,
                                                       study_data_inputs,
+                                                      prototype_runtime_inputs,
                                                       raster_observation_contract_files,
                                                       workers = 1L, threads = 1L) {
   fuse_parallel_spec(workers, threads)
@@ -584,12 +585,14 @@ build_prototype_raster_observation_shard <- function(prototype_observation_plan,
   config <- load_raster_observation_config(raster_observation_contract_files)
   spec <- prototype_observation_plan
   vector <- read_i10_branch_context(spec, prototype_vector_observation_shard)
-  landcover_path <- study_raster_path(study_data_inputs, "seoul_lc.tif")
-  dem_path <- study_raster_path(study_data_inputs, "seoul_dem.tif")
+  landcover_path <- runtime_mirror_path(prototype_runtime_inputs, "landcover")
+  dem_path <- runtime_mirror_path(prototype_runtime_inputs, "dem")
   raster_records <- list(
     landcover = raster_grid_record(landcover_path, "landcover"),
     dem = raster_grid_record(dem_path, "dem")
   )
+  raster_records$landcover$path <- study_raster_path(study_data_inputs, "seoul_lc.tif")
+  raster_records$dem$path <- study_raster_path(study_data_inputs, "seoul_dem.tif")
   landcover <- terra::rast(landcover_path)
   dem <- terra::rast(dem_path)
   validate_raster_coverage(landcover, spec$scenes)
@@ -730,7 +733,7 @@ build_prototype_raster_observation_shard <- function(prototype_observation_plan,
           implementation_source_hash = config$implementation_source_hash
         ),
         execution = list(
-          controller = "controller_10", workers = 1L, threads = 1L,
+          controller = "controller_40", workers = 1L, threads = 1L,
           wall_time_seconds = elapsed, max_rss_kb = proc_max_rss_kb(),
           read_bytes = io_end$read_bytes - io_start$read_bytes, write_bytes = io_end$write_bytes - io_start$write_bytes,
           landcover_scene_seconds = lc_seconds, dem_scene_seconds = dem_seconds,

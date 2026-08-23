@@ -47,7 +47,7 @@ test_that("vector observation contract fixes clipping, A14, local IDs, and write
   expect_equal(config$scientific$attributes$building$allocation, "A14 * observed_area_m2 / source_area_m2")
   expect_equal(config$scientific$local_entity_id$type, "int32")
   expect_equal(config$scientific$writer$geoparquet_version, "1.1.0")
-  expect_equal(config$runtime$controller, "controller_10")
+  expect_equal(config$runtime$controller, "controller_40")
   expect_equal(config$runtime$branch_workers, 1)
   expect_equal(config$runtime$threads_per_worker, 1)
 })

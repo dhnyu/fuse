@@ -22,10 +22,10 @@ EXPECTED = {
     "branch_count": 51,
     "scene_count": 320,
     "split_counts": {"training": 256, "validation": 32, "evaluation": 32},
-    "node_count": 237121,
-    "ordered_edge_count": 2756444,
-    "coordinate_count": 794540,
-    "empty_edge_scene_count": 59,
+    "node_count": 227292,
+    "ordered_edge_count": 2527488,
+    "coordinate_count": 727484,
+    "empty_edge_scene_count": 62,
 }
 
 

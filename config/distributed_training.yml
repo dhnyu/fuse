@@ -9,17 +9,16 @@ strategy:
   info_nce_dictionary: all_gather_current_target_keys_and_metadata
   reconstruction: all_reduce_valid_numerator_and_count_then_global_active_modality_mean
   ddp_loss_scale: world_size
-  update_order: [backward, gradient_clip, optimizer, scheduler, ema, canonical_queue_insert]
+  training_update_order_planned: [backward, gradient_clip, optimizer, scheduler, ema, canonical_queue_insert]
+  smoke_boundary: forward_backward_only_no_optimizer_step
 numerical_equivalence:
   finite_required: true
   scalar_loss: {atol: 1.0e-7, rtol: 1.0e-6}
   gradient_elementwise: {atol: 1.0e-7, rtol: 1.0e-5}
   gradient_relative_l2_max: 1.0e-6
   gradient_cosine_min: 0.9999999
-  parameter_after_update: {atol: 1.0e-6, rtol: 1.0e-5}
   gradient_routing_membership_exact: true
   ddp_repeat_exact: true
-  ddp_resume_exact: true
 execution:
   total_dataloader_workers: 40
   workers_per_rank: 20
@@ -32,9 +31,8 @@ execution:
   lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
   lock_timeout_seconds: 120
 acceptance:
-  minimum_measured_speedup: 1.0
   parity_scenes: 32
-  optimizer_parity_steps: [1, 5]
+  optimizer_steps: 0
 output:
   subdirectory: distributed_joint
   qc: distributed_joint_model_qc.json

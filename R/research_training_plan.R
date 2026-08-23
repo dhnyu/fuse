@@ -70,6 +70,12 @@ build_prototype_training_plan <- function(prototype_training_dataset_acceptance,
   model_scientific <- model[c("dimensions", "position", "geometry", "architecture")]
   augmentation_scientific <- augmentation[c("rng", "entity_removal", "geometry", "attributes", "categorical", "raster", "relations")]
   training_scientific <- config[c("runs", "data", "optimization", "validation", "resume")]
+  # Execution semantics affect immutable run identity, while host-specific paths remain excluded.
+  execution_identity <- config$execution[c(
+    "distributed_strategy", "distributed_backend", "world_size", "workers_per_rank",
+    "rank_logical_batch_scenes", "persistent_workers", "pin_memory", "prefetch_factor",
+    "native_threads_per_worker", "process_start_method"
+  )]
   scoped_hash <- function(value) digest::digest(value, algo = "sha256", serialize = TRUE)
   scientific <- list(dataset = training_plan_record(dataset_path), loader = training_plan_record(loader_path),
                      no_op_gate = training_plan_record(gate_path), encoder = training_plan_record(encoder_path),
@@ -77,8 +83,10 @@ build_prototype_training_plan <- function(prototype_training_dataset_acceptance,
                      distributed_joint_model = training_plan_record(distributed_path),
                      model_config = model_scientific, decoder_loss_masking_config = joint_scientific,
                      augmentation_config = augmentation_scientific, training_config = training_scientific,
+                     execution_contract = execution_identity,
                      scientific_hashes = list(model = scoped_hash(model_scientific), joint = scoped_hash(joint_scientific),
-                                              augmentation = scoped_hash(augmentation_scientific), training = scoped_hash(training_scientific)),
+                                              augmentation = scoped_hash(augmentation_scientific), training = scoped_hash(training_scientific),
+                                              execution = scoped_hash(execution_identity)),
                      schema_sha256 = sha256_file(by_name[["prototype_training_plan.schema.json"]]),
                      implementation_sha256 = sha256_file(by_name[["research_training_plan.R"]]), dissertation_commit = expected$dissertation_commit)
   plan_id <- short_hash_id("ptp_", scientific)
@@ -89,14 +97,12 @@ build_prototype_training_plan <- function(prototype_training_dataset_acceptance,
   elapsed <- as.numeric(encoder$gpu_runtime$elapsed_seconds)
   representative_count <- length(encoder$smoke$representative_scenes)
   wall_upper_seconds <- elapsed / representative_count * config$resource_estimate$maximum_microbatches
-  measured_speedup <- as.numeric(distributed_manifest$execution$measured_speedup)
   resources <- list(single_gpu_float32 = FALSE, dual_gpu_float32 = TRUE,
                     distributed_strategy = config$execution$distributed_strategy,
                     requested_gpu_count = config$runs$requested_gpu_count,
                     peak_vram_bytes_per_rank = encoder$gpu_runtime$peak_allocated_bytes,
-                    measured_smoke_speedup = measured_speedup,
-                    wall_time_estimate_seconds = wall_upper_seconds / measured_speedup,
-                    wall_time_estimate_method = paste0(config$resource_estimate$wall_time_method, "_divided_by_measured_ddp_speedup"),
+                    wall_time_estimate_seconds = wall_upper_seconds,
+                    wall_time_estimate_method = config$resource_estimate$wall_time_method,
                     checkpoint_bytes_estimate = checkpoint_bytes, checkpoint_count_range = config$resource_estimate$checkpoint_count_range,
                     maximum_checkpoint_storage_bytes = checkpoint_bytes * max(unlist(config$resource_estimate$checkpoint_count_range)))
   runs <- lapply(seq_along(config$runs$seeds), function(i) {
@@ -105,7 +111,8 @@ build_prototype_training_plan <- function(prototype_training_dataset_acceptance,
                            encoder = observed$encoder_acceptance_id, augmentation = observed$augmentation_acceptance_id,
                            distributed_joint_model = observed$distributed_joint_acceptance_id,
                            execution_mode = config$runs$execution_mode, precision = config$runs$precision,
-                           scientific_hashes = scientific$scientific_hashes, training = training_scientific)
+                           scientific_hashes = scientific$scientific_hashes, training = training_scientific,
+                           execution_contract = execution_identity)
     list(plan_id = plan_id, run_id = short_hash_id("ptr_", run_scientific), run_order = i, seed = seed,
          execution_mode = config$runs$execution_mode, requested_gpu_count = config$runs$requested_gpu_count,
          preferred_gpu = NULL, precision = config$runs$precision, dataset_manifest = training_plan_record(dataset_path),

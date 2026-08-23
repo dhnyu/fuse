@@ -27,13 +27,16 @@ load_dataloader_smoke_config <- function(contract_files) {
   if (length(missing)) stop("Missing I17 contract files: ", paste(missing, collapse = ", "), call. = FALSE)
   config <- yaml::read_yaml(by_name[["dataloader_smoke.yml"]])
   expected <- list(
-    accepted = c(config$identity$accepted_dataset_id, "ptd_cee61a525ca92f1b7951c40d"),
+    accepted = c(config$identity$accepted_dataset_id, "ptd_8b3359690ea2d0bef52d63e3"),
     controller = c(config$execution$controller, "controller_05"),
     gpu = c(config$execution$gpu, 0), scenes = c(config$expected$scenes, 320),
     scale = c(config$coordinates$geometry_scale_to_m, 500)
   )
   bad <- names(expected)[vapply(expected, function(x) !identical(as.character(x[[1L]]), as.character(x[[2L]])), logical(1L))]
   if (length(bad)) stop("I17 contract mismatch: ", paste(bad, collapse = ", "), call. = FALSE)
+  if (!identical(as.integer(unlist(config$execution$candidate_workers)), 40L)) {
+    stop("I17 full-population smoke requires 40 process workers", call. = FALSE)
+  }
   list(config = config, paths = by_name)
 }
 

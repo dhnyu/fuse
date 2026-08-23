@@ -10,6 +10,21 @@ research_implementation_paths <- function(root = getwd()) {
   file.path(root, "R/research_contracts.R")
 }
 
+accepted_off_grid_source_files <- function(config_files) {
+  config <- load_research_config(config_files)
+  source <- config$scene$off_grid$source
+  paths <- c(parquet = source$parquet, manifest = source$manifest)
+  expected_sizes <- c(parquet = source$parquet_size_bytes, manifest = source$manifest_size_bytes)
+  expected_hashes <- c(parquet = source$parquet_sha256, manifest = source$manifest_sha256)
+  for (name in names(paths)) {
+    if (!file.exists(paths[[name]]) || file.info(paths[[name]])$size != expected_sizes[[name]] ||
+        !identical(sha256_file(paths[[name]]), expected_hashes[[name]])) {
+      stop("Accepted off-grid source mismatch: ", name, call. = FALSE)
+    }
+  }
+  setNames(normalizePath(paths, mustWork = TRUE), names(paths))
+}
+
 named_file_vector <- function(x) {
   unlist(x, use.names = TRUE)
 }
@@ -220,7 +235,7 @@ build_study_data_inventory <- function(study_data_inputs, research_config_files,
 validate_methodology_contract_list <- function(contract) {
   required <- c(
     "contract_schema_version", "contract_id", "scientific_hash", "input_contract",
-    "crs", "scene", "off_lattice", "retrieval", "randomness", "identifiers",
+    "crs", "scene", "off_grid", "retrieval", "randomness", "identifiers",
     "modes", "implementation"
   )
   missing <- setdiff(required, names(contract))
@@ -229,11 +244,10 @@ validate_methodology_contract_list <- function(contract) {
     processing_epsg = c(contract$crs$processing_epsg, 5186),
     official_grid_epsg = c(contract$crs$official_grid_epsg, 5179),
     width_m = c(contract$scene$width_m, 500),
-    stride_m = c(contract$scene$training_stride_m, 250),
-    validation_count = c(contract$off_lattice$validation_count, 1000),
-    evaluation_count = c(contract$off_lattice$evaluation_count, 2000),
+    validation_count = c(contract$off_grid$validation_count, 300),
+    evaluation_count = c(contract$off_grid$evaluation_count, 700),
     query_count = c(contract$retrieval$query_count, 10),
-    candidate_count = c(contract$retrieval$unrestricted_candidate_count, 1999)
+    candidate_count = c(contract$retrieval$unrestricted_candidate_count, 699)
   )
   invalid <- names(fixed)[vapply(fixed, function(pair) !identical(as.numeric(pair[[1L]]), as.numeric(pair[[2L]])), logical(1L))]
   if (length(invalid)) stop("Methodology contract fixed-value mismatch: ", paste(invalid, collapse = ", "), call. = FALSE)
@@ -264,7 +278,8 @@ validate_json_schema_file <- function(json_file, schema_file) {
 }
 
 build_methodology_contract <- function(study_data_inputs, study_data_inventory,
-                                       research_config_files, research_implementation_files,
+                                       accepted_off_grid_source, research_config_files,
+                                       research_implementation_files,
                                        workers = 1L, threads = 1L) {
   fuse_parallel_spec(workers, threads)
   state <- capture_native_thread_state()
@@ -295,23 +310,33 @@ build_methodology_contract <- function(study_data_inputs, study_data_inventory,
     crs = list(
       processing_epsg = as.integer(scene$crs$processing_epsg),
       official_grid_epsg = as.integer(scene$crs$official_grid_epsg),
-      training_lattice_constructed_in_native_crs = TRUE,
+      official_centers_transformed_to_processing_crs = TRUE,
       footprints_axis_aligned_in_processing_crs = TRUE
     ),
     scene = list(
       width_m = as.numeric(scene$scene$width_m),
-      training_stride_m = as.numeric(scene$scene$training_stride_m),
+      training_source = scene$scene$training_source,
+      official_cell_id_column = scene$scene$official_cell_id_column,
+      official_duplicate_policy = scene$scene$official_duplicate_policy,
+      footprint_construction = scene$scene$footprint_construction,
       training_center_predicate = scene$scene$training_center_predicate,
       source_buffer_m = as.numeric(scene$scene$source_buffer_m),
       boundary_scene_footprint_preserved = TRUE,
       coordinate_precision_m = as.numeric(scene$scene$coordinate_precision_m)
     ),
-    off_lattice = list(
-      validation_count = as.integer(scene$off_lattice$validation_count),
-      evaluation_count = as.integer(scene$off_lattice$evaluation_count),
-      minimum_training_center_distance_m = as.numeric(scene$off_lattice$minimum_training_center_distance_m),
-      sampling_distribution = scene$off_lattice$sampling_distribution,
-      fixed_after_generation = TRUE
+    off_grid = list(
+      validation_count = as.integer(scene$off_grid$validation_count),
+      evaluation_count = as.integer(scene$off_grid$evaluation_count),
+      minimum_training_center_distance_m = as.numeric(scene$off_grid$minimum_training_center_distance_m),
+      selection = scene$off_grid$selection,
+      selection_order = scene$off_grid$selection_order,
+      preserve_source_split = isTRUE(scene$off_grid$preserve_source_split),
+      source = list(
+        scene_index_id = scene$off_grid$source$scene_index_id,
+        files = lapply(accepted_off_grid_source, function(path) list(
+          path = path, size_bytes = unname(file.info(path)$size), sha256 = sha256_file(path)
+        ))
+      )
     ),
     retrieval = list(
       query_count = as.integer(scene$retrieval$query_count),
@@ -321,11 +346,9 @@ build_methodology_contract <- function(study_data_inputs, study_data_inventory,
       non_local_minimum_distance_m = as.numeric(scene$retrieval$non_local_minimum_distance_m)
     ),
     randomness = list(
-      rng_kind = scene$off_lattice$rng_kind,
-      normal_kind = scene$off_lattice$normal_kind,
-      sample_kind = scene$off_lattice$sample_kind,
-      off_lattice_sampling_seed = as.integer(scene$off_lattice$sampling_seed),
-      off_lattice_partition_seed = as.integer(scene$off_lattice$partition_seed),
+      rng_kind = scene$randomness$rng_kind,
+      normal_kind = scene$randomness$normal_kind,
+      sample_kind = scene$randomness$sample_kind,
       retrieval_query_seed = as.integer(scene$retrieval$query_seed),
       prototype_seed = as.integer(scene$prototype$seed),
       deterministic_draw_order = TRUE

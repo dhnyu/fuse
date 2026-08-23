@@ -2,9 +2,9 @@ schema_version: "1.0.0"
 acceptance_contract_version: "1.0.0"
 
 identity:
-  spatial_dataset_id: psa_c2155cf081312a31edfdb191
-  serialization_plan_id: psp_72c5e4e5c3e4c84eb47aad85
-  serialization_dataset_id: psd_72c5e4e5c3e4c84eb47aad85
+  spatial_dataset_id: psa_319c2d2c43cdcfb31478a7d1
+  serialization_plan_id: psp_aa295747ee7814efbd1d177c
+  serialization_dataset_id: psd_aa295747ee7814efbd1d177c
   accepted_dataset_prefix: ptd
 
 execution:
@@ -17,13 +17,13 @@ expected:
   branch_count: 51
   scene_count: 320
   split_counts: {training: 256, validation: 32, evaluation: 32}
-  node_count: 237121
-  ordered_edge_count: 2756444
-  coordinate_count: 794540
-  empty_edge_scene_count: 59
-  estimated_uncompressed_bytes: 410952111
-  actual_payload_bytes: 429871747
-  tar_bytes: 431616000
+  node_count: 227292
+  ordered_edge_count: 2527488
+  coordinate_count: 727484
+  empty_edge_scene_count: 62
+  estimated_uncompressed_bytes: 403672569
+  actual_payload_bytes: 421433195
+  tar_bytes: 423168000
 
 ordering:
   splits: [training, validation, evaluation]

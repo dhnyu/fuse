@@ -60,23 +60,40 @@ def state_digest(value: Any) -> str:
 
 class AugmentedPairDataset(Dataset):
     def __init__(self, accepted: str, tensor_contract: str, split: str, config: dict[str, Any],
-                 thresholds: dict[int, float], validation: bool = False) -> None:
-        self.base = AcceptedPrototypeDataset(accepted, tensor_contract, split=split, verify_checksums=True)
+                 thresholds: dict[int, float], validation: bool = False,
+                 archive_source_root: str | None = None, archive_runtime_root: str | None = None,
+                 persistent_archive_handles: bool = False, diagnostic_timing: bool = False) -> None:
+        self.base = AcceptedPrototypeDataset(
+            accepted, tensor_contract, split=split, verify_checksums=True,
+            archive_source_root=archive_source_root, archive_runtime_root=archive_runtime_root,
+            persistent_archive_handles=persistent_archive_handles, diagnostic_timing=diagnostic_timing,
+        )
         self.config = config
         self.resources = load_resources(self.base.manifest)
         self.thresholds = thresholds
         self.validation = validation
+        self.diagnostic_timing = diagnostic_timing
 
     def __len__(self) -> int:
         return len(self.base)
 
     def __getitem__(self, task: tuple[int, int, int]) -> dict[str, Any]:
+        started = time.perf_counter()
         position, epoch, group = map(int, task)
         sample = self.base[position]
+        base_finished = time.perf_counter()
         views = [augment_and_materialize(sample, self.config, self.resources, self.thresholds, epoch, view) for view in (0, 1)]
         if self.validation:
             views.append(augment_and_materialize(sample, self.config, self.resources, self.thresholds, 0, 0, intensity=0.0))
-        return {"views": views, "group": group, "position": position}
+        result = {"views": views, "group": group, "position": position}
+        if self.diagnostic_timing:
+            result["_diagnostic_timing"] = {
+                **sample["_diagnostic_timing"],
+                "base_observed_seconds": base_finished - started,
+                "augmentation_seconds": time.perf_counter() - base_finished,
+                "worker_total_seconds": time.perf_counter() - started,
+            }
+        return result
 
 
 class LogicalGroupSampler(Sampler[list[tuple[int, int, int]]]):
@@ -117,8 +134,9 @@ class LogicalGroupSampler(Sampler[list[tuple[int, int, int]]]):
 
 
 def collate_pairs(items: list[dict[str, Any]]) -> dict[str, Any]:
+    started = time.perf_counter()
     view_count = len(items[0]["views"])
-    return {
+    result = {
         "views": [ragged_collate([item["views"][view] for item in items]) for view in range(view_count)],
         "group": items[0]["group"], "positions": [item["position"] for item in items],
         "i19_digests": [[item["views"][view]["i19_logical_digest"] for item in items] for view in range(2)],
@@ -126,6 +144,12 @@ def collate_pairs(items: list[dict[str, Any]]) -> dict[str, Any]:
         "centers": [item["views"][0]["meta"]["center_xy_5186"] for item in items],
         "augmentation_statistics": [[item["views"][view]["augmentation_result"]["statistics"] for item in items] for view in range(2)],
     }
+    if "_diagnostic_timing" in items[0]:
+        result["_diagnostic_timing"] = {
+            "samples": [item["_diagnostic_timing"] for item in items],
+            "collate_seconds": time.perf_counter() - started,
+        }
+    return result
 
 
 def worker_init(_: int) -> None:

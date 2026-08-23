@@ -73,15 +73,18 @@ run_prototype_training <- function(prototype_training_plan, prototype_training_c
   if (!identical(as.integer(workers), 40L) || !identical(as.integer(threads), 1L)) {
     stop("I21 requires the accepted 40-process/one-native-thread execution", call. = FALSE)
   }
-  plan <- prototype_training_plan[[1L]]
+  plan <- if (!is.null(prototype_training_plan$.path)) prototype_training_plan else prototype_training_plan[[1L]]
   run_spec_path <- normalizePath(plan$.path, mustWork = TRUE)
   run_spec <- jsonlite::read_json(run_spec_path, simplifyVector = FALSE)
-  if (!identical(run_spec$plan_id, "ptp_3b100622bdb733351db6e458") ||
-      !identical(run_spec$run_id, "ptr_473911a4828ae5540a9d4eb9")) {
-    stop("I21 received an unapproved I20 plan/run", call. = FALSE)
-  }
   files <- normalizePath(prototype_training_contract_files, mustWork = TRUE)
   by_name <- setNames(files, basename(files))
+  training_config <- yaml::read_yaml(by_name[["prototype_training.yml"]])
+  if (!identical(run_spec$plan_id, training_config$identity$plan_id) ||
+      !identical(run_spec$run_id, training_config$identity$run_id) ||
+      !identical(run_spec$joint_model_manifest$path |> basename(), "prototype_joint_model_manifest.json") ||
+      !identical(run_spec$distributed_joint_model_manifest$path |> basename(), "distributed_joint_model_manifest.json")) {
+    stop("I21 received an unapproved I20 plan/run", call. = FALSE)
+  }
   args <- c(by_name[["run_prototype_training_ddp_locked.py"]],
             "--run-spec", run_spec_path,
             "--training-config", by_name[["prototype_training.yml"]],
@@ -100,4 +103,27 @@ run_prototype_training <- function(prototype_training_plan, prototype_training_c
   result <- tryCatch(jsonlite::fromJSON(tail(output, 1L), simplifyVector = FALSE), error = function(error) NULL)
   if (is.null(result) || !identical(result$status, "PASS")) stop("I21 returned invalid acceptance output", call. = FALSE)
   normalizePath(unlist(result$output_files, use.names = FALSE), mustWork = TRUE)
+}
+
+validate_prototype_training_outputs <- function(prototype_training_plan, prototype_training,
+                                                prototype_training_contract_files,
+                                                workers = 1L, threads = 1L) {
+  if (!identical(as.integer(workers), 1L) || !identical(as.integer(threads), 1L)) {
+    stop("I22 validation requires one CPU worker/thread", call. = FALSE)
+  }
+  plan <- prototype_training_plan[[1L]]
+  run_spec <- jsonlite::read_json(normalizePath(plan$.path, mustWork = TRUE), simplifyVector = FALSE)
+  files <- normalizePath(unlist(prototype_training, use.names = FALSE), mustWork = TRUE)
+  manifest_path <- files[basename(files) == "prototype_training_acceptance_manifest.json"]
+  if (length(manifest_path) != 1L) stop("I22 training manifest is not unique", call. = FALSE)
+  manifest <- jsonlite::read_json(manifest_path, simplifyVector = FALSE)
+  if (!identical(manifest$status, "PASS") ||
+      !identical(manifest$plan_id, run_spec$plan_id) ||
+      !identical(manifest$run_id, run_spec$run_id) ||
+      !identical(manifest$resources$optimizer_step_performed, TRUE) ||
+      !identical(manifest$resources$worker_count, 40L) ||
+      as.integer(manifest$completion$optimizer_steps) < 1L) {
+    stop("I22 training output contract failed", call. = FALSE)
+  }
+  normalizePath(files, mustWork = TRUE)
 }

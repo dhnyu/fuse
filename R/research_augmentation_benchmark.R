@@ -75,7 +75,7 @@ load_augmentation_benchmark_config <- function(contract_files) {
   config <- yaml::read_yaml(by_name[["augmentation.yml"]])
   expected <- list(
     version = c(config$augmentation_contract_version, "1.0.0"),
-    dissertation = c(config$dissertation_commit, "0a251da679ef0e65967cca5e24e6b276988e28db"),
+    dissertation = c(config$dissertation_commit, "87990db83f2b30200cc2d64dc160cb41f691e0e7"),
     continuous = c(config$attributes$geometry_independent_continuous$status, "disabled_no_eligible_fields"),
     gaussian = c(config$attributes$geometry_independent_continuous$gaussian_perturbation, "forbidden"),
     lane_probability = c(config$attributes$road_lanes$probability, 0.10),

@@ -1,10 +1,10 @@
 schema_version: "1.0.0"
 identity:
-  plan_id: ptp_3b100622bdb733351db6e458
-  run_id: ptr_473911a4828ae5540a9d4eb9
-  joint_model_acceptance_id: pjm_056c0d32b223808fd8dabc75
-  distributed_joint_acceptance_id: pjd_13aff4a58d3d6022ee2dd62f
-  dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
+  plan_id: ptp_19ce115adab48c4ff737a44d
+  run_id: ptr_35743175250eaa556102185c
+  joint_model_acceptance_id: pjm_0dbf194eb2fd469781a220d1
+  distributed_joint_acceptance_id: pjd_8f3798ffaf37c115b6448165
+  dissertation_commit: 87990db83f2b30200cc2d64dc160cb41f691e0e7
 preflight:
   controlled_resume_checkpoint_step: 1
   controlled_resume_comparison_steps: 1
@@ -21,9 +21,12 @@ execution:
   strategy: pytorch_distributed_data_parallel
   persistent_workers: true
   pin_memory: true
-  prefetch_factor: 2
+  prefetch_factor: 4
   native_threads_per_worker: 1
   process_start_method: spawn
+  archive_source_root: /mnt/hdd002/dhnyu/fusedata/training_data/v1/prototype/pro_b77dc79d854800dbe5a82e42/serialization/psd_aa295747ee7814efbd1d177c
+  archive_runtime_root: /members/dhnyu/fuse_runtime_mirror/official-grid-prototype-v2/i21-diagnostic-input/psd_aa295747ee7814efbd1d177c
+  archive_runtime_identity: excluded_execution_only
   telemetry_interval_seconds: 60
   gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
   gpu_lock_timeout_seconds: 120

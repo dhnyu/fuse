@@ -37,9 +37,9 @@ run_prototype_joint_model_smoke <- function(
   paths <- normalizePath(joint_model_smoke_contract_files, mustWork = TRUE)
   by_name <- setNames(paths, basename(paths))
   config <- yaml::read_yaml(by_name[["joint_model.yml"]])
-  expected <- list(dataset = "ptd_cee61a525ca92f1b7951c40d", loader = "pdl_4037d275d729c82ea9b19d97",
-                   encoder = "pea_5784252434798d9dfa05d796", augmentation = "paa_8d73a94e574dcdbc5c5106d2",
-                   gate = "pgr_fb3209bda9fb0fa9a0e15bd1")
+  expected <- list(dataset = "ptd_8b3359690ea2d0bef52d63e3", loader = "pdl_361072e3519a91d0aefc9bb9",
+                   encoder = "pea_bb192d9b73c6189d36c452fa", augmentation = "paa_f561eea03b05c47375b7198e",
+                   gate = "pgr_60bc6b2cbd0864272308d18e")
   observed <- list(dataset = config$identity$accepted_dataset_id, loader = config$identity$dataloader_smoke_id,
                    encoder = config$identity$encoder_acceptance_id, augmentation = config$identity$augmentation_acceptance_id,
                    gate = config$identity$no_op_gate_id)

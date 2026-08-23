@@ -44,8 +44,8 @@ class PrototypeTrainingAcceptanceRecoveryTest(unittest.TestCase):
         return {
             "schema_version": "1.0.0", "status": "PASS",
             "training_acceptance_id": "pta_" + "0" * 24,
-            "plan_id": "ptp_3b100622bdb733351db6e458",
-            "run_id": "ptr_473911a4828ae5540a9d4eb9",
+            "plan_id": "ptp_19ce115adab48c4ff737a44d",
+            "run_id": "ptr_35743175250eaa556102185c",
             "scientific_identity": {},
             "completion": {"epochs_completed": 55, "optimizer_steps": 440,
                            "training_scene_consumptions": 14080, "termination": "early_stopping",
@@ -62,7 +62,12 @@ class PrototypeTrainingAcceptanceRecoveryTest(unittest.TestCase):
                              "direct_state_digest": "x", "replay_state_digest": "x"},
             "fresh_process_validation": {"status": "PASS", "mode": "fixture", "best_epoch": 5,
                                          "metrics": {}, "embedding_digest": "a", "retrieval_digest": "b"},
-            "resources": {}, "outputs": self.output_records(),
+            "resources": {"optimizer_step_performed": True, "world_size": 2,
+                          "worker_count": 40, "workers_per_rank": 20},
+            "outputs": [
+                {"relative_path": "prototype_training_qc.json", "size_bytes": 1, "sha256": "2" * 64},
+                {"relative_path": "validation_history.json", "size_bytes": 1, "sha256": "3" * 64},
+            ],
         }
 
     def test_schema_accepts_current_and_rejects_old_plan_run(self):

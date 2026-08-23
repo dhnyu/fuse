@@ -6,7 +6,10 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import tarfile
+import time
+from collections import OrderedDict
 from functools import partial
 from collections.abc import Iterator, Sequence
 from pathlib import Path
@@ -31,6 +34,12 @@ RESOURCE_COLUMNS = {
     "coordinates": "coordinate_count",
     "actual_payload_bytes": "actual_payload_bytes",
 }
+
+
+def initialize_loader_worker(_: int) -> None:
+    for name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        os.environ[name] = "1"
+    torch.set_num_threads(1)
 
 
 def read_json(path: str | Path) -> Any:
@@ -110,6 +119,11 @@ class AcceptedPrototypeDataset(Dataset):
         tensor_contract: str | Path,
         split: str | None = None,
         verify_checksums: bool = True,
+        archive_source_root: str | Path | None = None,
+        archive_runtime_root: str | Path | None = None,
+        persistent_archive_handles: bool = False,
+        archive_handle_limit: int = 8,
+        diagnostic_timing: bool = False,
     ) -> None:
         self.manifest_path = Path(accepted_manifest).resolve()
         self.root = self.manifest_path.parent
@@ -154,10 +168,58 @@ class AcceptedPrototypeDataset(Dataset):
         if split is not None and split not in self.dataset_index["splits"]:
             raise ValueError(f"unknown split: {split}")
         self.split = split
+        if (archive_source_root is None) != (archive_runtime_root is None):
+            raise ValueError("archive source/runtime roots must be supplied together")
+        self.archive_source_root = Path(archive_source_root).resolve() if archive_source_root is not None else None
+        self.archive_runtime_root = Path(archive_runtime_root).resolve() if archive_runtime_root is not None else None
+        self.persistent_archive_handles = bool(persistent_archive_handles)
+        self.archive_handle_limit = int(archive_handle_limit)
+        if self.archive_handle_limit < 1:
+            raise ValueError("archive_handle_limit must be positive")
+        self.diagnostic_timing = bool(diagnostic_timing)
+        self._archive_handles: OrderedDict[str, Any] = OrderedDict()
         self.rows = [row for row in all_rows if split is None or row["split"] == split]
         self.scene_to_position = {row["scene_id"]: index for index, row in enumerate(self.rows)}
         self._index_entries: dict[tuple[str, str], dict[str, Any]] = {}
         self._load_archive_indexes(verify_checksums)
+
+    def __getstate__(self) -> dict[str, Any]:
+        state = self.__dict__.copy()
+        state["_archive_handles"] = OrderedDict()
+        return state
+
+    def __del__(self) -> None:
+        for stream in getattr(self, "_archive_handles", {}).values():
+            try:
+                stream.close()
+            except Exception:
+                pass
+
+    def _runtime_archive_path(self, authoritative_path: str | Path) -> Path:
+        path = Path(authoritative_path).resolve()
+        if self.archive_source_root is None:
+            return path
+        try:
+            relative = path.relative_to(self.archive_source_root)
+        except ValueError as error:
+            raise ValueError(f"archive is outside the authoritative serialization root: {path}") from error
+        runtime_path = self.archive_runtime_root / relative
+        if not runtime_path.is_file():
+            raise ValueError(f"runtime archive mirror is incomplete: {runtime_path}")
+        return runtime_path
+
+    def _archive_stream(self, path: Path) -> tuple[Any, bool]:
+        key = str(path)
+        stream = self._archive_handles.pop(key, None)
+        if stream is not None:
+            self._archive_handles[key] = stream
+            return stream, True
+        stream = path.open("rb", buffering=0)
+        self._archive_handles[key] = stream
+        while len(self._archive_handles) > self.archive_handle_limit:
+            _, expired = self._archive_handles.popitem(last=False)
+            expired.close()
+        return stream, False
 
     def _load_archive_indexes(self, verify_checksums: bool) -> None:
         by_index: dict[str, list[dict[str, Any]]] = {}
@@ -165,7 +227,7 @@ class AcceptedPrototypeDataset(Dataset):
             by_index.setdefault(row["idx_path"], []).append(row)
         verified_tar: set[str] = set()
         for idx_value, rows in sorted(by_index.items()):
-            idx_path = Path(idx_value)
+            idx_path = self._runtime_archive_path(idx_value)
             first = rows[0]
             if not idx_path.is_file():
                 raise ValueError(f"missing .idx: {idx_path}")
@@ -185,7 +247,7 @@ class AcceptedPrototypeDataset(Dataset):
                 self._index_entries[(row["idx_path"], row["scene_id"])] = entry
                 tar_path = row["tar_path"]
                 if verify_checksums and tar_path not in verified_tar:
-                    path = Path(tar_path)
+                    path = self._runtime_archive_path(tar_path)
                     if not path.is_file() or sha256_file(path) != row["tar_sha256"]:
                         raise ValueError(f"corrupted tar checksum: {path}")
                     verified_tar.add(tar_path)
@@ -271,6 +333,7 @@ class AcceptedPrototypeDataset(Dataset):
             raise ValueError(f"geometry coordinate offset terminal mismatch: {scene_id}")
 
     def __getitem__(self, position: int) -> dict[str, Any]:
+        started = time.perf_counter()
         row = self.rows[position]
         scene_id = row["scene_id"]
         entry = self._index_entries[(row["idx_path"], scene_id)]
@@ -279,9 +342,20 @@ class AcceptedPrototypeDataset(Dataset):
         if [member.get("name") for member in members] != expected_names:
             raise ValueError(f"missing/duplicate/unexpected member: {scene_id}")
         payloads: dict[str, bytes] = {}
-        with Path(row["tar_path"]).open("rb") as stream:
+        archive_path = self._runtime_archive_path(row["tar_path"])
+        opened = time.perf_counter()
+        cache_hit = False
+        if self.persistent_archive_handles:
+            stream, cache_hit = self._archive_stream(archive_path)
+            open_finished = time.perf_counter()
             for member, expected_name in zip(members, expected_names):
                 payloads[expected_name] = read_indexed_member(stream, member, expected_name)
+        else:
+            with archive_path.open("rb") as stream:
+                open_finished = time.perf_counter()
+                for member, expected_name in zip(members, expected_names):
+                    payloads[expected_name] = read_indexed_member(stream, member, expected_name)
+        read_finished = time.perf_counter()
         try:
             meta = json.loads(payloads[f"{scene_id}.meta.json"])
             groups = {
@@ -290,6 +364,7 @@ class AcceptedPrototypeDataset(Dataset):
             }
         except Exception as error:
             raise ValueError(f"corrupted scene payload: {scene_id}") from error
+        decoded = time.perf_counter()
         if meta["scene_id"] != scene_id or meta["split"] != row["split"]:
             raise ValueError(f"scene metadata split/index mismatch: {scene_id}")
         entities, geometry, edges, topology, rasters = (groups[key] for key in ("entities", "geometry", "edges", "topology", "rasters"))
@@ -321,7 +396,7 @@ class AcceptedPrototypeDataset(Dataset):
         geometry["coordinates_xy_m"] = restore_geometry_coordinates(
             geometry.pop("coordinates_xy"), self.geometry_scale_to_m
         )
-        return {
+        result = {
             "scene_id": scene_id, "split": row["split"], "global_index": int(row["global_order"]),
             "split_local_index": int(row["split_local_order"]), "meta": meta,
             "entities": entities, "geometry": geometry, "scientific_reference": scientific_reference,
@@ -336,6 +411,17 @@ class AcceptedPrototypeDataset(Dataset):
                 "crs": meta["crs"], "geometry_storage_scale_to_m": self.geometry_scale_to_m,
             },
         }
+        if self.diagnostic_timing:
+            result["_diagnostic_timing"] = {
+                "archive_open_seconds": open_finished - opened if not cache_hit else 0.0,
+                "archive_read_seconds": read_finished - open_finished,
+                "decode_seconds": decoded - read_finished,
+                "validation_seconds": time.perf_counter() - decoded,
+                "base_total_seconds": time.perf_counter() - started,
+                "archive_handle_cache_hit": int(cache_hit),
+                "archive_path": str(archive_path),
+            }
+        return result
 
 
 class DeterministicBudgetBatchSampler(Sampler[list[int]]):
@@ -560,6 +646,7 @@ def make_dataloader(
     kwargs: dict[str, Any] = {
         "dataset": dataset, "batch_sampler": sampler, "num_workers": int(workers),
         "collate_fn": partial(ragged_collate, budgets=budgets), "pin_memory": bool(pin_memory),
+        "worker_init_fn": initialize_loader_worker if workers else None,
     }
     if workers:
         kwargs.update(persistent_workers=bool(persistent_workers), prefetch_factor=int(prefetch_factor))

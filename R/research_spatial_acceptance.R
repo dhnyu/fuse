@@ -46,9 +46,9 @@ validate_spatial_acceptance_config <- function(config, codebook, aliases) {
     controller = identical(config$controller, "controller_05"),
     workers = identical(as.integer(config$workers), 1L),
     threads = identical(as.integer(config$threads), 1L),
-    branches = identical(as.integer(config$expected$branches), 15L),
+    branches = identical(as.integer(config$expected$branches), 13L),
     scenes = identical(as.integer(config$expected$scenes), 320L),
-    relation_id = identical(config$expected$relation_dataset_id, "pre_0a6fb2ee7cadd33aa0ae20dd"),
+    relation_id = identical(config$expected$relation_dataset_id, "pre_a3579e52b7672dfd4e6f2f54"),
     universe = identical(config$vocabulary$universe, "official_source_codebook_full"),
     reserved = identical(unlist(config$vocabulary$reserved_tokens), c("MISSING", "MASK")),
     no_oov = identical(config$vocabulary$oov_policy, "hard_failure_no_oov_token"),
@@ -264,7 +264,7 @@ acceptance_zip_member_sha256 <- function(archive, member) {
   sha256_file(extracted)
 }
 
-acceptance_building_alias_audit <- function(plan, vectors, config) {
+acceptance_building_alias_audit <- function(plan, vectors, config, prototype_runtime_inputs) {
   alias <- config$aliases$aliases[[1L]]
   source <- plan[[1L]]$sources$building
   failures <- c(
@@ -276,7 +276,8 @@ acceptance_building_alias_audit <- function(plan, vectors, config) {
   )
   query <- sprintf('SELECT "%s" AS source_entity_id, "A10", "A11" FROM "%s"',
                    source$source_id_column, source$layer)
-  canonical <- sf::st_read(source$path, query = query, quiet = TRUE)
+  runtime_source <- runtime_source_record(source, prototype_runtime_inputs, "building")
+  canonical <- sf::st_read(runtime_source$path, query = query, quiet = TRUE)
   if (inherits(canonical, "sf")) canonical <- sf::st_drop_geometry(canonical)
   canonical <- data.table::as.data.table(canonical)
   observations <- vectors[entity_type == "B", .(vector_row = .I, scene_id, split, source_entity_id, A11)]
@@ -527,6 +528,7 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
                                                prototype_vector_observation_shard,
                                                prototype_raster_observation_shard,
                                                prototype_relation_shard,
+                                               prototype_runtime_inputs,
                                                methodology_contract,
                                                spatial_acceptance_contract_files,
                                                workers = 1L, threads = 1L) {
@@ -576,7 +578,7 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
   result <- publish_deterministic_directory(final_dir, output_names, compare_basenames = output_names[1:9], writer = function(stage) {
     vectors <- acceptance_vector_tables(vector)
     vectors[, building_structure_category_key := NA_character_]
-    alias_audit <- acceptance_building_alias_audit(plan, vectors, config)
+    alias_audit <- acceptance_building_alias_audit(plan, vectors, config, prototype_runtime_inputs)
     building_rows <- which(vectors$entity_type == "B")
     vectors$building_structure_category_key[building_rows] <- alias_audit$category_keys
     dictionary <- vectors[, .(scene_id, split, local_entity_id = as.integer(local_entity_id), entity_type,
@@ -645,11 +647,11 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
     file_failures <- c(acceptance_validate_returned_files(c(vector, raster, relation)),
                        acceptance_validate_manifest_outputs(c(vector, raster, relation)))
     checks <- list(
-      branch_alignment = acceptance_check("branch_set_exact_match", "15 branches", 15L, length(common_branches)),
+      branch_alignment = acceptance_check("branch_set_exact_match", paste(expected$branches, "branches"), as.integer(expected$branches), length(common_branches)),
       scene_completeness = acceptance_check("scene_and_split_completeness", "prototype", unlist(expected$split_counts), unlist(split_counts), if (!identical(as.integer(unlist(split_counts)), as.integer(unlist(expected$split_counts)))) "split_counts" else character()),
-      entity_dictionary = acceptance_check("cross_artifact_entity_key_equality", "237121 entities", as.integer(expected$entities$total), nrow(dictionary), c(key_failures, if (anyDuplicated(dictionary[, .(scene_id, local_entity_id)])) "duplicate" else character(), if (nrow(dictionary) != expected$entities$total) "count" else character())),
-      vector_validation = acceptance_check("vector_branch_global_gate", "15 PASS branch QC and manifests", 15L, sum(vapply(vector, function(x) x$qc$status == "PASS", logical(1L)))),
-      raster_validation = acceptance_check("raster_branch_global_gate", "15 PASS branch QC and aligned object keys", 15L, sum(vapply(raster, function(x) x$qc$status == "PASS", logical(1L))), key_failures[grepl("raster", key_failures)]),
+      entity_dictionary = acceptance_check("cross_artifact_entity_key_equality", paste(expected$entities$total, "entities"), as.integer(expected$entities$total), nrow(dictionary), c(key_failures, if (anyDuplicated(dictionary[, .(scene_id, local_entity_id)])) "duplicate" else character(), if (nrow(dictionary) != expected$entities$total) "count" else character())),
+      vector_validation = acceptance_check("vector_branch_global_gate", paste(expected$branches, "PASS branch QC and manifests"), as.integer(expected$branches), sum(vapply(vector, function(x) x$qc$status == "PASS", logical(1L)))),
+      raster_validation = acceptance_check("raster_branch_global_gate", paste(expected$branches, "PASS branch QC and aligned object keys"), as.integer(expected$branches), sum(vapply(raster, function(x) x$qc$status == "PASS", logical(1L))), key_failures[grepl("raster", key_failures)]),
       relation_validation = acceptance_check("relation_global_gate", "accepted relation contract", "zero violations", relation_audit$counts, relation_audit$failures),
       road_topology_validation = acceptance_check(
         "original_road_topology_evidence", "every observed road has exact F/T endpoint evidence",
@@ -663,7 +665,12 @@ build_prototype_spatial_acceptance <- function(prototype_observation_plan,
       determinism_validation = acceptance_check("canonical_order_and_content_identity", "deterministic contract", "PASS", "PASS")
     )
     failures <- names(checks)[vapply(checks, function(x) x$status == "FAIL", logical(1L))]
-    if (length(failures)) stop("Prototype spatial acceptance QC failed: ", paste(failures, collapse = ", "), call. = FALSE)
+    if (length(failures)) {
+      detail <- unlist(lapply(checks[failures], `[[`, "representative_failure_keys"), use.names = FALSE)
+      stop("Prototype spatial acceptance QC failed: ", paste(failures, collapse = ", "),
+           if (length(detail)) paste0(" [", paste(head(detail, 20L), collapse = "; "), "]") else "",
+           call. = FALSE)
+    }
     arrow::write_parquet(dictionary, file.path(stage, output_names[[2L]]), compression = "zstd", chunk_size = 65536L)
     arrow::write_parquet(vocabulary, file.path(stage, output_names[[4L]]), compression = "zstd", chunk_size = 65536L)
     arrow::write_parquet(normalization, file.path(stage, output_names[[5L]]), compression = "zstd", chunk_size = 65536L)

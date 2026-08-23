@@ -53,7 +53,7 @@ validate_relation_config <- function(scientific, runtime) {
     within = identical(scientific$containment$predicate, "GEOS_strict_within"),
     intersects = identical(scientific$intersection$predicate, "GEOS_intersects"),
     con = identical(scientific$connectivity$shared_node, "same_original_F_NODE_or_T_NODE"),
-    controller = identical(runtime$controller, "controller_10"),
+    controller = identical(runtime$controller, "controller_40"),
     workers = identical(as.integer(runtime$branch_workers), 1L),
     threads = identical(as.integer(runtime$threads_per_worker), 1L)
   )
@@ -583,6 +583,7 @@ relation_output_names <- function() c(
 build_prototype_relation_shard <- function(prototype_observation_plan,
                                             prototype_vector_observation_shard,
                                             study_data_inputs,
+                                            prototype_runtime_inputs,
                                             relation_contract_files,
                                             workers = 1L, threads = 1L) {
   fuse_parallel_spec(workers, threads)
@@ -592,9 +593,9 @@ build_prototype_relation_shard <- function(prototype_observation_plan,
   config <- load_relation_config(relation_contract_files)
   spec <- prototype_observation_plan
   vector <- read_i10_branch_context(spec, prototype_vector_observation_shard)
-  road_path <- relation_road_path(study_data_inputs)
+  road_path <- runtime_mirror_path(prototype_runtime_inputs, "road")
   road_record <- list(
-    path = road_path, artifact_id = spec$sources$road$source_artifact_id,
+    path = spec$sources$road$path, artifact_id = spec$sources$road$source_artifact_id,
     sha256 = sha256_file(road_path), size_bytes = unname(file.info(road_path)$size),
     links_layer = "links", nodes_layer = "nodes"
   )
@@ -658,7 +659,7 @@ build_prototype_relation_shard <- function(prototype_observation_plan,
         clipped_endpoint_false_con_count = 0L, sn_radius_violation_count = 0L, sn_top_k_violation_count = 0L,
         inverse_complete = TRUE, symmetry_complete = TRUE, sn_distance_m = summary_numeric(sn_distance),
         execution = list(
-          controller = "controller_10", workers = 1L, threads = 1L,
+          controller = "controller_40", workers = 1L, threads = 1L,
           wall_time_seconds = as.numeric(difftime(Sys.time(), started, units = "secs")), max_rss_kb = proc_max_rss_kb(),
           read_bytes = io_end$read_bytes - io_start$read_bytes, write_bytes = io_end$write_bytes - io_start$write_bytes,
           vector_geoparquet_read_seconds = vector_read_seconds, source_topology_read_seconds = topology_read_seconds,
@@ -688,7 +689,7 @@ build_prototype_relation_shard <- function(prototype_observation_plan,
           road_topology = road_record, relation_config_hash = config$scientific_hash,
           relation_schema_hash = config$schema_hash, implementation_source_hash = config$implementation_source_hash
         ),
-        execution_contract = list(controller = "controller_10", workers = 1L, threads = 1L),
+        execution_contract = list(controller = "controller_40", workers = 1L, threads = 1L),
         scene_ids = as.list(scene_ids), scene_count = length(scene_ids),
         node_count_by_entity_type = list(
           building = sum(node_index$entity_type == "B"), road = sum(node_index$entity_type == "R"), poi = sum(node_index$entity_type == "P")

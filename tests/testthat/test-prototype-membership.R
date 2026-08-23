@@ -26,7 +26,7 @@ test_that("membership contract fixes positive-measure and closed-point predicate
   expect_equal(config$scientific$predicates$poi$rule, "covered_by_closed_scene_footprint")
   expect_equal(config$scientific$predicates$building$measure_tolerance, 0)
   expect_equal(config$scientific$predicates$road$measure_tolerance, 0)
-  expect_equal(config$runtime$controller, "controller_20")
+  expect_equal(config$runtime$controller, "controller_40")
   expect_equal(config$runtime$branch_workers, 1)
   expect_equal(config$runtime$threads_per_worker, 1)
 })
@@ -112,4 +112,11 @@ test_that("cost-balanced shard planning is deterministic and complete", {
   expect_setequal(unlist(first), seq_len(40))
   expect_identical(anyDuplicated(unlist(first)), 0L)
   expect_true(all(lengths(first) <= 12L))
+})
+
+test_that("membership immutable comparison excludes execution telemetry", {
+  body_text <- paste(deparse(body(build_prototype_membership_acceptance)), collapse = "\n")
+  expect_match(body_text, "output_names\\[c\\(2L, 4L, 5L\\)\\]", perl = TRUE)
+  expect_true(grepl('spec_path = paste0("spec-",', body_text, fixed = TRUE))
+  expect_false(grepl("compare_basenames = output_names\\[c\\(2:6\\)\\]", body_text, perl = TRUE))
 })

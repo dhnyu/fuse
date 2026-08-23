@@ -3,7 +3,7 @@ list_research_serialization_shard <- list(
     name = serialization_shard_contract_files,
     command = normalizePath(serialization_shard_contract_paths(), mustWork = TRUE),
     format = "file",
-    resources = controller_10_resources
+    resources = controller_40_resources
   ),
   targets::tar_target(
     name = prototype_serialization_shard,
@@ -15,6 +15,6 @@ list_research_serialization_shard <- list(
     ),
     pattern = map(prototype_serialization_plan),
     format = "file",
-    resources = controller_10_resources
+    resources = controller_40_resources
   )
 )

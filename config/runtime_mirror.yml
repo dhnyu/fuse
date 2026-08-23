@@ -1,0 +1,28 @@
+schema_version: "1.0.0"
+mode: required
+scientific_identity: excluded_execution_only
+source_manifest: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_data_manifest.json
+mirror_root: /members/dhnyu/fuse_runtime_mirror/official-grid-prototype-v2
+study_roles: [boundary, buffer400, building, road, poi, landcover, dem]
+additional_files:
+  official_grid_shp:
+    path: /mnt/hdd002/dhnyu/fusedata/koreaadmin/빈격자(500m).shp
+  official_grid_shx:
+    path: /mnt/hdd002/dhnyu/fusedata/koreaadmin/빈격자(500m).shx
+  official_grid_dbf:
+    path: /mnt/hdd002/dhnyu/fusedata/koreaadmin/빈격자(500m).dbf
+  official_grid_prj:
+    path: /mnt/hdd002/dhnyu/fusedata/koreaadmin/빈격자(500m).prj
+  accepted_off_grid_parquet:
+    path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/index/idx_717d7ae7a88e370a79cf9bd4/scene_index.parquet
+    size_bytes: 1909552
+    sha256: aefb9b121b6b65669b2d32082acacf5356f57a5f5d4cf100c65683a43a9dc7fd
+  accepted_off_grid_manifest:
+    path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/index/idx_717d7ae7a88e370a79cf9bd4/scene_index_manifest.json
+    size_bytes: 1912
+    sha256: 401a7c3bdf1f7f14c9c1d4913600292be76074b77820009a758c7d35e15e1c88
+activation:
+  marker: READY.json
+  atomic_directory_rename: true
+  partial_mirror_read: forbidden
+fallback: hard_failure

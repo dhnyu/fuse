@@ -35,7 +35,7 @@ test_that("raster contract fixes scene grids, overlap summaries, and column role
                c("overlap_weighted_mean_m", "overlap_weighted_population_sd_m"))
   expect_true("bbox" %in% unlist(config$scientific$vector_input_column_roles$geoparquet_auxiliary))
   expect_true("bbox" %in% unlist(config$scientific$vector_input_column_roles$explicitly_not_model_features))
-  expect_equal(config$runtime$controller, "controller_10")
+  expect_equal(config$runtime$controller, "controller_40")
   expect_equal(config$runtime$branch_workers, 1)
   expect_equal(config$runtime$threads_per_worker, 1)
 })

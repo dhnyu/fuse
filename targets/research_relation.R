@@ -11,6 +11,7 @@ list_research_relation <- list(
       prototype_observation_plan = prototype_observation_plan,
       prototype_vector_observation_shard = prototype_vector_observation_shard,
       study_data_inputs = study_data_inputs,
+      prototype_runtime_inputs = prototype_runtime_inputs,
       relation_contract_files = relation_contract_files,
       workers = 1L,
       threads = 1L
@@ -18,6 +19,6 @@ list_research_relation <- list(
     pattern = map(prototype_observation_plan, prototype_vector_observation_shard),
     iteration = "list",
     format = "file",
-    resources = controller_10_resources
+    resources = controller_40_resources
   )
 )

@@ -17,9 +17,9 @@ aliases:
     canonical_source_file: /mnt/hdd002/dhnyu/fusedata/study_data/seoul_B.gpkg
     canonical_source_sha256: 1bdd52a764a5cdb53a3e1d6c9ec6e5da15180dc5cecb28183b5d077a8aab5b4c
     verified_source_row_count: 15829
-    verified_i10_observation_count: 2630
-    verified_i10_unique_source_entity_count: 2372
-    verified_i10_scene_count: 111
-    verified_i10_split_counts: {training: 2233, validation: 214, evaluation: 183}
+    verified_i10_observation_count: 2004
+    verified_i10_unique_source_entity_count: 1838
+    verified_i10_scene_count: 104
+    verified_i10_split_counts: {training: 1471, validation: 128, evaluation: 405}
     verification_policy: canonical_A10_A11_full_audit_then_exact_stable_source_entity_id_join
     scientific_rationale: exact_source_spelling_variant_of_official_building_structure_code_12

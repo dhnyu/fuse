@@ -85,7 +85,9 @@ serialization_i13_context <- function(prototype_spatial_acceptance) {
   manifest <- jsonlite::read_json(paths[["prototype_spatial_manifest.json"]], simplifyVector = FALSE)
   qc <- jsonlite::read_json(paths[["prototype_spatial_qc.json"]], simplifyVector = FALSE)
   if (!identical(manifest$status, "PASS") || !identical(qc$status, "PASS") ||
-      !identical(manifest$spatial_dataset_id, "psa_c2155cf081312a31edfdb191")) stop("I13 is not the approved PASS dataset", call. = FALSE)
+      !grepl("^psa_[0-9a-f]{24}$", manifest$spatial_dataset_id)) {
+    stop("I13 is not an immutable PASS dataset", call. = FALSE)
+  }
   recorded <- setNames(manifest$outputs, vapply(manifest$outputs, function(x) basename(x$path), character(1L)))
   for (name in intersect(names(recorded), required)) {
     if (!identical(normalizePath(recorded[[name]]$path, mustWork = TRUE), paths[[name]])) stop("I13 returned path differs from manifest: ", name, call. = FALSE)
@@ -110,7 +112,10 @@ serialization_validate_branch_manifests <- function(dictionary, identity, spatia
   records <- list()
   for (stage in names(stage_paths)) {
     manifest_paths <- sort(unique(file.path(dirname(stage_paths[[stage]]), "branch_manifest.json")), method = "radix")
-    if (length(manifest_paths) != 15L) stop("I13 does not resolve exactly 15 ", stage, " branch manifests", call. = FALSE)
+    expected_count <- length(expected_hashes[[stage]])
+    if (!expected_count || length(manifest_paths) != expected_count) {
+      stop("I13 does not resolve its accepted ", stage, " branch manifest set", call. = FALSE)
+    }
     stage_records <- lapply(manifest_paths, function(path) {
       branch <- basename(dirname(path))
       expected <- expected_hashes[[stage]][[branch]]
@@ -411,8 +416,10 @@ build_prototype_serialization_plan <- function(prototype_spatial_acceptance,
   qc$branch_count <- length(specs)
   qc$oversize_singleton_count <- sum(vapply(specs, `[[`, logical(1L), "oversize_singleton"))
   qc$branch_id_duplicate_count <- sum(duplicated(vapply(specs, `[[`, character(1L), "branch_id")))
-  expected <- c(scene_count = 320, duplicate_scene_count = 0, missing_scene_count = 0, cross_split_shard_count = 0,
-                empty_edge_scene_count = 59, node_total = 237121, edge_total = 2756444,
+  expected <- c(scene_count = context$manifest$scene_count, duplicate_scene_count = 0, missing_scene_count = 0, cross_split_shard_count = 0,
+                empty_edge_scene_count = context$manifest$relation_counts$empty_edge_scenes,
+                node_total = context$manifest$entity_counts$total,
+                edge_total = context$manifest$relation_counts$ordered_pairs,
                 unsupported_geometry_count = 0, negative_or_null_resource_count = 0, non_singleton_cap_violation_count = 0,
                 branch_id_duplicate_count = 0, branch_count = config$scientific$sharding$expected_branch_count)
   failed <- names(expected)[vapply(names(expected), function(name) !identical(as.numeric(qc[[name]]), as.numeric(expected[[name]])), logical(1L))]

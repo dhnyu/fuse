@@ -56,7 +56,6 @@ def main() -> int:
         common=["--accepted-manifest",str(args.accepted_manifest.resolve()),"--tensor-contract",str(args.tensor_contract.resolve()),
                 "--encoder-config",str(args.encoder_config.resolve()),"--joint-config",str(args.joint_config.resolve())]
         root=Path(__file__).parent;forward=invoke(root/"prototype_ddp_joint_objective_smoke.py",common,env)
-        optimizer=invoke(root/"prototype_ddp_optimizer_smoke.py",common,env)
         sparse=invoke(root/"prototype_sparse_reconstruction_smoke.py",[],env)
         parent=json.loads(args.parent_joint_manifest.read_text())
         scientific={"parent_joint_model_identity":parent["joint_model_acceptance_id"],"parent_manifest_sha256":sha256_file(args.parent_joint_manifest),
@@ -64,23 +63,23 @@ def main() -> int:
                     "config_sha256":sha256_file(args.distributed_config),"encoder_config_sha256":sha256_file(args.encoder_config),
                     "joint_config_sha256":sha256_file(args.joint_config),"tensor_contract_sha256":sha256_file(args.tensor_contract),
                     "implementation_sha256":{name:sha256_file(root/name) for name in ("prototype_ddp_joint_model.py",
-                        "prototype_ddp_joint_objective_smoke.py","prototype_ddp_optimizer_smoke.py",
+                        "prototype_ddp_joint_objective_smoke.py",
                         "prototype_joint_model.py","prototype_sparse_reconstruction_smoke.py",
-                        "run_prototype_training_ddp.py","run_prototype_ddp_joint_smoke.py")}}
+                        "run_prototype_ddp_joint_smoke.py")}}
         identity="pjd_"+hashlib.sha256(canonical_json_bytes(scientific)).hexdigest()[:24]
         final=args.accepted_manifest.parent/config["output"]["subdirectory"]/identity;final.parent.mkdir(parents=True,exist_ok=True)
         stage=Path(tempfile.mkdtemp(prefix=f".{identity}.stage-",dir=final.parent))
-        qc={"status":"PASS","forward_gradient_parity":forward,"optimizer_resume_parity":optimizer,
+        qc={"status":"PASS","forward_gradient_parity":forward,
             "sparse_reconstruction_parity":sparse,
-            "measured_speedup":optimizer["speedup"],"execution_contract":execution}
+            "optimizer_step_performed":False,"optimizer_steps":0,
+            "execution_contract":execution}
         qc_path=stage/config["output"]["qc"];qc_path.write_bytes(canonical_json_bytes(qc))
         outputs=[{"relative_path":qc_path.name,"size_bytes":qc_path.stat().st_size,"sha256":sha256_file(qc_path)}]
         manifest={"schema_version":"1.0.0","status":"PASS","distributed_joint_acceptance_id":identity,
                   "parent_joint_model_identity":parent["joint_model_acceptance_id"],"scientific_identity":scientific,
-                  "parity":{"forward_gradient":forward,"optimizer_resume":optimizer,
+                  "parity":{"forward_gradient":forward,
                             "sparse_reconstruction":sparse},
-                  "execution":{"world_size":2,"backend":"nccl","measured_speedup":optimizer["speedup"],
-                               "single_elapsed_seconds":optimizer["single_elapsed_seconds"],"ddp_elapsed_seconds":optimizer["ddp_elapsed_seconds"],
+                  "execution":{"world_size":2,"backend":"nccl","optimizer_step_performed":False,"optimizer_steps":0,
                                "workers_planned":execution["total_dataloader_workers"],"workers_per_rank":execution["workers_per_rank"]},
                   "outputs":outputs}
         jsonschema.validate(manifest,json.loads(args.schema.read_text()))

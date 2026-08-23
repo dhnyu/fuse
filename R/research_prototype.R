@@ -84,7 +84,8 @@ validate_prototype_selection <- function(value, contract, config) {
 }
 
 build_prototype_scene_selection <- function(spatial_scene_index, study_data_inputs,
-                                            methodology_contract, research_config_files,
+                                            prototype_runtime_inputs, methodology_contract,
+                                            research_config_files,
                                             workers = 1L, threads = 1L) {
   fuse_parallel_spec(workers, threads)
   state <- capture_native_thread_state()
@@ -96,15 +97,16 @@ build_prototype_scene_selection <- function(spatial_scene_index, study_data_inpu
   )
   index_path <- artifact_path(spatial_scene_index, "scene_index.parquet")
   index_manifest_path <- artifact_path(spatial_scene_index, "scene_index_manifest.json")
-  index <- sfarrow::st_read_parquet(index_path)
+  index <- suppressWarnings(sfarrow::st_read_parquet(index_path))
   index_manifest <- jsonlite::read_json(index_manifest_path, simplifyVector = FALSE)
   inputs <- setNames(normalizePath(study_data_inputs, mustWork = TRUE), names(config$paths$inputs))
+  runtime <- runtime_mirror_role_paths(prototype_runtime_inputs)
 
   layers <- config$paths$layers
-  buildings <- read_layer_geometry(inputs[["building"]], layers$building)
-  roads <- read_layer_geometry(inputs[["road"]], layers$road_links)
-  road_nodes <- read_layer_geometry(inputs[["road"]], layers$road_nodes)
-  pois <- read_layer_geometry(inputs[["poi"]], layers$poi)
+  buildings <- read_layer_geometry(runtime[["building"]], layers$building)
+  roads <- read_layer_geometry(runtime[["road"]], layers$road_links)
+  road_nodes <- read_layer_geometry(runtime[["road"]], layers$road_nodes)
+  pois <- read_layer_geometry(runtime[["poi"]], layers$poi)
   proxy <- data.table::as.data.table(sf::st_drop_geometry(index))
   proxy[, building_intersection_proxy := intersection_proxy_counts(index, buildings)]
   rm(buildings)
@@ -119,7 +121,7 @@ build_prototype_scene_selection <- function(spatial_scene_index, study_data_inpu
   rm(road_nodes)
   gc(verbose = FALSE)
 
-  boundary <- sf::st_read(inputs[["boundary"]], layers$boundary, quiet = TRUE)
+  boundary <- sf::st_read(runtime[["boundary"]], layers$boundary, quiet = TRUE)
   centers <- sf::st_as_sf(
     proxy, coords = c("center_x_5186", "center_y_5186"), crs = 5186, remove = FALSE
   )
@@ -191,7 +193,7 @@ build_prototype_scene_selection <- function(spatial_scene_index, study_data_inpu
   )
   existing_parquet <- file.path(final_dir, output_names[[1L]])
   if (file.exists(existing_parquet)) {
-    existing <- sfarrow::st_read_parquet(existing_parquet)
+    existing <- suppressWarnings(sfarrow::st_read_parquet(existing_parquet))
     comparable <- c(
       "scene_id", "scene_footprint_id", "selection_strata",
       "building_intersection_proxy", "road_intersection_proxy", "poi_within_proxy",
@@ -204,7 +206,7 @@ build_prototype_scene_selection <- function(spatial_scene_index, study_data_inpu
   publish_bundle(final_dir, output_names, function(stage) {
     parquet <- file.path(stage, output_names[[1L]])
     write_geo_parquet(selected, parquet)
-    round_trip <- sfarrow::st_read_parquet(parquet)
+    round_trip <- suppressWarnings(sfarrow::st_read_parquet(parquet))
     if (nrow(round_trip) != 320L || sf::st_crs(round_trip)$epsg != 5186L || anyDuplicated(round_trip$scene_id)) {
       stop("Prototype GeoParquet round-trip validation failed", call. = FALSE)
     }

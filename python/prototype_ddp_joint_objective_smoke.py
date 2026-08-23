@@ -177,7 +177,8 @@ def main() -> None:
     samples=sorted(samples,key=lambda x:x["scene_id"]);packages=[]
     for rank in range(2):
         local=samples[rank*16:(rank+1)*16];packages.append({"scene_ids":[x["scene_id"] for x in local],"centers":[x["meta"]["center_xy_5186"] for x in local],"batches":[ragged_collate(local[:8]),ragged_collate(local[8:])]})
-    masks={name:next(iter(values)) for name,values in dataset.category_mask_index.items()};single=reference(packages,config,joint,masks,20260822)
+    masks={name:next(iter(values)) for name,values in dataset.category_mask_index.items()}
+    single=reference(packages,config,joint,masks,20260822)
     with tempfile.TemporaryDirectory(prefix="fuse-ddp-joint-") as directory:
         paths=[str(Path(directory)/f"rank-{r}.pt") for r in range(2)]
         for path,package in zip(paths,packages,strict=True):torch.save(package,path)
@@ -188,7 +189,7 @@ def main() -> None:
         passed=all((comparison["loss_close"],comparison["projection_exact"],not comparison["gradient_allclose_failures"],
                     not comparison["gradient_relative_l2_failures"],not comparison["gradient_cosine_failures"],
                     not comparison["gradient_routing_failures"],comparison["ema_queue_exact"],comparison["rank_state_exact"],repeat_exact))
-        print(json.dumps({"status":"PASS" if passed else "BLOCKED","comparison":comparison,"ddp_repeated_exact":repeat_exact,"single_digest":single["digest"],"ddp_digests":[x["digest"] for x in runs],"scenes":32,"rank_scenes":16,"rank_microbatches":[8,8]},sort_keys=True))
+        print(json.dumps({"status":"PASS" if passed else "BLOCKED","comparison":comparison,"ddp_repeated_exact":repeat_exact,"single_digest":single["digest"],"ddp_digests":[x["digest"] for x in runs],"scenes":32,"rank_scenes":16,"rank_microbatches":[8,8],"optimizer_step_performed":False,"optimizer_steps":0},sort_keys=True))
 
 
 if __name__=="__main__":main()

@@ -12,9 +12,9 @@
     "manifest_schema_version": {"const": "1.0.0"},
     "status": {"const": "READY"},
     "training_dataset_id": {"type": "string", "pattern": "^ptd_[0-9a-f]{24}$"},
-    "spatial_dataset_id": {"const": "psa_c2155cf081312a31edfdb191"},
-    "serialization_plan_id": {"const": "psp_72c5e4e5c3e4c84eb47aad85"},
-    "serialization_dataset_id": {"const": "psd_72c5e4e5c3e4c84eb47aad85"},
+    "spatial_dataset_id": {"const": "psa_319c2d2c43cdcfb31478a7d1"},
+    "serialization_plan_id": {"const": "psp_aa295747ee7814efbd1d177c"},
+    "serialization_dataset_id": {"const": "psd_aa295747ee7814efbd1d177c"},
     "totals": {
       "type": "object",
       "required": [

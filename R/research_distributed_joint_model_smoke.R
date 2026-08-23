@@ -5,9 +5,8 @@ distributed_joint_model_contract_paths <- function(root = getwd()) {
     "config/distributed_training.yml", "config/joint_model.yml", "config/model_architecture.yml",
     "config/serialization_shard.yml", "config/schemas/prototype_distributed_joint_model_smoke.schema.json",
     "python/prototype_ddp_joint_model.py", "python/prototype_ddp_joint_objective_smoke.py",
-    "python/prototype_ddp_optimizer_smoke.py", "python/prototype_joint_model.py",
+    "python/prototype_joint_model.py",
     "python/prototype_sparse_reconstruction_smoke.py", "python/run_prototype_ddp_joint_smoke.py",
-    "python/run_prototype_training_ddp.py",
     "R/research_distributed_joint_model_smoke.R"
   ))
 }

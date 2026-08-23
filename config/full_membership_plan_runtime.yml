@@ -2,8 +2,8 @@ schema_version: "1.0.0"
 controller: controller_05
 orchestration_workers: 1
 threads_per_worker: 1
-c02_recommended_controller: controller_20
-c02_selected_max_concurrency: 20
+c02_recommended_controller: controller_40
+c02_selected_max_concurrency: 40
 thread_environment:
   OMP_NUM_THREADS: 1
   OPENBLAS_NUM_THREADS: 1

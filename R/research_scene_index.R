@@ -66,10 +66,46 @@ square_footprints <- function(center_x, center_y, width, crs = 5186L) {
   sf::st_sfc(geometries, crs = crs)
 }
 
-derive_training_lattice <- function(boundary, grid_path, contract) {
+geometry_sha256 <- function(geometry) {
+  vapply(sf::st_as_binary(geometry, EWKB = TRUE), function(value) {
+    digest::digest(value, algo = "sha256", serialize = FALSE)
+  }, character(1L))
+}
+
+canonicalize_official_grid <- function(official, id_column) {
+  if (!id_column %in% names(official)) stop("Official grid ID column is missing", call. = FALSE)
+  ids <- as.character(official[[id_column]])
+  if (anyNA(ids) || any(!nzchar(ids))) stop("Official grid has missing cell IDs", call. = FALSE)
+  geometry_hash <- geometry_sha256(sf::st_geometry(official))
+  centers <- suppressWarnings(sf::st_centroid(sf::st_geometry(official)))
+  xy <- sf::st_coordinates(centers)
+  evidence <- data.table::data.table(
+    source_row = seq_len(nrow(official)), official_grid_id = ids,
+    geometry_sha256 = geometry_hash, center_x = xy[, "X"], center_y = xy[, "Y"]
+  )
+  inconsistent <- evidence[, .(
+    geometry_count = data.table::uniqueN(geometry_sha256),
+    center_count = data.table::uniqueN(paste(format(center_x, digits = 17), format(center_y, digits = 17)))
+  ), by = official_grid_id][geometry_count != 1L | center_count != 1L]
+  if (nrow(inconsistent)) {
+    stop("Official grid same ID has different center or geometry: ", inconsistent$official_grid_id[[1L]], call. = FALSE)
+  }
+  data.table::setorder(evidence, official_grid_id, geometry_sha256, source_row)
+  retained <- evidence[, source_row[[1L]], by = official_grid_id]$V1
+  canonical <- official[retained, c(id_column)]
+  canonical$official_grid_id <- as.character(canonical[[id_column]])
+  canonical <- canonical[order(canonical$official_grid_id, method = "radix"), ]
+  list(
+    data = canonical,
+    source_row_count = nrow(official),
+    canonical_cell_count = nrow(canonical),
+    identical_duplicate_rows_removed = nrow(official) - nrow(canonical)
+  )
+}
+
+derive_official_training_scenes <- function(boundary, grid_path, contract) {
   native_epsg <- as.integer(contract$crs$official_grid_epsg)
   processing_epsg <- as.integer(contract$crs$processing_epsg)
-  stride <- as.numeric(contract$scene$training_stride_m)
   precision <- as.numeric(contract$scene$coordinate_precision_m)
   boundary_native <- sf::st_transform(boundary, native_epsg)
   filter <- sf::st_as_text(sf::st_as_sfc(sf::st_bbox(sf::st_buffer(boundary_native, 1000))))
@@ -80,33 +116,20 @@ derive_training_lattice <- function(boundary, grid_path, contract) {
   # The Shapefile advertises EPSG:5179 through a BOUNDCRS wrapper. Coordinates
   # are already native EPSG:5179, so normalize metadata without transforming.
   suppressWarnings(sf::st_crs(official) <- sf::st_crs(native_epsg))
+  canonical <- canonicalize_official_grid(official, contract$scene$official_cell_id_column)
+  official <- canonical$data
   centers <- suppressWarnings(sf::st_centroid(sf::st_geometry(official)))
   coordinates <- sf::st_coordinates(centers)
-  phase_x <- unique(round(coordinates[, "X"] %% 500, 6L))
-  phase_y <- unique(round(coordinates[, "Y"] %% 500, 6L))
-  if (length(phase_x) != 1L || length(phase_y) != 1L) {
-    stop("Official grid has inconsistent center phases", call. = FALSE)
-  }
   widths <- vapply(sf::st_geometry(head(official, 100L)), function(geometry) diff(sf::st_bbox(geometry)[c("xmin", "xmax")]), numeric(1L))
   heights <- vapply(sf::st_geometry(head(official, 100L)), function(geometry) diff(sf::st_bbox(geometry)[c("ymin", "ymax")]), numeric(1L))
   if (any(abs(widths - 500) > 1e-8) || any(abs(heights - 500) > 1e-8)) {
     stop("Official grid cells are not 500 m squares", call. = FALSE)
   }
-  bbox <- sf::st_bbox(boundary_native)
-  x_start <- floor((bbox[["xmin"]] - phase_x) / stride) * stride + phase_x
-  y_start <- floor((bbox[["ymin"]] - phase_y) / stride) * stride + phase_y
-  x_values <- seq(x_start, bbox[["xmax"]] + stride, by = stride)
-  y_values <- seq(y_start, bbox[["ymax"]] + stride, by = stride)
-  lattice <- expand.grid(center_x_native = x_values, center_y_native = y_values)
   native_points <- sf::st_as_sf(
-    lattice, coords = c("center_x_native", "center_y_native"), crs = native_epsg, remove = FALSE
+    data.frame(center_x_native = coordinates[, "X"], center_y_native = coordinates[, "Y"],
+               official_grid_id = official$official_grid_id),
+    coords = c("center_x_native", "center_y_native"), crs = native_epsg, remove = FALSE
   )
-  parents <- sf::st_intersects(native_points, official)
-  parent_id <- vapply(parents, function(index) {
-    if (!length(index)) return(NA_character_)
-    sort(as.character(official$SPO_NO_CD[index]), method = "radix")[[1L]]
-  }, character(1L))
-  if (anyNA(parent_id)) stop("Derived lattice contains centers outside the official grid coverage", call. = FALSE)
   points <- sf::st_transform(native_points, processing_epsg)
   xy <- sf::st_coordinates(points)
   xy[, "X"] <- round_to_precision(xy[, "X"], precision)
@@ -116,97 +139,54 @@ derive_training_lattice <- function(boundary, grid_path, contract) {
     coords = c("center_x_5186", "center_y_5186"), crs = processing_epsg, remove = FALSE
   )
   retained <- lengths(sf::st_within(points, sf::st_union(boundary))) > 0L
-  lattice <- lattice[retained, , drop = FALSE]
-  lattice$center_x_5186 <- xy[retained, "X"]
-  lattice$center_y_5186 <- xy[retained, "Y"]
-  lattice$official_grid_id <- parent_id[retained]
-  lattice$lattice_col <- as.integer(round((lattice$center_x_native - phase_x) / stride))
-  lattice$lattice_row <- as.integer(round((lattice$center_y_native - phase_y) / stride))
-  lattice$phase_x_m <- lattice$center_x_native %% 500
-  lattice$phase_y_m <- lattice$center_y_native %% 500
-  list(data = lattice, phase_x_m = phase_x, phase_y_m = phase_y)
+  result <- sf::st_drop_geometry(native_points)[retained, , drop = FALSE]
+  result$center_x_5186 <- xy[retained, "X"]
+  result$center_y_5186 <- xy[retained, "Y"]
+  result$official_grid_row <- as.integer(round(result$center_y_native / 500))
+  result$official_grid_column <- as.integer(round(result$center_x_native / 500))
+  result <- result[order(result$official_grid_id, method = "radix"), , drop = FALSE]
+  list(data = result, dedup = canonical)
 }
 
-sample_off_lattice_centers <- function(boundary, training_xy, contract) {
-  settings <- contract$off_lattice
-  randomness <- contract$randomness
-  total <- as.integer(settings$validation_count + settings$evaluation_count)
-  precision <- as.numeric(contract$scene$coordinate_precision_m)
-  config <- yaml::read_yaml(artifact_path(contract$implementation$config_files |> vapply(function(x) x$path, character(1L)), "scene_construction.yml"))
-  batch_size <- as.integer(config$off_lattice$batch_size)
-  maximum_draws <- as.integer(config$off_lattice$maximum_draws)
-  bbox <- sf::st_bbox(boundary)
+select_accepted_off_grid_centers <- function(source_path, training_xy, contract) {
+  settings <- contract$off_grid
+  source <- suppressWarnings(sfarrow::st_read_parquet(source_path))
+  source <- data.table::as.data.table(sf::st_drop_geometry(source))
+  source <- source[split %in% c("validation", "evaluation")]
+  if (anyDuplicated(source$scene_id) || anyDuplicated(source[, .(center_x_5186, center_y_5186)])) {
+    stop("Accepted off-grid source contains duplicate IDs or centers", call. = FALSE)
+  }
+  source[, selection_rank__ := ifelse(is.na(sampling_order), Inf, sampling_order)]
+  source[, selection_hash__ := vapply(scene_id, function(id) {
+    digest::digest(paste("official-grid-off-grid-subset-v1", id, sep = "|"), algo = "sha256", serialize = FALSE)
+  }, character(1L))]
+  counts <- c(validation = as.integer(settings$validation_count), evaluation = as.integer(settings$evaluation_count))
+  selected <- data.table::rbindlist(lapply(names(counts), function(split_name) {
+    values <- source[split == split_name]
+    data.table::setorder(values, selection_rank__, selection_hash__, scene_id)
+    if (nrow(values) < counts[[split_name]]) stop("Accepted off-grid source split is too small", call. = FALSE)
+    values[seq_len(counts[[split_name]])]
+  }), use.names = TRUE, fill = TRUE)
   training_points <- sf::st_as_sf(
     data.frame(x = training_xy[, 1L], y = training_xy[, 2L]),
     coords = c("x", "y"), crs = contract$crs$processing_epsg
   )
-  accepted <- list()
-  accepted_count <- 0L
-  drawn <- 0L
-  seen <- new.env(hash = TRUE, parent = emptyenv())
-  with_research_rng(
-    randomness$off_lattice_sampling_seed,
-    randomness$rng_kind,
-    randomness$normal_kind,
-    randomness$sample_kind,
-    {
-      while (accepted_count < total && drawn < maximum_draws) {
-        count <- min(batch_size, maximum_draws - drawn)
-        candidate <- data.frame(
-          center_x_5186 = round_to_precision(runif(count, bbox[["xmin"]], bbox[["xmax"]]), precision),
-          center_y_5186 = round_to_precision(runif(count, bbox[["ymin"]], bbox[["ymax"]]), precision),
-          sampling_order = seq.int(drawn + 1L, drawn + count)
-        )
-        drawn <- drawn + count
-        keys <- paste(candidate$center_x_5186, candidate$center_y_5186, sep = "|")
-        unique_new <- !duplicated(keys) & !vapply(keys, exists, logical(1L), envir = seen, inherits = FALSE)
-        candidate <- candidate[unique_new, , drop = FALSE]
-        keys <- keys[unique_new]
-        if (!nrow(candidate)) next
-        points <- sf::st_as_sf(candidate, coords = c("center_x_5186", "center_y_5186"), crs = contract$crs$processing_epsg, remove = FALSE)
-        inside <- lengths(sf::st_within(points, sf::st_union(boundary))) > 0L
-        candidate <- candidate[inside, , drop = FALSE]
-        points <- points[inside, ]
-        keys <- keys[inside]
-        if (!nrow(candidate)) next
-        nearest <- sf::st_nearest_feature(points, training_points)
-        distance <- as.numeric(sf::st_distance(points, training_points[nearest, ], by_element = TRUE))
-        eligible <- distance >= as.numeric(settings$minimum_training_center_distance_m)
-        candidate <- candidate[eligible, , drop = FALSE]
-        candidate$nearest_training_center_m <- distance[eligible]
-        keys <- keys[eligible]
-        if (!nrow(candidate)) next
-        for (key in keys) assign(key, TRUE, envir = seen)
-        needed <- total - accepted_count
-        candidate <- head(candidate, needed)
-        accepted[[length(accepted) + 1L]] <- candidate
-        accepted_count <- accepted_count + nrow(candidate)
-      }
-    }
-  )
-  if (accepted_count < total) {
-    stop("Could not sample enough eligible off-lattice centers within maximum_draws", call. = FALSE)
+  points <- sf::st_as_sf(selected, coords = c("center_x_5186", "center_y_5186"), crs = 5186, remove = FALSE)
+  nearest <- sf::st_nearest_feature(points, training_points)
+  selected$nearest_training_center_m <- as.numeric(sf::st_distance(points, training_points[nearest, ], by_element = TRUE))
+  if (any(selected$nearest_training_center_m < as.numeric(settings$minimum_training_center_distance_m))) {
+    stop("Accepted off-grid subset violates the new training-center distance", call. = FALSE)
   }
-  result <- data.table::rbindlist(accepted)[seq_len(total)]
-  assignment <- with_research_rng(
-    randomness$off_lattice_partition_seed,
-    randomness$rng_kind,
-    randomness$normal_kind,
-    randomness$sample_kind,
-    sample.int(total, total, replace = FALSE)
-  )
-  result$split <- "evaluation"
-  result$split[assignment[seq_len(as.integer(settings$validation_count))]] <- "validation"
-  result$split_assignment_order <- match(seq_len(total), assignment)
-  result
+  selected[, c("selection_rank__", "selection_hash__") := NULL]
+  selected
 }
 
 scene_index_columns <- function() {
   c(
     "scene_id", "scene_footprint_id", "split", "center_x_5186", "center_y_5186",
     "xmin_5186", "ymin_5186", "xmax_5186", "ymax_5186",
-    "center_x_native", "center_y_native", "official_grid_id", "lattice_row", "lattice_col",
-    "phase_x_m", "phase_y_m", "sampling_order", "split_assignment_order",
+    "center_x_native", "center_y_native", "official_grid_id", "official_grid_row", "official_grid_column",
+    "source_scene_id", "sampling_order", "split_assignment_order",
     "nearest_training_center_m", "district_code", "is_retrieval_query",
     "retrieval_query_order", "scene_schema_version", "scene_config_hash",
     "study_manifest_hash", "geometry"
@@ -217,11 +197,11 @@ validate_scene_index <- function(index, contract, boundary, buffer) {
   width <- as.numeric(contract$scene$width_m)
   counts <- table(index$split)
   expected <- c(
-    validation = as.integer(contract$off_lattice$validation_count),
-    evaluation = as.integer(contract$off_lattice$evaluation_count)
+    validation = as.integer(contract$off_grid$validation_count),
+    evaluation = as.integer(contract$off_grid$evaluation_count)
   )
   failures <- character()
-  if (!all(expected == counts[names(expected)])) failures <- c(failures, "off_lattice_split_counts")
+  if (!all(expected == counts[names(expected)])) failures <- c(failures, "split_counts")
   if (anyDuplicated(index$scene_id)) failures <- c(failures, "duplicate_scene_id")
   if (anyDuplicated(index$scene_footprint_id)) failures <- c(failures, "duplicate_scene_footprint_id")
   if (!all(sf::st_is_valid(index))) failures <- c(failures, "invalid_footprint")
@@ -236,14 +216,18 @@ validate_scene_index <- function(index, contract, boundary, buffer) {
   if (!all(lengths(sf::st_within(centers, sf::st_union(boundary))) > 0L)) failures <- c(failures, "center_outside_boundary")
   if (!all(lengths(sf::st_covered_by(index, sf::st_union(buffer))) > 0L)) failures <- c(failures, "footprint_outside_buffer")
   training <- index$split == "training"
-  stride <- as.numeric(contract$scene$training_stride_m)
-  if (any(abs(index$center_x_native[training] / stride - round(index$center_x_native[training] / stride)) > 1e-8) ||
-      any(abs(index$center_y_native[training] / stride - round(index$center_y_native[training] / stride)) > 1e-8)) {
-    failures <- c(failures, "training_stride_alignment")
-  }
+  if (anyDuplicated(index$official_grid_id[training]) || anyNA(index$official_grid_id[training])) failures <- c(failures, "official_grid_id")
+  training_center_keys <- paste(index$center_x_5186[training], index$center_y_5186[training], sep = "|")
+  if (anyDuplicated(training_center_keys)) failures <- c(failures, "duplicate_training_center")
+  training_intersections <- sf::st_intersects(index[training, ], sparse = TRUE)
+  interior_overlap <- any(vapply(seq_along(training_intersections), function(i) {
+    peers <- training_intersections[[i]][training_intersections[[i]] > i]
+    any(vapply(peers, function(j) as.numeric(sf::st_area(sf::st_intersection(index$geometry[which(training)[i]], index$geometry[which(training)[j]]))) > 0, logical(1L)))
+  }, logical(1L)))
+  if (interior_overlap) failures <- c(failures, "training_footprint_interior_overlap")
   off <- !training
-  if (any(index$nearest_training_center_m[off] + 1e-8 < contract$off_lattice$minimum_training_center_distance_m)) {
-    failures <- c(failures, "off_lattice_distance")
+  if (any(index$nearest_training_center_m[off] < contract$off_grid$minimum_training_center_distance_m)) {
+    failures <- c(failures, "off_grid_distance")
   }
   query_count <- sum(index$is_retrieval_query)
   if (query_count != contract$retrieval$query_count) failures <- c(failures, "retrieval_query_count")
@@ -261,19 +245,23 @@ validate_scene_index <- function(index, contract, boundary, buffer) {
     footprint_width_m = width,
     centers_within_boundary = !"center_outside_boundary" %in% failures,
     footprints_covered_by_buffer = !"footprint_outside_buffer" %in% failures,
-    native_training_stride_m = stride,
-    minimum_observed_off_lattice_distance_m = min(index$nearest_training_center_m[off]),
+    canonical_official_grid_id_unique = !anyDuplicated(index$official_grid_id[training]),
+    training_center_unique = !anyDuplicated(training_center_keys),
+    training_footprint_interior_overlap_count = as.integer(interior_overlap),
+    intermediate_center_count = 0L,
+    minimum_observed_off_grid_distance_m = min(index$nearest_training_center_m[off]),
     retrieval_query_count = query_count,
     unrestricted_candidates_per_query = nrow(index[index$split == "evaluation", ]) - 1L
   )
 }
 
 write_geo_parquet <- function(value, path) {
-  sfarrow::st_write_parquet(value, path)
+  suppressWarnings(sfarrow::st_write_parquet(value, path))
   invisible(path)
 }
 
-build_spatial_scene_index <- function(study_data_inputs, methodology_contract,
+build_spatial_scene_index <- function(study_data_inputs, accepted_off_grid_source,
+                                      prototype_runtime_inputs, methodology_contract,
                                       research_config_files, workers = 1L, threads = 1L) {
   fuse_parallel_spec(workers, threads)
   state <- capture_native_thread_state()
@@ -284,20 +272,25 @@ build_spatial_scene_index <- function(study_data_inputs, methodology_contract,
   contract <- jsonlite::read_json(contract_path, simplifyVector = FALSE)
   validate_methodology_contract_list(contract)
   inputs <- setNames(normalizePath(study_data_inputs, mustWork = TRUE), names(config$paths$inputs))
-  boundary <- sf::st_read(inputs[["boundary"]], config$paths$layers$boundary, quiet = TRUE)
-  buffer <- sf::st_read(inputs[["buffer400"]], config$paths$layers$buffer400, quiet = TRUE)
-  training_result <- derive_training_lattice(boundary, inputs[["official_grid_shp"]], contract)
+  boundary <- sf::st_read(runtime_mirror_path(prototype_runtime_inputs, "boundary"), config$paths$layers$boundary, quiet = TRUE)
+  buffer <- sf::st_read(runtime_mirror_path(prototype_runtime_inputs, "buffer400"), config$paths$layers$buffer400, quiet = TRUE)
+  training_result <- derive_official_training_scenes(
+    boundary, runtime_mirror_path(prototype_runtime_inputs, "official_grid_shp"), contract
+  )
   training <- training_result$data
   training$split <- "training"
   training$sampling_order <- NA_integer_
   training$split_assignment_order <- NA_integer_
   training$nearest_training_center_m <- 0
+  training$source_scene_id <- NA_character_
 
-  off <- sample_off_lattice_centers(
-    boundary,
+  source_parquet <- runtime_mirror_path(prototype_runtime_inputs, "accepted_off_grid_parquet")
+  off <- select_accepted_off_grid_centers(
+    source_parquet,
     as.matrix(training[, c("center_x_5186", "center_y_5186")]),
     contract
   )
+  off$source_scene_id <- off$scene_id
   off_native <- sf::st_transform(
     sf::st_as_sf(off, coords = c("center_x_5186", "center_y_5186"), crs = 5186, remove = FALSE),
     contract$crs$official_grid_epsg
@@ -306,14 +299,12 @@ build_spatial_scene_index <- function(study_data_inputs, methodology_contract,
   off$center_x_native <- round_to_precision(native_xy[, "X"], contract$scene$coordinate_precision_m)
   off$center_y_native <- round_to_precision(native_xy[, "Y"], contract$scene$coordinate_precision_m)
   off$official_grid_id <- NA_character_
-  off$lattice_row <- NA_integer_
-  off$lattice_col <- NA_integer_
-  off$phase_x_m <- NA_real_
-  off$phase_y_m <- NA_real_
+  off$official_grid_row <- NA_integer_
+  off$official_grid_column <- NA_integer_
 
   columns <- c(
     "split", "center_x_5186", "center_y_5186", "center_x_native", "center_y_native",
-    "official_grid_id", "lattice_row", "lattice_col", "phase_x_m", "phase_y_m",
+    "official_grid_id", "official_grid_row", "official_grid_column", "source_scene_id",
     "sampling_order", "split_assignment_order", "nearest_training_center_m"
   )
   training_columns <- training[, columns, drop = FALSE]
@@ -373,7 +364,7 @@ build_spatial_scene_index <- function(study_data_inputs, methodology_contract,
   output_names <- c("scene_index.parquet", "scene_index_manifest.json", "scene_index_qc.json")
   existing_parquet <- file.path(final_dir, output_names[[1L]])
   if (file.exists(existing_parquet)) {
-    existing <- sfarrow::st_read_parquet(existing_parquet)
+    existing <- suppressWarnings(sfarrow::st_read_parquet(existing_parquet))
     comparable <- c("scene_id", "scene_footprint_id", "split", "is_retrieval_query", "retrieval_query_order")
     if (!identical(sf::st_drop_geometry(index)[, comparable], sf::st_drop_geometry(existing)[, comparable])) {
       stop("Determinism check failed against the existing scene index", call. = FALSE)
@@ -382,7 +373,7 @@ build_spatial_scene_index <- function(study_data_inputs, methodology_contract,
   publish_bundle(final_dir, output_names, function(stage) {
     parquet <- file.path(stage, output_names[[1L]])
     write_geo_parquet(index, parquet)
-    round_trip <- sfarrow::st_read_parquet(parquet)
+    round_trip <- suppressWarnings(sfarrow::st_read_parquet(parquet))
     if (nrow(round_trip) != nrow(index) || sf::st_crs(round_trip)$epsg != 5186L || anyDuplicated(round_trip$scene_id)) {
       stop("Scene index GeoParquet round-trip validation failed", call. = FALSE)
     }
@@ -397,9 +388,16 @@ build_spatial_scene_index <- function(study_data_inputs, methodology_contract,
       ordered_retrieval_query_scene_ids = index$scene_id[order(index$retrieval_query_order, na.last = NA)],
       official_grid = list(
         native_epsg = contract$crs$official_grid_epsg,
-        phase_x_m = training_result$phase_x_m,
-        phase_y_m = training_result$phase_y_m,
-        derived_stride_m = contract$scene$training_stride_m
+        source_row_count = training_result$dedup$source_row_count,
+        canonical_cell_count_before_boundary_filter = training_result$dedup$canonical_cell_count,
+        identical_duplicate_rows_removed = training_result$dedup$identical_duplicate_rows_removed,
+        retained_training_cells = sum(index$split == "training"),
+        intermediate_centers = 0,
+        footprint = "500m EPSG:5186 axis-aligned square around transformed official center"
+      ),
+      accepted_off_grid_source = list(
+        scene_index_id = contract$off_grid$source$scene_index_id,
+        files = contract$off_grid$source$files
       ),
       columns = scene_index_columns(),
       geometry = list(column = "geometry", type = "Polygon", epsg = 5186),

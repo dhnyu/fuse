@@ -9,7 +9,17 @@
     "parent_joint_model_identity": {"type": "string", "pattern": "^pjm_[0-9a-f]{24}$"},
     "scientific_identity": {"type": "object"},
     "parity": {"type": "object"},
-    "execution": {"type": "object"},
+    "execution": {
+      "type": "object",
+      "required": ["world_size", "workers_planned", "workers_per_rank", "optimizer_step_performed", "optimizer_steps"],
+      "properties": {
+        "world_size": {"const": 2},
+        "workers_planned": {"const": 40},
+        "workers_per_rank": {"const": 20},
+        "optimizer_step_performed": {"const": false},
+        "optimizer_steps": {"const": 0}
+      }
+    },
     "outputs": {"type": "array", "minItems": 1}
   },
   "additionalProperties": true

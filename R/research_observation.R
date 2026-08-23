@@ -47,7 +47,7 @@ validate_observation_config <- function(scientific, runtime) {
     writer = identical(scientific$writer$implementation, "python_geopandas_pyarrow"),
     geoparquet = identical(scientific$writer$geoparquet_version, "1.1.0"),
     encoding = identical(scientific$writer$geometry_encoding, "WKB"),
-    controller = identical(runtime$controller, "controller_10"),
+    controller = identical(runtime$controller, "controller_40"),
     workers = identical(as.integer(runtime$branch_workers), 1L),
     threads = identical(as.integer(runtime$threads_per_worker), 1L)
   )
@@ -70,8 +70,7 @@ set_observation_threads <- function(threads = 1L) set_membership_threads(threads
 restore_observation_threads <- function(state) restore_membership_threads(state)
 
 observation_acceptance_context <- function(prototype_membership_acceptance,
-                                           prototype_scene_selection,
-                                           expected_rows = c(B = 81693L, R = 7898L, P = 147530L)) {
+                                           prototype_scene_selection) {
   acceptance_path <- artifact_path(prototype_membership_acceptance, "aggregate_membership_manifest.json")
   qc_path <- artifact_path(prototype_membership_acceptance, "global_qc.json")
   manifest <- jsonlite::read_json(acceptance_path, simplifyVector = FALSE)
@@ -79,7 +78,8 @@ observation_acceptance_context <- function(prototype_membership_acceptance,
   if (!identical(manifest$status, "PASS") || !identical(qc$status, "PASS")) {
     stop("I08 membership acceptance is not PASS", call. = FALSE)
   }
-  if (length(manifest$branch_manifests) != 9L || length(manifest$membership_parquets) != 27L) {
+  if (!length(manifest$branch_manifests) ||
+      length(manifest$membership_parquets) != 3L * length(manifest$branch_manifests)) {
     stop("I08 membership branch or Parquet count changed", call. = FALSE)
   }
   for (path in manifest$branch_manifests) {
@@ -95,6 +95,7 @@ observation_acceptance_context <- function(prototype_membership_acceptance,
   membership <- data.table::rbindlist(tables, use.names = TRUE)
   actual <- membership[, .N, by = entity_type]
   actual_counts <- setNames(actual$N, actual$entity_type)
+  expected_rows <- unlist(qc$exact_rows)[c("B", "R", "P")]
   if (!identical(as.integer(actual_counts[names(expected_rows)]), as.integer(expected_rows))) {
     stop("I08 aggregate membership counts changed", call. = FALSE)
   }
@@ -713,6 +714,7 @@ observation_output_names <- function() c(
 build_prototype_vector_observation_shard <- function(prototype_observation_plan,
                                                      prototype_membership_acceptance,
                                                      study_data_inputs,
+                                                     prototype_runtime_inputs,
                                                      observation_contract_files,
                                                      workers = 1L, threads = 1L) {
   fuse_parallel_spec(workers, threads)
@@ -733,7 +735,8 @@ build_prototype_vector_observation_shard <- function(prototype_observation_plan,
   roles <- c(building = "B", road = "R", poi = "P")
   sources <- lapply(names(roles), function(role) {
     ids <- membership[entity_type == roles[[role]], source_entity_id]
-    read_source_entities_by_id(spec$sources[[role]], ids, observation_source_fields(config, role))
+    runtime_source <- runtime_source_record(spec$sources[[role]], prototype_runtime_inputs, role)
+    read_source_entities_by_id(runtime_source, ids, observation_source_fields(config, role))
   })
   names(sources) <- names(roles)
   observations <- lapply(names(roles), function(role) {
@@ -794,7 +797,7 @@ build_prototype_vector_observation_shard <- function(prototype_observation_plan,
           implementation_source_hash = config$implementation_source_hash
         ),
         execution = list(
-          controller = "controller_10", workers = 1L, threads = 1L,
+          controller = "controller_40", workers = 1L, threads = 1L,
           wall_time_seconds = elapsed, max_rss_kb = proc_max_rss_kb(),
           read_bytes = io_end$read_bytes - io_start$read_bytes,
           write_bytes = io_end$write_bytes - io_start$write_bytes

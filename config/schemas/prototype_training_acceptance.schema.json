@@ -11,22 +11,21 @@
     "schema_version": {"const": "1.0.0"},
     "status": {"const": "PASS"},
     "training_acceptance_id": {"type": "string", "pattern": "^pta_[0-9a-f]{24}$"},
-    "plan_id": {"const": "ptp_3b100622bdb733351db6e458"},
-    "run_id": {"const": "ptr_473911a4828ae5540a9d4eb9"},
+    "plan_id": {"const": "ptp_19ce115adab48c4ff737a44d"},
+    "run_id": {"const": "ptr_35743175250eaa556102185c"},
     "scientific_identity": {"type": "object"},
     "completion": {
       "type": "object",
-      "required": ["epochs_completed", "optimizer_steps", "training_scene_consumptions", "termination", "additional_optimizer_steps"],
+      "required": ["epochs_completed", "optimizer_steps", "training_scene_consumptions", "termination"],
       "properties": {
-        "epochs_completed": {"const": 55},
-        "optimizer_steps": {"const": 440},
-        "training_scene_consumptions": {"const": 14080},
-        "termination": {"const": "early_stopping"},
-        "additional_optimizer_steps": {"const": 0}
+        "epochs_completed": {"type": "integer", "minimum": 1, "maximum": 200},
+        "optimizer_steps": {"type": "integer", "minimum": 1, "maximum": 1600},
+        "training_scene_consumptions": {"type": "integer", "minimum": 32},
+        "termination": {"enum": ["early_stopping", "maximum_epochs"]}
       }
     },
     "validation_history": {
-      "type": "array", "minItems": 11, "maxItems": 11,
+      "type": "array", "minItems": 1, "maxItems": 40,
       "items": {
         "type": "object",
         "required": ["epoch", "MRR", "HIT@1", "HIT@5", "HIT@10", "population", "embedding_digest", "retrieval_digest", "scene_ids_digest"]
@@ -43,17 +42,17 @@
       "type": "object", "required": ["status", "mode", "best_epoch", "metrics", "embedding_digest", "retrieval_digest"],
       "properties": {"status": {"const": "PASS"}}
     },
-    "resources": {"type": "object"},
-    "outputs": {
-      "type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true,
-      "items": {"$ref": "#/$defs/output"},
-      "allOf": [
-        {"contains": {"properties": {"role": {"const": "run_completion"}}, "required": ["role"]}, "minContains": 1, "maxContains": 1},
-        {"contains": {"properties": {"role": {"const": "validation_early_stopping_history"}}, "required": ["role"]}, "minContains": 1, "maxContains": 1},
-        {"contains": {"properties": {"role": {"const": "checkpoint_catalog"}}, "required": ["role"]}, "minContains": 1, "maxContains": 1},
-        {"contains": {"properties": {"role": {"const": "publication_recovery_qc"}}, "required": ["role"]}, "minContains": 1, "maxContains": 1}
-      ]
-    }
+    "resources": {
+      "type": "object",
+      "required": ["optimizer_step_performed", "world_size", "worker_count", "workers_per_rank"],
+      "properties": {
+        "optimizer_step_performed": {"const": true},
+        "world_size": {"const": 2},
+        "worker_count": {"const": 40},
+        "workers_per_rank": {"const": 20}
+      }
+    },
+    "outputs": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"$ref": "#/$defs/output"}}
   },
   "$defs": {
     "checkpoint": {
@@ -66,11 +65,10 @@
     },
     "output": {
       "type": "object", "additionalProperties": false,
-      "required": ["path", "size_bytes", "sha256", "role"],
+      "required": ["relative_path", "size_bytes", "sha256"],
       "properties": {
-        "path": {"type": "string"}, "size_bytes": {"type": "integer", "minimum": 1},
-        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "role": {"enum": ["run_completion", "validation_early_stopping_history", "checkpoint_catalog", "publication_recovery_qc"]}
+        "relative_path": {"type": "string"}, "size_bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       }
     }
   },

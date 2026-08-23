@@ -12,6 +12,9 @@ from torch import nn
 import triangle
 
 
+_FREQUENCY_CACHE: dict[tuple[str, float, float, int, int], torch.Tensor] = {}
+
+
 def mlp(*layers: Any) -> nn.Sequential:
     return nn.Sequential(*layers)
 
@@ -95,6 +98,71 @@ def _triangle_fourier(triangles: np.ndarray, frequencies: torch.Tensor) -> torch
     return total
 
 
+def _geometry_frequencies(config: dict[str, Any], device: torch.device) -> torch.Tensor:
+    key = (
+        str(device),
+        float(config["geometry"]["minimum_radial_frequency"]),
+        float(config["geometry"]["maximum_radial_frequency"]),
+        int(config["geometry"]["radial_frequencies"]),
+        int(config["geometry"]["angular_orientations"]),
+    )
+    cached = _FREQUENCY_CACHE.get(key)
+    if cached is not None:
+        return cached
+    radial = torch.logspace(math.log10(key[1]), math.log10(key[2]), key[3], device=device)
+    theta = torch.arange(key[4], device=device) * torch.pi / key[4]
+    cached = torch.stack(((radial[:, None] * theta.cos()).flatten(), (radial[:, None] * theta.sin()).flatten()), dim=1)
+    _FREQUENCY_CACHE[key] = cached
+    return cached
+
+
+def _triangle_fourier_batched(triangles: np.ndarray, frequencies: torch.Tensor) -> torch.Tensor:
+    """Evaluate all triangles together while retaining the accepted analytic response."""
+    if len(triangles) == 0:
+        return torch.zeros(frequencies.shape[0], dtype=torch.complex64, device=frequencies.device)
+    canonical = torch.tensor([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]], device=frequencies.device)
+    target = torch.cat((canonical.T, torch.ones((1, 3), device=frequencies.device)), dim=0)
+    transforms=[]
+    for triangle_vertices in triangles:
+        tri=torch.as_tensor(triangle_vertices,dtype=torch.float32,device=frequencies.device)
+        source=torch.cat((tri.T,torch.ones((1,3),device=frequencies.device)),dim=0)
+        transforms.append(target @ torch.linalg.inv(source))
+    transform=torch.stack(transforms)
+    a, b, x0 = transform[:, 0, 0], transform[:, 0, 1], transform[:, 0, 2]
+    c, d, y0 = transform[:, 1, 0], transform[:, 1, 1], transform[:, 1, 2]
+    determinant = a * d - b * c
+    area = 1.0 / (2.0 * determinant.abs())
+    x = (b * y0 - d * x0) / determinant
+    y = (c * x0 - a * y0) / determinant
+    u, v = frequencies[:, 0].unsqueeze(0), frequencies[:, 1].unsqueeze(0)
+    determinant = determinant.unsqueeze(1)
+    phase = torch.exp(-2j * torch.pi * (u * x.unsqueeze(1) + v * y.unsqueeze(1)))
+    transformed_u = (u * d.unsqueeze(1) - v * c.unsqueeze(1)) / determinant
+    transformed_v = (v * a.unsqueeze(1) - u * b.unsqueeze(1)) / determinant
+    uv = transformed_u + transformed_v
+    epsilon = torch.finfo(torch.float32).eps * 16
+    zero_u, zero_v, zero_uv = transformed_u.abs() <= epsilon, transformed_v.abs() <= epsilon, uv.abs() <= epsilon
+    both_zero = zero_u & zero_v
+    safe_u = torch.where(zero_u, torch.ones_like(transformed_u), transformed_u)
+    safe_v = torch.where(zero_v, torch.ones_like(transformed_v), transformed_v)
+    safe_uv = torch.where(zero_uv, torch.ones_like(uv), uv)
+    base_u = torch.exp(-2j * torch.pi * transformed_u)
+    base_v = torch.exp(-2j * torch.pi * transformed_v)
+    base_uv = torch.exp(-2j * torch.pi * uv)
+    response = (transformed_u * (-base_uv) + uv * base_u - transformed_v) / (4 * torch.pi**2 * safe_u * safe_v * safe_uv)
+    response_uv = -(base_u + 2j * torch.pi * transformed_u - 1) / (4 * torch.pi**2 * safe_u**2)
+    response_v = ((2j * torch.pi * transformed_u + 1) * base_u - 1) / (4 * torch.pi**2 * safe_u**2)
+    response_u = -(base_v + 2j * torch.pi * transformed_v - 1) / (4 * torch.pi**2 * safe_v**2)
+    response = torch.where(zero_uv, response_uv, response)
+    response = torch.where(zero_v, response_v, response)
+    response = torch.where(zero_u, response_u, response)
+    response = torch.where(both_zero, area[:, None].to(torch.complex64), response / determinant.abs() * phase)
+    total=torch.zeros(frequencies.shape[0],dtype=torch.complex64,device=frequencies.device)
+    for triangle_response in response:
+        total+=triangle_response.to(torch.complex64)
+    return total
+
+
 def _ring_coordinates(geometry: dict[str, torch.Tensor], ring_index: int) -> np.ndarray:
     start = int(geometry["ring_coordinate_start"][ring_index])
     end = int(geometry["ring_coordinate_end"][ring_index])
@@ -124,19 +192,13 @@ def _triangulate_component(exterior: np.ndarray, holes: list[np.ndarray], normal
 
 
 @torch.no_grad()
-def geometry_fourier_features(batch: dict[str, Any], config: dict[str, Any], device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
+def geometry_fourier_features(batch: dict[str, Any], config: dict[str, Any], device: torch.device,
+                              implementation: str = "vectorized") -> tuple[torch.Tensor, torch.Tensor]:
     geometry = batch["geometry"]
     entity_type = batch["entities"]["entity_type"]
-    radial = torch.logspace(
-        math.log10(float(config["geometry"]["minimum_radial_frequency"])),
-        math.log10(float(config["geometry"]["maximum_radial_frequency"])),
-        int(config["geometry"]["radial_frequencies"]), device=device,
-    )
-    theta = torch.arange(int(config["geometry"]["angular_orientations"]), device=device) * torch.pi / int(config["geometry"]["angular_orientations"])
-    frequencies = torch.stack((
-        (radial[:, None] * theta.cos()[None, :]).flatten(),
-        (radial[:, None] * theta.sin()[None, :]).flatten(),
-    ), dim=1)
+    if implementation not in {"legacy", "vectorized"}:
+        raise ValueError(f"unknown geometry Fourier implementation: {implementation}")
+    frequencies = _geometry_frequencies(config, device)
     count = entity_type.numel()
     magnitude = torch.zeros((count, frequencies.shape[0]), dtype=torch.float32, device=device)
     phase = torch.zeros((count, frequencies.shape[0] * 2), dtype=torch.float32, device=device)
@@ -168,7 +230,7 @@ def geometry_fourier_features(batch: dict[str, Any], config: dict[str, Any], dev
                     _ring_coordinates(geometry, exteriors[0]),
                     [_ring_coordinates(geometry, index) for index in holes], scale,
                 )
-                response += _triangle_fourier(triangles, frequencies)
+                response += (_triangle_fourier_batched if implementation == "vectorized" else _triangle_fourier)(triangles, frequencies)
         values = response.abs()
         angles = torch.angle(response)
         magnitude[entity_index] = torch.log1p(values)

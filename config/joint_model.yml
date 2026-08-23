@@ -2,12 +2,12 @@ schema_version: "1.0.0"
 joint_model_contract_version: "1.0.0"
 
 identity:
-  accepted_dataset_id: ptd_cee61a525ca92f1b7951c40d
-  dataloader_smoke_id: pdl_4037d275d729c82ea9b19d97
-  encoder_acceptance_id: pea_5784252434798d9dfa05d796
-  augmentation_acceptance_id: paa_8d73a94e574dcdbc5c5106d2
-  no_op_gate_id: pgr_fb3209bda9fb0fa9a0e15bd1
-  dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
+  accepted_dataset_id: ptd_8b3359690ea2d0bef52d63e3
+  dataloader_smoke_id: pdl_361072e3519a91d0aefc9bb9
+  encoder_acceptance_id: pea_bb192d9b73c6189d36c452fa
+  augmentation_acceptance_id: paa_f561eea03b05c47375b7198e
+  no_op_gate_id: pgr_60bc6b2cbd0864272308d18e
+  dissertation_commit: 87990db83f2b30200cc2d64dc160cb41f691e0e7
 
 numerical_policy:
   precision: float32

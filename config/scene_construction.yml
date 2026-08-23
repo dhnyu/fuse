@@ -1,6 +1,6 @@
-contract_schema_version: "1.0.0"
-scene_schema_version: "1.0.0"
-prototype_schema_version: "1.0.0"
+contract_schema_version: "2.0.0"
+scene_schema_version: "2.0.0"
+prototype_schema_version: "2.0.0"
 
 crs:
   processing_epsg: 5186
@@ -8,31 +8,50 @@ crs:
 
 scene:
   width_m: 500
-  training_stride_m: 250
+  training_source: statistics_korea_official_500m_grid
+  official_cell_id_column: SPO_NO_CD
+  official_duplicate_policy: identical_id_center_geometry_canonical_dedup
+  footprint_construction: official_center_transformed_to_epsg5186_axis_aligned_square
   training_center_predicate: within
   source_buffer_m: 400
   coordinate_precision_m: 0.001
 
-off_lattice:
-  validation_count: 1000
-  evaluation_count: 2000
+off_grid:
+  validation_count: 300
+  evaluation_count: 700
   minimum_training_center_distance_m: 50
-  sampling_distribution: uniform_within_boundary_bbox_rejection
+  selection: deterministic_subset_of_accepted_off_grid_population
+  selection_order: source_sampling_order_then_stable_scene_id
+  preserve_source_split: true
+  source:
+    scene_index_id: idx_717d7ae7a88e370a79cf9bd4
+    parquet: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/index/idx_717d7ae7a88e370a79cf9bd4/scene_index.parquet
+    parquet_size_bytes: 1909552
+    parquet_sha256: aefb9b121b6b65669b2d32082acacf5356f57a5f5d4cf100c65683a43a9dc7fd
+    manifest: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/index/idx_717d7ae7a88e370a79cf9bd4/scene_index_manifest.json
+    manifest_size_bytes: 1912
+    manifest_sha256: 401a7c3bdf1f7f14c9c1d4913600292be76074b77820009a758c7d35e15e1c88
+
+randomness:
   rng_kind: Mersenne-Twister
   normal_kind: Inversion
   sample_kind: Rejection
-  sampling_seed: 20260821
-  partition_seed: 20260822
-  batch_size: 10000
-  maximum_draws: 100000
 
 retrieval:
   query_count: 10
   query_seed: 20260823
-  unrestricted_candidate_count: 1999
+  qualitative_population: evaluation
+  unrestricted_candidate_count: 699
   exclude_query_itself_only: true
   include_other_queries: true
   non_local_minimum_distance_m: 2000
+  augmented_source:
+    validation_scenes: 300
+    validation_query_views: 600
+    evaluation_scenes: 700
+    evaluation_query_views: 1400
+  representation_population: 700
+  downstream_population: 700
 
 ids:
   hash_algorithm: sha256

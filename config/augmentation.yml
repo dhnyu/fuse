@@ -1,6 +1,6 @@
 schema_version: "1.0.0"
 augmentation_contract_version: "1.0.0"
-dissertation_commit: 0a251da679ef0e65967cca5e24e6b276988e28db
+dissertation_commit: 87990db83f2b30200cc2d64dc160cb41f691e0e7
 
 rng:
   algorithm: numpy_pcg64

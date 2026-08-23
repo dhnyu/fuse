@@ -1,6 +1,6 @@
 schema_version: "1.0.0"
-controller: controller_10
-selected_max_concurrency: 10
+controller: controller_40
+selected_max_concurrency: 40
 branch_workers: 1
 threads_per_worker: 1
 retry:

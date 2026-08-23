@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/full-training-sampler-1.0.0.json",
+  "type": "object",
+  "required": ["schema_version", "population", "distributed", "padding", "resume", "prototype", "forbidden"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "population": {"type": "object", "properties": {"training_scenes": {"const": 2421}}, "required": ["training_scenes"]},
+    "distributed": {"type": "object", "properties": {"global_batch_scenes": {"const": 32}, "world_size": {"const": 2}, "rank_logical_batch_scenes": {"const": 16}}, "required": ["global_batch_scenes", "world_size", "rank_logical_batch_scenes"]},
+    "padding": {"type": "object", "properties": {"policy": {"const": "deterministic_epoch_rotating_padding"}, "scenes_per_epoch": {"const": 2432}, "padding_scenes_per_epoch": {"const": 11}, "optimizer_steps_per_epoch": {"const": 76}, "duplicate_scene_id_negative_policy": {"const": "excluded"}}, "required": ["policy", "scenes_per_epoch", "padding_scenes_per_epoch", "optimizer_steps_per_epoch", "duplicate_scene_id_negative_policy"]},
+    "prototype": {"type": "object", "properties": {"training_scenes": {"const": 256}, "padding_scenes_per_epoch": {"const": 0}}, "required": ["training_scenes", "padding_scenes_per_epoch"]}
+  },
+  "additionalProperties": true
+}

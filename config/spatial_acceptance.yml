@@ -6,20 +6,20 @@ workers: 1
 threads: 1
 
 expected:
-  branches: 15
+  branches: 13
   scenes: 320
   split_counts: {training: 256, validation: 32, evaluation: 32}
-  entities: {B: 81693, R: 7898, P: 147530, total: 237121}
-  relation_dataset_id: pre_0a6fb2ee7cadd33aa0ae20dd
+  entities: {B: 73862, R: 6716, P: 146714, total: 227292}
+  relation_dataset_id: pre_a3579e52b7672dfd4e6f2f54
   relation_regression:
-    ordered_pairs: 2756444
-    SN: 2539932
-    CNT: 108255
-    WIT: 108255
-    INT: 44412
-    CON: 25892
-    multi_relation_ordered_pairs: 44412
-    empty_edge_scenes: 59
+    ordered_pairs: 2527488
+    SN: 2310048
+    CNT: 108719
+    WIT: 108719
+    INT: 34712
+    CON: 21410
+    multi_relation_ordered_pairs: 34712
+    empty_edge_scenes: 62
 
 vocabulary:
   universe: official_source_codebook_full

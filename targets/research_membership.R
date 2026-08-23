@@ -1,7 +1,3 @@
-controller_20_resources <- targets::tar_resources(
-  crew = targets::tar_resources_crew(controller = "controller_20")
-)
-
 list_research_membership <- list(
   targets::tar_target(
     name = membership_contract_files,
@@ -28,6 +24,7 @@ list_research_membership <- list(
     command = build_prototype_membership_shard(
       prototype_membership_plan = prototype_membership_plan,
       study_data_inputs = study_data_inputs,
+      prototype_runtime_inputs = prototype_runtime_inputs,
       membership_contract_files = membership_contract_files,
       workers = 1L,
       threads = 1L
@@ -35,7 +32,7 @@ list_research_membership <- list(
     pattern = map(prototype_membership_plan),
     iteration = "list",
     format = "file",
-    resources = controller_20_resources
+    resources = controller_40_resources
   ),
   targets::tar_target(
     name = prototype_membership_acceptance,

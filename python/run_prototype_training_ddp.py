@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -29,6 +30,7 @@ import torch.multiprocessing as mp
 import yaml
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, Sampler
+from torch.utils.data._utils.pin_memory import pin_memory as pin_batch_memory
 
 from prototype_dataloader import canonical_json_bytes, sha256_file
 from prototype_ddp_joint_model import DistributedJointPrototypeModel
@@ -100,9 +102,30 @@ class RankLogicalGroupSampler(Sampler[list[tuple[int, int, int]]]):
     def __len__(self)->int:return len(self.batches())
 
 
-def take_local_group(loader: DataLoader) -> list[dict[str, Any]]:
+class RankSceneSampler(Sampler[tuple[int,int,int]]):
+    """Schedule scenes independently while preserving I21 microbatch boundaries."""
+    def __init__(self, grouped:RankLogicalGroupSampler)->None:self.grouped=grouped
+    def __iter__(self)->Iterator[tuple[int,int,int]]:
+        return iter([task for batch in self.grouped.batches() for task in batch])
+    def __len__(self)->int:return sum(map(len,self.grouped.batches()))
+
+
+def identity_collate(value:Any)->Any:return value
+
+
+def iter_rank_microbatches(loader:DataLoader,sampler:RankLogicalGroupSampler)->Iterator[dict[str,Any]]:
+    iterator=iter(loader)
+    for planned in sampler.batches():
+        items=[next(iterator) for _ in planned]
+        yield pin_batch_memory(collate_pairs(items))
+    try:next(iterator)
+    except StopIteration:return
+    raise RuntimeError("scene loader produced tasks beyond the accepted microbatch plan")
+
+
+def take_local_group(loader: DataLoader,sampler:RankLogicalGroupSampler) -> list[dict[str, Any]]:
     batches=[]
-    for item in loader:
+    for item in iter_rank_microbatches(loader,sampler):
         if batches and int(item["group"])!=int(batches[0]["group"]):break
         batches.append(item);count=sum(len(value["positions"]) for value in batches)
         if count==16:return batches
@@ -144,29 +167,77 @@ def global_reconstruction_counts(batches:list[list[dict[str,Any]]], geometries:l
     return result
 
 
+def _contiguous_tensors(value:Any)->Any:
+    if isinstance(value,torch.Tensor):return value.contiguous()
+    if isinstance(value,dict):return {key:_contiguous_tensors(item) for key,item in value.items()}
+    if isinstance(value,list):return [_contiguous_tensors(item) for item in value]
+    if isinstance(value,tuple):return tuple(_contiguous_tensors(item) for item in value)
+    return value
+
+
+class _CudaPhaseTimer:
+    def __init__(self,enabled:bool)->None:self.enabled=enabled;self.events:dict[str,list[tuple[Any,Any]]]=defaultdict(list)
+    def start(self)->Any:
+        if not self.enabled:return None
+        event=torch.cuda.Event(enable_timing=True);event.record();return event
+    def stop(self,name:str,start:Any)->None:
+        if not self.enabled:return
+        end=torch.cuda.Event(enable_timing=True);end.record();self.events[name].append((start,end))
+    def values(self)->dict[str,float]:
+        if not self.enabled:return {}
+        torch.cuda.synchronize()
+        return {name:sum(start.elapsed_time(end) for start,end in events)/1000.0 for name,events in self.events.items()}
+
+
 def train_group(ddp:DistributedDataParallel,model:DistributedJointPrototypeModel,cpu_batches:list[dict[str,Any]],
                 optimizer:Any,scheduler:Any,queue:dict[str,Any],spec:dict[str,Any],joint:dict[str,Any],
-                encoder:dict[str,Any],masks:dict[str,int],device:torch.device,epoch:int,perform_update:bool=True)->dict[str,Any]:
+                encoder:dict[str,Any],masks:dict[str,int],device:torch.device,epoch:int,perform_update:bool=True,
+                diagnostic_profile:bool=False,geometry_implementation:str="vectorized",async_h2d:bool=False,
+                contiguous_packing:bool=False)->dict[str,Any]:
+    cpu_timings:dict[str,float]=defaultdict(float);cuda_timer=_CudaPhaseTimer(diagnostic_profile)
+    if diagnostic_profile:torch.cuda.synchronize(device)
+    group_started=time.perf_counter();phase_started=group_started
     scene_ids,centers,index,canonical_order=gather_metadata(cpu_batches,device);batches=[];geometries=[];local_keys=[[],[]];sizes=[]
-    for item in cpu_batches:
-        pair=[device_batch(item["views"][view],device,masks) for view in (0,1)]
-        geometry_pair=[geometry_fourier_features(pair[view],encoder,device) for view in (0,1)]
+    cpu_timings["metadata_cpu_seconds"]+=time.perf_counter()-phase_started
+    transfer_stream=torch.cuda.Stream(device=device) if async_h2d else None
+    def transfer(item:dict[str,Any])->tuple[list[dict[str,Any]],Any]:
+        stream=transfer_stream or torch.cuda.current_stream(device)
+        with torch.cuda.stream(stream):
+            started=cuda_timer.start()
+            pair=[device_batch(item["views"][view],device,masks) for view in (0,1)]
+            if contiguous_packing:pair=_contiguous_tensors(pair)
+            cuda_timer.stop("h2d_seconds",started)
+            ready=torch.cuda.Event();ready.record(stream)
+        return pair,ready
+    pending=transfer(cpu_batches[0])
+    for item_index,item in enumerate(cpu_batches):
+        pair,ready=pending
+        if item_index+1<len(cpu_batches):pending=transfer(cpu_batches[item_index+1])
+        torch.cuda.current_stream(device).wait_event(ready)
+        started=cuda_timer.start()
+        geometry_pair=[geometry_fourier_features(pair[view],encoder,device,implementation=geometry_implementation) for view in (0,1)]
+        cuda_timer.stop("geometry_fourier_seconds",started)
         batches.append(pair);geometries.append(geometry_pair);sizes.append(len(pair[0]["scene_ids"]))
+        started=cuda_timer.start()
         with torch.no_grad():
             for view in (0,1):
                 local_keys[view].append(model.forward_target(pair[view],geometry_pair[view])["projection"])
+        cuda_timer.stop("target_forward_seconds",started)
+    started=cuda_timer.start()
     global_counts=global_reconstruction_counts(batches,geometries,joint,device)
     active=sum(value>0 for value in global_counts["modalities"].values())
     keys=[]
     for view in (0,1):
         local=torch.cat(local_keys[view]);gathered=[torch.empty_like(local) for _ in range(2)];dist.all_gather(gathered,local)
         combined=torch.cat(gathered);keys.append(combined[torch.tensor(canonical_order,device=device,dtype=torch.int64)])
+    cuda_timer.stop("ddp_collective_setup_seconds",started)
     all_keys=torch.cat(keys);optimizer.zero_grad(set_to_none=True);local_scene=0.0;local_ip=0.0
     calls=len(batches)*2;call_index=0
     for batch_index,(pair,geometry_pair,size) in enumerate(zip(batches,geometries,sizes,strict=True)):
         for view in (0,1):
             context=ddp.no_sync() if call_index<calls-1 else __import__("contextlib").nullcontext()
             with context:
+                started=cuda_timer.start()
                 geometry=geometry_pair[view]
                 assignments=modality_mask_assignments(pair[view],int(spec["seed"]),epoch,view,float(joint["modality_masking"]["selection_probability"]))
                 output=ddp(pair[view],geometry,assignments,int(spec["seed"]),epoch,view)
@@ -187,27 +258,39 @@ def train_group(ddp:DistributedDataParallel,model:DistributedJointPrototypeModel
                                                 if parameter.requires_grad]).sum()
                     contribution=contribution+reducer_anchor
                 if not torch.isfinite(contribution):raise ValueError("non-finite distributed training loss")
+                cuda_timer.stop("online_forward_loss_seconds",started)
+                started=cuda_timer.start()
                 (contribution*2.0).backward()
+                cuda_timer.stop("backward_ddp_seconds" if call_index==calls-1 else "backward_compute_seconds",started)
             local_scene+=float(scene_component.detach());local_ip+=float(ip_component.detach());call_index+=1
+    started=cuda_timer.start()
     invalid=[name for name,p in model.named_parameters() if p.requires_grad and (p.grad is None or not torch.isfinite(p.grad).all())]
     routing=torch.tensor([sum(p.grad is not None and bool(torch.count_nonzero(p.grad)) for p in model.parameters() if p.requires_grad)],device=device)
     routing_values=[torch.empty_like(routing) for _ in range(2)];dist.all_gather(routing_values,routing)
     if invalid or len({int(value) for value in routing_values})!=1 or int(routing)!=280:
         raise ValueError(f"distributed gradient coverage/routing failed invalid={invalid} counts={[int(x) for x in routing_values]}")
     gradient_norm=torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad],float(spec["optimizer"]["gradient_norm_clip"]))
+    gradient_digest=state_digest({name:p.grad for name,p in model.named_parameters() if p.requires_grad}) if diagnostic_profile else None
+    cuda_timer.stop("gradient_check_clip_seconds",started)
     applied_lr=float(optimizer.param_groups[0]["lr"])
     if perform_update:
-        optimizer.step();scheduler.step();model.update_target(float(spec["optimizer"]["ema_momentum"]))
-        numeric=torch.tensor([stable_integer(scene)&((1<<63)-1) for scene in scene_ids],dtype=torch.int64,device=device)
+        started=cuda_timer.start();optimizer.step();scheduler.step();cuda_timer.stop("optimizer_scheduler_seconds",started)
+        started=cuda_timer.start();model.update_target(float(spec["optimizer"]["ema_momentum"]));cuda_timer.stop("ema_seconds",started)
+        started=cuda_timer.start();numeric=torch.tensor([stable_integer(scene)&((1<<63)-1) for scene in scene_ids],dtype=torch.int64,device=device)
         values=torch.stack(keys,dim=1).reshape(64,128)
         queue["pointer"],queue["occupancy"]=enqueue(queue["values"],queue["scene_ids"],queue["centers"],queue["pointer"],queue["occupancy"],
             values,numeric.repeat_interleave(2),centers.repeat_interleave(2,0))
+        cuda_timer.stop("queue_seconds",started)
     totals=torch.tensor([local_scene,local_ip],device=device,dtype=torch.float64);dist.all_reduce(totals)
     digests=[item["i19_digests"] for item in cpu_batches];all_digests=[None,None];dist.all_gather_object(all_digests,digests)
-    return {"total_loss":float(totals[0])+float(joint["loss"]["information_preservation_weight"])*float(totals[1]),
+    result={"total_loss":float(totals[0])+float(joint["loss"]["information_preservation_weight"])*float(totals[1]),
             "scene_loss":float(totals[0]),"information_preservation_loss":float(totals[1]),
             "gradient_norm":float(gradient_norm),"learning_rate":applied_lr,"rank_microbatch_sizes":sizes,
             "augmentation_digest":state_digest(all_digests)}
+    if diagnostic_profile:
+        cuda_values=cuda_timer.values();cpu_timings["train_group_cpu_seconds"]=time.perf_counter()-group_started
+        result["diagnostic"]={"timings":{**cuda_values,**cpu_timings},"scene_ids":scene_ids,"gradient_digest":gradient_digest}
+    return result
 
 
 def sync_digest(model:Any,optimizer:Any,scheduler:Any,queue:dict[str,Any],device:torch.device)->str:
@@ -235,6 +318,8 @@ def checkpoint_payload(model:Any,optimizer:Any,scheduler:Any,queue:dict[str,Any]
         "best_checkpoint_metric_state":progress["best"],"validation_history":progress["validation"],
         "early_stopping_patience_state":progress["patience"],"optimizer_step":progress["optimizer_step"],
         "scene_consumptions":progress["scene_consumptions"],"scientific_parents":progress["parents"],
+        "epoch_timings":progress["epoch_timings"],"controlled_resume":progress["controlled_resume"],
+        "process_resumes":progress["process_resumes"],
         "run_id":progress["run_id"],"seed":progress["seed"],"schema_version":"2.0.0","world_size":2}
 
 
@@ -249,6 +334,37 @@ def restore(path:Path,model:Any,optimizer:Any,scheduler:Any,queue:dict[str,Any],
     local=state["distributed_rank_states"][rank];random.setstate(local["python_rng"]);np.random.set_state(local["numpy_rng"])
     torch.set_rng_state(local["torch_cpu_rng"]);torch.cuda.set_rng_state(local["torch_cuda_rng"])
     return state
+
+
+def checkpoint_record(path:Path,epoch:int|None=None)->dict[str,Any]:
+    state=torch.load(path,map_location="cpu",weights_only=False)
+    record={"path":str(path),"size_bytes":path.stat().st_size,"sha256":sha256_file(path),"state_digest":state_digest(state)}
+    if epoch is not None:record["epoch"]=int(epoch)
+    return record
+
+
+def reconcile_ledger(path:Path,checkpoint_step:int)->dict[str,Any]:
+    """Preserve an interrupted tail and atomically restore the checkpoint prefix."""
+    if not path.exists():
+        if checkpoint_step:raise RuntimeError(f"checkpoint step {checkpoint_step} has no ledger: {path}")
+        return {"path":str(path),"preserved_tail":None,"rows_retained":0,"rows_discarded":0}
+    lines=[line for line in path.read_bytes().splitlines() if line.strip()]
+    rows=[json.loads(line) for line in lines]
+    steps=[int(row["optimizer_step"]) for row in rows]
+    if steps!=list(range(1,len(steps)+1)):raise RuntimeError(f"non-contiguous optimizer ledger: {path}")
+    keep_count=sum(step<=checkpoint_step for step in steps)
+    if keep_count!=checkpoint_step:raise RuntimeError(f"ledger/checkpoint step mismatch: {path}")
+    preserved=None
+    if keep_count<len(lines):
+        stamp=time.strftime("%Y%m%dT%H%M%S",time.gmtime())
+        preserved=path.with_name(f"{path.name}.interrupted-{stamp}")
+        if preserved.exists():raise RuntimeError(f"resume evidence collision: {preserved}")
+        os.replace(path,preserved)
+        temporary=path.with_suffix(path.suffix+".resume.tmp")
+        temporary.write_bytes(b"\n".join(lines[:keep_count])+(b"\n" if keep_count else b""))
+        os.replace(temporary,path)
+    return {"path":str(path),"preserved_tail":str(preserved) if preserved else None,
+            "rows_retained":keep_count,"rows_discarded":len(lines)-keep_count}
 
 
 def distributed_validation(model:Any,loader:DataLoader,encoder:dict[str,Any],masks:dict[str,int],device:torch.device)->dict[str,Any]:
@@ -283,6 +399,15 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
     encoder=yaml.safe_load(Path(args.encoder_config).read_text());augmentation=yaml.safe_load(Path(args.augmentation_config).read_text());i19=json.loads(Path(args.i19_manifest).read_text())
     if spec["execution_mode"]!="two_process_ddp" or int(spec["requested_gpu_count"])!=2:raise ValueError("I20 is not a two-rank DDP run")
     if spec["run_id"]!=training["identity"]["run_id"] or spec["plan_id"]!=training["identity"]["plan_id"]:raise ValueError("I21 plan/run mismatch")
+    execution=training["execution"]
+    required_execution={"workers":40,"workers_per_rank":20,"world_size":2,"native_threads_per_worker":1,
+                        "persistent_workers":True,"pin_memory":True,"prefetch_factor":4}
+    if any(execution.get(key)!=value for key,value in required_execution.items()):
+        raise ValueError(f"I21 execution contract mismatch: {execution}")
+    archive_source=Path(execution["archive_source_root"]).resolve()
+    archive_runtime=Path(execution["archive_runtime_root"]).resolve()
+    if archive_source==archive_runtime or execution.get("archive_runtime_identity")!="excluded_execution_only":
+        raise ValueError("I21 runtime archive identity contract mismatch")
     parents={"dataset":spec["dataset_manifest"],"loader":spec["dataloader_manifest"],"gate":spec["no_op_gate_manifest"],
              "encoder":spec["encoder_manifest"],"augmentation":spec["augmentation_manifest"],"joint":spec["joint_model_manifest"],
              "distributed_joint":spec["distributed_joint_model_manifest"]}
@@ -291,17 +416,18 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
         if not path.is_file() or path.stat().st_size!=int(record["size_bytes"]) or sha256_file(path)!=record["sha256"]:raise ValueError(f"upstream mismatch: {name}")
     thresholds={0:float(i19["logical_results"]["thresholds"]["building"]),1:float(i19["logical_results"]["thresholds"]["road"])}
     seed=int(spec["seed"]);random.seed(seed);np.random.seed(seed);torch.manual_seed(seed);torch.cuda.manual_seed_all(seed)
-    train=AugmentedPairDataset(spec["dataset_manifest"]["path"],args.tensor_contract,"training",augmentation,thresholds)
-    valid=AugmentedPairDataset(spec["dataset_manifest"]["path"],args.tensor_contract,"validation",augmentation,thresholds,validation=True)
+    archive_args={"archive_source_root":str(archive_source),"archive_runtime_root":str(archive_runtime)}
+    train=AugmentedPairDataset(spec["dataset_manifest"]["path"],args.tensor_contract,"training",augmentation,thresholds,**archive_args)
+    valid=AugmentedPairDataset(spec["dataset_manifest"]["path"],args.tensor_contract,"validation",augmentation,thresholds,validation=True,**archive_args)
     if len(train)!=256 or len(valid)!=32:raise ValueError("split population mismatch")
     masks={name:next(iter(values)) for name,values in train.base.category_mask_index.items()};workers=int(training["execution"]["workers_per_rank"])
     sampler=RankLogicalGroupSampler(train.base.rows,spec["hard_budgets"],seed,rank)
     if args.preflight_group is not None:sampler.selected_group=int(args.preflight_group)
-    loader=DataLoader(train,batch_sampler=sampler,num_workers=workers,collate_fn=collate_pairs,persistent_workers=True,pin_memory=True,
-                      prefetch_factor=2,worker_init_fn=worker_init,multiprocessing_context="spawn")
+    loader=DataLoader(train,sampler=RankSceneSampler(sampler),batch_size=None,num_workers=workers,collate_fn=identity_collate,persistent_workers=True,pin_memory=True,
+                      prefetch_factor=int(training["execution"]["prefetch_factor"]),worker_init_fn=worker_init,multiprocessing_context="spawn")
     valid_sampler=RankLogicalGroupSampler(valid.base.rows,spec["hard_budgets"],seed,rank);valid_sampler.permutation=lambda:list(range(32))
     valid_loader=DataLoader(valid,batch_sampler=valid_sampler,num_workers=workers,collate_fn=collate_pairs,persistent_workers=True,pin_memory=True,
-                            prefetch_factor=2,worker_init_fn=worker_init,multiprocessing_context="spawn")
+                            prefetch_factor=int(execution["prefetch_factor"]),worker_init_fn=worker_init,multiprocessing_context="spawn")
     device=torch.device(f"cuda:{rank}");model=DistributedJointPrototypeModel(encoder,joint).to(device).train();model.target.eval()
     if sum(p.numel() for p in model.parameters() if p.requires_grad)!=2665140:raise ValueError("joint parameter count mismatch")
     ddp=DistributedDataParallel(model,device_ids=[rank],broadcast_buffers=False,find_unused_parameters=False)
@@ -310,6 +436,7 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
     if rank==0:mutable.mkdir(parents=True,exist_ok=True);checkpoints.mkdir(parents=True,exist_ok=True)
     dist.barrier();step_log=mutable/training["output"]["steps_name"];telemetry_log=mutable/training["output"]["telemetry_name"]
     progress={"epoch":0,"group_position":0,"permutation":[],"optimizer_step":0,"scene_consumptions":0,"best":None,"validation":[],"patience":0,
+              "epoch_timings":[],"controlled_resume":None,"process_resumes":[],
               "parents":{key:value["sha256"] for key,value in parents.items()},"run_id":spec["run_id"],"seed":seed}
     preflight_epoch=int(args.preflight_epoch or 0)
     sampler.set_epoch(preflight_epoch);progress["permutation"]=sampler.permutation()
@@ -317,7 +444,7 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
     initial=checkpoint_payload(model,optimizer,scheduler,queue,progress,rank)
     if rank==0:initial_record=save_checkpoint(checkpoints/"initial-step-000000.pt",initial)
     dist.barrier();restore(checkpoints/"initial-step-000000.pt",model,optimizer,scheduler,queue,rank);sync_digest(model,optimizer,scheduler,queue,device)
-    first=take_local_group(loader);second=take_local_group(loader)
+    first=take_local_group(loader,sampler);second=take_local_group(loader,sampler)
     local_repeat=state_digest([(x["positions"],x["i19_digests"],x["tensor_digests"]) for x in first])==state_digest([(x["positions"],x["i19_digests"],x["tensor_digests"]) for x in second])
     repeat_tensor=torch.tensor([int(local_repeat)],device=device);dist.all_reduce(repeat_tensor)
     if int(repeat_tensor)!=2:raise RuntimeError("40-worker DDP DataLoader repeat mismatch")
@@ -328,7 +455,7 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
         restore(checkpoints/"initial-step-000000.pt",model,optimizer,scheduler,queue,rank);fixture=[]
         for fixture_epoch in (0,1):
             sampler.selected_group=None;sampler.set_epoch(fixture_epoch);group_batches=[];current_group=0
-            for item in loader:
+            for item in iter_rank_microbatches(loader,sampler):
                 group=int(item["group"]);group_batches.append(item)
                 if sum(len(value["positions"]) for value in group_batches)<16:continue
                 result=train_group(ddp,model,group_batches,optimizer,scheduler,queue,spec,joint,encoder,masks,device,fixture_epoch)
@@ -346,11 +473,49 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
         if loader._iterator is not None:loader._iterator._shutdown_workers()
         if valid_loader._iterator is not None:valid_loader._iterator._shutdown_workers()
         dist.destroy_process_group();return
-    started=time.time();checkpoint_records=[];exact_resume=None;termination="maximum_epochs"
-    for epoch in range(int(spec["optimizer"]["maximum_epochs"])):
+    started=time.time();checkpoint_records=[];exact_resume=None;termination="maximum_epochs";start_epoch=0
+    if rank==0:
+        epoch_paths=sorted(checkpoints.glob("epoch-*.pt"))
+        resume_path=str(epoch_paths[-1]) if epoch_paths else None
+    else:resume_path=None
+    resume_values=[resume_path];dist.broadcast_object_list(resume_values,src=0);resume_path=resume_values[0]
+    if resume_path is not None:
+        state=restore(Path(resume_path),model,optimizer,scheduler,queue,rank)
+        if state["run_id"]!=spec["run_id"] or state["seed"]!=seed or state["scientific_parents"]!=progress["parents"]:
+            raise RuntimeError("resume checkpoint lineage mismatch")
+        local=state["distributed_rank_states"][rank];start_epoch=int(local["sampler_epoch"])+1
+        progress.update(epoch=int(local["sampler_epoch"]),group_position=int(local["sampler_position"]),
+            permutation=list(local["sampler_permutation"]),optimizer_step=int(state["optimizer_step"]),
+            scene_consumptions=int(state["scene_consumptions"]),best=state["best_checkpoint_metric_state"],
+            validation=list(state["validation_history"]),patience=int(state["early_stopping_patience_state"]),
+            epoch_timings=list(state.get("epoch_timings",[])),controlled_resume=state.get("controlled_resume"),
+            process_resumes=list(state.get("process_resumes",[])))
+        exact_resume=progress["controlled_resume"]
+        if rank==0:
+            step_evidence=reconcile_ledger(step_log,progress["optimizer_step"])
+            telemetry_evidence=reconcile_ledger(telemetry_log,progress["optimizer_step"])
+            resume_evidence={"checkpoint":checkpoint_record(Path(resume_path),start_epoch),"start_epoch":start_epoch+1,
+                             "optimizer_step":progress["optimizer_step"],"step_ledger":step_evidence,
+                             "telemetry_ledger":telemetry_evidence,"status":"PASS"}
+        else:resume_evidence=None
+        resume_evidence_values=[resume_evidence];dist.broadcast_object_list(resume_evidence_values,src=0)
+        progress["process_resumes"].append(resume_evidence_values[0])
+        sync_digest(model,optimizer,scheduler,queue,device)
+    elif rank==0:
+        # A failure before the first periodic checkpoint is replayed from the immutable initial state.
+        step_evidence=reconcile_ledger(step_log,0);telemetry_evidence=reconcile_ledger(telemetry_log,0)
+        if step_evidence["rows_discarded"]:
+            progress["process_resumes"].append({"checkpoint":initial_record,"start_epoch":1,"optimizer_step":0,
+                "step_ledger":step_evidence,"telemetry_ledger":telemetry_evidence,"status":"PASS"})
+    resume_history=[progress["process_resumes"] if rank==0 else None];dist.broadcast_object_list(resume_history,src=0);progress["process_resumes"]=resume_history[0]
+    if rank==0:
+        for path in sorted(checkpoints.glob("epoch-*.pt")):
+            epoch_number=int(path.stem.split("-")[-1]);checkpoint_records.append(checkpoint_record(path,epoch_number))
+    for epoch in range(start_epoch,int(spec["optimizer"]["maximum_epochs"])):
+        epoch_started=time.time()
         sampler.set_epoch(epoch);progress.update(epoch=epoch,permutation=sampler.permutation(),group_position=0)
         group_batches=[];current_group=0
-        for item in loader:
+        for item in iter_rank_microbatches(loader,sampler):
             group=int(item["group"])
             if group!=current_group and group_batches:raise RuntimeError("loader crossed group")
             group_batches.append(item);count=sum(len(x["positions"]) for x in group_batches)
@@ -383,22 +548,29 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
                 if direct!=replay_state or state_digest(direct_result)!=state_digest(replay):raise RuntimeError("controlled DDP resume mismatch")
                 exact_resume={"status":"PASS","checkpoint_step":1,"comparison_steps":1,"direct_state_digest":direct,
                               "replay_state_digest":replay_state,"augmentation_digest":replay["augmentation_digest"]}
+                progress["controlled_resume"]=exact_resume
             group_batches=[];current_group=group+1
         if group_batches:raise ValueError("epoch ended with partial rank group")
-        if (epoch+1)%int(spec["validation"]["interval_epochs"])==0:
+        validation_due=(epoch+1)%int(spec["validation"]["interval_epochs"])==0
+        should_stop=False
+        if validation_due:
             metrics=distributed_validation(model,valid_loader,encoder,masks,device);metrics["epoch"]=epoch+1;progress["validation"].append(metrics)
             best=progress["best"];improved=best is None or metrics["MRR"]>best["MRR"]
             selected=best is None or (metrics["MRR"],metrics["HIT@1"],-(epoch+1))>(best["MRR"],best["HIT@1"],-best["epoch"])
             progress["patience"]=0 if improved else progress["patience"]+1
             if selected:progress["best"]=dict(metrics)
+            should_stop=progress["patience"]>=int(spec["validation"]["early_stopping_patience_evaluations"])
+        epoch_wall=time.time()-epoch_started
+        previous_elapsed=sum(float(item["wall_seconds"]) for item in progress["epoch_timings"])
+        progress["epoch_timings"].append({"epoch":epoch+1,"wall_seconds":epoch_wall,
+            "cumulative_elapsed_seconds":previous_elapsed+epoch_wall})
+        if validation_due:
             payload=checkpoint_payload(model,optimizer,scheduler,queue,progress,rank)
             if rank==0:
                 record=save_checkpoint(checkpoints/f"epoch-{epoch+1:03d}.pt",payload);record["epoch"]=epoch+1;checkpoint_records.append(record)
-                if progress["best"]["epoch"]==epoch+1:progress["best"]["checkpoint"]=record
-            best_values=[progress["best"] if rank==0 else None];dist.broadcast_object_list(best_values,src=0);progress["best"]=best_values[0]
-            if progress["patience"]>=int(spec["validation"]["early_stopping_patience_evaluations"]):termination="early_stopping";break
+            if should_stop:termination="early_stopping";break
     if exact_resume is None:raise RuntimeError("controlled resume not completed")
-    best_path_values=[progress["best"]["checkpoint"]["path"] if rank==0 else None];dist.broadcast_object_list(best_path_values,src=0)
+    best_path_values=[str(checkpoints/f"epoch-{int(progress['best']['epoch']):03d}.pt") if rank==0 else None];dist.broadcast_object_list(best_path_values,src=0)
     peak={"rank":rank,"allocated":int(torch.cuda.max_memory_allocated()),"reserved":int(torch.cuda.max_memory_reserved())}
     peak_values=[None,None];dist.all_gather_object(peak_values,peak)
     if loader._iterator is not None:loader._iterator._shutdown_workers()
@@ -410,9 +582,10 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
     if reproduction!=expected_reproduction:raise RuntimeError("reloaded best-checkpoint distributed validation mismatch")
     if valid_loader._iterator is not None:valid_loader._iterator._shutdown_workers()
     if rank==0:
-        final_checkpoint=checkpoint_records[-1];best_checkpoint=progress["best"]["checkpoint"]
+        final_checkpoint=checkpoint_records[-1];best_checkpoint=checkpoint_record(Path(best_path_values[0]),int(progress["best"]["epoch"]))
+        scientific_training=copy.deepcopy(training);scientific_training["execution"].pop("archive_source_root",None);scientific_training["execution"].pop("archive_runtime_root",None)
         scientific={"plan_id":spec["plan_id"],"run_id":spec["run_id"],"parents":progress["parents"],
-            "run_spec_sha256":sha256_file(args.run_spec),"training_contract_sha256":sha256_file(args.training_config),
+            "run_spec_sha256":sha256_file(args.run_spec),"training_contract_sha256":hashlib.sha256(canonical_json_bytes(scientific_training)).hexdigest(),
             "training_implementation_sha256":sha256_file(Path(__file__)),"seed":seed,
             "numerical_policy":"two_process_ddp_float32_no_tf32","world_size":2}
         acceptance="pta_"+hashlib.sha256(canonical_json_bytes(scientific)).hexdigest()[:24]
@@ -420,7 +593,12 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
         validation_path=stage/training["output"]["validation_name"];validation_path.write_bytes(canonical_json_bytes(progress["validation"]))
         qc={"status":"PASS","optimizer_step_performed":True,"world_size":2,"worker_count":40,"workers_per_rank":20,
             "exact_resume":exact_resume,"peak_vram_by_rank":peak_values,
-            "elapsed_seconds":time.time()-started,"checkpoint_count":len(checkpoint_records)}
+            "elapsed_seconds":sum(float(item["wall_seconds"]) for item in progress["epoch_timings"]),"checkpoint_count":len(checkpoint_records),
+            "epoch_timings":progress["epoch_timings"],"process_resumes":progress["process_resumes"],
+            "runtime_archive":{"source_root":str(archive_source),"runtime_root":str(archive_runtime),
+                "identity_scope":"excluded_execution_only","verification":"per_archive_size_and_sha256"},
+            "dataloader":{"workers_total":40,"workers_per_rank":20,"persistent_workers":True,"pin_memory":True,"prefetch_factor":4,
+                "native_threads_per_worker":1}}
         qc_path=stage/training["output"]["qc_name"];qc_path.write_bytes(canonical_json_bytes(qc))
         outputs=[{"relative_path":x.name,"size_bytes":x.stat().st_size,"sha256":sha256_file(x)} for x in (qc_path,validation_path)]
         manifest={"schema_version":"1.0.0","status":"PASS","training_acceptance_id":acceptance,"plan_id":spec["plan_id"],"run_id":spec["run_id"],

@@ -34,6 +34,7 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "prototype_model_acceptance_contract_files",
       "full_membership_plan_contract_files", "full_membership_authorization_contract",
       "full_membership_i24_authorization",
+      "accepted_off_grid_source", "runtime_mirror_contract_files", "prototype_runtime_inputs",
       "study_data_inputs", "study_data_inventory", "methodology_contract", "spatial_scene_index",
       "prototype_scene_selection", "prototype_membership_plan", "prototype_membership_shard",
       "prototype_membership_acceptance", "prototype_observation_plan",
@@ -42,7 +43,7 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "prototype_training_dataset_acceptance", "prototype_dataloader_smoke", "prototype_encoder_smoke",
       "prototype_scientific_geometry_roundtrip", "prototype_augmentation_benchmark",
       "prototype_joint_model_smoke", "prototype_distributed_joint_model_smoke", "prototype_training_plan",
-      "prototype_training_completed_artifacts", "prototype_training_acceptance", "prototype_model_validation",
+      "prototype_training", "prototype_training_acceptance", "prototype_model_validation",
       "prototype_model_acceptance", "full_membership_plan"
     )
   )

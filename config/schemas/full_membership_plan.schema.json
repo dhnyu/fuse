@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/full_membership_plan.schema.json",
+  "title": "C01 full membership plan manifest",
+  "type": "object",
+  "required": ["schema_version", "stage", "status", "plan_id", "membership_dataset_id", "scientific_identity", "authorization", "population", "cost_model", "sharding", "outputs", "qc"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "stage": {"const": "C01"},
+    "status": {"const": "PASS"},
+    "plan_id": {"type": "string", "pattern": "^fmp_[0-9a-f]{24}$"},
+    "membership_dataset_id": {"type": "string", "pattern": "^fmd_[0-9a-f]{24}$"},
+    "scientific_identity": {"type": "object"},
+    "authorization": {
+      "type": "object",
+      "required": ["i24_id", "identity_role", "excluded_from_spatial_identity"],
+      "properties": {
+        "i24_id": {"const": "pma_6282c9e9f9ebb9348484223a"},
+        "identity_role": {"const": "execution_provenance_only"},
+        "excluded_from_spatial_identity": {"const": true}
+      }
+    },
+    "population": {"type": "object"},
+    "cost_model": {"type": "object"},
+    "sharding": {"type": "object"},
+    "outputs": {"type": "array", "minItems": 1},
+    "qc": {"type": "object"}
+  },
+  "additionalProperties": true
+}

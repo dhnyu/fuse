@@ -23,7 +23,8 @@ test_that("I24 is a read-only gate with the blueprint direct parents", {
   expect_setequal(parents, c("prototype_dataloader_smoke", "prototype_encoder_smoke",
                              "prototype_augmentation_benchmark", "prototype_training_acceptance",
                              "prototype_model_validation", "prototype_model_acceptance_contract_files"))
-  expect_false(any(grepl("^full_|^single_gpu_experiment|^ddp_experiment", manifest$name)))
+  expect_true("full_membership_plan" %in% manifest$name)
+  expect_false(any(grepl("^full_membership_shard$|^full_observation|^single_gpu_experiment|^ddp_experiment", manifest$name)))
 })
 
 test_that("I24 schema fixes zero-compute and immutable publication gates", {

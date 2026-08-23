@@ -83,6 +83,10 @@ targets::tar_source("targets/research_training_plan.R")
 targets::tar_source("targets/research_prototype_training.R")
 targets::tar_source("targets/research_prototype_model_validation.R")
 targets::tar_source("targets/research_prototype_model_acceptance.R")
+targets::tar_source("R/research_metadata_recovery.R")
+targets::tar_source("R/research_full_membership_authorization.R")
+targets::tar_source("R/research_full_membership_plan.R")
+targets::tar_source("targets/research_full_membership_plan.R")
 
 c(
   list_research_scene_index,
@@ -102,5 +106,6 @@ c(
   list_research_training_plan,
   list_research_prototype_training,
   list_research_prototype_model_validation,
-  list_research_prototype_model_acceptance
+  list_research_prototype_model_acceptance,
+  list_research_full_membership_plan
 )

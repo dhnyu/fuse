@@ -25,5 +25,6 @@ test_that("I23 retains only its accepted scientific parents after I24 declaratio
   expect_match(command, "prototype_training_dataset_acceptance")
   expect_match(command, "prototype_scene_selection")
   expect_true("prototype_model_acceptance" %in% manifest$name)
-  expect_false("full_membership_plan" %in% manifest$name)
+  expect_true("full_membership_plan" %in% manifest$name)
+  expect_false("full_membership_shard" %in% manifest$name)
 })

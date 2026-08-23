@@ -1,0 +1,27 @@
+test_that("I16 immutable comparison owns only its top-level output bundle", {
+  staged <- tempfile("i16-staged-")
+  accepted <- tempfile("i16-accepted-")
+  dir.create(staged)
+  dir.create(accepted)
+  on.exit(unlink(c(staged, accepted), recursive = TRUE), add = TRUE)
+  expected <- c("a.json", "b.parquet")
+  writeBin(charToRaw("same-a"), file.path(staged, expected[[1L]]))
+  writeBin(charToRaw("same-b"), file.path(staged, expected[[2L]]))
+  file.copy(file.path(staged, expected), accepted)
+  dir.create(file.path(accepted, "smoke", "downstream"), recursive = TRUE)
+  writeBin(charToRaw("owned-by-I18"), file.path(accepted, "smoke", "downstream", "result.json"))
+
+  expect_no_error(capture.output(compare_i16_top_level_bundle(staged, accepted, expected)))
+  writeBin(charToRaw("different"), file.path(staged, expected[[1L]]))
+  expect_error(compare_i16_top_level_bundle(staged, accepted, expected), "same-ID top-level content differs: a.json")
+  writeBin(charToRaw("extra"), file.path(staged, "extra.json"))
+  expect_error(compare_i16_top_level_bundle(staged, accepted, expected), "top-level file set differs")
+})
+
+test_that("I16 scientific identity continues to hash the unchanged Python implementation", {
+  source <- readLines(file.path(fuse_test_root, "python/accept_prototype_training_dataset.py"), warn = FALSE)
+  expect_true(any(grepl('"implementation_sha256": sha256_file(Path(__file__)', source, fixed = TRUE)))
+  wrapper <- paste(readLines(file.path(fuse_test_root, "R/research_training_dataset_acceptance.R"), warn = FALSE), collapse = "\n")
+  expect_match(wrapper, "compare_i16_top_level_bundle", fixed = TRUE)
+  expect_match(wrapper, "diagnostic_staging_preserved", fixed = TRUE)
+})

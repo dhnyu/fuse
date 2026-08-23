@@ -351,7 +351,7 @@ flowchart TD
 
 | ID | target | 목적 | 직접 입력/dependency | 출력·핵심 schema | branch/controller | 완료/QC 및 복구 |
 |---|---|---|---|---|---|---|
-| C01 | `full_membership_plan` | full membership specs | I04,I13,pilot cost coefficients | `plans/full_membership/spec-*.json` | static plan `controller_05` | cost-balanced, all scenes once |
+| C01 | `full_membership_plan` | full membership specs | I04,I13,pilot cost coefficients; checksummed I24 authorization artifact only | `plans/full_membership/spec-*.json` | static plan `controller_05` | cost-balanced, all scenes once; I24 excluded from spatial identity |
 | C02 | **`full_membership_shard` D** | full B/R/P membership | C01 spec,I01 | membership Parquet+branch QC | `map(C01)`, `controller_20`,1x1 | failed branch only |
 | C03 | `full_membership_acceptance` | membership aggregate/QC | all C02,C01 | manifest, plan Parquet, stats/QC | static `controller_05` | completeness/source IDs/skew |
 | C04 | `full_observation_plan` | aligned full observation specs | C03,I04,pilot cost | `plans/full_observation/spec-*.json` | static plan `controller_05` | cost/byte caps, dense singleton |

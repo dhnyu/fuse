@@ -1,0 +1,15 @@
+schema_version: "1.0.0"
+controller: controller_05
+orchestration_workers: 1
+threads_per_worker: 1
+c02_recommended_controller: controller_20
+c02_selected_max_concurrency: 20
+thread_environment:
+  OMP_NUM_THREADS: 1
+  OPENBLAS_NUM_THREADS: 1
+  MKL_NUM_THREADS: 1
+  NUMEXPR_NUM_THREADS: 1
+publish:
+  staging: plan_local_same_filesystem
+  atomic_publish: directory_rename
+  overwrite_existing: false

@@ -11,12 +11,17 @@ list_research_encoder_smoke <- list(
   ),
   targets::tar_target(
     name = prototype_encoder_smoke,
-    command = run_prototype_encoder_smoke(
-      prototype_training_dataset_acceptance = prototype_training_dataset_acceptance,
-      prototype_dataloader_smoke = prototype_dataloader_smoke,
-      encoder_smoke_contract_files = encoder_smoke_contract_files,
-      workers = 1L,
-      threads = 1L
+    command = recover_file_target_metadata(
+      "prototype_encoder_smoke",
+      file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance),
+                "smoke", "encoder", "pea_5784252434798d9dfa05d796"),
+      run_prototype_encoder_smoke(
+        prototype_training_dataset_acceptance = prototype_training_dataset_acceptance,
+        prototype_dataloader_smoke = prototype_dataloader_smoke,
+        encoder_smoke_contract_files = encoder_smoke_contract_files,
+        workers = 1L,
+        threads = 1L
+      )
     ),
     format = "file",
     resources = controller_gpu_02_resources

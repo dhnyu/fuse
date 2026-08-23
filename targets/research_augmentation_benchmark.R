@@ -7,25 +7,35 @@ list_research_augmentation_benchmark <- list(
   ),
   targets::tar_target(
     name = prototype_scientific_geometry_roundtrip,
-    command = run_scientific_geometry_roundtrip(
-      prototype_training_dataset_acceptance = prototype_training_dataset_acceptance,
-      prototype_dataloader_smoke = prototype_dataloader_smoke,
-      augmentation_benchmark_contract_files = augmentation_benchmark_contract_files,
-      workers = 1L,
-      threads = 1L
+    command = recover_file_target_metadata(
+      "prototype_scientific_geometry_roundtrip",
+      file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance),
+                "roundtrip", "scientific-geometry", "pgr_fb3209bda9fb0fa9a0e15bd1"),
+      run_scientific_geometry_roundtrip(
+        prototype_training_dataset_acceptance = prototype_training_dataset_acceptance,
+        prototype_dataloader_smoke = prototype_dataloader_smoke,
+        augmentation_benchmark_contract_files = augmentation_benchmark_contract_files,
+        workers = 1L,
+        threads = 1L
+      )
     ),
     format = "file",
     resources = controller_05_resources
   ),
   targets::tar_target(
     name = prototype_augmentation_benchmark,
-    command = run_prototype_augmentation_benchmark(
-      prototype_training_dataset_acceptance = prototype_training_dataset_acceptance,
-      prototype_dataloader_smoke = prototype_dataloader_smoke,
-      prototype_scientific_geometry_roundtrip = prototype_scientific_geometry_roundtrip,
-      augmentation_benchmark_contract_files = augmentation_benchmark_contract_files,
-      workers = 1L,
-      threads = 1L
+    command = recover_file_target_metadata(
+      "prototype_augmentation_benchmark",
+      file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance),
+                "benchmark", "augmentation", "paa_8d73a94e574dcdbc5c5106d2"),
+      run_prototype_augmentation_benchmark(
+        prototype_training_dataset_acceptance = prototype_training_dataset_acceptance,
+        prototype_dataloader_smoke = prototype_dataloader_smoke,
+        prototype_scientific_geometry_roundtrip = prototype_scientific_geometry_roundtrip,
+        augmentation_benchmark_contract_files = augmentation_benchmark_contract_files,
+        workers = 1L,
+        threads = 1L
+      )
     ),
     format = "file",
     resources = controller_05_resources

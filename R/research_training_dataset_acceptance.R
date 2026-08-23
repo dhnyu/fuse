@@ -41,6 +41,42 @@ load_training_dataset_acceptance_config <- function(contract_files) {
   list(config = config, paths = by_name)
 }
 
+i16_top_level_records <- function(directory) {
+  paths <- list.files(directory, full.names = TRUE, recursive = FALSE, include.dirs = FALSE)
+  paths <- paths[!file.info(paths)$isdir]
+  paths <- paths[order(basename(paths), method = "radix")]
+  setNames(lapply(paths, function(path) list(
+    relative_path = basename(path),
+    size_bytes = unname(file.info(path)$size),
+    sha256 = sha256_file(path)
+  )), basename(paths))
+}
+
+compare_i16_top_level_bundle <- function(staged_directory, accepted_directory, expected_names) {
+  staged <- i16_top_level_records(staged_directory)
+  accepted <- i16_top_level_records(accepted_directory)
+  expected <- sort(as.character(expected_names), method = "radix")
+  if (!identical(names(staged), expected) || !identical(names(accepted), expected)) {
+    stop(
+      "I16 top-level file set differs: staged=", paste(names(staged), collapse = ","),
+      "; accepted=", paste(names(accepted), collapse = ","), call. = FALSE
+    )
+  }
+  for (name in expected) {
+    if (!identical(staged[[name]], accepted[[name]])) {
+      stop(
+        "I16 same-ID top-level content differs: ", name,
+        "; staged_size=", staged[[name]]$size_bytes,
+        "; accepted_size=", accepted[[name]]$size_bytes,
+        "; staged_sha256=", staged[[name]]$sha256,
+        "; accepted_sha256=", accepted[[name]]$sha256,
+        call. = FALSE
+      )
+    }
+  }
+  invisible(list(staged = staged, accepted = accepted))
+}
+
 run_prototype_training_dataset_acceptance <- function(
     prototype_spatial_acceptance,
     prototype_serialization_plan,
@@ -76,7 +112,18 @@ run_prototype_training_dataset_acceptance <- function(
     "--schema", contract$paths[["prototype_training_dataset_acceptance.schema.json"]],
     "--i15-config", contract$paths[["serialization_shard.yml"]]
   )
-  if (!is.null(output_directory)) args <- c(args, "--output-dir", output_directory)
+  managed_publication <- is.null(output_directory)
+  execution_output <- output_directory
+  if (managed_publication) {
+    first_spec <- jsonlite::read_json(spec_paths[[1L]], simplifyVector = FALSE)
+    acceptance_parent <- file.path(
+      normalizePath(first_spec$output$root, mustWork = TRUE),
+      contract$config$output$directory
+    )
+    dir.create(acceptance_parent, recursive = TRUE, showWarnings = FALSE)
+    execution_output <- tempfile(".i16-rebuild-", tmpdir = acceptance_parent)
+  }
+  args <- c(args, "--output-dir", execution_output)
   old <- capture_native_thread_state()
   on.exit(restore_native_thread_state(old), add = TRUE)
   set_native_thread_limits(threads)
@@ -87,10 +134,27 @@ run_prototype_training_dataset_acceptance <- function(
   if (is.null(result) || !identical(result$status, "READY")) {
     stop("I16 acceptance returned invalid result:\n", paste(output, collapse = "\n"), call. = FALSE)
   }
-  files <- normalizePath(unlist(result$output_files, use.names = FALSE), mustWork = TRUE)
   required <- unlist(contract$config$output[c(
     "manifest", "shard_catalog", "global_scene_index", "dataset_index", "qc", "diagnostics", "log"
   )], use.names = FALSE)
+  if (managed_publication) {
+    accepted_directory <- file.path(dirname(execution_output), result$training_dataset_id)
+    if (dir.exists(accepted_directory)) {
+      tryCatch(
+        compare_i16_top_level_bundle(execution_output, accepted_directory, required),
+        error = function(error) stop(
+          conditionMessage(error), "; diagnostic_staging_preserved=", execution_output,
+          call. = FALSE
+        )
+      )
+      unlink(execution_output, recursive = TRUE)
+    } else if (!file.rename(execution_output, accepted_directory)) {
+      stop("I16 atomic publication failed; diagnostic staging preserved: ", execution_output, call. = FALSE)
+    }
+    files <- normalizePath(file.path(accepted_directory, required), mustWork = TRUE)
+  } else {
+    files <- normalizePath(unlist(result$output_files, use.names = FALSE), mustWork = TRUE)
+  }
   if (!setequal(basename(files), required)) stop("I16 returned incomplete output set", call. = FALSE)
   files
 }

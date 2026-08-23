@@ -1,0 +1,45 @@
+schema_version: "1.0.0"
+stage: C01
+processing_epsg: 5186
+required_parents:
+  spatial_scene_index: idx_717d7ae7a88e370a79cf9bd4
+  prototype_spatial_acceptance: psa_c2155cf081312a31edfdb191
+  prototype_model_acceptance: pma_6282c9e9f9ebb9348484223a
+authorization_gate:
+  parent: prototype_model_acceptance
+  identity_role: execution_provenance_only
+  excluded_from_spatial_identity: true
+ordering:
+  algorithm: hilbert_xy_to_d_v1
+  bits: 16
+  coordinate_source: center_epsg_5186
+  tie_break: scene_id_utf8
+cost_model:
+  algorithm: equal_median_feature_contribution_then_median_wall_calibration_v1
+  prediction: inverse_distance_8_nearest_prototype_scenes_v1
+  features:
+    - building_count
+    - road_count
+    - poi_count
+    - source_vertex_count
+    - source_geometry_bytes
+sharding:
+  initial_maximum_scenes_per_branch: 64
+  contiguous_hilbert_ranges: true
+  oversize_singleton: true
+  split_scene: false
+  cap_basis: maximum_observed_regular_prototype_branch
+identity:
+  dataset_prefix: fmd_
+  plan_prefix: fmp_
+  branch_prefix: fmb_
+  exclude_runtime_fields:
+    - controller
+    - worker_count
+    - thread_count
+    - staging_path
+forbidden_operations:
+  - full_source_geometry_scan
+  - source_membership_computation
+  - c02_artifact_write
+  - scene_split

@@ -1,0 +1,9 @@
+schema_version: "1.0.0"
+stage: C01
+identity_role: execution_authorization_only
+excluded_from_spatial_identity: true
+artifact:
+  model_acceptance_id: pma_6282c9e9f9ebb9348484223a
+  path: /mnt/hdd002/dhnyu/fusedata/training_data/v1/prototype/pro_17040a91f3aee12b91c0bcd4/serialization/psd_72c5e4e5c3e4c84eb47aad85/acceptance/ptd_cee61a525ca92f1b7951c40d/acceptance/prototype-model/pma_6282c9e9f9ebb9348484223a/prototype_model_acceptance.json
+  size_bytes: 12999
+  sha256: 08fcedc088f0730d4ed9ede6c0d029e1da7e1fad01b6b5e527c3a63110d9a26a

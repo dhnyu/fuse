@@ -11,8 +11,8 @@
     "schema_version": {"const": "1.0.0"},
     "status": {"const": "PASS"},
     "gate_id": {"type": "string", "pattern": "^pgr_[0-9a-f]{24}$"},
-    "accepted_dataset_id": {"const": "ptd_8b3359690ea2d0bef52d63e3"},
-    "dataloader_smoke_id": {"const": "pdl_361072e3519a91d0aefc9bb9"},
+    "accepted_dataset_id": {"const": "ptd_bcb9e6a1061ff7ca9c716b20"},
+    "dataloader_smoke_id": {"const": "pdl_5eb0ccb9951d1015d6d64649"},
     "scientific_identity": {"type": "object"},
     "logical_result": {
       "type": "object",

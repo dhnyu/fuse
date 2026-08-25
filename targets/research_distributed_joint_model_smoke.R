@@ -10,7 +10,7 @@ list_research_distributed_joint_model_smoke <- list(
     command = recover_file_target_metadata(
       "prototype_distributed_joint_model_smoke",
       file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance),
-                "distributed_joint", "pjd_13aff4a58d3d6022ee2dd62f"),
+                "distributed_joint", "pjd_69c0bd35dac8add3280d72e2"),
       run_prototype_distributed_joint_model_smoke(
         prototype_training_dataset_acceptance, prototype_joint_model_smoke,
         distributed_joint_model_contract_files, workers = 1L, threads = 1L

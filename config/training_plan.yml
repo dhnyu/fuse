@@ -1,14 +1,14 @@
 schema_version: "1.0.0"
-training_plan_contract_version: "2.0.0"
+training_plan_contract_version: "3.0.0"
 
 identity:
-  accepted_dataset_id: ptd_8b3359690ea2d0bef52d63e3
-  encoder_acceptance_id: pea_bb192d9b73c6189d36c452fa
-  joint_model_acceptance_id: pjm_0dbf194eb2fd469781a220d1
-  distributed_joint_acceptance_id: pjd_8f3798ffaf37c115b6448165
-  augmentation_acceptance_id: paa_f561eea03b05c47375b7198e
-  no_op_gate_id: pgr_60bc6b2cbd0864272308d18e
-  dataloader_smoke_id: pdl_361072e3519a91d0aefc9bb9
+  accepted_dataset_id: ptd_bcb9e6a1061ff7ca9c716b20
+  encoder_acceptance_id: pea_1c66760dbc1e6c0a8d71cb91
+  joint_model_acceptance_id: pjm_6e64c022281a7f2648f78917
+  distributed_joint_acceptance_id: pjd_69c0bd35dac8add3280d72e2
+  augmentation_acceptance_id: paa_5d2b1f56119e8d5f5050a75d
+  no_op_gate_id: pgr_77294c825bf26bf6fce721c3
+  dataloader_smoke_id: pdl_5eb0ccb9951d1015d6d64649
   dissertation_commit: 87990db83f2b30200cc2d64dc160cb41f691e0e7
 
 runs:
@@ -34,11 +34,17 @@ data:
 
 optimization:
   optimizer: AdamW
-  learning_rate: 1.0e-4
+  learning_rate: 3.0e-4
   weight_decay: 1.0e-4
   maximum_epochs: 200
   scheduler: linear_warmup_then_cosine_decay
   warmup_epochs: 10
+  schedule_unit: epoch_converted_to_optimizer_steps_from_training_population_and_effective_batch
+  optimizer_steps_per_epoch: 8
+  optimizer_steps_per_epoch_derivation: training_scenes_divided_by_effective_batch_scenes_exact
+  warmup_optimizer_steps_derivation: warmup_epochs_times_optimizer_steps_per_epoch
+  cosine_progress: completed_optimizer_steps_minus_warmup_steps_divided_by_maximum_steps_minus_warmup_steps
+  scheduler_step_order: optimizer_step_then_scheduler_step
   gradient_norm_clip: 1.0
   ema_momentum: 0.999
   queue_size: 8192
@@ -51,15 +57,30 @@ validation:
   early_stopping_patience_evaluations: 10
   primary_metric: MRR
   supplementary_metrics: [HIT@1, HIT@5, HIT@10]
-  checkpoint_selection: highest_MRR_then_HIT@1_then_earliest_epoch
+  checkpoint_selection: highest_MRR_then_lowest_validation_retrieval_loss_then_highest_mean_positive_hardest_negative_margin_then_earliest_epoch
   evaluation_split_for_selection: validation_only
   query_views: 2
   query_augmentation_epoch: 0
   candidate_population: unaugmented_validation_scenes
   query_population: two_fixed_augmented_views_of_validation_scenes
   similarity: cosine_online_scene_embedding_before_projection
-  patience_reset: strictly_higher_MRR_only
-  ties_do_not_reset_patience: true
+  fixed_query_views: true
+  fixed_query_augmentation_seed: true
+  fixed_candidate_gallery: true
+  retrieval_loss:
+    definition: deterministic_full_gallery_retrieval_cross_entropy
+    logits: cosine_similarity_divided_by_temperature
+    temperature: 0.1
+    reduction: mean_over_two_fixed_query_views_and_validation_scenes
+    candidate_exclusion: none
+    positive: unique_same_scene_unaugmented_candidate
+  retrieval_loss_min_delta: 1.0e-4
+  retrieval_loss_min_delta_basis: predefined_before_lr_diagnostic_from_float32_resolution_and_exact_repeatability_gate
+  floating_point_tolerance: 1.0e-12
+  mrr_saturation_value: 1.0
+  patience_reset: higher_MRR_or_saturated_retrieval_loss_min_delta
+  ties_do_not_reset_patience: false
+  evaluation_and_test_for_selection: forbidden
 
 resume:
   policy: exact_last_checkpoint
@@ -85,6 +106,7 @@ resume:
     - best_checkpoint_metric_state
     - validation_history
     - early_stopping_patience_state
+    - early_stopping_metric_state
   checkpoint_boundary: complete_logical_optimizer_group_only
   atomic_publication: true
   same_id_different_content: hard_failure

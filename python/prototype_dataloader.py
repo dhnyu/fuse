@@ -178,6 +178,7 @@ class AcceptedPrototypeDataset(Dataset):
             raise ValueError("archive_handle_limit must be positive")
         self.diagnostic_timing = bool(diagnostic_timing)
         self._archive_handles: OrderedDict[str, Any] = OrderedDict()
+        self._validated_tensor_payloads: set[tuple[tuple[str, str, int], ...]] = set()
         self.rows = [row for row in all_rows if split is None or row["split"] == split]
         self.scene_to_position = {row["scene_id"]: index for index, row in enumerate(self.rows)}
         self._index_entries: dict[tuple[str, str], dict[str, Any]] = {}
@@ -186,6 +187,7 @@ class AcceptedPrototypeDataset(Dataset):
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
         state["_archive_handles"] = OrderedDict()
+        state["_validated_tensor_payloads"] = set()
         return state
 
     def __del__(self) -> None:
@@ -332,6 +334,16 @@ class AcceptedPrototypeDataset(Dataset):
         if int(groups["geometry"]["entity_coordinate_offsets"][-1]) != c:
             raise ValueError(f"geometry coordinate offset terminal mismatch: {scene_id}")
 
+    def _validate_tensor_contract_once(
+        self, payload_identity: tuple[tuple[str, str, int], ...], scene_id: str,
+        groups: dict[str, dict[str, torch.Tensor]], n: int, e: int, c: int,
+    ) -> bool:
+        if payload_identity in self._validated_tensor_payloads:
+            return True
+        self._validate_tensor_contract(scene_id, groups, n, e, c)
+        self._validated_tensor_payloads.add(payload_identity)
+        return False
+
     def __getitem__(self, position: int) -> dict[str, Any]:
         started = time.perf_counter()
         row = self.rows[position]
@@ -358,10 +370,20 @@ class AcceptedPrototypeDataset(Dataset):
         read_finished = time.perf_counter()
         try:
             meta = json.loads(payloads[f"{scene_id}.meta.json"])
-            groups = {
-                group: numpy_group_to_torch(load_safetensors(payloads[f"{scene_id}.{group}.safetensors"]))
-        for group in ("entities", "geometry", "edges", "topology", "rasters")
-            }
+            if self.diagnostic_timing:
+                groups = {}; safetensors_decode_seconds = 0.0; numpy_copy_seconds = 0.0
+                for group in ("entities", "geometry", "edges", "topology", "rasters"):
+                    phase_started = time.perf_counter()
+                    decoded_group = load_safetensors(payloads[f"{scene_id}.{group}.safetensors"])
+                    safetensors_decode_seconds += time.perf_counter() - phase_started
+                    phase_started = time.perf_counter()
+                    groups[group] = numpy_group_to_torch(decoded_group)
+                    numpy_copy_seconds += time.perf_counter() - phase_started
+            else:
+                groups = {
+                    group: numpy_group_to_torch(load_safetensors(payloads[f"{scene_id}.{group}.safetensors"]))
+                    for group in ("entities", "geometry", "edges", "topology", "rasters")
+                }
         except Exception as error:
             raise ValueError(f"corrupted scene payload: {scene_id}") from error
         decoded = time.perf_counter()
@@ -369,7 +391,13 @@ class AcceptedPrototypeDataset(Dataset):
             raise ValueError(f"scene metadata split/index mismatch: {scene_id}")
         entities, geometry, edges, topology, rasters = (groups[key] for key in ("entities", "geometry", "edges", "topology", "rasters"))
         n, e, c = int(row["node_count"]), int(row["ordered_edge_count"]), int(row["coordinate_count"])
-        self._validate_tensor_contract(scene_id, groups, n, e, c)
+        payload_identity = tuple(
+            (str(member["name"]), str(member["sha256"]), int(member["payload_bytes"]))
+            for member in members if str(member["name"]).endswith(".safetensors")
+        )
+        tensor_contract_cache_hit = self._validate_tensor_contract_once(
+            payload_identity, scene_id, groups, n, e, c
+        )
         if entities["local_entity_id"].shape != (n,) or edges["edge_index"].shape != (2, e) or geometry["coordinates_xy"].shape != (c, 2):
             raise ValueError(f"tensor count/shape mismatch: {scene_id}")
         if e and (int(edges["edge_index"].min()) < 0 or int(edges["edge_index"].max()) >= n):
@@ -416,9 +444,12 @@ class AcceptedPrototypeDataset(Dataset):
                 "archive_open_seconds": open_finished - opened if not cache_hit else 0.0,
                 "archive_read_seconds": read_finished - open_finished,
                 "decode_seconds": decoded - read_finished,
+                "safetensors_decode_seconds": safetensors_decode_seconds,
+                "numpy_torch_copy_seconds": numpy_copy_seconds,
                 "validation_seconds": time.perf_counter() - decoded,
                 "base_total_seconds": time.perf_counter() - started,
                 "archive_handle_cache_hit": int(cache_hit),
+                "tensor_contract_cache_hit": int(tensor_contract_cache_hit),
                 "archive_path": str(archive_path),
             }
         return result

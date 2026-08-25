@@ -2,8 +2,8 @@ schema_version: "1.0.0"
 encoder_contract_version: "1.0.0"
 
 identity:
-  accepted_dataset_id: ptd_8b3359690ea2d0bef52d63e3
-  dataloader_smoke_id: pdl_361072e3519a91d0aefc9bb9
+  accepted_dataset_id: ptd_bcb9e6a1061ff7ca9c716b20
+  dataloader_smoke_id: pdl_5eb0ccb9951d1015d6d64649
   dissertation_commit: 87990db83f2b30200cc2d64dc160cb41f691e0e7
 
 execution:

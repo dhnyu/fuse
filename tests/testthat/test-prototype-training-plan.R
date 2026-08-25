@@ -1,13 +1,13 @@
 test_that("I20 scientific training contract is complete and fixed", {
   config <- yaml::read_yaml(file.path(fuse_test_root, "config/training_plan.yml"))
-  expect_equal(config$identity$accepted_dataset_id, "ptd_8b3359690ea2d0bef52d63e3")
-  expect_equal(config$identity$encoder_acceptance_id, "pea_bb192d9b73c6189d36c452fa")
-  expect_equal(config$identity$joint_model_acceptance_id, "pjm_0dbf194eb2fd469781a220d1")
-  expect_equal(config$identity$distributed_joint_acceptance_id, "pjd_8f3798ffaf37c115b6448165")
-  expect_equal(config$identity$augmentation_acceptance_id, "paa_f561eea03b05c47375b7198e")
+  expect_equal(config$identity$accepted_dataset_id, "ptd_bcb9e6a1061ff7ca9c716b20")
+  expect_equal(config$identity$encoder_acceptance_id, "pea_1c66760dbc1e6c0a8d71cb91")
+  expect_equal(config$identity$joint_model_acceptance_id, "pjm_6e64c022281a7f2648f78917")
+  expect_equal(config$identity$distributed_joint_acceptance_id, "pjd_69c0bd35dac8add3280d72e2")
+  expect_equal(config$identity$augmentation_acceptance_id, "paa_5d2b1f56119e8d5f5050a75d")
   expect_equal(config$data$effective_batch_scenes, 32)
   expect_equal(config$optimization$optimizer, "AdamW")
-  expect_equal(config$optimization$learning_rate, 1e-4)
+  expect_equal(config$optimization$learning_rate, 3e-4)
   expect_equal(config$optimization$weight_decay, 1e-4)
   expect_equal(config$optimization$maximum_epochs, 200)
   expect_equal(config$optimization$warmup_epochs, 10)
@@ -18,7 +18,15 @@ test_that("I20 scientific training contract is complete and fixed", {
   expect_equal(config$optimization$geographic_negative_exclusion_radius_m, 750)
   expect_equal(config$validation$primary_metric, "MRR")
   expect_equal(config$validation$early_stopping_patience_evaluations, 10)
-  expect_identical(config$validation$ties_do_not_reset_patience, TRUE)
+  expect_identical(config$validation$ties_do_not_reset_patience, FALSE)
+  expect_equal(config$validation$checkpoint_selection,
+               "highest_MRR_then_lowest_validation_retrieval_loss_then_highest_mean_positive_hardest_negative_margin_then_earliest_epoch")
+  expect_equal(config$validation$retrieval_loss$temperature, 0.1)
+  expect_equal(config$validation$retrieval_loss_min_delta, 1e-4)
+  expect_equal(config$validation$floating_point_tolerance, 1e-12)
+  expect_equal(config$validation$patience_reset, "higher_MRR_or_saturated_retrieval_loss_min_delta")
+  expect_equal(config$validation$evaluation_and_test_for_selection, "forbidden")
+  expect_equal(config$optimization$optimizer_steps_per_epoch, 8)
   expect_equal(config$execution$dataloader_workers, 40)
   expect_equal(config$execution$workers_per_rank, 20)
   expect_equal(config$runs$execution_mode, "two_process_ddp")
@@ -26,6 +34,24 @@ test_that("I20 scientific training contract is complete and fixed", {
                     "numpy_rng", "torch_cuda_rng", "sampler_position", "accumulation_gradient_state") %in%
                   unlist(config$resume$required_state)))
 })
+
+test_that("I20 scientific identity uses the augmentation YAML", {
+  source_lines <- readLines(file.path(fuse_test_root, "R/research_training_plan.R"), warn = FALSE)
+  assignment <- source_lines[grepl("augmentation_scientific <-", source_lines, fixed = TRUE)]
+  expect_length(assignment, 1L)
+  expect_match(assignment, "augmentation_config\\[c\\(")
+})
+
+test_that("I20 scientific identity includes validation and scheduler implementations", {
+  source_lines <- readLines(file.path(fuse_test_root, "R/research_training_plan.R"), warn = FALSE)
+  expect_true(any(grepl('validation_implementation = training_plan_record', source_lines, fixed = TRUE)))
+  expect_true(any(grepl('scheduler_implementation = training_plan_record', source_lines, fixed = TRUE)))
+  paths <- training_plan_contract_paths(fuse_test_root)
+  expect_true(any(basename(paths) == "prototype_validation.py"))
+  expect_true(any(basename(paths) == "run_prototype_training.py"))
+  expect_true(any(grepl("dissertation_sources <-", source_lines, fixed = TRUE)))
+})
+
 test_that("I20 has all approved parents and I21 is the first optimizer target", {
   manifest <- targets::tar_manifest(
     script = file.path(fuse_test_root, "_targets.R"), callr_arguments = list(wd = fuse_test_root)

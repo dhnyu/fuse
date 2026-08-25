@@ -48,7 +48,7 @@ validate_spatial_acceptance_config <- function(config, codebook, aliases) {
     threads = identical(as.integer(config$threads), 1L),
     branches = identical(as.integer(config$expected$branches), 13L),
     scenes = identical(as.integer(config$expected$scenes), 320L),
-    relation_id = identical(config$expected$relation_dataset_id, "pre_a3579e52b7672dfd4e6f2f54"),
+    relation_id = identical(config$expected$relation_dataset_id, "pre_c665fccd79ec06981cd3c2ab"),
     universe = identical(config$vocabulary$universe, "official_source_codebook_full"),
     reserved = identical(unlist(config$vocabulary$reserved_tokens), c("MISSING", "MASK")),
     no_oov = identical(config$vocabulary$oov_policy, "hard_failure_no_oov_token"),

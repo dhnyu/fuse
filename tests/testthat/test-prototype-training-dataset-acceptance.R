@@ -1,8 +1,8 @@
 test_that("I16 aggregate acceptance contract is fixed", {
   contract <- load_training_dataset_acceptance_config(training_dataset_acceptance_contract_paths(fuse_test_root))
-  expect_equal(contract$config$identity$spatial_dataset_id, "psa_319c2d2c43cdcfb31478a7d1")
-  expect_equal(contract$config$identity$serialization_plan_id, "psp_aa295747ee7814efbd1d177c")
-  expect_equal(contract$config$identity$serialization_dataset_id, "psd_aa295747ee7814efbd1d177c")
+  expect_equal(contract$config$identity$spatial_dataset_id, "psa_495cd109e72ec45bf2b8e7fa")
+  expect_equal(contract$config$identity$serialization_plan_id, "psp_e82f7a94708626c722544505")
+  expect_equal(contract$config$identity$serialization_dataset_id, "psd_e82f7a94708626c722544505")
   expect_equal(contract$config$execution$controller, "controller_05")
   expect_equal(unname(unlist(contract$config$expected$split_counts)), c(256, 32, 32))
   expect_equal(contract$config$expected$actual_payload_bytes, 421433195)

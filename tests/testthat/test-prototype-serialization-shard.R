@@ -1,7 +1,7 @@
 test_that("I15 serialization shard contract is fixed", {
   config <- load_serialization_shard_config(serialization_shard_contract_paths(fuse_test_root))
-  expect_equal(config$scientific$identity$serialization_plan_id, "psp_aa295747ee7814efbd1d177c")
-  expect_equal(config$scientific$identity$serialization_dataset_id, "psd_aa295747ee7814efbd1d177c")
+  expect_equal(config$scientific$identity$serialization_plan_id, "psp_e82f7a94708626c722544505")
+  expect_equal(config$scientific$identity$serialization_dataset_id, "psd_e82f7a94708626c722544505")
   expect_equal(config$scientific$geometry_representations$scientific_reference$crs, "EPSG:5186")
   expect_equal(config$scientific$geometry_representations$scientific_reference$encoder_input, "forbidden")
   expect_equal(config$scientific$tensor$safetensors$geometry$coordinates_absolute_xy_5186$dtype, "float64")

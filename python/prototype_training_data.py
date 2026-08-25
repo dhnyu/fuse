@@ -21,6 +21,7 @@ from prototype_augmentation import (
     recompute_object_context,
     standardize,
     unstandardize,
+    unpack_geometries,
 )
 from prototype_dataloader import logical_batch_digest, ragged_collate
 
@@ -115,15 +116,41 @@ def _geometry_tensors(geometries: list[Any]) -> tuple[dict[str, torch.Tensor], d
     return model, reference
 
 
+def prepare_augmentation_sample(sample: dict[str, Any]) -> dict[str, Any]:
+    """Prepare immutable geometry and row lookups shared by a sample's views."""
+    geometries = tuple(unpack_geometries(sample))
+    entities = sample["entities"]
+    row_lists = {
+        prefix: tuple(map(int, entities[f"{prefix}_row_index"].tolist()))
+        for prefix in ("building", "road", "poi")
+    }
+    return {
+        "geometries": geometries,
+        "geometry_wkb": tuple(geometry.wkb for geometry in geometries),
+        "entity_types": entities["entity_type"].numpy(),
+        "local_entity_ids": tuple(map(int, entities["local_entity_id"].tolist())),
+        "row_lists": row_lists,
+        "row_offsets": {prefix: {row: offset for offset, row in enumerate(rows)} for prefix, rows in row_lists.items()},
+    }
+
+
 def materialize_augmented_sample(sample: dict[str, Any], result: dict[str, Any], config: dict[str, Any],
                                  resources: AugmentationResources, epoch: int, view_id: int,
-                                 intensity: float = 1.0) -> dict[str, Any]:
+                                 intensity: float = 1.0,
+                                 prepared: dict[str, Any] | None = None,
+                                 runtime_cache: dict[str, Any] | None = None) -> dict[str, Any]:
+    prepared = prepare_augmentation_sample(sample) if prepared is None else prepared
     retained = list(map(int, result["retained"]))
     old_to_new = {old: new for new, old in enumerate(retained)}
     original_entities = sample["entities"]
-    original_types = original_entities["entity_type"].numpy()
+    original_types = prepared["entity_types"]
     types = original_types[retained]
-    geometries = [from_wkb(bytes.fromhex(result["geometry_wkb"][str(row)])) for row in retained]
+    geometries = (
+        list(runtime_cache["geometries"]) if runtime_cache is not None else
+        [from_wkb(bytes.fromhex(result["geometry_wkb"][str(row)])) for row in retained]
+    )
+    if runtime_cache is not None:
+        geometries = [geometries[row] for row in retained]
     geometry, reference = _geometry_tensors(geometries)
     center = np.asarray(sample["meta"]["center_xy_5186"], dtype=np.float64)
     centers = reference["reference_center_absolute_xy_5186"].numpy()
@@ -131,8 +158,7 @@ def materialize_augmented_sample(sample: dict[str, Any], result: dict[str, Any],
 
     type_offsets: dict[str, list[int]] = {}
     for prefix, code in (("building", 0), ("road", 1), ("poi", 2)):
-        original_rows = original_entities[f"{prefix}_row_index"].tolist()
-        row_to_offset = {int(row): offset for offset, row in enumerate(original_rows)}
+        row_to_offset = prepared["row_offsets"][prefix]
         type_offsets[prefix] = [row_to_offset[row] for row in retained if original_types[row] == code]
     entities: dict[str, torch.Tensor] = {
         "local_entity_id": torch.arange(len(retained), dtype=torch.int64),
@@ -157,11 +183,8 @@ def materialize_augmented_sample(sample: dict[str, Any], result: dict[str, Any],
     updated_references: list[float] = []
     changed = set(int(value) for value in result["statistics"].get("geometry_changed_rows", []))
     # Older accepted I19 records expose only the count; WKB equality supplies the exact state transition.
-    original_wkb = {}
-    from prototype_augmentation import unpack_geometries
-    for row, value in enumerate(unpack_geometries(sample)):
-        original_wkb[row] = value.wkb
-    for offset, row in enumerate(original_entities["building_row_index"].tolist()):
+    original_wkb = prepared["geometry_wkb"]
+    for offset, row in enumerate(prepared["row_lists"]["building"]):
         if row not in old_to_new:
             continue
         new_geometry = geometries[old_to_new[row]]
@@ -191,24 +214,28 @@ def materialize_augmented_sample(sample: dict[str, Any], result: dict[str, Any],
     entities["road_numerical"] = torch.from_numpy(lane_values[selected_r].copy())
     entities["road_missing"] = torch.from_numpy(lane_missing[selected_r].copy())
 
-    rasters = {key: value.numpy().copy() for key, value in sample["rasters"].items()}
-    valid_lc = np.argwhere(rasters["landcover_valid_mask"] == 1)
-    fraction = min(1.0, intensity * float(config["raster"]["landcover"]["valid_cell_mask_fraction"]))
-    count = int(math.floor(fraction * len(valid_lc)))
-    if count:
-        rng = keyed_rng(int(config["rng"]["base_seed"]), epoch, sample["scene_id"], view_id, "landcover")
-        for row, column in valid_lc[rng.choice(len(valid_lc), size=count, replace=False)]:
-            rasters["landcover_class_fraction"][:, row, column] = 0
-            rasters["landcover_valid_support"][row, column] = 0
-    dem_stat = resources.normalizations["scene_dem_mean_m"]
-    valid_dem = rasters["dem_valid_mask"] == 1
-    rng = keyed_rng(int(config["rng"]["base_seed"]), epoch, sample["scene_id"], view_id, "dem")
-    sigma = intensity * float(config["raster"]["dem"]["valid_cell_gaussian_sd_m"]) / float(dem_stat["applied_scale"])
-    rasters["dem_standardized_mean"][valid_dem] += rng.normal(0, sigma, int(valid_dem.sum())).astype(np.float32)
-    object_context = recompute_object_context(
-        geometries, set(range(len(geometries))), rasters["landcover_class_fraction"],
-        rasters["landcover_valid_support"], rasters["dem_standardized_mean"], rasters["dem_valid_support"], tuple(center),
-    )
+    if runtime_cache is not None:
+        rasters = runtime_cache["rasters"]
+        object_context = runtime_cache["object_context"][retained]
+    else:
+        rasters = {key: value.numpy().copy() for key, value in sample["rasters"].items()}
+        valid_lc = np.argwhere(rasters["landcover_valid_mask"] == 1)
+        fraction = min(1.0, intensity * float(config["raster"]["landcover"]["valid_cell_mask_fraction"]))
+        count = int(math.floor(fraction * len(valid_lc)))
+        if count:
+            rng = keyed_rng(int(config["rng"]["base_seed"]), epoch, sample["scene_id"], view_id, "landcover")
+            for row, column in valid_lc[rng.choice(len(valid_lc), size=count, replace=False)]:
+                rasters["landcover_class_fraction"][:, row, column] = 0
+                rasters["landcover_valid_support"][row, column] = 0
+        dem_stat = resources.normalizations["scene_dem_mean_m"]
+        valid_dem = rasters["dem_valid_mask"] == 1
+        rng = keyed_rng(int(config["rng"]["base_seed"]), epoch, sample["scene_id"], view_id, "dem")
+        sigma = intensity * float(config["raster"]["dem"]["valid_cell_gaussian_sd_m"]) / float(dem_stat["applied_scale"])
+        rasters["dem_standardized_mean"][valid_dem] += rng.normal(0, sigma, int(valid_dem.sum())).astype(np.float32)
+        object_context = recompute_object_context(
+            geometries, set(range(len(geometries))), rasters["landcover_class_fraction"],
+            rasters["landcover_valid_support"], rasters["dem_standardized_mean"], rasters["dem_valid_support"], tuple(center),
+        )
     entities["object_raster"] = torch.from_numpy(object_context)
     entities["object_dem_missing"] = torch.from_numpy(np.stack((object_context[:, 25] == 0, object_context[:, 25] == 0), axis=1).astype(np.uint8))
 
@@ -244,9 +271,18 @@ def materialize_augmented_sample(sample: dict[str, Any], result: dict[str, Any],
 
 def augment_and_materialize(sample: dict[str, Any], config: dict[str, Any], resources: AugmentationResources,
                             thresholds: dict[int, float], epoch: int, view_id: int,
-                            intensity: float = 1.0) -> dict[str, Any]:
-    result = augment_scene(sample, config, resources, thresholds, epoch, view_id, intensity=intensity)
-    output = materialize_augmented_sample(sample, result, config, resources, epoch, view_id, intensity=intensity)
+                            intensity: float = 1.0,
+                            prepared: dict[str, Any] | None = None) -> dict[str, Any]:
+    prepared = prepare_augmentation_sample(sample) if prepared is None else prepared
+    runtime_cache: dict[str, Any] = {}
+    result = augment_scene(
+        sample, config, resources, thresholds, epoch, view_id, intensity=intensity,
+        prepared=prepared, runtime_cache=runtime_cache,
+    )
+    output = materialize_augmented_sample(
+        sample, result, config, resources, epoch, view_id, intensity=intensity,
+        prepared=prepared, runtime_cache=runtime_cache,
+    )
     output["training_tensor_digest"] = logical_batch_digest(ragged_collate([output]))
     output["i19_logical_digest"] = result["logical_digest"]
     return output

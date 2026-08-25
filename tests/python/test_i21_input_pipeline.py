@@ -2,13 +2,17 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "python"))
 
 from prototype_encoder import _geometry_frequencies, _triangle_fourier, _triangle_fourier_batched
-from run_prototype_training_ddp import RankLogicalGroupSampler, RankSceneSampler
+from run_prototype_training_ddp import (
+    RankLogicalGroupSampler, RankSceneSampler, reconcile_ledger, training_contract_sha256,
+    validate_clip_and_count_gradients,
+)
 
 
 def test_scene_sampler_preserves_rank_microbatch_order_and_boundaries():
@@ -51,3 +55,46 @@ def test_i21_runtime_keeps_40_workers_prefetch_four_and_resident_frequencies():
     encoder = yaml.safe_load(Path("config/model_architecture.yml").read_text())
     first = _geometry_frequencies(encoder, torch.device("cpu"))
     assert _geometry_frequencies(encoder, torch.device("cpu")) is first
+
+
+def test_resume_reconciles_ledger_without_duplicate_optimizer_steps(tmp_path):
+    ledger = tmp_path / "optimizer_steps.jsonl"
+    ledger.write_text("".join(f'{{"optimizer_step":{step}}}\n' for step in range(1, 7)))
+    evidence = reconcile_ledger(ledger, 4)
+    assert evidence["rows_retained"] == 4
+    assert evidence["rows_discarded"] == 2
+    assert Path(evidence["preserved_tail"]).read_text().count("\n") == 6
+    assert [int(line.split(":")[1].rstrip("}")) for line in ledger.read_text().splitlines()] == [1, 2, 3, 4]
+
+
+def test_training_identity_excludes_only_physical_archive_roots():
+    config = yaml.safe_load(Path("config/prototype_training.yml").read_text())
+    baseline = training_contract_sha256(config)
+    config["execution"]["archive_runtime_root"] = "/different/runtime/root"
+    config["execution"]["archive_source_root"] = "/different/source/root"
+    assert training_contract_sha256(config) == baseline
+    config["execution"]["prefetch_factor"] = 3
+    assert training_contract_sha256(config) != baseline
+
+
+def test_gradient_gate_allows_synchronized_finite_zero_gradients():
+    source = Path("python/run_prototype_training_ddp.py").read_text()
+    assert "int(routing)!=280" not in source
+    assert 'len({int(value) for value in routing_values})!=1' in source
+    assert '"active_gradient_parameter_tensors":int(routing)' in source
+
+
+def test_gradient_gate_clips_once_and_reports_nonfinite_or_missing_gradients():
+    model = torch.nn.Sequential(torch.nn.Linear(3, 4), torch.nn.Linear(4, 2))
+    for parameter in model.parameters():
+        parameter.grad = torch.ones_like(parameter)
+    expected = torch.linalg.vector_norm(torch.cat([parameter.grad.flatten() for parameter in model.parameters()]))
+    observed, routing = validate_clip_and_count_gradients(model, 1.0)
+    assert torch.equal(observed, expected)
+    assert routing == len(list(model.parameters()))
+    model[0].weight.grad[0, 0] = torch.nan
+    with pytest.raises(ValueError, match="gradient finite check failed"):
+        validate_clip_and_count_gradients(model, 1.0)
+    model[0].weight.grad = None
+    with pytest.raises(ValueError, match="gradient coverage failed"):
+        validate_clip_and_count_gradients(model, 1.0)

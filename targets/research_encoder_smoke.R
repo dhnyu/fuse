@@ -14,7 +14,7 @@ list_research_encoder_smoke <- list(
     command = recover_file_target_metadata(
       "prototype_encoder_smoke",
       file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance),
-                "smoke", "encoder", "pea_5784252434798d9dfa05d796"),
+                "smoke", "encoder", "pea_1c66760dbc1e6c0a8d71cb91"),
       run_prototype_encoder_smoke(
         prototype_training_dataset_acceptance = prototype_training_dataset_acceptance,
         prototype_dataloader_smoke = prototype_dataloader_smoke,

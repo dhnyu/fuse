@@ -40,10 +40,23 @@ from prototype_joint_model import (
     information_preservation_loss, modality_mask_assignments, reconstruction_losses,
     reconstruction_valid_counts,
 )
+from prototype_training_runtime import (
+    ProfilerPolicy, atomic_publish, find_existing_acceptance, scientific_parent_hashes,
+    select_resume_checkpoint, validate_acceptance_manifest, validate_output_records,
+)
+from prototype_validation import NEW_METRIC_KEYS, replay_early_stopping, retrieval_metrics
 from run_prototype_training import (
     AugmentedPairDataset, collate_pairs, device_batch, make_optimizer, modality_counts,
-    query_loss, save_checkpoint, stable_integer, state_digest, worker_init,
+    optimizer_steps_per_epoch, query_loss, save_checkpoint, stable_integer, state_digest, worker_init,
 )
+
+
+def training_contract_sha256(training:dict[str,Any])->str:
+    scientific_training=copy.deepcopy(training)
+    scientific_training["execution"].pop("archive_source_root",None)
+    scientific_training["execution"].pop("archive_runtime_root",None)
+    scientific_training["execution"].pop("profiler",None)
+    return hashlib.sha256(canonical_json_bytes(scientific_training)).hexdigest()
 
 
 class RankLogicalGroupSampler(Sampler[list[tuple[int, int, int]]]):
@@ -117,7 +130,9 @@ def iter_rank_microbatches(loader:DataLoader,sampler:RankLogicalGroupSampler)->I
     iterator=iter(loader)
     for planned in sampler.batches():
         items=[next(iterator) for _ in planned]
-        yield pin_batch_memory(collate_pairs(items))
+        collated=collate_pairs(items);started=time.perf_counter();pinned=pin_batch_memory(collated)
+        if "_diagnostic_timing" in pinned:pinned["_diagnostic_timing"]["pinning_seconds"]=time.perf_counter()-started
+        yield pinned
     try:next(iterator)
     except StopIteration:return
     raise RuntimeError("scene loader produced tasks beyond the accepted microbatch plan")
@@ -133,10 +148,79 @@ def take_local_group(loader: DataLoader,sampler:RankLogicalGroupSampler) -> list
     raise ValueError("could not assemble complete rank-local logical group")
 
 
+def worker_phase_timings(batches:list[dict[str,Any]])->dict[str,float]:
+    names=("archive_open_seconds","archive_read_seconds","safetensors_decode_seconds","numpy_torch_copy_seconds",
+           "augmentation_seconds","worker_total_seconds")
+    samples=[sample for batch in batches for sample in batch.get("_diagnostic_timing",{}).get("samples",[])]
+    values={name:sum(float(sample.get(name,0.0)) for sample in samples) for name in names}
+    values["worker_critical_seconds"]=max((float(sample.get("worker_total_seconds",0.0)) for sample in samples),default=0.0)
+    values["parent_collate_seconds"]=sum(float(batch.get("_diagnostic_timing",{}).get("collate_seconds",0.0)) for batch in batches)
+    values["pinning_seconds"]=sum(float(batch.get("_diagnostic_timing",{}).get("pinning_seconds",0.0)) for batch in batches)
+    return values
+
+
+def sampled_system_metrics(rank:int,device:torch.device)->dict[str,Any]:
+    process=psutil.Process();children=[child for child in process.children(recursive=True) if child.is_running()]
+    cpu=psutil.cpu_times_percent(interval=None)
+    gpu_utilization=None
+    try:
+        query=subprocess.check_output(["nvidia-smi",f"--id={rank}","--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],text=True)
+        gpu_utilization=float(query.strip().splitlines()[0])
+    except (OSError,subprocess.SubprocessError,ValueError,IndexError):pass
+    disks={name:{"read_bytes":int(value.read_bytes),"write_bytes":int(value.write_bytes)}
+           for name,value in psutil.disk_io_counters(perdisk=True).items()}
+    return {"rank":rank,"timestamp_unix":time.time(),
+        "process_tree_rss_bytes":process.memory_info().rss+sum(child.memory_info().rss for child in children),
+        "cpu_percent":psutil.cpu_percent(interval=None),"cpu_iowait_percent":float(getattr(cpu,"iowait",0.0)),
+        "gpu_utilization_percent":gpu_utilization,
+        "gpu_idle_percent":None if gpu_utilization is None else 100.0-gpu_utilization,"disk_io_counters":disks,
+        "gpu_allocated_bytes":torch.cuda.memory_allocated(device),"gpu_reserved_bytes":torch.cuda.memory_reserved(device),
+        "gpu_peak_allocated_bytes":torch.cuda.max_memory_allocated(device)}
+
+
+def append_profile_sidecar(path:Path,optimizer_step:int,rank_values:list[dict[str,Any]],event_type:str="sampled_step")->None:
+    phases=sorted({name for value in rank_values for name in value["timings"]})
+    record={"schema_version":"1.0.0","runtime_diagnostic_only":True,"event_type":event_type,"optimizer_step":optimizer_step,
+        "ranks":rank_values,"global_critical_path_max_seconds":{
+            name:max(float(value["timings"].get(name,0.0)) for value in rank_values) for name in phases}}
+    path.parent.mkdir(parents=True,exist_ok=True)
+    with path.open("ab") as stream:stream.write(canonical_json_bytes(record)+b"\n")
+
+
 def empty_queue(device: torch.device)->dict[str,Any]:
     return {"values":torch.zeros((8192,128),device=device),
             "scene_ids":torch.full((8192,),-1,dtype=torch.int64,device=device),
             "centers":torch.zeros((8192,2),device=device),"pointer":0,"occupancy":0}
+
+
+def all_gather_fixed_hex(values:list[str],device:torch.device)->list[list[str]]:
+    """Gather fixed SHA-256 values with a tensor collective instead of pickle."""
+    width=32
+    local=torch.tensor(
+        [byte for value in values for byte in bytes.fromhex(value)], device=device, dtype=torch.uint8
+    ).reshape(len(values),width)
+    count=torch.tensor([len(values)],device=device,dtype=torch.int64)
+    counts=[torch.empty_like(count) for _ in range(dist.get_world_size())];dist.all_gather(counts,count)
+    if len({int(value) for value in counts})!=1:raise ValueError("rank digest counts differ")
+    gathered=[torch.empty_like(local) for _ in range(dist.get_world_size())];dist.all_gather(gathered,local)
+    return [[bytes(row.tolist()).hex() for row in rank.cpu()] for rank in gathered]
+
+
+def validate_clip_and_count_gradients(model:Any,maximum_norm:float)->tuple[torch.Tensor,int]:
+    """Validate coverage once and defer the expensive finite detail scan to failures."""
+    named=[(name,parameter) for name,parameter in model.named_parameters() if parameter.requires_grad]
+    missing=[name for name,parameter in named if parameter.grad is None]
+    if missing:raise ValueError(f"gradient coverage failed missing_count={len(missing)} missing_first={missing[:8]}")
+    parameters=[parameter for _,parameter in named]
+    try:
+        norm=torch.nn.utils.clip_grad_norm_(parameters,maximum_norm,error_if_nonfinite=True)
+    except RuntimeError as error:
+        invalid=[name for name,parameter in named if not torch.isfinite(parameter.grad).all()]
+        raise ValueError(
+            f"gradient finite check failed invalid_count={len(invalid)} invalid_first={invalid[:8]}"
+        ) from error
+    routing=sum(bool(torch.count_nonzero(parameter.grad)) for parameter in parameters)
+    return norm,routing
 
 
 def gather_metadata(local_batches:list[dict[str,Any]],device:torch.device)->tuple[list[str],torch.Tensor,dict[str,int],list[int]]:
@@ -261,17 +345,21 @@ def train_group(ddp:DistributedDataParallel,model:DistributedJointPrototypeModel
                 cuda_timer.stop("online_forward_loss_seconds",started)
                 started=cuda_timer.start()
                 (contribution*2.0).backward()
-                cuda_timer.stop("backward_ddp_seconds" if call_index==calls-1 else "backward_compute_seconds",started)
+                cuda_timer.stop("final_ddp_synchronization_seconds" if call_index==calls-1 else "backward_compute_seconds",started)
             local_scene+=float(scene_component.detach());local_ip+=float(ip_component.detach());call_index+=1
     started=cuda_timer.start()
-    invalid=[name for name,p in model.named_parameters() if p.requires_grad and (p.grad is None or not torch.isfinite(p.grad).all())]
-    routing=torch.tensor([sum(p.grad is not None and bool(torch.count_nonzero(p.grad)) for p in model.parameters() if p.requires_grad)],device=device)
+    gradient_norm,routing_count=validate_clip_and_count_gradients(
+        model,float(spec["optimizer"]["gradient_norm_clip"])
+    )
+    routing=torch.tensor([routing_count],device=device)
     routing_values=[torch.empty_like(routing) for _ in range(2)];dist.all_gather(routing_values,routing)
-    if invalid or len({int(value) for value in routing_values})!=1 or int(routing)!=280:
-        raise ValueError(f"distributed gradient coverage/routing failed invalid={invalid} counts={[int(x) for x in routing_values]}")
-    gradient_norm=torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad],float(spec["optimizer"]["gradient_norm_clip"]))
+    if len({int(value) for value in routing_values})!=1:
+        raise ValueError(
+            "distributed gradient routing failed "
+            f"routing_counts={[int(x) for x in routing_values]}"
+        )
     gradient_digest=state_digest({name:p.grad for name,p in model.named_parameters() if p.requires_grad}) if diagnostic_profile else None
-    cuda_timer.stop("gradient_check_clip_seconds",started)
+    cuda_timer.stop("gradient_validation_clip_seconds",started)
     applied_lr=float(optimizer.param_groups[0]["lr"])
     if perform_update:
         started=cuda_timer.start();optimizer.step();scheduler.step();cuda_timer.stop("optimizer_scheduler_seconds",started)
@@ -280,13 +368,14 @@ def train_group(ddp:DistributedDataParallel,model:DistributedJointPrototypeModel
         values=torch.stack(keys,dim=1).reshape(64,128)
         queue["pointer"],queue["occupancy"]=enqueue(queue["values"],queue["scene_ids"],queue["centers"],queue["pointer"],queue["occupancy"],
             values,numeric.repeat_interleave(2),centers.repeat_interleave(2,0))
-        cuda_timer.stop("queue_seconds",started)
+        cuda_timer.stop("queue_update_seconds",started)
     totals=torch.tensor([local_scene,local_ip],device=device,dtype=torch.float64);dist.all_reduce(totals)
-    digests=[item["i19_digests"] for item in cpu_batches];all_digests=[None,None];dist.all_gather_object(all_digests,digests)
+    digests=[item["i19_digests"] for item in cpu_batches];all_digests=[None,None]
+    dist.all_gather_object(all_digests,digests)
     result={"total_loss":float(totals[0])+float(joint["loss"]["information_preservation_weight"])*float(totals[1]),
             "scene_loss":float(totals[0]),"information_preservation_loss":float(totals[1]),
             "gradient_norm":float(gradient_norm),"learning_rate":applied_lr,"rank_microbatch_sizes":sizes,
-            "augmentation_digest":state_digest(all_digests)}
+            "augmentation_digest":state_digest(all_digests),"active_gradient_parameter_tensors":int(routing)}
     if diagnostic_profile:
         cuda_values=cuda_timer.values();cpu_timings["train_group_cpu_seconds"]=time.perf_counter()-group_started
         result["diagnostic"]={"timings":{**cuda_values,**cpu_timings},"scene_ids":scene_ids,"gradient_digest":gradient_digest}
@@ -295,7 +384,7 @@ def train_group(ddp:DistributedDataParallel,model:DistributedJointPrototypeModel
 
 def sync_digest(model:Any,optimizer:Any,scheduler:Any,queue:dict[str,Any],device:torch.device)->str:
     value=state_digest({"model":model.state_dict(),"optimizer":optimizer.state_dict(),"scheduler":scheduler.state_dict(),"queue":queue})
-    values=[None,None];dist.all_gather_object(values,value)
+    values=[item[0] for item in all_gather_fixed_hex([value],device)]
     if len(set(values))!=1:raise RuntimeError(f"rank scientific state drift: {values}")
     return value
 
@@ -307,7 +396,8 @@ def local_rng_state(rank:int,progress:dict[str,Any])->dict[str,Any]:
             "accumulation_scene_count":0,"accumulation_gradient_state":{}}
 
 
-def checkpoint_payload(model:Any,optimizer:Any,scheduler:Any,queue:dict[str,Any],progress:dict[str,Any],rank:int)->dict[str,Any]|None:
+def checkpoint_payload(model:Any,optimizer:Any,scheduler:Any,queue:dict[str,Any],progress:dict[str,Any],rank:int,
+                       include_process_resumes:bool=False)->dict[str,Any]|None:
     local=local_rng_state(rank,progress);rank_states=[None,None];dist.all_gather_object(rank_states,local)
     if rank:return None
     return {"online_model":model.online.state_dict(),"target_model":model.target.state_dict(),
@@ -316,11 +406,14 @@ def checkpoint_payload(model:Any,optimizer:Any,scheduler:Any,queue:dict[str,Any]
         "queue_values":queue["values"],"queue_scene_ids":queue["scene_ids"],"queue_scene_centers":queue["centers"],
         "queue_pointer":queue["pointer"],"queue_occupancy":queue["occupancy"],"distributed_rank_states":rank_states,
         "best_checkpoint_metric_state":progress["best"],"validation_history":progress["validation"],
-        "early_stopping_patience_state":progress["patience"],"optimizer_step":progress["optimizer_step"],
+        "early_stopping_patience_state":progress["patience"],
+        "early_stopping_metric_state":progress["early_stopping_metric_state"],"optimizer_step":progress["optimizer_step"],
         "scene_consumptions":progress["scene_consumptions"],"scientific_parents":progress["parents"],
         "epoch_timings":progress["epoch_timings"],"controlled_resume":progress["controlled_resume"],
-        "process_resumes":progress["process_resumes"],
-        "run_id":progress["run_id"],"seed":progress["seed"],"schema_version":"2.0.0","world_size":2}
+        "process_resumes":progress["process_resumes"] if include_process_resumes else [],
+        "plan_id":progress["plan_id"],"run_id":progress["run_id"],"seed":progress["seed"],
+        "termination":progress.get("termination"),"completed_epoch":int(progress["epoch"])+1,
+        "schema_version":"2.0.0","world_size":2}
 
 
 def restore(path:Path,model:Any,optimizer:Any,scheduler:Any,queue:dict[str,Any],rank:int)->dict[str,Any]:
@@ -336,10 +429,12 @@ def restore(path:Path,model:Any,optimizer:Any,scheduler:Any,queue:dict[str,Any],
     return state
 
 
-def checkpoint_record(path:Path,epoch:int|None=None)->dict[str,Any]:
+def checkpoint_record(path:Path,epoch:int|None=None,role:str|None=None)->dict[str,Any]:
     state=torch.load(path,map_location="cpu",weights_only=False)
-    record={"path":str(path),"size_bytes":path.stat().st_size,"sha256":sha256_file(path),"state_digest":state_digest(state)}
+    record={"path":str(path),"size_bytes":path.stat().st_size,"sha256":sha256_file(path),"state_digest":state_digest(state),
+            "optimizer_step":int(state["optimizer_step"]),"scene_consumptions":int(state["scene_consumptions"])}
     if epoch is not None:record["epoch"]=int(epoch)
+    if role is not None:record["role"]=role
     return record
 
 
@@ -367,7 +462,8 @@ def reconcile_ledger(path:Path,checkpoint_step:int)->dict[str,Any]:
             "rows_retained":keep_count,"rows_discarded":len(lines)-keep_count}
 
 
-def distributed_validation(model:Any,loader:DataLoader,encoder:dict[str,Any],masks:dict[str,int],device:torch.device)->dict[str,Any]:
+def distributed_validation(model:Any,loader:DataLoader,encoder:dict[str,Any],masks:dict[str,int],device:torch.device,
+                           validation:dict[str,Any])->dict[str,Any]:
     model.eval();local=[]
     with torch.no_grad():
         for item in loader:
@@ -382,12 +478,7 @@ def distributed_validation(model:Any,loader:DataLoader,encoder:dict[str,Any],mas
     gathered=[None,None];dist.all_gather_object(gathered,local);records=sorted([x for values in gathered for x in values],key=lambda x:x["scene_id"])
     candidates=torch.stack([x["embeddings"][2] for x in records]).to(device)
     queries=torch.cat((torch.stack([x["embeddings"][0] for x in records]),torch.stack([x["embeddings"][1] for x in records]))).to(device)
-    similarity=queries@candidates.T;target=torch.arange(32,device=device).repeat(2);order=torch.argsort(similarity,dim=1,descending=True,stable=True)
-    ranks=torch.nonzero(order==target[:,None])[:,1]+1
-    result={"MRR":float((1.0/ranks.float()).mean()),"HIT@1":float((ranks<=1).float().mean()),
-            "HIT@5":float((ranks<=5).float().mean()),"HIT@10":float((ranks<=10).float().mean()),"population":32,
-            "embedding_digest":state_digest((queries,candidates)),"retrieval_digest":state_digest((order,ranks)),
-            "scene_ids_digest":state_digest([x["scene_id"] for x in records])}
+    result=retrieval_metrics(queries,candidates,[x["scene_id"] for x in records],validation,state_digest)
     model.train();model.target.eval();return result
 
 
@@ -404,6 +495,7 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
                         "persistent_workers":True,"pin_memory":True,"prefetch_factor":4}
     if any(execution.get(key)!=value for key,value in required_execution.items()):
         raise ValueError(f"I21 execution contract mismatch: {execution}")
+    profile_policy=ProfilerPolicy.from_config(execution.get("profiler"))
     archive_source=Path(execution["archive_source_root"]).resolve()
     archive_runtime=Path(execution["archive_runtime_root"]).resolve()
     if archive_source==archive_runtime or execution.get("archive_runtime_identity")!="excluded_execution_only":
@@ -416,9 +508,13 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
         if not path.is_file() or path.stat().st_size!=int(record["size_bytes"]) or sha256_file(path)!=record["sha256"]:raise ValueError(f"upstream mismatch: {name}")
     thresholds={0:float(i19["logical_results"]["thresholds"]["building"]),1:float(i19["logical_results"]["thresholds"]["road"])}
     seed=int(spec["seed"]);random.seed(seed);np.random.seed(seed);torch.manual_seed(seed);torch.cuda.manual_seed_all(seed)
+    steps_per_epoch=optimizer_steps_per_epoch(spec)
+    diagnostic_steps={step for step in range(1,int(spec["optimizer"]["maximum_epochs"])*steps_per_epoch+1) if profile_policy.should_profile(step)}
     archive_args={"archive_source_root":str(archive_source),"archive_runtime_root":str(archive_runtime)}
-    train=AugmentedPairDataset(spec["dataset_manifest"]["path"],args.tensor_contract,"training",augmentation,thresholds,**archive_args)
-    valid=AugmentedPairDataset(spec["dataset_manifest"]["path"],args.tensor_contract,"validation",augmentation,thresholds,validation=True,**archive_args)
+    train=AugmentedPairDataset(spec["dataset_manifest"]["path"],args.tensor_contract,"training",augmentation,thresholds,
+        diagnostic_timing=profile_policy.enabled,diagnostic_steps=diagnostic_steps,**archive_args)
+    valid=AugmentedPairDataset(spec["dataset_manifest"]["path"],args.tensor_contract,"validation",augmentation,thresholds,
+        validation=True,diagnostic_timing=profile_policy.enabled,**archive_args)
     if len(train)!=256 or len(valid)!=32:raise ValueError("split population mismatch")
     masks={name:next(iter(values)) for name,values in train.base.category_mask_index.items()};workers=int(training["execution"]["workers_per_rank"])
     sampler=RankLogicalGroupSampler(train.base.rows,spec["hard_budgets"],seed,rank)
@@ -435,9 +531,12 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
     output_root=Path(spec["output_root"]);mutable=output_root/"mutable-ddp";immutable=output_root/"acceptance";checkpoints=mutable/"checkpoints"
     if rank==0:mutable.mkdir(parents=True,exist_ok=True);checkpoints.mkdir(parents=True,exist_ok=True)
     dist.barrier();step_log=mutable/training["output"]["steps_name"];telemetry_log=mutable/training["output"]["telemetry_name"]
+    profile_sidecar=mutable/str(execution.get("profiler",{}).get("sidecar_name","runtime_phase_profile.jsonl"))
     progress={"epoch":0,"group_position":0,"permutation":[],"optimizer_step":0,"scene_consumptions":0,"best":None,"validation":[],"patience":0,
+              "early_stopping_metric_state":{"best_mrr":None,"saturated_retrieval_loss_reference":None},
               "epoch_timings":[],"controlled_resume":None,"process_resumes":[],
-              "parents":{key:value["sha256"] for key,value in parents.items()},"run_id":spec["run_id"],"seed":seed}
+              "parents":{key:value["sha256"] for key,value in parents.items()},"plan_id":spec["plan_id"],
+              "run_id":spec["run_id"],"seed":seed,"termination":None}
     preflight_epoch=int(args.preflight_epoch or 0)
     sampler.set_epoch(preflight_epoch);progress["permutation"]=sampler.permutation()
     if len(set(progress["permutation"]))!=256:raise ValueError("sampler duplication/omission")
@@ -474,20 +573,22 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
         if valid_loader._iterator is not None:valid_loader._iterator._shutdown_workers()
         dist.destroy_process_group();return
     started=time.time();checkpoint_records=[];exact_resume=None;termination="maximum_epochs";start_epoch=0
+    resume_already_terminated=False;post_termination_checkpoints=[]
     if rank==0:
-        epoch_paths=sorted(checkpoints.glob("epoch-*.pt"))
-        resume_path=str(epoch_paths[-1]) if epoch_paths else None
+        selection=select_resume_checkpoint(checkpoints.glob("epoch-*.pt"),spec,progress["parents"],step_log)
+        if selection is not None and selection.decision.terminal:
+            raise RuntimeError("terminal checkpoint reached DDP worker after CPU-only terminal preflight")
+        resume_path=str(selection.path) if selection is not None else None
     else:resume_path=None
     resume_values=[resume_path];dist.broadcast_object_list(resume_values,src=0);resume_path=resume_values[0]
     if resume_path is not None:
         state=restore(Path(resume_path),model,optimizer,scheduler,queue,rank)
-        if state["run_id"]!=spec["run_id"] or state["seed"]!=seed or state["scientific_parents"]!=progress["parents"]:
-            raise RuntimeError("resume checkpoint lineage mismatch")
         local=state["distributed_rank_states"][rank];start_epoch=int(local["sampler_epoch"])+1
         progress.update(epoch=int(local["sampler_epoch"]),group_position=int(local["sampler_position"]),
             permutation=list(local["sampler_permutation"]),optimizer_step=int(state["optimizer_step"]),
             scene_consumptions=int(state["scene_consumptions"]),best=state["best_checkpoint_metric_state"],
             validation=list(state["validation_history"]),patience=int(state["early_stopping_patience_state"]),
+            early_stopping_metric_state=dict(state.get("early_stopping_metric_state") or {}),
             epoch_timings=list(state.get("epoch_timings",[])),controlled_resume=state.get("controlled_resume"),
             process_resumes=list(state.get("process_resumes",[])))
         exact_resume=progress["controlled_resume"]
@@ -496,7 +597,8 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
             telemetry_evidence=reconcile_ledger(telemetry_log,progress["optimizer_step"])
             resume_evidence={"checkpoint":checkpoint_record(Path(resume_path),start_epoch),"start_epoch":start_epoch+1,
                              "optimizer_step":progress["optimizer_step"],"step_ledger":step_evidence,
-                             "telemetry_ledger":telemetry_evidence,"status":"PASS"}
+                             "telemetry_ledger":telemetry_evidence,
+                             "post_termination_checkpoints":post_termination_checkpoints,"status":"PASS"}
         else:resume_evidence=None
         resume_evidence_values=[resume_evidence];dist.broadcast_object_list(resume_evidence_values,src=0)
         progress["process_resumes"].append(resume_evidence_values[0])
@@ -510,19 +612,47 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
     resume_history=[progress["process_resumes"] if rank==0 else None];dist.broadcast_object_list(resume_history,src=0);progress["process_resumes"]=resume_history[0]
     if rank==0:
         for path in sorted(checkpoints.glob("epoch-*.pt")):
-            epoch_number=int(path.stem.split("-")[-1]);checkpoint_records.append(checkpoint_record(path,epoch_number))
-    for epoch in range(start_epoch,int(spec["optimizer"]["maximum_epochs"])):
+            epoch_number=int(path.stem.split("-")[-1])
+            if not resume_already_terminated or epoch_number<=start_epoch:
+                checkpoint_records.append(checkpoint_record(path,epoch_number))
+    epoch_range=range(start_epoch,int(spec["optimizer"]["maximum_epochs"]))
+    for epoch in epoch_range:
         epoch_started=time.time()
         sampler.set_epoch(epoch);progress.update(epoch=epoch,permutation=sampler.permutation(),group_position=0)
         group_batches=[];current_group=0
-        for item in iter_rank_microbatches(loader,sampler):
+        microbatch_iterator=iter_rank_microbatches(loader,sampler);dataloader_wait_seconds=0.0
+        while True:
+            wait_started=time.perf_counter()
+            try:item=next(microbatch_iterator)
+            except StopIteration:break
+            dataloader_wait_seconds+=time.perf_counter()-wait_started
             group=int(item["group"])
             if group!=current_group and group_batches:raise RuntimeError("loader crossed group")
             group_batches.append(item);count=sum(len(x["positions"]) for x in group_batches)
             if count<16:continue
             if count!=16:raise ValueError("partial/oversized rank group")
-            result=train_group(ddp,model,group_batches,optimizer,scheduler,queue,spec,joint,encoder,masks,device,epoch)
+            profile_step=profile_policy.should_profile(progress["optimizer_step"]+1)
+            try:
+                result=train_group(ddp,model,group_batches,optimizer,scheduler,queue,spec,joint,encoder,masks,device,epoch,
+                    diagnostic_profile=profile_step)
+            except Exception as error:
+                diagnostic={"rank":rank,"epoch":epoch+1,"logical_group":group,
+                    "optimizer_step_before_failure":progress["optimizer_step"],"error":str(error),
+                    "scene_ids":[scene_id for batch in group_batches for scene_id in batch["views"][0]["scene_ids"]],
+                    "rank_microbatch_sizes":[len(batch["positions"]) for batch in group_batches]}
+                diagnostic_path=mutable/f"gradient_failure_rank{rank}.json"
+                temporary=diagnostic_path.with_suffix(".json.tmp")
+                temporary.write_bytes(canonical_json_bytes(diagnostic));os.replace(temporary,diagnostic_path)
+                print(f"I21_GRADIENT_FAILURE {json.dumps(diagnostic,sort_keys=True)}",flush=True)
+                raise
             progress["optimizer_step"]+=1;progress["scene_consumptions"]+=32;progress["group_position"]=group+1
+            if profile_step:
+                diagnostic=result.pop("diagnostic");diagnostic["timings"].update(worker_phase_timings(group_batches))
+                diagnostic["timings"]["dataloader_wait_seconds"]=dataloader_wait_seconds
+                diagnostic["system"]=sampled_system_metrics(rank,device)
+                diagnostic["rank"]=rank
+                profile_values=[None,None];dist.all_gather_object(profile_values,diagnostic)
+                if rank==0:append_profile_sidecar(profile_sidecar,progress["optimizer_step"],profile_values)
             state=sync_digest(model,optimizer,scheduler,queue,device)
             row={"epoch":epoch+1,"logical_group":group,"optimizer_step":progress["optimizer_step"],"scenes_consumed":32,
                  "effective_batch_size":32,"ema_update_count":progress["optimizer_step"],"queue_pointer":queue["pointer"],
@@ -549,26 +679,42 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
                 exact_resume={"status":"PASS","checkpoint_step":1,"comparison_steps":1,"direct_state_digest":direct,
                               "replay_state_digest":replay_state,"augmentation_digest":replay["augmentation_digest"]}
                 progress["controlled_resume"]=exact_resume
-            group_batches=[];current_group=group+1
+            group_batches=[];current_group=group+1;dataloader_wait_seconds=0.0
         if group_batches:raise ValueError("epoch ended with partial rank group")
         validation_due=(epoch+1)%int(spec["validation"]["interval_epochs"])==0
         should_stop=False
         if validation_due:
-            metrics=distributed_validation(model,valid_loader,encoder,masks,device);metrics["epoch"]=epoch+1;progress["validation"].append(metrics)
-            best=progress["best"];improved=best is None or metrics["MRR"]>best["MRR"]
-            selected=best is None or (metrics["MRR"],metrics["HIT@1"],-(epoch+1))>(best["MRR"],best["HIT@1"],-best["epoch"])
-            progress["patience"]=0 if improved else progress["patience"]+1
-            if selected:progress["best"]=dict(metrics)
+            validation_started=time.perf_counter();metrics=distributed_validation(model,valid_loader,encoder,masks,device,spec["validation"])
+            validation_seconds=time.perf_counter()-validation_started
+            metrics["epoch"]=epoch+1;progress["validation"].append(metrics)
+            if profile_policy.enabled:
+                diagnostic={"rank":rank,"timings":{"validation_seconds":validation_seconds},
+                    "system":sampled_system_metrics(rank,device)}
+                profile_values=[None,None];dist.all_gather_object(profile_values,diagnostic)
+                if rank==0:append_profile_sidecar(profile_sidecar,progress["optimizer_step"],profile_values,"validation")
+            patience,selected,metric_state=replay_early_stopping(progress["validation"],spec["validation"])
+            progress["patience"]=patience;progress["best"]=selected
+            progress["early_stopping_metric_state"]=metric_state
             should_stop=progress["patience"]>=int(spec["validation"]["early_stopping_patience_evaluations"])
         epoch_wall=time.time()-epoch_started
         previous_elapsed=sum(float(item["wall_seconds"]) for item in progress["epoch_timings"])
         progress["epoch_timings"].append({"epoch":epoch+1,"wall_seconds":epoch_wall,
             "cumulative_elapsed_seconds":previous_elapsed+epoch_wall})
         if validation_due:
-            payload=checkpoint_payload(model,optimizer,scheduler,queue,progress,rank)
+            if should_stop:
+                termination="early_stopping";progress["termination"]=termination
+            elif epoch+1>=int(spec["optimizer"]["maximum_epochs"]):
+                progress["termination"]="maximum_epochs"
+            payload=checkpoint_payload(model,optimizer,scheduler,queue,progress,rank,include_process_resumes=True)
+            checkpoint_diagnostic={} if profile_policy.enabled and rank==0 else None
             if rank==0:
-                record=save_checkpoint(checkpoints/f"epoch-{epoch+1:03d}.pt",payload);record["epoch"]=epoch+1;checkpoint_records.append(record)
-            if should_stop:termination="early_stopping";break
+                record=save_checkpoint(checkpoints/f"epoch-{epoch+1:03d}.pt",payload,checkpoint_diagnostic)
+                record["epoch"]=epoch+1;checkpoint_records.append(record)
+            if profile_policy.enabled:
+                diagnostic={"rank":rank,"timings":checkpoint_diagnostic or {},"system":sampled_system_metrics(rank,device)}
+                profile_values=[None,None];dist.all_gather_object(profile_values,diagnostic)
+                if rank==0:append_profile_sidecar(profile_sidecar,progress["optimizer_step"],profile_values,"checkpoint")
+            if should_stop:break
     if exact_resume is None:raise RuntimeError("controlled resume not completed")
     best_path_values=[str(checkpoints/f"epoch-{int(progress['best']['epoch']):03d}.pt") if rank==0 else None];dist.broadcast_object_list(best_path_values,src=0)
     peak={"rank":rank,"allocated":int(torch.cuda.max_memory_allocated()),"reserved":int(torch.cuda.max_memory_reserved())}
@@ -577,16 +723,24 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
     del ddp,model,optimizer,scheduler,queue;torch.cuda.empty_cache()
     reproduced_model=DistributedJointPrototypeModel(encoder,joint).to(device).eval();reproduced_optimizer,reproduced_scheduler=make_optimizer(reproduced_model,spec)
     reproduced_queue=empty_queue(device);restore(Path(best_path_values[0]),reproduced_model,reproduced_optimizer,reproduced_scheduler,reproduced_queue,rank)
-    reproduction=distributed_validation(reproduced_model,valid_loader,encoder,masks,device)
-    expected_reproduction={key:progress["best"][key] for key in ("MRR","HIT@1","HIT@5","HIT@10","population","embedding_digest","retrieval_digest","scene_ids_digest")}
+    reproduction=distributed_validation(reproduced_model,valid_loader,encoder,masks,device,spec["validation"])
+    expected_reproduction={key:progress["best"][key] for key in NEW_METRIC_KEYS}
     if reproduction!=expected_reproduction:raise RuntimeError("reloaded best-checkpoint distributed validation mismatch")
     if valid_loader._iterator is not None:valid_loader._iterator._shutdown_workers()
     if rank==0:
-        final_checkpoint=checkpoint_records[-1];best_checkpoint=checkpoint_record(Path(best_path_values[0]),int(progress["best"]["epoch"]))
-        scientific_training=copy.deepcopy(training);scientific_training["execution"].pop("archive_source_root",None);scientific_training["execution"].pop("archive_runtime_root",None)
+        final_epoch=int(progress["epoch"])+1
+        final_checkpoint=checkpoint_record(checkpoints/f"epoch-{final_epoch:03d}.pt",final_epoch,"final")
+        best_checkpoint=checkpoint_record(Path(best_path_values[0]),int(progress["best"]["epoch"]),"best")
+        fresh_process_validation={"status":"PASS","mode":"fresh_model_reload_in_same_rank_processes",
+            "best_epoch":int(progress["best"]["epoch"]),
+            "metrics":{key:reproduction[key] for key in NEW_METRIC_KEYS if not key.endswith("digest")},
+            "embedding_digest":reproduction["embedding_digest"],"retrieval_digest":reproduction["retrieval_digest"]}
         scientific={"plan_id":spec["plan_id"],"run_id":spec["run_id"],"parents":progress["parents"],
-            "run_spec_sha256":sha256_file(args.run_spec),"training_contract_sha256":hashlib.sha256(canonical_json_bytes(scientific_training)).hexdigest(),
-            "training_implementation_sha256":sha256_file(Path(__file__)),"seed":seed,
+            "run_spec_sha256":sha256_file(args.run_spec),"training_contract_sha256":training_contract_sha256(training),
+            "training_implementation_sha256":sha256_file(Path(__file__)),
+            "validation_implementation_sha256":sha256_file(Path(__file__).with_name("prototype_validation.py")),
+            "scheduler_implementation_sha256":sha256_file(Path(__file__).with_name("run_prototype_training.py")),
+            "validation_contract":spec["validation"],"optimizer_contract":spec["optimizer"],"seed":seed,
             "numerical_policy":"two_process_ddp_float32_no_tf32","world_size":2}
         acceptance="pta_"+hashlib.sha256(canonical_json_bytes(scientific)).hexdigest()[:24]
         final_dir=immutable/acceptance;immutable.mkdir(parents=True,exist_ok=True);stage=Path(tempfile.mkdtemp(prefix=f".{acceptance}.stage-",dir=immutable))
@@ -601,17 +755,22 @@ def run(rank:int,world_size:int,args:argparse.Namespace)->None:
                 "native_threads_per_worker":1}}
         qc_path=stage/training["output"]["qc_name"];qc_path.write_bytes(canonical_json_bytes(qc))
         outputs=[{"relative_path":x.name,"size_bytes":x.stat().st_size,"sha256":sha256_file(x)} for x in (qc_path,validation_path)]
-        manifest={"schema_version":"1.0.0","status":"PASS","training_acceptance_id":acceptance,"plan_id":spec["plan_id"],"run_id":spec["run_id"],
+        manifest={"schema_version":"2.0.0","status":"PASS","training_acceptance_id":acceptance,"plan_id":spec["plan_id"],"run_id":spec["run_id"],
             "scientific_identity":scientific,"completion":{"epochs_completed":progress["epoch"]+1,"optimizer_steps":progress["optimizer_step"],
             "training_scene_consumptions":progress["scene_consumptions"],"termination":termination},"validation_history":progress["validation"],
             "best_checkpoint":best_checkpoint,"final_checkpoint":final_checkpoint,"exact_resume":exact_resume,"resources":qc,
-            "fresh_process_validation":reproduction,"outputs":outputs}
-        jsonschema.validate(manifest,json.loads(Path(args.schema).read_text()));manifest_path=stage/training["output"]["manifest_name"];manifest_path.write_bytes(canonical_json_bytes(manifest))
-        if final_dir.exists():
-            existing=json.loads((final_dir/manifest_path.name).read_text())
-            if canonical_json_bytes(existing)!=canonical_json_bytes(manifest):raise RuntimeError("same DDP I21 ID has different content")
-            shutil.rmtree(stage);publish="identical_reuse"
-        else:os.replace(stage,final_dir);publish="new_publish"
+            "fresh_process_validation":fresh_process_validation,"outputs":outputs}
+        schema=json.loads(Path(args.schema).read_text())
+        try:
+            validate_acceptance_manifest(manifest,schema,spec,progress["parents"])
+            validate_output_records(outputs,stage)
+        except ValueError as error:
+            diagnostic={"status":"FAIL","error":str(error)}
+            (stage/"manifest-candidate.json").write_bytes(canonical_json_bytes(manifest))
+            (stage/"manifest-validation-errors.json").write_bytes(canonical_json_bytes(diagnostic))
+            raise RuntimeError(str(error)) from error
+        manifest_path=stage/training["output"]["manifest_name"];manifest_path.write_bytes(canonical_json_bytes(manifest))
+        publish=atomic_publish(stage,final_dir,(qc_path.name,validation_path.name,manifest_path.name))
         print(json.dumps({"status":"PASS","training_acceptance_id":acceptance,"publish_status":publish,
                           "output_files":[str(final_dir/name) for name in (qc_path.name,validation_path.name,manifest_path.name)]},sort_keys=True))
     dist.barrier();dist.destroy_process_group()
@@ -625,6 +784,32 @@ def main()->None:
     parser.add_argument("--preflight-epoch",type=int)
     parser.add_argument("--preflight-through-epoch2-first",action="store_true")
     parser.add_argument("--preflight-only",action="store_true");args=parser.parse_args()
+    spec=json.loads(Path(args.run_spec).read_text())
+    training=yaml.safe_load(Path(args.training_config).read_text())
+    schema=json.loads(Path(args.schema).read_text())
+    parents=scientific_parent_hashes(spec)
+    mutable=Path(spec["output_root"])/"mutable-ddp"
+    selection=select_resume_checkpoint(
+        (mutable/"checkpoints").glob("epoch-*.pt"),spec,parents,mutable/training["output"]["steps_name"]
+    )
+    if selection is not None and selection.decision.terminal:
+        accepted=find_existing_acceptance(
+            Path(spec["output_root"])/"acceptance",spec,selection,schema,training["output"]["manifest_name"]
+        )
+        if accepted is not None:
+            output_files=[str(accepted/name) for name in (training["output"]["qc_name"],training["output"]["validation_name"],
+                                                          training["output"]["manifest_name"])]
+            print(json.dumps({"status":"PASS","mode":"terminal_identical_reuse","optimizer_steps":0,
+                "cuda_operations":0,"terminal_reason":selection.decision.reason,
+                "terminal_checkpoint":str(selection.path),"accepted_bundle":str(accepted),
+                "output_files":output_files,
+                "post_termination_evidence":[str(path) for path in selection.post_termination_paths]},sort_keys=True))
+            return
+        from recover_prototype_training_acceptance import publish_preserved_terminal_stage
+        result=publish_preserved_terminal_stage(spec,training,schema,selection.path)
+        result["terminal_reason"]=selection.decision.reason
+        result["post_termination_evidence"]=[str(path) for path in selection.post_termination_paths]
+        print(json.dumps(result,sort_keys=True));return
     os.environ.setdefault("MASTER_ADDR","127.0.0.1");os.environ.setdefault("MASTER_PORT","29621")
     mp.spawn(run,args=(2,args),nprocs=2,join=True)
 

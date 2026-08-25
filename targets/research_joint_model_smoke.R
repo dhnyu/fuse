@@ -10,7 +10,7 @@ list_research_joint_model_smoke <- list(
     command = recover_file_target_metadata(
       "prototype_joint_model_smoke",
       file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance),
-                "smoke", "joint-model", "pjm_056c0d32b223808fd8dabc75"),
+                "smoke", "joint-model", "pjm_6e64c022281a7f2648f78917"),
       run_prototype_joint_model_smoke(
         prototype_training_dataset_acceptance, prototype_dataloader_smoke,
         prototype_scientific_geometry_roundtrip, prototype_encoder_smoke,

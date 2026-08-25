@@ -2,6 +2,25 @@ runtime_mirror_contract_paths <- function(root = getwd()) {
   file.path(root, c("config/runtime_mirror.yml", "scripts/prepare_runtime_mirror.py"))
 }
 
+.runtime_checksum_evidence <- new.env(parent = emptyenv())
+
+runtime_verified_sha256 <- function(path, expected = NULL) {
+  normalized <- normalizePath(path, mustWork = TRUE)
+  info <- file.info(normalized)
+  key <- paste(
+    normalized, unname(info$size), as.numeric(info$mtime), as.numeric(info$ctime),
+    sep = "|"
+  )
+  cached <- .runtime_checksum_evidence[[key]]
+  if (!is.null(cached) && (is.null(expected) || identical(cached, expected))) return(cached)
+  actual <- sha256_file(normalized)
+  if (!is.null(expected) && !identical(actual, expected)) {
+    stop("Runtime mirror checksum mismatch: ", normalized, call. = FALSE)
+  }
+  .runtime_checksum_evidence[[key]] <- actual
+  actual
+}
+
 runtime_mirror_role_paths <- function(paths) {
   paths <- normalizePath(paths, mustWork = TRUE)
   roles <- basename(dirname(paths))
@@ -28,8 +47,8 @@ validate_runtime_mirror <- function(runtime_mirror_contract_files) {
     mirror <- normalizePath(record$mirror_path, mustWork = TRUE)
     if (!identical(as.numeric(file.info(source)$size), as.numeric(record$size_bytes)) ||
         !identical(as.numeric(file.info(mirror)$size), as.numeric(record$size_bytes)) ||
-        !identical(sha256_file(source), record$sha256) ||
-        !identical(sha256_file(mirror), record$sha256) ||
+        !identical(runtime_verified_sha256(source, record$sha256), record$sha256) ||
+        !identical(runtime_verified_sha256(mirror, record$sha256), record$sha256) ||
         !identical(record$mirror_sha256, record$sha256)) {
       stop("Runtime mirror source/copy mismatch: ", record$role, call. = FALSE)
     }
@@ -52,7 +71,7 @@ runtime_source_record <- function(source, runtime_inputs, role) {
   value <- source
   value$path <- runtime_mirror_path(runtime_inputs, role)
   if (!identical(as.numeric(file.info(value$path)$size), as.numeric(source$size_bytes)) ||
-      !identical(sha256_file(value$path), source$sha256)) {
+      !identical(runtime_verified_sha256(value$path, source$sha256), source$sha256)) {
     stop("Runtime mirror does not match scientific source: ", role, call. = FALSE)
   }
   value

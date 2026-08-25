@@ -11,7 +11,8 @@ sys.path.insert(0, str(ROOT / "python"))
 
 from prototype_augmentation import (  # noqa: E402
     float32_ulp_distance, jitter_geometry, keyed_rng, perturb_lane_value,
-    road_removal_closure, selected_host_relations, structure_signature,
+    regenerate_sn, regenerate_sn_reference, road_removal_closure,
+    selected_host_relations, selected_host_relations_reference, structure_signature,
 )
 
 
@@ -54,6 +55,16 @@ class AugmentationFixtureTest(unittest.TestCase):
             for name, pairs in result.items()
         }
         self.assertEqual(stable_pairs, expected_stable)
+        self.assertEqual(
+            selected_host_relations_reference(geometries, types, set(range(len(geometries))), source_ids, local_ids),
+            result,
+        )
+
+    def test_vectorized_sn_preserves_distance_ties_and_symmetric_top_k(self):
+        geometries = [Point(0, 0), Point(1, 0), Point(-1, 0), Point(3, 0), Point(100, 0)]
+        retained = set(range(len(geometries)))
+        expected = regenerate_sn_reference(geometries, retained, distance_m=4.0, top_k=2)
+        self.assertEqual(regenerate_sn(geometries, retained, distance_m=4.0, top_k=2), expected)
 
     def test_float32_ulp_distance_is_sign_safe(self):
         one = np.float32(1.0)

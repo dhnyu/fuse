@@ -5,6 +5,7 @@ training_plan_contract_paths <- function(root = getwd(), thesis_root = path.expa
   c(file.path(root, c("config/training_plan.yml", "config/joint_model.yml", "config/model_architecture.yml",
                       "config/augmentation.yml", "config/distributed_training.yml", "config/schemas/prototype_training_plan.schema.json",
                       "python/prototype_joint_model.py", "python/prototype_encoder.py",
+                      "python/prototype_validation.py", "python/run_prototype_training.py",
                       "R/research_training_plan.R")),
     file.path(thesis_root, c("materials/tables/results-04-training-configuration-table.typ",
                              "sections/chapters/results/01-experimental-setup.typ",
@@ -39,6 +40,26 @@ build_prototype_training_plan <- function(prototype_training_dataset_acceptance,
   joint <- yaml::read_yaml(by_name[["joint_model.yml"]])
   model <- yaml::read_yaml(by_name[["model_architecture.yml"]])
   augmentation_config <- yaml::read_yaml(by_name[["augmentation.yml"]])
+  derived_steps_per_epoch <- as.integer(config$data$training_scenes / config$data$effective_batch_scenes)
+  if (config$data$training_scenes %% config$data$effective_batch_scenes != 0L ||
+      !identical(as.integer(config$optimization$optimizer_steps_per_epoch), derived_steps_per_epoch) ||
+      !identical(config$optimization$schedule_unit,
+                 "epoch_converted_to_optimizer_steps_from_training_population_and_effective_batch") ||
+      !identical(config$optimization$optimizer_steps_per_epoch_derivation,
+                 "training_scenes_divided_by_effective_batch_scenes_exact") ||
+      !identical(config$optimization$warmup_optimizer_steps_derivation,
+                 "warmup_epochs_times_optimizer_steps_per_epoch") ||
+      !identical(config$optimization$scheduler_step_order, "optimizer_step_then_scheduler_step")) {
+    stop("I20 optimizer schedule population/step contract mismatch", call. = FALSE)
+  }
+  if (!identical(config$validation$checkpoint_selection,
+                 "highest_MRR_then_lowest_validation_retrieval_loss_then_highest_mean_positive_hardest_negative_margin_then_earliest_epoch") ||
+      !identical(config$validation$patience_reset, "higher_MRR_or_saturated_retrieval_loss_min_delta") ||
+      !identical(config$validation$evaluation_and_test_for_selection, "forbidden") ||
+      !isTRUE(config$validation$fixed_query_views) || !isTRUE(config$validation$fixed_query_augmentation_seed) ||
+      !isTRUE(config$validation$fixed_candidate_gallery)) {
+    stop("I20 validation selection/isolation contract mismatch", call. = FALSE)
+  }
   dataset_path <- training_plan_manifest_path(prototype_training_dataset_acceptance, "accepted_training_dataset_manifest.json")
   encoder_path <- training_plan_manifest_path(prototype_encoder_smoke, "prototype_encoder_manifest.json")
   augmentation_path <- training_plan_manifest_path(prototype_augmentation_benchmark, "prototype_augmentation_manifest.json")
@@ -68,7 +89,7 @@ build_prototype_training_plan <- function(prototype_training_dataset_acceptance,
 
   joint_scientific <- joint[c("numerical_policy", "modality_masking", "decoders", "loss", "contrastive")]
   model_scientific <- model[c("dimensions", "position", "geometry", "architecture")]
-  augmentation_scientific <- augmentation[c("rng", "entity_removal", "geometry", "attributes", "categorical", "raster", "relations")]
+  augmentation_scientific <- augmentation_config[c("rng", "entity_removal", "geometry", "attributes", "categorical", "raster", "relations")]
   training_scientific <- config[c("runs", "data", "optimization", "validation", "resume")]
   # Execution semantics affect immutable run identity, while host-specific paths remain excluded.
   execution_identity <- config$execution[c(
@@ -77,6 +98,12 @@ build_prototype_training_plan <- function(prototype_training_dataset_acceptance,
     "native_threads_per_worker", "process_start_method"
   )]
   scoped_hash <- function(value) digest::digest(value, algo = "sha256", serialize = TRUE)
+  dissertation_names <- c(
+    "results-04-training-configuration-table.typ", "01-experimental-setup.typ", "06-model-training.typ",
+    "appendix-b.typ", "appendix-c.typ"
+  )
+  dissertation_sources <- lapply(dissertation_names, function(name) training_plan_record(by_name[[name]]))
+  names(dissertation_sources) <- dissertation_names
   scientific <- list(dataset = training_plan_record(dataset_path), loader = training_plan_record(loader_path),
                      no_op_gate = training_plan_record(gate_path), encoder = training_plan_record(encoder_path),
                      augmentation = training_plan_record(augmentation_path), joint_model = training_plan_record(joint_path),
@@ -84,9 +111,14 @@ build_prototype_training_plan <- function(prototype_training_dataset_acceptance,
                      model_config = model_scientific, decoder_loss_masking_config = joint_scientific,
                      augmentation_config = augmentation_scientific, training_config = training_scientific,
                      execution_contract = execution_identity,
+                     validation_implementation = training_plan_record(by_name[["prototype_validation.py"]]),
+                     scheduler_implementation = training_plan_record(by_name[["run_prototype_training.py"]]),
+                     dissertation_sources = dissertation_sources,
                      scientific_hashes = list(model = scoped_hash(model_scientific), joint = scoped_hash(joint_scientific),
                                               augmentation = scoped_hash(augmentation_scientific), training = scoped_hash(training_scientific),
-                                              execution = scoped_hash(execution_identity)),
+                                              execution = scoped_hash(execution_identity),
+                                              validation_implementation = sha256_file(by_name[["prototype_validation.py"]]),
+                                              scheduler_implementation = sha256_file(by_name[["run_prototype_training.py"]])),
                      schema_sha256 = sha256_file(by_name[["prototype_training_plan.schema.json"]]),
                      implementation_sha256 = sha256_file(by_name[["research_training_plan.R"]]), dissertation_commit = expected$dissertation_commit)
   plan_id <- short_hash_id("ptp_", scientific)
@@ -122,7 +154,8 @@ build_prototype_training_plan <- function(prototype_training_dataset_acceptance,
          augmentation_manifest = training_plan_record(augmentation_path),
          model_config = model_scientific, decoder_loss_masking_config = joint_scientific,
          augmentation_config = augmentation_scientific, scientific_hashes = scientific$scientific_hashes,
-         hard_budgets = config$data$hard_budgets, effective_batch_scenes = config$data$effective_batch_scenes,
+         hard_budgets = config$data$hard_budgets, training_scenes = config$data$training_scenes,
+         effective_batch_scenes = config$data$effective_batch_scenes,
          gradient_accumulation = config$data$accumulation, optimizer = config$optimization,
          validation = config$validation, resume = config$resume, execution = config$execution, resource_estimate = resources,
          output_root = file.path(dirname(dataset_path), "runs", short_hash_id("ptr_", run_scientific)))

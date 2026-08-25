@@ -165,14 +165,25 @@ scene_sn_edges <- function(scene, state, config, candidate_block_size = 128L) {
     blocks <- split(source, ceiling(seq_along(source) / as.integer(candidate_block_size)))
     for (block in blocks) {
       nearby <- sf::st_is_within_distance(scene[block, ], scene[destination, ], dist = radius, sparse = TRUE)
-      for (i in seq_along(block)) {
-        destination_index <- destination[nearby[[i]]]
-        destination_index <- destination_index[destination_index != block[[i]]]
-        if (!length(destination_index)) next
-        candidate_count <- candidate_count + length(destination_index)
-        distance <- as.numeric(sf::st_distance(
-          scene[rep(block[[i]], length(destination_index)), ], scene[destination_index, ], by_element = TRUE
+      destination_by_source <- lapply(seq_along(block), function(i) {
+        value <- destination[nearby[[i]]]
+        value[value != block[[i]]]
+      })
+      candidate_lengths <- lengths(destination_by_source)
+      candidate_count <- candidate_count + sum(candidate_lengths)
+      flat_destination <- unlist(destination_by_source, use.names = FALSE)
+      flat_distance <- if (length(flat_destination)) {
+        as.numeric(sf::st_distance(
+          scene[rep(block, candidate_lengths), ], scene[flat_destination, ], by_element = TRUE
         ))
+      } else numeric()
+      cursor <- 0L
+      for (i in seq_along(block)) {
+        destination_index <- destination_by_source[[i]]
+        if (!length(destination_index)) next
+        positions <- seq.int(cursor + 1L, cursor + length(destination_index))
+        distance <- flat_distance[positions]
+        cursor <- cursor + length(destination_index)
         keep <- is.finite(distance) & distance <= radius
         destination_index <- destination_index[keep]
         distance <- distance[keep]

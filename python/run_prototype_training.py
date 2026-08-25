@@ -32,7 +32,9 @@ from torch.utils.data import DataLoader, Dataset, Sampler
 from prototype_dataloader import AcceptedPrototypeDataset, canonical_json_bytes, ragged_collate, sha256_file
 from prototype_encoder import geometry_fourier_features
 from prototype_joint_model import JointPrototypeModel, enqueue, information_preservation_loss, modality_mask_assignments, reconstruction_losses
-from prototype_training_data import augment_and_materialize, initialize_native_worker
+from prototype_training_runtime import terminal_checkpoint_decision
+from prototype_validation import NEW_METRIC_KEYS, replay_early_stopping, retrieval_metrics
+from prototype_training_data import augment_and_materialize, initialize_native_worker, prepare_augmentation_sample
 from run_prototype_augmentation_benchmark import load_resources
 
 
@@ -62,7 +64,8 @@ class AugmentedPairDataset(Dataset):
     def __init__(self, accepted: str, tensor_contract: str, split: str, config: dict[str, Any],
                  thresholds: dict[int, float], validation: bool = False,
                  archive_source_root: str | None = None, archive_runtime_root: str | None = None,
-                 persistent_archive_handles: bool = False, diagnostic_timing: bool = False) -> None:
+                 persistent_archive_handles: bool = False, diagnostic_timing: bool = False,
+                 diagnostic_steps: set[int] | None = None, diagnostic_steps_per_epoch: int = 8) -> None:
         self.base = AcceptedPrototypeDataset(
             accepted, tensor_contract, split=split, verify_checksums=True,
             archive_source_root=archive_source_root, archive_runtime_root=archive_runtime_root,
@@ -73,6 +76,8 @@ class AugmentedPairDataset(Dataset):
         self.thresholds = thresholds
         self.validation = validation
         self.diagnostic_timing = diagnostic_timing
+        self.diagnostic_steps = diagnostic_steps
+        self.diagnostic_steps_per_epoch = int(diagnostic_steps_per_epoch)
 
     def __len__(self) -> int:
         return len(self.base)
@@ -80,13 +85,25 @@ class AugmentedPairDataset(Dataset):
     def __getitem__(self, task: tuple[int, int, int]) -> dict[str, Any]:
         started = time.perf_counter()
         position, epoch, group = map(int, task)
-        sample = self.base[position]
+        step = epoch * self.diagnostic_steps_per_epoch + group + 1
+        profile_sample = self.diagnostic_timing and (self.diagnostic_steps is None or step in self.diagnostic_steps)
+        previous_timing = self.base.diagnostic_timing; self.base.diagnostic_timing = profile_sample
+        try: sample = self.base[position]
+        finally: self.base.diagnostic_timing = previous_timing
         base_finished = time.perf_counter()
-        views = [augment_and_materialize(sample, self.config, self.resources, self.thresholds, epoch, view) for view in (0, 1)]
+        prepared = prepare_augmentation_sample(sample)
+        views = [
+            augment_and_materialize(
+                sample, self.config, self.resources, self.thresholds, epoch, view, prepared=prepared
+            )
+            for view in (0, 1)
+        ]
         if self.validation:
-            views.append(augment_and_materialize(sample, self.config, self.resources, self.thresholds, 0, 0, intensity=0.0))
+            views.append(augment_and_materialize(
+                sample, self.config, self.resources, self.thresholds, 0, 0, intensity=0.0, prepared=prepared
+            ))
         result = {"views": views, "group": group, "position": position}
-        if self.diagnostic_timing:
+        if profile_sample:
             result["_diagnostic_timing"] = {
                 **sample["_diagnostic_timing"],
                 "base_observed_seconds": base_finished - started,
@@ -210,13 +227,26 @@ def make_optimizer(model: JointPrototypeModel, spec: dict[str, Any]) -> tuple[to
     base = float(spec["optimizer"]["learning_rate"])
     optimizer = torch.optim.AdamW((parameter for parameter in model.parameters() if parameter.requires_grad), lr=base,
                                   weight_decay=float(spec["optimizer"]["weight_decay"]))
-    warmup = int(spec["optimizer"]["warmup_epochs"]) * 8
-    maximum = int(spec["optimizer"]["maximum_epochs"]) * 8
+    steps_per_epoch = optimizer_steps_per_epoch(spec)
+    warmup = int(spec["optimizer"]["warmup_epochs"]) * steps_per_epoch
+    maximum = int(spec["optimizer"]["maximum_epochs"]) * steps_per_epoch
     def scale(step: int) -> float:
         if step < warmup: return float(step + 1) / warmup
         progress = (step - warmup) / max(1, maximum - warmup)
         return 0.5 * (1 + math.cos(math.pi * min(1.0, progress)))
     return optimizer, torch.optim.lr_scheduler.LambdaLR(optimizer, scale)
+
+
+def optimizer_steps_per_epoch(spec: dict[str, Any]) -> int:
+    training_scenes = int(spec["training_scenes"])
+    effective_batch = int(spec["effective_batch_scenes"])
+    if training_scenes <= 0 or effective_batch <= 0 or training_scenes % effective_batch:
+        raise ValueError("training scenes must be exactly divisible by the effective batch")
+    declared = spec.get("optimizer", {}).get("optimizer_steps_per_epoch")
+    derived = training_scenes // effective_batch
+    if declared is not None and int(declared) != derived:
+        raise ValueError(f"optimizer_steps_per_epoch mismatch: declared={declared} derived={derived}")
+    return derived
 
 
 def checkpoint_state(model: JointPrototypeModel, optimizer: torch.optim.Optimizer, scheduler: Any,
@@ -232,25 +262,37 @@ def checkpoint_state(model: JointPrototypeModel, optimizer: torch.optim.Optimize
         "sampler_permutation": progress["permutation"], "sampler_position": progress["group_position"],
         "accumulation_scene_count": 0, "accumulation_gradient_state": {},
         "best_checkpoint_metric_state": progress["best"], "validation_history": progress["validation"],
-        "early_stopping_patience_state": progress["patience"], "optimizer_step": progress["optimizer_step"],
+        "early_stopping_patience_state": progress["patience"],
+        "early_stopping_metric_state": progress.get("early_stopping_metric_state"), "optimizer_step": progress["optimizer_step"],
         "scene_consumptions": progress["scene_consumptions"], "scientific_parents": progress["parents"],
         "run_id": progress["run_id"], "seed": progress["seed"], "schema_version": "1.0.0",
     }
 
 
-def save_checkpoint(path: Path, state: dict[str, Any]) -> dict[str, Any]:
+def save_checkpoint(path: Path, state: dict[str, Any], diagnostic: dict[str, float] | None = None) -> dict[str, Any]:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
+    started = time.perf_counter() if diagnostic is not None else 0.0
     torch.save(state, temporary)
+    if diagnostic is not None:
+        diagnostic["checkpoint_serialization_seconds"] = time.perf_counter() - started; started = time.perf_counter()
     with temporary.open("rb") as stream: os.fsync(stream.fileno())
+    if diagnostic is not None:
+        diagnostic["checkpoint_fsync_seconds"] = time.perf_counter() - started; started = time.perf_counter()
     loaded = torch.load(temporary, map_location="cpu", weights_only=False)
     digest = state_digest(loaded)
+    if diagnostic is not None:
+        diagnostic["checkpoint_reload_validation_seconds"] = time.perf_counter() - started
     if path.exists():
         existing = torch.load(path, map_location="cpu", weights_only=False)
         if state_digest(existing) != digest: raise RuntimeError(f"immutable checkpoint collision: {path}")
         temporary.unlink()
     else: os.replace(temporary, path)
-    return {"path": str(path), "size_bytes": path.stat().st_size, "sha256": sha256_file(path), "state_digest": digest}
+    started = time.perf_counter() if diagnostic is not None else 0.0
+    sha256 = sha256_file(path)
+    if diagnostic is not None:
+        diagnostic["checkpoint_hash_seconds"] = time.perf_counter() - started
+    return {"path": str(path), "size_bytes": path.stat().st_size, "sha256": sha256, "state_digest": digest}
 
 
 def restore_checkpoint(path: Path, model: JointPrototypeModel, optimizer: Any, scheduler: Any,
@@ -337,7 +379,8 @@ def take_first_logical_group(loader: DataLoader) -> list[dict[str, Any]]:
     raise ValueError("preflight could not assemble a complete logical group")
 
 
-def validation(model: JointPrototypeModel, loader: DataLoader, encoder_config: dict[str, Any], mask_indices: dict[str, int], device: torch.device) -> dict[str, Any]:
+def validation(model: JointPrototypeModel, loader: DataLoader, encoder_config: dict[str, Any], mask_indices: dict[str, int],
+               device: torch.device, validation_config: dict[str, Any]) -> dict[str, Any]:
     model.eval(); query = [[], []]; candidates = []; scene_ids = []
     with torch.no_grad():
         for item in loader:
@@ -349,15 +392,9 @@ def validation(model: JointPrototypeModel, loader: DataLoader, encoder_config: d
                 (query[view] if view < 2 else candidates).append(embedding)
             scene_ids.extend(item["views"][0]["scene_ids"])
     candidate = torch.cat(candidates); queries = torch.cat((torch.cat(query[0]), torch.cat(query[1])))
-    similarity = queries @ candidate.T
-    target = torch.arange(len(candidate), device=device).repeat(2)
-    order = torch.argsort(similarity, dim=1, descending=True, stable=True)
-    rank = torch.nonzero(order == target[:, None])[:, 1] + 1
-    metrics = {"MRR": float((1.0 / rank.float()).mean()), "HIT@1": float((rank <= 1).float().mean()),
-               "HIT@5": float((rank <= 5).float().mean()), "HIT@10": float((rank <= 10).float().mean())}
+    metrics = retrieval_metrics(queries, candidate, scene_ids, validation_config, state_digest)
     model.train(); model.target.eval()
-    return {**metrics, "population": len(candidate), "embedding_digest": state_digest((queries, candidate)),
-            "retrieval_digest": state_digest((order, rank)), "scene_ids_digest": state_digest(scene_ids)}
+    return metrics
 
 
 def main() -> None:
@@ -386,6 +423,21 @@ def main() -> None:
     thresholds = {0: float(threshold_values["building"]), 1: float(threshold_values["road"])}
     workers = int(training_config["execution"]["workers"])
     if workers != 40: raise ValueError("approved production worker count is 40")
+    single_checkpoints = Path(spec["output_root"]) / "mutable" / "checkpoints"
+    terminal_states = []
+    parent_hashes = {key: value["sha256"] for key, value in parents.items()}
+    for checkpoint_path in single_checkpoints.glob("epoch-*.pt"):
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        if checkpoint.get("run_id") != spec["run_id"] or checkpoint.get("scientific_parents") != parent_hashes:
+            raise ValueError(f"foreign single-GPU checkpoint lineage: {checkpoint_path}")
+        decision = terminal_checkpoint_decision(checkpoint, spec)
+        if decision.terminal: terminal_states.append((decision.completed_epoch, checkpoint_path, decision))
+    if terminal_states:
+        _, checkpoint_path, decision = min(terminal_states)
+        print(json.dumps({"status":"PASS","mode":"terminal_training_blocked","optimizer_steps":0,
+                          "cuda_operations":0,"terminal_reason":decision.reason,
+                          "terminal_checkpoint":str(checkpoint_path)},sort_keys=True))
+        return
     if not torch.cuda.is_available() or torch.cuda.device_count() != 1: raise RuntimeError("I21 requires one lock-selected CUDA GPU")
     torch.set_num_threads(1); torch.set_num_interop_threads(1); torch.use_deterministic_algorithms(True)
     torch.backends.cuda.matmul.allow_tf32 = False; torch.backends.cudnn.allow_tf32 = False
@@ -414,7 +466,9 @@ def main() -> None:
     step_log = mutable / training_config["output"]["steps_name"]
     telemetry_log = mutable / training_config["output"]["telemetry_name"]
     progress = {"epoch": 0, "group_position": 0, "permutation": [], "optimizer_step": 0, "scene_consumptions": 0,
-                "best": None, "validation": [], "patience": 0, "parents": {k: v["sha256"] for k, v in parents.items()},
+                "best": None, "validation": [], "patience": 0,
+                "early_stopping_metric_state": {"best_mrr": None, "saturated_retrieval_loss_reference": None},
+                "parents": {k: v["sha256"] for k, v in parents.items()},
                 "run_id": spec["run_id"], "seed": seed}
     sampler.set_epoch(0); progress["permutation"] = sampler.permutation()
     if len(set(progress["permutation"])) != 256:
@@ -493,13 +547,11 @@ def main() -> None:
                 with telemetry_log.open("ab") as stream: stream.write(canonical_json_bytes(telemetry))
         if group_batches: raise ValueError("epoch ended with partial logical group")
         if (epoch + 1) % int(spec["validation"]["interval_epochs"]) == 0:
-            metrics = validation(model, validation_loader, encoder_config, mask_indices, device); metrics["epoch"] = epoch + 1
+            metrics = validation(model, validation_loader, encoder_config, mask_indices, device, spec["validation"]); metrics["epoch"] = epoch + 1
             progress["validation"].append(metrics)
-            best = progress["best"]
-            improved_mrr = best is None or metrics["MRR"] > best["MRR"]
-            selected = best is None or (metrics["MRR"], metrics["HIT@1"], -(epoch + 1)) > (best["MRR"], best["HIT@1"], -best["epoch"])
-            progress["patience"] = 0 if improved_mrr else progress["patience"] + 1
-            if selected: progress["best"] = dict(metrics)
+            patience, selected, metric_state = replay_early_stopping(progress["validation"], spec["validation"])
+            progress["patience"] = patience; progress["best"] = selected
+            progress["early_stopping_metric_state"] = metric_state
             record = save_checkpoint(checkpoints / f"epoch-{epoch + 1:03d}.pt", checkpoint_state(model, optimizer, scheduler, queue, progress)); record["epoch"] = epoch + 1
             checkpoint_records.append(record)
             if progress["best"]["epoch"] == epoch + 1: progress["best"]["checkpoint"] = record
@@ -521,7 +573,7 @@ def main() -> None:
     ]
     reproduction_process = subprocess.run(reproduction_command, check=True, capture_output=True, text=True)
     reproduction = json.loads(reproduction_process.stdout.splitlines()[-1])
-    expected_reproduction = {key: progress["best"][key] for key in ("MRR", "HIT@1", "HIT@5", "HIT@10", "population", "embedding_digest", "retrieval_digest", "scene_ids_digest")}
+    expected_reproduction = {key: progress["best"][key] for key in NEW_METRIC_KEYS}
     if reproduction != expected_reproduction: raise RuntimeError("fresh-process best validation reproduction mismatch")
     scientific_identity = {"plan_id": spec["plan_id"], "run_id": spec["run_id"], "parents": progress["parents"],
                            "run_spec_sha256": sha256_file(run_spec_path), "training_contract_sha256": sha256_file(training_config_path),

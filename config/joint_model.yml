@@ -2,11 +2,11 @@ schema_version: "1.0.0"
 joint_model_contract_version: "1.0.0"
 
 identity:
-  accepted_dataset_id: ptd_8b3359690ea2d0bef52d63e3
-  dataloader_smoke_id: pdl_361072e3519a91d0aefc9bb9
-  encoder_acceptance_id: pea_bb192d9b73c6189d36c452fa
-  augmentation_acceptance_id: paa_f561eea03b05c47375b7198e
-  no_op_gate_id: pgr_60bc6b2cbd0864272308d18e
+  accepted_dataset_id: ptd_bcb9e6a1061ff7ca9c716b20
+  dataloader_smoke_id: pdl_5eb0ccb9951d1015d6d64649
+  encoder_acceptance_id: pea_1c66760dbc1e6c0a8d71cb91
+  augmentation_acceptance_id: paa_5d2b1f56119e8d5f5050a75d
+  no_op_gate_id: pgr_77294c825bf26bf6fce721c3
   dissertation_commit: 87990db83f2b30200cc2d64dc160cb41f691e0e7
 
 numerical_policy:

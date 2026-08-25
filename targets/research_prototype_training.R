@@ -7,9 +7,13 @@ list_research_prototype_training <- list(
   ),
   targets::tar_target(
     name = prototype_training,
-    command = run_prototype_training(
+    command = recover_prototype_training_target_metadata(
       prototype_training_plan, prototype_training_contract_files,
-      workers = 40L, threads = 1L
+      run_prototype_training(
+        prototype_training_plan, prototype_training_contract_files,
+        workers = 40L, threads = 1L
+      ),
+      workers = 1L, threads = 1L
     ),
     format = "file",
     pattern = map(prototype_training_plan),

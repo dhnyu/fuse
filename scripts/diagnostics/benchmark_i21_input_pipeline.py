@@ -189,9 +189,10 @@ def rank_worker(rank: int, world_size: int, args: argparse.Namespace, mode: str,
             group_batches.append(item)
             if sum(len(value["positions"]) for value in group_batches) < 16:
                 continue
+            profile_step=len(step_records)+1 in (3,8)
             result = train_group(
                 ddp, model, group_batches, optimizer, scheduler, queue, spec, joint, encoder, masks,
-                device, 0, True, diagnostic_profile=True,
+                device, 0, True, diagnostic_profile=profile_step,
                 geometry_implementation="vectorized" if candidate in {"vectorized_geometry", "combined"} else "legacy",
                 async_h2d=candidate in {"async_h2d", "combined"},
                 contiguous_packing=candidate in {"contiguous_packing", "combined"},
@@ -199,17 +200,17 @@ def rank_worker(rank: int, world_size: int, args: argparse.Namespace, mode: str,
             if args.capture_state and rank == 0:
                 captured_gradients.append({name: parameter.grad for name, parameter in model.named_parameters() if parameter.grad is not None})
                 captured_gradients[-1] = cpu_clone(captured_gradients[-1])
-            torch.cuda.synchronize(device)
             step_elapsed = time.perf_counter() - step_started
+            diagnostic=result.get("diagnostic",{})
             step_records.append({
                 "step": len(step_records) + 1,
                 "step_seconds": step_elapsed,
                 "dataloader_wait_seconds": wait_accumulated,
                 "loss": result["total_loss"],
                 "augmentation_digest": result["augmentation_digest"],
-                "gradient_digest": result["diagnostic"]["gradient_digest"],
-                "scene_ids": result["diagnostic"]["scene_ids"],
-                "gpu_phases": result["diagnostic"]["timings"],
+                "profiled":profile_step,"gradient_digest":diagnostic.get("gradient_digest"),
+                "scene_ids":[scene for batch in group_batches for scene in batch["views"][0]["scene_ids"]],
+                "gpu_phases":diagnostic.get("timings",{}),
             })
             group_batches = []; wait_accumulated = 0.0; step_started = time.perf_counter()
         if group_batches or len(step_records) != 8:
@@ -325,8 +326,8 @@ def combine_mode(mode_result: dict[str, Any]) -> dict[str, Any]:
         steps = [step for rank in repetition["ranks"] for step in rank["step_records"]]
         repetition["step_seconds"] = summarize([step["step_seconds"] for step in steps])
         repetition["dataloader_wait_seconds"] = summarize([step["dataloader_wait_seconds"] for step in steps])
-        phase_names = sorted(steps[0]["gpu_phases"])
-        repetition["gpu_phase_seconds"] = {name: summarize([step["gpu_phases"][name] for step in steps]) for name in phase_names}
+        phase_names = sorted({name for step in steps for name in step["gpu_phases"]})
+        repetition["gpu_phase_seconds"] = {name: summarize([step["gpu_phases"][name] for step in steps if name in step["gpu_phases"]]) for name in phase_names}
         worker_names = sorted(repetition["ranks"][0]["worker_service_totals"])
         repetition["worker_service_totals"] = {name: sum(rank["worker_service_totals"].get(name, 0.0) for rank in repetition["ranks"]) for name in worker_names}
     return mode_result

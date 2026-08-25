@@ -33,9 +33,9 @@ load_serialization_shard_config <- function(contract_files) {
 validate_serialization_shard_config <- function(scientific, runtime) {
   expected <- list(
     contract = c(scientific$serialization_shard_contract_version, "1.3.0"),
-    spatial = c(scientific$identity$spatial_dataset_id, "psa_319c2d2c43cdcfb31478a7d1"),
-    plan = c(scientific$identity$serialization_plan_id, "psp_aa295747ee7814efbd1d177c"),
-    dataset = c(scientific$identity$serialization_dataset_id, "psd_aa295747ee7814efbd1d177c"),
+    spatial = c(scientific$identity$spatial_dataset_id, "psa_495cd109e72ec45bf2b8e7fa"),
+    plan = c(scientific$identity$serialization_plan_id, "psp_e82f7a94708626c722544505"),
+    dataset = c(scientific$identity$serialization_dataset_id, "psd_e82f7a94708626c722544505"),
     archive = c(scientific$archive$format, "webdataset_tar"),
     controller = c(runtime$controller, "controller_40"),
     workers = c(runtime$workers, 1), threads = c(runtime$threads_per_worker, 1), gpu = c(runtime$gpu, 0)

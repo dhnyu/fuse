@@ -29,8 +29,8 @@ load_encoder_smoke_config <- function(contract_files) {
   by_name <- setNames(paths, basename(paths))
   config <- yaml::read_yaml(by_name[["model_architecture.yml"]])
   expected <- list(
-    accepted = c(config$identity$accepted_dataset_id, "ptd_8b3359690ea2d0bef52d63e3"),
-    loader = c(config$identity$dataloader_smoke_id, "pdl_361072e3519a91d0aefc9bb9"),
+    accepted = c(config$identity$accepted_dataset_id, "ptd_bcb9e6a1061ff7ca9c716b20"),
+    loader = c(config$identity$dataloader_smoke_id, "pdl_5eb0ccb9951d1015d6d64649"),
     dissertation = c(config$identity$dissertation_commit, "87990db83f2b30200cc2d64dc160cb41f691e0e7"),
     controller = c(config$execution$controller, "controller_gpu_02"),
     gpu = c(config$execution$requested_gpu_count, 1),

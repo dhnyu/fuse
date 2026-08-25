@@ -25,12 +25,12 @@ metadata_recovery_lookup <- function(value, dotted_path) {
 metadata_recovery_specs <- function() {
   list(
     prototype_dataloader_smoke = list(
-      id = "pdl_4037d275d729c82ea9b19d97", manifest = "prototype_dataloader_smoke.json",
-      manifest_sha256 = "f9ecea81f42f3450a77993330f1cf4c3242399c0efc677b5ee137407a933195b",
+      id = "pdl_5eb0ccb9951d1015d6d64649", manifest = "prototype_dataloader_smoke.json",
+      manifest_sha256 = "c7b1ee51afcfb6268e1c633b5e6129647026f4683798b419d423ac3aac80b3d2",
       status = "READY", id_field = "smoke_id",
-      files = c(prototype_dataloader_smoke.json = "f9ecea81f42f3450a77993330f1cf4c3242399c0efc677b5ee137407a933195b",
-                prototype_dataloader_smoke.jsonl = "f22280ea19d08622f019394d5436dfc27b61b016980cf6412cc770b47aac36ef"),
-      parents = c("ptd_cee61a525ca92f1b7951c40d"),
+      files = c(prototype_dataloader_smoke.json = "c7b1ee51afcfb6268e1c633b5e6129647026f4683798b419d423ac3aac80b3d2",
+                prototype_dataloader_smoke.jsonl = "74b05fcf5a0dd486b3914e7e97b6615a71dc54b7353e65ad20faa9573d23f846"),
+      parents = c("ptd_bcb9e6a1061ff7ca9c716b20"),
       hashes = c("contract.dataloader_config_sha256" = "config/dataloader_smoke.yml",
                  "contract.dataset_implementation_sha256" = "python/prototype_dataloader.py",
                  "contract.requirements_sha256" = "python/requirements-dataloader.txt",
@@ -39,12 +39,12 @@ metadata_recovery_specs <- function() {
                  "contract.tensor_contract_sha256" = "config/serialization_shard.yml")
     ),
     prototype_scientific_geometry_roundtrip = list(
-      id = "pgr_fb3209bda9fb0fa9a0e15bd1", manifest = "scientific_geometry_roundtrip_manifest.json",
-      manifest_sha256 = "724fb7dba6c067108b40ed72f130e6c2ae8fd554d82d80663001625a2bcd2351",
+      id = "pgr_77294c825bf26bf6fce721c3", manifest = "scientific_geometry_roundtrip_manifest.json",
+      manifest_sha256 = "f8d422ccb659b95c1a4dec6af941acf1d1211956668d6a2760afef48a585a60b",
       status = "PASS", id_field = "gate_id",
-      files = c(scientific_geometry_roundtrip_manifest.json = "724fb7dba6c067108b40ed72f130e6c2ae8fd554d82d80663001625a2bcd2351",
-                scientific_geometry_roundtrip_scenes.parquet = "a2e69a08f05e4bddfca2810ebf41f9ae21c95311a74833ddffc7a4f8194fd65f"),
-      parents = c("ptd_cee61a525ca92f1b7951c40d", "pdl_4037d275d729c82ea9b19d97"),
+      files = c(scientific_geometry_roundtrip_manifest.json = "f8d422ccb659b95c1a4dec6af941acf1d1211956668d6a2760afef48a585a60b",
+                scientific_geometry_roundtrip_scenes.parquet = "112ca20ed9945481963c2e8dca1f9ae3721e97e9af452427c121a2c7f4c3d8d8"),
+      parents = c("ptd_bcb9e6a1061ff7ca9c716b20", "pdl_5eb0ccb9951d1015d6d64649"),
       hashes = c("scientific_identity.implementation_sha256" = "python/prototype_augmentation.py",
                  "scientific_identity.requirements_sha256" = "python/requirements-augmentation.txt",
                  "scientific_identity.runner_sha256" = "python/run_scientific_geometry_roundtrip.py",
@@ -52,15 +52,15 @@ metadata_recovery_specs <- function() {
                  "scientific_identity.tensor_contract_sha256" = "config/serialization_shard.yml")
     ),
     prototype_encoder_smoke = list(
-      id = "pea_5784252434798d9dfa05d796", manifest = "prototype_encoder_manifest.json",
-      manifest_sha256 = "40a5bb613df60638b237f87b41b8bac27a3f9a48ec3f922be80086449382c7f1",
+      id = "pea_1c66760dbc1e6c0a8d71cb91", manifest = "prototype_encoder_manifest.json",
+      manifest_sha256 = "612dcaaab4f1abe75b933e09a08818d8abca233c943b7da0f89f3476e3a680ff",
       status = "PASS", id_field = "encoder_acceptance_id",
-      files = c(prototype_encoder_manifest.json = "40a5bb613df60638b237f87b41b8bac27a3f9a48ec3f922be80086449382c7f1",
-                prototype_encoder_parameters.parquet = "5f5bd5968ef4f4de26b452043a7aa113716b600e6179dad7c8c2a19f580221d2",
-                prototype_encoder_qc.json = "802e15cd6e337e4ac68ebd565cece874d792f0f3079e04a42298c81bd72261a0",
-                prototype_encoder_shapes.parquet = "4414fcac83aba32402b2b6cd685ca08bf4eefd33fb2bd9771f42acfb55c19604",
-                prototype_encoder_smoke.jsonl = "63d4c1811249d3885e584f873e526e51eeff3f11d9031f7a59e6a8d674f72ddc"),
-      parents = c("ptd_cee61a525ca92f1b7951c40d", "pdl_4037d275d729c82ea9b19d97"),
+      files = c(prototype_encoder_manifest.json = "612dcaaab4f1abe75b933e09a08818d8abca233c943b7da0f89f3476e3a680ff",
+                prototype_encoder_parameters.parquet = "c2a9f586fc6bfa6d717d799a2b183043a1a9535c5b465abc20f4bafabf5e206b",
+                prototype_encoder_qc.json = "b1965e9da5e56bc12bd7bcc83e85778cea1d99eb71b5e0846d8f6f4fc3bd605b",
+                prototype_encoder_shapes.parquet = "7eeb9834199c396e6151c79081e2452c3c9cb414fa8243a603dda673c99b4fa9",
+                prototype_encoder_smoke.jsonl = "931e85df7f826eb13cf17a4b09941ead81b357f3c37e6b52a29b70f25b6fe3eb"),
+      parents = c("ptd_bcb9e6a1061ff7ca9c716b20", "pdl_5eb0ccb9951d1015d6d64649"),
       hashes = c("scientific_identity.model_config_sha256" = "config/model_architecture.yml",
                  "scientific_identity.model_implementation_sha256" = "python/prototype_encoder.py",
                  "scientific_identity.launcher_sha256" = "python/run_prototype_encoder_smoke.py",
@@ -70,15 +70,15 @@ metadata_recovery_specs <- function() {
                  "scientific_identity.tensor_contract_sha256" = "config/serialization_shard.yml")
     ),
     prototype_augmentation_benchmark = list(
-      id = "paa_8d73a94e574dcdbc5c5106d2", manifest = "prototype_augmentation_manifest.json",
-      manifest_sha256 = "cd81f7921625a3cec4d1f2954c02869431a26cc75c24d7d7601029d3b86fe836",
+      id = "paa_5d2b1f56119e8d5f5050a75d", manifest = "prototype_augmentation_manifest.json",
+      manifest_sha256 = "2ca73683fffe2eae173b70b3f256b8e9df049328895f8d5a4a437192e2b21ffb",
       status = "PASS", id_field = "augmentation_acceptance_id",
-      files = c(prototype_augmentation_benchmark.jsonl = "aceb59ca97ca30c5fa275b185199d7ff0ebb62d712e0b55a04314e25c8ff67fc",
-                prototype_augmentation_manifest.json = "cd81f7921625a3cec4d1f2954c02869431a26cc75c24d7d7601029d3b86fe836",
-                prototype_augmentation_qc.json = "d97ff5c2e9814679d50f2120d03a7993a1cbd626271e04a1829b3fbf228c901a",
-                prototype_augmentation_report.md = "ed60373ee2db379bb759e983410204b7234e021e8cb1ae2b30d2a85201610625",
-                prototype_augmentation_scene_results.parquet = "4cf3f8d370c5b97acc98de98ebf86b1c1de96e2dba20b7845eca1de8ea038e90"),
-      parents = c("ptd_cee61a525ca92f1b7951c40d", "pdl_4037d275d729c82ea9b19d97"),
+      files = c(prototype_augmentation_benchmark.jsonl = "56319e507710fea92f379185323e7dbaf80b11ef0891041a6976b9ca0d1ca456",
+                prototype_augmentation_manifest.json = "2ca73683fffe2eae173b70b3f256b8e9df049328895f8d5a4a437192e2b21ffb",
+                prototype_augmentation_qc.json = "d56f68d9d1453d41ba9a41655fe5ba0278b21c76661f5173ca55e0b4d8dc656b",
+                prototype_augmentation_report.md = "1734a4d46c241c49c21bc29ee39a253cc08c392666b46cee566050d0641cbb89",
+                prototype_augmentation_scene_results.parquet = "6bfe8cc9062abdb4b0264ccfdc52a1b3187e1ed08a935102c98a14a95b71905d"),
+      parents = c("ptd_bcb9e6a1061ff7ca9c716b20", "pdl_5eb0ccb9951d1015d6d64649"),
       hashes = c("scientific_identity.implementation_sha256" = "python/prototype_augmentation.py",
                  "scientific_identity.requirements_sha256" = "python/requirements-augmentation.txt",
                  "scientific_identity.runner_sha256" = "python/run_prototype_augmentation_benchmark.py",
@@ -86,15 +86,15 @@ metadata_recovery_specs <- function() {
                  "scientific_identity.tensor_contract_sha256" = "config/serialization_shard.yml")
     ),
     prototype_joint_model_smoke = list(
-      id = "pjm_056c0d32b223808fd8dabc75", manifest = "prototype_joint_model_manifest.json",
-      manifest_sha256 = "a1ab0fd3cdf50836495dbc897b787183c17ec2895bde19b37147f6f31fc9d27a",
+      id = "pjm_6e64c022281a7f2648f78917", manifest = "prototype_joint_model_manifest.json",
+      manifest_sha256 = "23aac3e233e7f50d752067d83585e8fe7bc6a25d61c752979168093bbacb6d95",
       status = "PASS", id_field = "joint_model_acceptance_id",
-      files = c(prototype_joint_model_manifest.json = "a1ab0fd3cdf50836495dbc897b787183c17ec2895bde19b37147f6f31fc9d27a",
-                prototype_joint_model_parameters.parquet = "c8bf126a9e777fe6cbc3e78ff54295c07f299b42cf526419711ec4e516c4868d",
-                prototype_joint_model_qc.json = "2134e01ef2186d332847407216021f52363949df8f8c43409e5364a30fb60525",
-                prototype_joint_model_smoke.jsonl = "56b6b7c8b0727da34c030f3651c1c9a95069a944b14609232429c3551b05755a"),
-      parents = c("ptd_cee61a525ca92f1b7951c40d", "pdl_4037d275d729c82ea9b19d97", "pea_5784252434798d9dfa05d796",
-                  "paa_8d73a94e574dcdbc5c5106d2", "pgr_fb3209bda9fb0fa9a0e15bd1"),
+      files = c(prototype_joint_model_manifest.json = "23aac3e233e7f50d752067d83585e8fe7bc6a25d61c752979168093bbacb6d95",
+                prototype_joint_model_parameters.parquet = "3751dbcd7e956243cbab3610f8b9b83d1ba169b79268e788d296a5083a8bf1e0",
+                prototype_joint_model_qc.json = "48e7d788a49047cc42fd5c5f9684be7ff288930d445d39ec79e041c8ac4fe7ea",
+                prototype_joint_model_smoke.jsonl = "2ff0bd879cbea98bbd7caadbd14d101337c84952873b05126c46e11297136f83"),
+      parents = c("ptd_bcb9e6a1061ff7ca9c716b20", "pdl_5eb0ccb9951d1015d6d64649", "pea_1c66760dbc1e6c0a8d71cb91",
+                  "paa_5d2b1f56119e8d5f5050a75d", "pgr_77294c825bf26bf6fce721c3"),
       hashes = c("scientific_identity.encoder_config_sha256" = "config/model_architecture.yml",
                  "scientific_identity.implementation_sha256" = "python/prototype_joint_model.py",
                  "scientific_identity.joint_config_sha256" = "config/joint_model.yml",
@@ -103,21 +103,20 @@ metadata_recovery_specs <- function() {
                  "scientific_identity.tensor_contract_sha256" = "config/serialization_shard.yml")
     ),
     prototype_distributed_joint_model_smoke = list(
-      id = "pjd_13aff4a58d3d6022ee2dd62f", manifest = "distributed_joint_model_manifest.json",
-      manifest_sha256 = "e911d44b88f79f86dfe6026d80f94b0fb03e6b83b175361183197e001da38696",
+      id = "pjd_69c0bd35dac8add3280d72e2", manifest = "distributed_joint_model_manifest.json",
+      manifest_sha256 = "f37756949c14c918f8b8c9c06c118e929cab22465eed95bffc708d88188fd7a5",
       status = "PASS", id_field = "distributed_joint_acceptance_id",
-      files = c(distributed_joint_model_manifest.json = "e911d44b88f79f86dfe6026d80f94b0fb03e6b83b175361183197e001da38696",
-                distributed_joint_model_qc.json = "611410c5f1898e03e7966bd08e97910b44a791569d72d49e025d81bc537ba1a6"),
-      parents = c("pjm_056c0d32b223808fd8dabc75"),
+      files = c(distributed_joint_model_manifest.json = "f37756949c14c918f8b8c9c06c118e929cab22465eed95bffc708d88188fd7a5",
+                distributed_joint_model_qc.json = "181d28ca96892b5b62ddea986afa06f7a50bb720f066af63f0e2259a059dc7e8"),
+      parents = c("pjm_6e64c022281a7f2648f78917"),
       hashes = c("scientific_identity.config_sha256" = "config/distributed_training.yml",
                  "scientific_identity.encoder_config_sha256" = "config/model_architecture.yml",
                  "scientific_identity.joint_config_sha256" = "config/joint_model.yml",
                  "scientific_identity.tensor_contract_sha256" = "config/serialization_shard.yml",
                  "scientific_identity.implementation_sha256.prototype_ddp_joint_model.py" = "python/prototype_ddp_joint_model.py",
                  "scientific_identity.implementation_sha256.prototype_ddp_joint_objective_smoke.py" = "python/prototype_ddp_joint_objective_smoke.py",
-                 "scientific_identity.implementation_sha256.prototype_ddp_optimizer_smoke.py" = "python/prototype_ddp_optimizer_smoke.py",
-                 "scientific_identity.implementation_sha256.run_prototype_ddp_joint_smoke.py" = "python/run_prototype_ddp_joint_smoke.py",
-                 "scientific_identity.implementation_sha256.run_prototype_training_ddp.py" = "python/run_prototype_training_ddp.py")
+                 "scientific_identity.implementation_sha256.prototype_sparse_reconstruction_smoke.py" = "python/prototype_sparse_reconstruction_smoke.py",
+                 "scientific_identity.implementation_sha256.run_prototype_ddp_joint_smoke.py" = "python/run_prototype_ddp_joint_smoke.py")
     ),
     prototype_training_acceptance = list(
       id = "pta_cf6bc4679a06305fb1185a8e", manifest = "prototype_training_acceptance_manifest.json",
@@ -205,6 +204,14 @@ validate_metadata_recovery_bundle <- function(target_name, directory, spec = met
       stop("Immutable recovery stale implementation/config/schema for ", target_name, ": ", field, call. = FALSE)
     }
   }
+  for (field in names(spec$runtime_only_hashes)) {
+    transition <- spec$runtime_only_hashes[[field]]
+    accepted <- metadata_recovery_lookup(manifest, field)
+    if (!identical(accepted, transition$accepted) ||
+        !identical(metadata_recovery_sha256(transition$path), transition$current)) {
+      stop("Immutable recovery unapproved runtime-only hash transition for ", target_name, ": ", field, call. = FALSE)
+    }
+  }
   for (path in names(spec$current_hashes)) {
     if (!identical(metadata_recovery_sha256(path), unname(spec$current_hashes[[path]]))) {
       stop("Immutable recovery stale implementation/config/schema for ", target_name, ": ", path, call. = FALSE)
@@ -213,10 +220,14 @@ validate_metadata_recovery_bundle <- function(target_name, directory, spec = met
   normalizePath(paths, mustWork = TRUE)
 }
 
-recover_file_target_metadata <- function(target_name, directory, fallback) {
+recover_file_target_metadata <- function(target_name, directory, fallback,
+                                         spec = metadata_recovery_specs()[[target_name]]) {
   recovered <- tryCatch(
-    validate_metadata_recovery_bundle(target_name, directory),
+    validate_metadata_recovery_bundle(target_name, directory, spec = spec),
     error = function(error) {
+      if (identical(Sys.getenv("FUSE_METADATA_RECOVERY_ONLY"), "1")) {
+        stop("Metadata recovery-only fast path rejected for ", target_name, ": ", conditionMessage(error), call. = FALSE)
+      }
       message("Metadata fast path rejected for ", target_name, ": ", conditionMessage(error), "; running target normally")
       NULL
     }
@@ -239,10 +250,10 @@ recover_training_plan_metadata <- function(training_plan_contract_files, fallbac
   files <- normalizePath(training_plan_contract_files, mustWork = TRUE)
   by_name <- setNames(files, basename(files))
   config <- yaml::read_yaml(by_name[["training_plan.yml"]])
-  directory <- file.path(config$output$root, "ptp_3b100622bdb733351db6e458")
-  expected <- c(prototype_training_plan_manifest.json = "8cec8d13aa437661e83e494ad6b208154a494ff024a580aa8086b8f76ad78674",
-                prototype_training_plan_qc.json = "153b52aae5712ddb48b92e309f1f45344c64331c7d51d8fda48cc9d4b3cb1c93",
-                `run-spec.json` = "af9c763c22de66d27a970deab17bd5589fa71518451fb3da66106f7cb8ef4f05")
+  directory <- file.path(config$output$root, "ptp_b26daa03f4fdc6717d53cc33")
+  expected <- c(`run-spec.json` = "3eb0b456c65b895b3aa3693c9c7110215ab47ba0c667a61613e7424f62c8d4e4",
+                prototype_training_plan_qc.json = "75bc77bd47fc89b90662b8aefa5f8b415759c972b8db2b71d2fd42117cb28a44",
+                prototype_training_plan_manifest.json = "de8d5993525fd85d8abf70c5a400ebcf3c9a24ceeb5eb838d83ea17155063848")
   recovered <- tryCatch({
     actual <- sort(basename(list.files(directory, full.names = TRUE, recursive = FALSE)), method = "radix")
     if (!identical(actual, sort(names(expected), method = "radix"))) stop("I20 file-set mismatch")
@@ -251,8 +262,10 @@ recover_training_plan_metadata <- function(training_plan_contract_files, fallbac
     if (!identical(unname(sha), unname(expected))) stop("I20 checksum mismatch")
     manifest <- jsonlite::read_json(file.path(directory, "prototype_training_plan_manifest.json"), simplifyVector = FALSE)
     run <- jsonlite::read_json(file.path(directory, "run-spec.json"), simplifyVector = FALSE)
-    if (!identical(manifest$status, "PASS") || !identical(manifest$plan_id, "ptp_3b100622bdb733351db6e458") ||
-        !identical(run$run_id, "ptr_473911a4828ae5540a9d4eb9")) stop("I20 identity/status mismatch")
+    if (!identical(manifest$status, "PASS") || !identical(manifest$plan_id, "ptp_b26daa03f4fdc6717d53cc33") ||
+        !identical(run$plan_id, manifest$plan_id) || !identical(run$run_id, "ptr_50be4e6c09161b4c3aae940e")) {
+      stop("I20 identity/status mismatch")
+    }
     if (!identical(manifest$scientific_identity$implementation_sha256, metadata_recovery_sha256("R/research_training_plan.R")) ||
         !identical(manifest$scientific_identity$schema_sha256, metadata_recovery_sha256("config/schemas/prototype_training_plan.schema.json"))) {
       stop("I20 stale implementation/schema")
@@ -263,31 +276,39 @@ recover_training_plan_metadata <- function(training_plan_contract_files, fallbac
     scoped <- list(
       model = model[c("dimensions", "position", "geometry", "architecture")],
       joint = joint[c("numerical_policy", "modality_masking", "decoders", "loss", "contrastive")],
-      augmentation = manifest[c("rng", "entity_removal", "geometry", "attributes", "categorical", "raster", "relations")],
-      training = config[c("runs", "data", "optimization", "validation", "resume")]
+      augmentation = augmentation_config[c("rng", "entity_removal", "geometry", "attributes", "categorical", "raster", "relations")],
+      training = config[c("runs", "data", "optimization", "validation", "resume")],
+      execution = config$execution[c(
+        "distributed_strategy", "distributed_backend", "world_size", "workers_per_rank",
+        "rank_logical_batch_scenes", "persistent_workers", "pin_memory", "prefetch_factor",
+        "native_threads_per_worker", "process_start_method"
+      )]
     )
     scoped_sha <- lapply(scoped, digest::digest, algo = "sha256", serialize = TRUE)
     if (!identical(manifest$scientific_identity$scientific_hashes, scoped_sha)) stop("I20 stale scientific config")
     current_config_sha <- c(
-      model_architecture.yml = "2839657ca8eff2a80656b21d04de524d99feab8c4ddf0a768c5192f50b030659",
-      joint_model.yml = "8b097846e3ea005f23d0ecc78e28623db56f28575a174ab472ac366ec8d52a16",
-      augmentation.yml = "ede938387d23d9cda71943aea57bd3342d4303d152c25cbe81193cca70100d2f",
-      training_plan.yml = "8b02acae7c7f2b794684004172cdb7bf284f2be39b4ccc0570817b86fceb3947"
+      model_architecture.yml = "0ad34e2d14094ecb9aef86804328f461e9955e08f8eac2873587eb9987a11807",
+      joint_model.yml = "56b7d83cffe309f61d20304485412035913324385519bcc6327f10ff781da367",
+      augmentation.yml = "38fc6ec2df35b1de481048daf8606ff3ab37237f04c511fc053654d83f21b75a",
+      training_plan.yml = "ef1fabe78d20b1a9783c65ae731cdcd6ae3b8396f8abfc613ad7ebe69bcf70a6"
     )
     for (name in names(current_config_sha)) {
       if (!identical(metadata_recovery_sha256(by_name[[name]]), unname(current_config_sha[[name]]))) {
         stop("I20 stale config: ", name)
       }
     }
-    required <- c("ptd_cee61a525ca92f1b7951c40d", "pdl_4037d275d729c82ea9b19d97", "pgr_fb3209bda9fb0fa9a0e15bd1",
-                  "pea_5784252434798d9dfa05d796", "paa_8d73a94e574dcdbc5c5106d2", "pjm_056c0d32b223808fd8dabc75",
-                  "pjd_13aff4a58d3d6022ee2dd62f")
+    required <- c("ptd_8b3359690ea2d0bef52d63e3", "pdl_361072e3519a91d0aefc9bb9", "pgr_4fcebb65e897c22dcc202950",
+                  "pea_dba8976447199f1b67ae5216", "paa_f49a5e16e0855b7bad5e4e60", "pjm_2c43bef0ecb99c26eba58bbf",
+                  "pjd_394f70f85445591ad7ad930c")
     if (length(setdiff(required, metadata_recovery_values(manifest)))) stop("I20 parent mismatch")
     message("Metadata fast path verified: prototype_training_plan")
     list(list(run_id = run$run_id, plan_id = run$plan_id,
               .path = normalizePath(file.path(directory, "run-spec.json"), mustWork = TRUE),
-              files = normalizePath(paths, mustWork = TRUE)))
+              files = unname(normalizePath(paths, mustWork = TRUE))))
   }, error = function(error) {
+    if (identical(Sys.getenv("FUSE_METADATA_RECOVERY_ONLY"), "1")) {
+      stop("Metadata recovery-only fast path rejected for prototype_training_plan: ", conditionMessage(error), call. = FALSE)
+    }
     message("Metadata fast path rejected for prototype_training_plan: ", conditionMessage(error), "; running target normally")
     NULL
   })

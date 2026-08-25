@@ -2,8 +2,12 @@
 """Hold the pair and both device locks while executing two-rank I21."""
 
 from __future__ import annotations
-import fcntl,os,subprocess,sys,time
+import argparse,fcntl,os,subprocess,sys,time
 from pathlib import Path
+
+import yaml
+
+from prototype_training_runtime_mirror import prepare_runtime_mirror
 
 def acquire(path:Path,timeout:float):
     path.parent.mkdir(parents=True,exist_ok=True);stream=path.open("a+");deadline=time.monotonic()+timeout
@@ -14,6 +18,14 @@ def acquire(path:Path,timeout:float):
             time.sleep(.25)
 
 def main()->int:
+    parser=argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--training-config",required=True)
+    known,_=parser.parse_known_args()
+    training=yaml.safe_load(Path(known.training_config).read_text())
+    prepare_runtime_mirror(
+        Path(training["execution"]["archive_source_root"]),
+        Path(training["execution"]["archive_runtime_root"]),
+    )
     root=Path("/mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks");streams=[]
     try:
         for name in ("gpu_pair.lock","gpu0.lock","gpu1.lock"):streams.append(acquire(root/name,120))

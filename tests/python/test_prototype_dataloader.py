@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "python"))
 
 from prototype_dataloader import (  # noqa: E402
+    AcceptedPrototypeDataset,
     DeterministicBudgetBatchSampler,
     logical_batch_digest,
     make_dataloader,
@@ -137,6 +138,18 @@ class ErrorDataset(Dataset):
 
 
 class PrototypeDataLoaderFixtureTest(unittest.TestCase):
+    def test_tensor_contract_evidence_is_memoized_only_for_exact_payload_identity(self):
+        dataset = AcceptedPrototypeDataset.__new__(AcceptedPrototypeDataset)
+        dataset._validated_tensor_payloads = set()
+        calls = []
+        dataset._validate_tensor_contract = lambda *args: calls.append(args)
+        first = (("scene.entities.safetensors", "a" * 64, 10),)
+        changed = (("scene.entities.safetensors", "b" * 64, 10),)
+        self.assertFalse(dataset._validate_tensor_contract_once(first, "scene", {}, 1, 0, 1))
+        self.assertTrue(dataset._validate_tensor_contract_once(first, "scene", {}, 1, 0, 1))
+        self.assertFalse(dataset._validate_tensor_contract_once(changed, "scene", {}, 1, 0, 1))
+        self.assertEqual(len(calls), 2)
+
     def test_empty_node_edge_and_multipart_hole_collate(self):
         empty = sample("empty", 0, [[], []], [], empty=True, global_index=0)
         multipart = sample("multipart", 1, [[], []], [[0, 0], [1, 0], [0, 0]], global_index=1)

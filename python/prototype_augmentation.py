@@ -12,6 +12,7 @@ from typing import Any, Iterable
 
 import numpy as np
 import torch
+from shapely import distance as shapely_distance
 from shapely.geometry import LineString, MultiLineString, MultiPoint, MultiPolygon, Point, Polygon, box
 from shapely.strtree import STRtree
 
@@ -231,7 +232,7 @@ def unpack_geometries(sample: dict[str, Any]) -> list[Any]:
     return result
 
 
-def selected_host_relations(geometries: list[Any], entity_types: np.ndarray, retained: set[int],
+def selected_host_relations_reference(geometries: list[Any], entity_types: np.ndarray, retained: set[int],
                             source_entity_ids: list[Any],
                             local_entity_ids: list[int] | np.ndarray | None = None,
                             building_areas: np.ndarray | None = None) -> dict[str, set[tuple[int, int]]]:
@@ -251,6 +252,36 @@ def selected_host_relations(geometries: list[Any], entity_types: np.ndarray, ret
         if not candidates:
             continue
         host = min(candidates, key=lambda building: (
+            float(geometries[building].area if building_areas is None else building_areas[building]),
+            source_entity_ids[building] is None,
+            "" if source_entity_ids[building] is None else str(source_entity_ids[building]),
+            local_ids[building],
+        ))
+        result["CNT"].add((host, poi))
+        result["WIT"].add((poi, host))
+    return result
+
+
+def selected_host_relations(geometries: list[Any], entity_types: np.ndarray, retained: set[int],
+                            source_entity_ids: list[Any],
+                            local_entity_ids: list[int] | np.ndarray | None = None,
+                            building_areas: np.ndarray | None = None) -> dict[str, set[tuple[int, int]]]:
+    """Select POI hosts with one vectorized STRtree predicate query."""
+    local_ids = list(range(len(geometries))) if local_entity_ids is None else [int(value) for value in local_entity_ids]
+    buildings = [row for row in sorted(retained) if entity_types[row] == ENTITY_CODES["B"]]
+    pois = [row for row in sorted(retained) if entity_types[row] == ENTITY_CODES["P"]]
+    result = {"CNT": set(), "WIT": set()}
+    if not buildings or not pois:
+        return result
+    building_geometries = [geometries[row] for row in buildings]
+    pairs = STRtree(building_geometries).query(
+        np.asarray([geometries[row] for row in pois], dtype=object), predicate="within"
+    )
+    candidates: dict[int, list[int]] = {}
+    for poi_offset, building_offset in pairs.T.tolist():
+        candidates.setdefault(pois[int(poi_offset)], []).append(buildings[int(building_offset)])
+    for poi, values in candidates.items():
+        host = min(values, key=lambda building: (
             float(geometries[building].area if building_areas is None else building_areas[building]),
             source_entity_ids[building] is None,
             "" if source_entity_ids[building] is None else str(source_entity_ids[building]),
@@ -431,8 +462,16 @@ def candidate_relations_match(row: int, geometries: list[Any], entity_types: np.
     """Compare every invariant relation involving one candidate entity."""
     if entity_types[row] == ENTITY_CODES["B"]:
         spatial = [other for other in retained if other != row and entity_types[other] in (ENTITY_CODES["B"], ENTITY_CODES["R"])]
+        fixed_pois = {destination for source, destination in fixed["CNT"] if source == row}
+        candidate_pois = {
+            other for other in retained
+            if entity_types[other] == ENTITY_CODES["P"] and geometries[other].within(geometries[row])
+        }
+        relevant_pois = fixed_pois | candidate_pois
         containment = selected_host_relations(
-            geometries, entity_types, retained, source_entity_ids, local_entity_ids, building_areas
+            geometries, entity_types,
+            {candidate for candidate in retained if entity_types[candidate] == ENTITY_CODES["B"]} | relevant_pois,
+            source_entity_ids, local_entity_ids, building_areas,
         )
         cnt = {pair for pair in containment["CNT"] if row in pair}
         wit = {pair for pair in containment["WIT"] if row in pair}
@@ -449,7 +488,7 @@ def candidate_relations_match(row: int, geometries: list[Any], entity_types: np.
     return True
 
 
-def regenerate_sn(geometries: list[Any], retained: set[int], distance_m: float = 100.0,
+def regenerate_sn_reference(geometries: list[Any], retained: set[int], distance_m: float = 100.0,
                   top_k: int = 16) -> set[tuple[int, int]]:
     rows = sorted(retained)
     if not rows:
@@ -465,6 +504,33 @@ def regenerate_sn(geometries: list[Any], retained: set[int], distance_m: float =
             distance = float(geometries[source].distance(geometries[destination]))
             if distance <= distance_m:
                 candidates.append((distance, destination))
+        for _, destination in sorted(candidates, key=lambda item: (item[0], item[1]))[:top_k]:
+            directed.add((source, destination))
+    return directed | {(destination, source) for source, destination in directed}
+
+
+def regenerate_sn(geometries: list[Any], retained: set[int], distance_m: float = 100.0,
+                  top_k: int = 16) -> set[tuple[int, int]]:
+    """Rebuild stable SN top-k with batched GEOS distance evaluation."""
+    rows = sorted(retained)
+    if not rows:
+        return set()
+    selected = [geometries[row] for row in rows]
+    tree = STRtree(selected)
+    directed: set[tuple[int, int]] = set()
+    for position, source in enumerate(rows):
+        indices = tree.query(selected[position], predicate="dwithin", distance=distance_m)
+        indices = indices[indices != position]
+        if not len(indices):
+            continue
+        distances = shapely_distance(
+            selected[position], np.asarray([selected[int(index)] for index in indices], dtype=object)
+        )
+        candidates = [
+            (float(distance), rows[int(index)])
+            for index, distance in zip(indices.tolist(), distances.tolist(), strict=True)
+            if float(distance) <= distance_m
+        ]
         for _, destination in sorted(candidates, key=lambda item: (item[0], item[1]))[:top_k]:
             directed.add((source, destination))
     return directed | {(destination, source) for source, destination in directed}
@@ -507,13 +573,15 @@ class AugmentationResources:
 
 def augment_scene(sample: dict[str, Any], config: dict[str, Any], resources: AugmentationResources,
                   thresholds: dict[int, float], epoch: int, view_id: int,
-                  intensity: float = 1.0) -> dict[str, Any]:
+                  intensity: float = 1.0,
+                  prepared: dict[str, Any] | None = None,
+                  runtime_cache: dict[str, Any] | None = None) -> dict[str, Any]:
     scene_id = sample["scene_id"]
     base_seed = int(config["rng"]["base_seed"])
     entities = sample["entities"]
-    entity_types = entities["entity_type"].cpu().numpy()
+    entity_types = entities["entity_type"].cpu().numpy() if prepared is None else prepared["entity_types"]
     n = len(entity_types)
-    geometries = unpack_geometries(sample)
+    geometries = unpack_geometries(sample) if prepared is None else list(prepared["geometries"])
     original_geometries = list(geometries)
     all_rows = set(range(n))
     road_entity_rows = entities["road_row_index"].cpu().numpy()
@@ -522,6 +590,10 @@ def augment_scene(sample: dict[str, Any], config: dict[str, Any], resources: Aug
     node_degrees = sample["topology"]["node_incident_road_count"].cpu().numpy()
     scene_center = tuple(float(value) for value in sample["meta"]["center_xy_5186"])
     building_area_references = sample["scientific_reference"]["building_observed_area_m2_reference"].cpu().numpy()
+    building_row_offsets = (
+        prepared["row_offsets"]["building"] if prepared is not None else
+        {int(row): offset for offset, row in enumerate(entities["building_row_index"].tolist())}
+    )
     building_areas = np.full(n, np.nan, dtype=np.float64)
     for offset, row in enumerate(entities["building_row_index"].tolist()):
         if not int(entities["building_missing"][offset, 0]):
@@ -582,11 +654,13 @@ def augment_scene(sample: dict[str, Any], config: dict[str, Any], resources: Aug
                 geometries[row] = candidate
                 if entity_types[row] == ENTITY_CODES["B"]:
                     building_areas[row] = float(candidate.area) if candidate.wkb != original.wkb else float(
-                        building_area_references[entities["building_row_index"].tolist().index(row)]
+                        building_area_references[building_row_offsets[row]]
                     )
                 valid = candidate_relations_match(
                     row, geometries, entity_types, retained, fixed_relations,
-                    sample["meta"]["source_entity_ids"], entities["local_entity_id"].tolist(), building_areas,
+                    sample["meta"]["source_entity_ids"],
+                    prepared["local_entity_ids"] if prepared is not None else entities["local_entity_id"].tolist(),
+                    building_areas,
                 )
             if valid:
                 accepted = True; accepted_geometry += 1
@@ -595,12 +669,12 @@ def augment_scene(sample: dict[str, Any], config: dict[str, Any], resources: Aug
                 break
             geometries[row] = original
             if entity_types[row] == ENTITY_CODES["B"]:
-                building_areas[row] = float(building_area_references[entities["building_row_index"].tolist().index(row)])
+                building_areas[row] = float(building_area_references[building_row_offsets[row]])
             rejections += 1
         if not accepted:
             geometries[row] = original
             if entity_types[row] == ENTITY_CODES["B"]:
-                building_areas[row] = float(building_area_references[entities["building_row_index"].tolist().index(row)])
+                building_areas[row] = float(building_area_references[building_row_offsets[row]])
             fallbacks += 1
 
     # Geometry-derived Building values retain original missingness and source allocation ratio.
@@ -739,6 +813,10 @@ def augment_scene(sample: dict[str, Any], config: dict[str, Any], resources: Aug
         "rasters": result["raster_digest"],
     }
     result["logical_digest"] = logical_digest(result)
+    if runtime_cache is not None:
+        runtime_cache.update(
+            geometries=tuple(geometries), rasters=rasters, object_context=object_context
+        )
     return result
 
 

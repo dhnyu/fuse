@@ -40,7 +40,7 @@ def main() -> None:
     model.online.load_state_dict(state["online_model"]); model.target.load_state_dict(state["target_model"])
     model.modality_mask_embeddings.data.copy_(state["projection_and_decoders"]["mask"])
     model.decoders.load_state_dict(state["projection_and_decoders"]["decoders"])
-    result = validation(model, loader, encoder, mask_indices, device)
+    result = validation(model, loader, encoder, mask_indices, device, spec["validation"])
     if loader._iterator is not None: loader._iterator._shutdown_workers()
     print(json.dumps(result, sort_keys=True))
 

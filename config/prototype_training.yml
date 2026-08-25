@@ -1,9 +1,9 @@
 schema_version: "1.0.0"
 identity:
-  plan_id: ptp_19ce115adab48c4ff737a44d
-  run_id: ptr_35743175250eaa556102185c
-  joint_model_acceptance_id: pjm_0dbf194eb2fd469781a220d1
-  distributed_joint_acceptance_id: pjd_8f3798ffaf37c115b6448165
+  plan_id: ptp_1b9e35121d0663ff4c9acfc6
+  run_id: ptr_88918c80d361493008d2ca31
+  joint_model_acceptance_id: pjm_6e64c022281a7f2648f78917
+  distributed_joint_acceptance_id: pjd_69c0bd35dac8add3280d72e2
   dissertation_commit: 87990db83f2b30200cc2d64dc160cb41f691e0e7
 preflight:
   controlled_resume_checkpoint_step: 1
@@ -24,10 +24,17 @@ execution:
   prefetch_factor: 4
   native_threads_per_worker: 1
   process_start_method: spawn
-  archive_source_root: /mnt/hdd002/dhnyu/fusedata/training_data/v1/prototype/pro_b77dc79d854800dbe5a82e42/serialization/psd_aa295747ee7814efbd1d177c
-  archive_runtime_root: /members/dhnyu/fuse_runtime_mirror/official-grid-prototype-v2/i21-diagnostic-input/psd_aa295747ee7814efbd1d177c
+  archive_source_root: /mnt/hdd002/dhnyu/fusedata/training_data/v1/prototype/pro_b77dc79d854800dbe5a82e42/serialization/psd_e82f7a94708626c722544505
+  archive_runtime_root: /members/dhnyu/fuse_runtime_mirror/official-grid-prototype-v2/i21-diagnostic-input/psd_e82f7a94708626c722544505
   archive_runtime_identity: excluded_execution_only
   telemetry_interval_seconds: 60
+  profiler:
+    enabled: false
+    warmup_steps: 2
+    sampled_steps: [3, 16, 40]
+    interval_steps: 0
+    max_sampled_steps: 3
+    sidecar_name: runtime_phase_profile.jsonl
   gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
   gpu_lock_timeout_seconds: 120
 output:

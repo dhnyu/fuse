@@ -8,18 +8,36 @@
     "status": {"const": "PASS"},
     "plan_id": {"type": "string", "pattern": "^ptp_[0-9a-f]{24}$"},
     "run_count": {"const": 1},
-    "dataset_identity": {"const": "ptd_8b3359690ea2d0bef52d63e3"},
-    "dataloader_identity": {"const": "pdl_361072e3519a91d0aefc9bb9"},
-    "no_op_gate_identity": {"const": "pgr_60bc6b2cbd0864272308d18e"},
-    "encoder_identity": {"const": "pea_bb192d9b73c6189d36c452fa"},
-    "augmentation_identity": {"const": "paa_f561eea03b05c47375b7198e"},
-    "joint_model_identity": {"const": "pjm_0dbf194eb2fd469781a220d1"},
-    "distributed_joint_model_identity": {"const": "pjd_8f3798ffaf37c115b6448165"},
+    "dataset_identity": {"const": "ptd_bcb9e6a1061ff7ca9c716b20"},
+    "dataloader_identity": {"const": "pdl_5eb0ccb9951d1015d6d64649"},
+    "no_op_gate_identity": {"const": "pgr_77294c825bf26bf6fce721c3"},
+    "encoder_identity": {"const": "pea_1c66760dbc1e6c0a8d71cb91"},
+    "augmentation_identity": {"const": "paa_5d2b1f56119e8d5f5050a75d"},
+    "joint_model_identity": {"const": "pjm_6e64c022281a7f2648f78917"},
+    "distributed_joint_model_identity": {"const": "pjd_69c0bd35dac8add3280d72e2"},
     "scientific_identity": {
       "type": "object",
-      "required": ["dataset", "loader", "no_op_gate", "encoder", "augmentation", "joint_model", "distributed_joint_model", "model_config", "decoder_loss_masking_config", "augmentation_config", "training_config", "scientific_hashes"]
+      "required": ["dataset", "loader", "no_op_gate", "encoder", "augmentation", "joint_model", "distributed_joint_model", "model_config", "decoder_loss_masking_config", "augmentation_config", "training_config", "validation_implementation", "scheduler_implementation", "dissertation_sources", "scientific_hashes"]
     },
-    "runs": {"type": "array", "minItems": 1, "maxItems": 1},
+    "runs": {
+      "type": "array", "minItems": 1, "maxItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["training_scenes", "effective_batch_scenes", "optimizer", "validation"],
+        "properties": {
+          "training_scenes": {"const": 256},
+          "effective_batch_scenes": {"const": 32},
+          "optimizer": {
+            "type": "object",
+            "required": ["learning_rate", "warmup_epochs", "maximum_epochs", "schedule_unit", "optimizer_steps_per_epoch", "optimizer_steps_per_epoch_derivation", "warmup_optimizer_steps_derivation", "cosine_progress", "scheduler_step_order"]
+          },
+          "validation": {
+            "type": "object",
+            "required": ["primary_metric", "checkpoint_selection", "retrieval_loss", "retrieval_loss_min_delta", "floating_point_tolerance", "patience_reset", "evaluation_and_test_for_selection"]
+          }
+        }
+      }
+    },
     "outputs": {"type": "array", "minItems": 2}
   },
   "additionalProperties": true

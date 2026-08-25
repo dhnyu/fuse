@@ -1,0 +1,30 @@
+schema_version: "1.0.0"
+mode: isolated_diagnostic_no_checkpoint_ledger_or_publication
+candidates: [1.0e-4, 2.0e-4, 3.0e-4]
+epochs: 30
+shared_contract:
+  initial_parameter_state: exact_same_seeded_state
+  sampler_and_augmentation: exact_same_seed_order_and_views
+  queue_initial_state: empty_and_exact_same
+  optimizer_step_count: 240
+  warmup_and_cosine: formal_200_epoch_schedule_compared_at_identical_steps
+  ddp_world_size: 2
+  global_batch_scenes: 32
+  workers_total: 40
+safety:
+  repeated_optimizer_steps: 2
+  repeat_state_and_result: exact
+  finite_loss_gradient_and_update: required
+  loss_spike_guard: second_loss_not_above_max_of_five_times_first_or_first_plus_10
+selection:
+  reference_learning_rate: 1.0e-4
+  candidate_order: ascending
+  minimum_relative_final_validation_retrieval_loss_improvement: 0.01
+  minimum_relative_validation_retrieval_loss_auc_improvement: 0.01
+  must_reach_reference_final_validation_loss_at_earlier_optimizer_step: true
+  late_validation_regression: forbidden
+  late_validation_window_evaluations: 3
+  maximum_late_loss_increase: 1.0e-4
+  nonfinite_or_update_norm_spike: hard_rejection
+  maximum_matched_step_update_norm_ratio_to_reference: 5.0
+  higher_lr_tie_policy: retain_lower_learning_rate

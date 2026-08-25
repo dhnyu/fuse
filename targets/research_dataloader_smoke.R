@@ -10,7 +10,7 @@ list_research_dataloader_smoke <- list(
     command = recover_file_target_metadata(
       "prototype_dataloader_smoke",
       file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance),
-                "smoke", "dataloader", "pdl_4037d275d729c82ea9b19d97"),
+                "smoke", "dataloader", "pdl_5eb0ccb9951d1015d6d64649"),
       run_prototype_dataloader_smoke(
         prototype_training_dataset_acceptance = prototype_training_dataset_acceptance,
         dataloader_smoke_contract_files = dataloader_smoke_contract_files,

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
+  "required": ["schema_version", "scope", "acceptance_id", "status", "authority_id", "scene_index_id", "membership_dataset_id", "scene_count", "split_counts", "entity_counts", "branch_ids", "membership_parquets", "parity", "scientific_hash"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "scope": {"enum": ["prototype", "production"]},
+    "acceptance_id": {"pattern": "^bma_[0-9a-f]{24}$"}, "status": {"const": "PASS"},
+    "authority_id": {"const": "mta_f90fecff7bc7bb5d231cc79f"}, "scene_index_id": {"const": "rsi_80031f1493c75163f91b7c71"},
+    "membership_dataset_id": {"pattern": "^bmd_[0-9a-f]{24}$"}, "scene_count": {"type": "integer"},
+    "split_counts": {"type": "object"}, "entity_counts": {"type": "object"}, "branch_ids": {"type": "array", "minItems": 1},
+    "membership_parquets": {"type": "array", "minItems": 3}, "parity": {"type": "object"}, "scientific_hash": {"pattern": "^[0-9a-f]{64}$"}
+  }, "additionalProperties": false
+}

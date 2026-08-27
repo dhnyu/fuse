@@ -18,6 +18,8 @@ research_function_files <- c(
   "R/research_raster_observation.R",
   "R/research_relation.R",
   "R/research_spatial_acceptance.R",
+  "R/research_base_spatial.R",
+  "R/research_relation_tiered_execution.R",
   "R/research_serialization_plan.R",
   "R/research_serialization_shard.R",
   "R/research_training_dataset_acceptance.R",
@@ -43,7 +45,8 @@ controller_10 <- crew::crew_controller_local(
 )
 controller_20 <- crew::crew_controller_local(
   name = "controller_20",
-  workers = fuse_controller_worker_count("FUSE_CONTROLLER_20_WORKERS", 20L)
+  workers = fuse_controller_worker_count("FUSE_CONTROLLER_20_WORKERS", 20L),
+  seconds_timeout = 3600
 )
 controller_40 <- crew::crew_controller_local(
   name = "controller_40",
@@ -76,6 +79,7 @@ targets::tar_source("targets/research_observation.R")
 targets::tar_source("targets/research_raster_observation.R")
 targets::tar_source("targets/research_relation.R")
 targets::tar_source("targets/research_spatial_acceptance.R")
+targets::tar_source("targets/research_base_spatial.R")
 targets::tar_source("targets/research_serialization_plan.R")
 targets::tar_source("targets/research_serialization_shard.R")
 targets::tar_source("targets/research_training_dataset_acceptance.R")
@@ -101,6 +105,7 @@ c(
   list_research_raster_observation,
   list_research_relation,
   list_research_spatial_acceptance,
+  list_research_base_spatial,
   list_research_serialization_plan,
   list_research_serialization_shard,
   list_research_training_dataset_acceptance,

@@ -7,12 +7,15 @@ list_research_serialization_plan <- list(
   ),
   targets::tar_target(
     name = prototype_serialization_plan,
-    command = build_prototype_serialization_plan(
-      prototype_spatial_acceptance = prototype_spatial_acceptance,
-      serialization_plan_contract_files = serialization_plan_contract_files,
-      workers = 1L,
-      threads = 1L
-    ),
+    command = {
+      base_spatial_acceptance
+      build_prototype_serialization_plan(
+        prototype_spatial_acceptance = prototype_spatial_acceptance,
+        serialization_plan_contract_files = serialization_plan_contract_files,
+        workers = 1L,
+        threads = 1L
+      )
+    },
     format = "rds",
     iteration = "list",
     resources = controller_05_resources

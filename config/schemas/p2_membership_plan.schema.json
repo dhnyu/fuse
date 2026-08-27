@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
+  "required": ["schema_version", "scope", "plan_id", "membership_dataset_id", "authority_id", "scene_index_id", "scene_acceptance_id", "inventory_id", "base_contract_id", "scientific_fingerprint", "branch_specs", "execution"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "scope": {"enum": ["prototype", "production"]},
+    "plan_id": {"pattern": "^bmp_[0-9a-f]{24}$"}, "membership_dataset_id": {"pattern": "^bmd_[0-9a-f]{24}$"},
+    "authority_id": {"const": "mta_f90fecff7bc7bb5d231cc79f"}, "scene_index_id": {"const": "rsi_80031f1493c75163f91b7c71"},
+    "scene_acceptance_id": {"const": "sia_0a997e576367b1133517bf6a"}, "inventory_id": {"const": "rin_fc622f56cb4afdcb9a5db08b"},
+    "base_contract_id": {"const": "mmc_960b3622eeef88ab"}, "scientific_fingerprint": {"pattern": "^[0-9a-f]{64}$"},
+    "branch_specs": {"type": "array", "minItems": 1}, "execution": {"type": "object"}
+  }, "additionalProperties": false
+}

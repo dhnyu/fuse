@@ -52,7 +52,18 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "prototype_scientific_geometry_roundtrip", "prototype_augmentation_benchmark",
       "prototype_joint_model_smoke", "prototype_distributed_joint_model_smoke", "prototype_training_plan",
       "prototype_training", "prototype_training_acceptance", "prototype_model_validation",
-      "prototype_model_acceptance", "full_membership_plan"
+      "prototype_model_acceptance", "full_membership_plan",
+      "p2_base_spatial_contract_files",
+      "base_spatial_prototype_membership_plan", "base_spatial_prototype_membership_shard",
+      "base_spatial_prototype_membership_acceptance", "base_spatial_prototype_observation_plan",
+      "base_spatial_prototype_vector_observation_shard", "base_spatial_prototype_raster_observation_shard",
+      "base_spatial_prototype_relation_graph_shard", "base_spatial_prototype_source_topology_shard",
+      "base_spatial_prototype_acceptance",
+      "base_spatial_membership_plan", "base_spatial_membership_shard",
+      "base_spatial_membership_acceptance", "base_spatial_observation_plan",
+      "base_vector_observation_shard", "base_raster_observation_shard",
+      "base_relation_tiered_execution_acceptance", "base_relation_graph_shard",
+      "base_source_topology_shard", "base_spatial_acceptance"
     )
   )
   expect_false("seoul_data_preprocess" %in% research_manifest$name)

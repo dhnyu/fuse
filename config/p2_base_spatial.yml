@@ -1,0 +1,49 @@
+schema_version: "1.0.0"
+implementation_version: "1.0.0"
+authority:
+  id: mta_f90fecff7bc7bb5d231cc79f
+  base_contract_id: mmc_960b3622eeef88ab
+  base_contract_hash: 960b3622eeef88abe93a600ecbfe09469cf59e299502e2502b0b1caf6c108dcf
+p1:
+  scene_index_id: rsi_80031f1493c75163f91b7c71
+  scene_acceptance_id: sia_0a997e576367b1133517bf6a
+  prototype_id: rps_4dfda380e54a9b7f9f60ac04
+  inventory_id: rin_fc622f56cb4afdcb9a5db08b
+publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations
+scopes:
+  prototype:
+    counts: {training: 256, validation: 32, evaluation: 32, total: 320}
+    membership_branches: 12
+    membership_controller: controller_40
+    observation_controller: controller_40
+  production:
+    counts: {training: 2421, validation: 400, evaluation: 1600, total: 4421}
+    membership_branches: 96
+    membership_controller: controller_40
+    observation_controller: controller_20
+branching:
+  algorithm: deterministic_bbox_proxy_lpt_v1
+  maximum_scenes_per_branch: 64
+  proxy_weights: {building: 8.0, road: 4.0, poi: 1.0}
+  controller: controller_40
+  workers_per_branch: 1
+  threads_per_worker: 1
+parity:
+  membership_scene_sample: 12
+  relation_scene_sample: 12
+  raster_scene_sample: 12
+topology:
+  schema_version: "1.0.0"
+  source_chain_semantics: ordered_authoritative_source_nodes
+  source_node_fields: [F_NODE, T_NODE]
+  road_type_field: ROAD_TYPE
+  road_hierarchy_field: ROAD_RANK
+  vertex_tolerance_m: 0.0000001
+relations:
+  allowed: [SN, CNT, WIT, INT, CON]
+schemas:
+  membership_plan: config/schemas/p2_membership_plan.schema.json
+  membership_acceptance: config/schemas/p2_membership_acceptance.schema.json
+  observation_plan: config/schemas/p2_observation_plan.schema.json
+  topology_manifest: config/schemas/p2_topology_manifest.schema.json
+  aggregate_acceptance: config/schemas/p2_base_spatial_acceptance.schema.json

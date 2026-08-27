@@ -523,7 +523,7 @@ write_zarr_store <- function(arrays, output, attributes, config) {
     unlist(lapply(definitions, function(value) c("--array", value))),
     "--compression-level", as.character(config$scientific$storage$compression_level)
   )
-  command_output <- system2("python", args, stdout = TRUE, stderr = TRUE)
+  command_output <- system2(research_python_executable(), args, stdout = TRUE, stderr = TRUE)
   status <- attr(command_output, "status") %||% 0L
   if (status != 0L || !length(command_output)) stop("Zarr writer failed: ", paste(command_output, collapse = " | "), call. = FALSE)
   jsonlite::fromJSON(tail(command_output, 1L), simplifyVector = FALSE)
@@ -733,7 +733,7 @@ build_prototype_raster_observation_shard <- function(prototype_observation_plan,
           implementation_source_hash = config$implementation_source_hash
         ),
         execution = list(
-          controller = "controller_40", workers = 1L, threads = 1L,
+          controller = spec$execution$controller, workers = 1L, threads = 1L,
           wall_time_seconds = elapsed, max_rss_kb = proc_max_rss_kb(),
           read_bytes = io_end$read_bytes - io_start$read_bytes, write_bytes = io_end$write_bytes - io_start$write_bytes,
           landcover_scene_seconds = lc_seconds, dem_scene_seconds = dem_seconds,

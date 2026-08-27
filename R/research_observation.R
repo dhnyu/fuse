@@ -540,6 +540,7 @@ common_observation_columns <- function(membership, source, observed_geometry, sc
     observation_contract_version = config$scientific$observation_contract_version,
     source_geometry_fingerprint = wkb_fingerprint(source_wkb),
     observed_geometry_fingerprint = wkb_fingerprint(observed_wkb),
+    source_geometry_wkb = unclass(source_wkb),
     scene_center_x_5186 = scene_centers[, "x"],
     scene_center_y_5186 = scene_centers[, "y"],
     observed_center_x_5186 = centers[, "x"],
@@ -641,14 +642,14 @@ write_standard_geoparquet <- function(value, path, config) {
     "--compression", config$scientific$writer$compression,
     "--row-group-size", as.character(config$scientific$writer$row_group_size)
   )
-  output <- system2("python", args, stdout = TRUE, stderr = TRUE)
+  output <- system2(research_python_executable(), args, stdout = TRUE, stderr = TRUE)
   status <- attr(output, "status") %||% 0L
   if (status != 0L || !length(output)) stop("GeoParquet writer failed: ", paste(output, collapse = " | "), call. = FALSE)
   jsonlite::fromJSON(tail(output, 1L), simplifyVector = FALSE)
 }
 
 inspect_standard_geoparquet <- function(path, config) {
-  output <- system2("python", c(config$writer_file, "inspect", "--input", path), stdout = TRUE, stderr = TRUE)
+  output <- system2(research_python_executable(), c(config$writer_file, "inspect", "--input", path), stdout = TRUE, stderr = TRUE)
   status <- attr(output, "status") %||% 0L
   if (status != 0L || !length(output)) stop("GeoParquet inspection failed: ", paste(output, collapse = " | "), call. = FALSE)
   value <- jsonlite::fromJSON(tail(output, 1L), simplifyVector = FALSE)
@@ -797,7 +798,7 @@ build_prototype_vector_observation_shard <- function(prototype_observation_plan,
           implementation_source_hash = config$implementation_source_hash
         ),
         execution = list(
-          controller = "controller_40", workers = 1L, threads = 1L,
+          controller = spec$execution$controller, workers = 1L, threads = 1L,
           wall_time_seconds = elapsed, max_rss_kb = proc_max_rss_kb(),
           read_bytes = io_end$read_bytes - io_start$read_bytes,
           write_bytes = io_end$write_bytes - io_start$write_bytes

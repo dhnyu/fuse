@@ -24,6 +24,14 @@ runtime_verified_sha256 <- function(path, expected = NULL) {
 runtime_mirror_role_paths <- function(paths) {
   paths <- normalizePath(paths, mustWork = TRUE)
   roles <- basename(dirname(paths))
+  direct <- c(
+    seoul_boundary.gpkg = "boundary", seoul_buffer400.gpkg = "buffer400",
+    seoul_B.gpkg = "building", seoul_R.gpkg = "road", seoul_P.gpkg = "poi",
+    seoul_lc.tif = "landcover", seoul_dem.tif = "dem",
+    seoul_data_manifest.json = "study_manifest"
+  )
+  matched <- direct[basename(paths)]
+  roles[!is.na(matched)] <- unname(matched[!is.na(matched)])
   official <- roles == "official_grid"
   roles[official] <- paste0("official_grid_", tools::file_ext(paths[official]))
   setNames(paths, roles)

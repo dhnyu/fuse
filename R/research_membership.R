@@ -565,6 +565,7 @@ brute_force_membership_for_scene <- function(scene_record, spec) {
 
 membership_source_id_check <- function(parquet_paths, specs) {
   sources <- specs[[1L]]$sources
+  python <- research_python_executable()
   payload <- tempfile(fileext = ".json")
   on.exit(unlink(payload), add = TRUE)
   write_json_file(list(parquet_paths = parquet_paths, sources = sources), payload)
@@ -577,7 +578,7 @@ membership_source_id_check <- function(parquet_paths, specs) {
     "exec(\"for t in tabs:\\n for typ,g in t.groupby('entity_type'):\\n  s=mapping[typ]; c=sqlite3.connect('file:'+s['path']+'?mode=ro',uri=True); ids={str(x[0]) for x in c.execute('SELECT \\\"'+s['source_id_column']+'\\\" FROM \\\"'+s['layer']+'\\\"')}; c.close(); bad.extend(set(g.source_entity_id)-ids)\");",
     "print(len(bad));sys.exit(0 if not bad else 2)"
   )
-  output <- system2("python", c("-c", shQuote(code), shQuote(payload)), stdout = TRUE, stderr = TRUE)
+  output <- system2(python, c("-c", shQuote(code), shQuote(payload)), stdout = TRUE, stderr = TRUE)
   status <- attr(output, "status") %||% 0L
   if (status != 0L || !identical(tail(output, 1L), "0")) stop("Membership source ID validation failed: ", paste(output, collapse = " | "), call. = FALSE)
   invisible(TRUE)

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
+  "required": ["schema_version", "scope", "plan_id", "original_observation_id", "authority_id", "scene_index_id", "membership_acceptance_id", "scientific_fingerprint", "branch_specs", "execution"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "scope": {"enum": ["prototype", "production"]},
+    "plan_id": {"pattern": "^bop_[0-9a-f]{24}$"}, "original_observation_id": {"pattern": "^obs_[0-9a-f]{24}$"},
+    "authority_id": {"const": "mta_f90fecff7bc7bb5d231cc79f"}, "scene_index_id": {"const": "rsi_80031f1493c75163f91b7c71"},
+    "membership_acceptance_id": {"pattern": "^bma_[0-9a-f]{24}$"}, "scientific_fingerprint": {"pattern": "^[0-9a-f]{64}$"},
+    "branch_specs": {"type": "array", "minItems": 1}, "execution": {"type": "object"}
+  }, "additionalProperties": false
+}

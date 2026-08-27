@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
+  "required": ["schema_version", "scope", "acceptance_id", "status", "authority_id", "scene_index_id", "scene_acceptance_id", "original_observation_id", "scene_count", "split_counts", "entity_counts", "relation_counts", "topology", "invariants", "artifact_checksums", "scientific_hash"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "scope": {"enum": ["prototype", "production"]},
+    "acceptance_id": {"pattern": "^bsa_[0-9a-f]{24}$"}, "status": {"const": "PASS"},
+    "authority_id": {"const": "mta_f90fecff7bc7bb5d231cc79f"}, "scene_index_id": {"const": "rsi_80031f1493c75163f91b7c71"},
+    "scene_acceptance_id": {"const": "sia_0a997e576367b1133517bf6a"}, "original_observation_id": {"pattern": "^obs_[0-9a-f]{24}$"},
+    "scene_count": {"type": "integer"}, "split_counts": {"type": "object"}, "entity_counts": {"type": "object"},
+    "relation_counts": {"type": "object"}, "topology": {"type": "object"}, "invariants": {"type": "object"},
+    "artifact_checksums": {"type": "array", "minItems": 1}, "scientific_hash": {"pattern": "^[0-9a-f]{64}$"}
+  }, "additionalProperties": false
+}

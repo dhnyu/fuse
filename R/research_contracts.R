@@ -254,14 +254,22 @@ validate_methodology_contract_list <- function(contract) {
   invisible(TRUE)
 }
 
+research_python_executable <- function() {
+  rscript <- Sys.which("Rscript")
+  adjacent <- if (nzchar(rscript)) file.path(dirname(normalizePath(rscript)), "python") else ""
+  candidates <- c(file.path(dirname(dirname(R.home())), "bin", "python"), adjacent, Sys.which("python"))
+  candidates <- candidates[nzchar(candidates) & file.exists(candidates)]
+  if (!length(candidates)) stop("Python executable is unavailable", call. = FALSE)
+  normalizePath(candidates[[1L]], mustWork = TRUE)
+}
+
 validate_json_schema_file <- function(json_file, schema_file) {
   executable <- Sys.which("check-jsonschema")
   if (nzchar(executable)) {
     command <- executable
     arguments <- c("--schemafile", shQuote(schema_file), shQuote(json_file))
   } else {
-    command <- Sys.which("python")
-    if (!nzchar(command)) stop("JSON Schema validation requires check-jsonschema or Python", call. = FALSE)
+    command <- research_python_executable()
     code <- paste0(
       "import json,sys,jsonschema;",
       "schema=json.load(open(sys.argv[1],encoding='utf-8'));",

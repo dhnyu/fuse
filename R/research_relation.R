@@ -670,7 +670,7 @@ build_prototype_relation_shard <- function(prototype_observation_plan,
         clipped_endpoint_false_con_count = 0L, sn_radius_violation_count = 0L, sn_top_k_violation_count = 0L,
         inverse_complete = TRUE, symmetry_complete = TRUE, sn_distance_m = summary_numeric(sn_distance),
         execution = list(
-          controller = "controller_40", workers = 1L, threads = 1L,
+          controller = spec$execution$controller, workers = 1L, threads = 1L,
           wall_time_seconds = as.numeric(difftime(Sys.time(), started, units = "secs")), max_rss_kb = proc_max_rss_kb(),
           read_bytes = io_end$read_bytes - io_start$read_bytes, write_bytes = io_end$write_bytes - io_start$write_bytes,
           vector_geoparquet_read_seconds = vector_read_seconds, source_topology_read_seconds = topology_read_seconds,
@@ -700,7 +700,7 @@ build_prototype_relation_shard <- function(prototype_observation_plan,
           road_topology = road_record, relation_config_hash = config$scientific_hash,
           relation_schema_hash = config$schema_hash, implementation_source_hash = config$implementation_source_hash
         ),
-        execution_contract = list(controller = "controller_40", workers = 1L, threads = 1L),
+        execution_contract = list(controller = spec$execution$controller, workers = 1L, threads = 1L),
         scene_ids = as.list(scene_ids), scene_count = length(scene_ids),
         node_count_by_entity_type = list(
           building = sum(node_index$entity_type == "B"), road = sum(node_index$entity_type == "R"), poi = sum(node_index$entity_type == "P")
@@ -732,13 +732,12 @@ reference_scene_relations <- function(scene, node_positions, scene_spec, spec, r
   top_k <- as.integer(config$scientific$sn$top_k)
   tolerance <- as.numeric(config$scientific$sn$distance_tie_tolerance_m)
   selected <- list()
+  distance_matrix <- units::drop_units(sf::st_distance(scene, scene))
   for (source in seq_len(nrow(scene))) {
     destination <- which(state %in% sn_eligible_destination_states(state[[source]]))
     destination <- destination[destination != source]
     if (!length(destination)) next
-    distance <- as.numeric(sf::st_distance(
-      scene[rep(source, length(destination)), ], scene[destination, ], by_element = TRUE
-    ))
+    distance <- as.numeric(distance_matrix[source, destination])
     keep <- is.finite(distance) & distance <= radius
     destination <- destination[keep]
     distance <- distance[keep]
@@ -777,13 +776,13 @@ reference_scene_relations <- function(scene, node_positions, scene_spec, spec, r
   intersection <- relation_empty_edges()
   physical <- which(scene$entity_type %in% c("B", "R"))
   if (length(physical) >= 2L) {
-    pairs <- utils::combn(physical, 2L)
-    intersects <- vapply(seq_len(ncol(pairs)), function(i) sf::st_intersects(
-      scene[pairs[1L, i], ], scene[pairs[2L, i], ], sparse = FALSE
-    )[[1L]], logical(1L))
-    pairs <- pairs[, intersects, drop = FALSE]
-    if (ncol(pairs)) {
-      first <- scene$local_entity_id[pairs[1L, ]]; second <- scene$local_entity_id[pairs[2L, ]]
+    # The dense matrix is intentionally independent of the sparse production
+    # predicate while avoiding millions of one-pair GEOS calls in dense scenes.
+    intersects <- sf::st_intersects(scene[physical, ], scene[physical, ], sparse = FALSE)
+    pair_index <- which(intersects & upper.tri(intersects), arr.ind = TRUE)
+    if (nrow(pair_index)) {
+      first <- scene$local_entity_id[physical[pair_index[, "row"]]]
+      second <- scene$local_entity_id[physical[pair_index[, "col"]]]
       make <- function(source, destination) data.table::data.table(
         source_local_entity_id = source, destination_local_entity_id = destination, relation_bit = bits[["INT"]],
         distance_m = NA_real_, sn_source_rank = NA_integer_, sn_destination_rank = NA_integer_,

@@ -290,6 +290,22 @@ Targets are defined in dependency order:
 
 The original relation set is exactly `SN`, `CNT`, `WIT`, `INT`, `CON`. Augmented relations are not produced in P2.
 
+#### P2 implementation record (2026-08-28)
+
+| Field | Accepted implementation |
+|---|---|
+| Status | `P2_BASE_SPATIAL_TRUTH_PASS`; prototype and production use the same factories, schemas and validators. |
+| Identity | Original observation `obs_cd00016f6b5bfd960b0a6842`; aggregate acceptance `bsa_e617ee0280a6edfa722994d3`; P0 authority `mta_f90fecff7bc7bb5d231cc79f`; P1 scene acceptance `sia_0a997e576367b1133517bf6a`. |
+| Population | Prototype 256/32/32 and production 2,421/400/1,600; production covers all 4,421 scenes exactly once. |
+| Canonical targets | `base_spatial_membership_plan`, `base_spatial_membership_shard`, `base_spatial_membership_acceptance`, `base_spatial_observation_plan`, `base_vector_observation_shard`, `base_raster_observation_shard`, `base_relation_graph_shard`, `base_source_topology_shard`, `base_spatial_acceptance`. |
+| Relation execution | Frozen 96-branch manifest and failure-isolated execution ledger. Pass A computed all 96 branches with 40 one-thread workers; all 96 passed, so Pass B (10 workers) and Pass C (5 workers) were not required. |
+| Relation acceptance | Tiered execution acceptance `rta_2da23732aab1c0f8d3b18704`; 96/96 branch schema, identity, checksum and atomic-publication checks passed. |
+| Scientific result | Entity counts B 1,337,725, R 142,062, P 2,836,343. Relation counts SN 45,515,296, CNT 2,014,337, WIT 2,014,337, INT 698,310, CON 468,520. |
+| Topology | 142,062 original road links and 284,124 ordered source-node rows; variable-length chain schema is active and P4 absorption prerequisites passed. |
+| QC | Independent membership, raster and relation parity passed with zero sampled mismatch; crossing-without-CON, empty-edge, zero-road, identity and geometry invariants passed. |
+| Artifact | `/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_cd00016f6b5bfd960b0a6842/`; immutable collision checks and content-addressed acceptance publication are enforced. |
+| Promotion | Repeated explicit `base_spatial_acceptance` selection was a complete no-op and acceptance checksums were unchanged. P3 remains prohibited unless this exact production acceptance is current. |
+
 <a id="p3-original-scene-cache"></a>
 ### P3 Original Scene Cache
 

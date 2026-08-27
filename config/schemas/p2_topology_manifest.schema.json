@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
+  "required": ["schema_version", "scope", "branch_id", "status", "topology_dataset_id", "scene_ids", "road_count", "node_row_count", "chain_length_distribution", "p4_absorption_ready", "files", "scientific_hash"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "scope": {"enum": ["prototype", "production"]}, "branch_id": {"type": "string"},
+    "status": {"const": "PASS"}, "topology_dataset_id": {"pattern": "^top_[0-9a-f]{24}$"}, "scene_ids": {"type": "array"},
+    "road_count": {"type": "integer", "minimum": 0}, "node_row_count": {"type": "integer", "minimum": 0},
+    "chain_length_distribution": {"type": "object"}, "p4_absorption_ready": {"const": true}, "files": {"type": "array", "minItems": 2},
+    "scientific_hash": {"pattern": "^[0-9a-f]{64}$"}
+  }, "additionalProperties": false
+}

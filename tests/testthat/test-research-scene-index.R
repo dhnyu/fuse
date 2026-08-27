@@ -1,17 +1,11 @@
-test_that("research configuration fixes the approved scene methodology", {
-  files <- research_config_paths(fuse_test_root)
-  config <- load_research_config(files)
-  expect_equal(config$scene$crs$processing_epsg, 5186)
-  expect_equal(config$scene$crs$official_grid_epsg, 5179)
-  expect_equal(config$scene$scene$width_m, 500)
-  expect_null(config$scene$scene$training_stride_m)
-  expect_equal(config$scene$scene$training_source, "statistics_korea_official_500m_grid")
-  expect_equal(config$scene$off_grid$validation_count, 300)
-  expect_equal(config$scene$off_grid$evaluation_count, 700)
-  expect_equal(config$scene$off_grid$minimum_training_center_distance_m, 50)
-  expect_equal(config$scene$retrieval$query_count, 10)
-  expect_equal(config$scene$retrieval$unrestricted_candidate_count, 699)
-  expect_true(config$scene$retrieval$include_other_queries)
+test_that("reduced P1 configuration fixes the approved scene population", {
+  spec <- load_p1_scene_index_spec(p1_scene_index_contract_paths(fuse_test_root), fuse_test_root)
+  expect_equal(spec$config$scene$processing_epsg, 5186)
+  expect_equal(spec$config$scene$width_m, 500)
+  expect_equal(unlist(spec$config$scene$split_counts), c(training = 2421, validation = 400, evaluation = 1600))
+  expect_equal(spec$config$scene$total_count, 4421)
+  expect_equal(spec$config$off_grid_source$split_seed, 26082501)
+  expect_match(spec$config$off_grid_source$split_algorithm, "first_400_validation")
 })
 
 test_that("study_data_inputs tracks 12 non-empty files without maintenance dependency", {
@@ -75,16 +69,9 @@ test_that("balanced prototype selection is deterministic and covers strata", {
   expect_setequal(unique(fixture$selection_strata[first]), unique(fixture$selection_strata))
 })
 
-test_that("methodology contract schema rejects fixed-value drift", {
-  contract <- list(
-    contract_schema_version = "2.0.0", contract_id = "mth_123", scientific_hash = "hash",
-    input_contract = list(), crs = list(processing_epsg = 5186, official_grid_epsg = 5179),
-    scene = list(width_m = 500),
-    off_grid = list(validation_count = 300, evaluation_count = 700),
-    retrieval = list(query_count = 10, unrestricted_candidate_count = 699),
-    randomness = list(), identifiers = list(), modes = list(), implementation = list()
-  )
-  expect_true(validate_methodology_contract_list(contract))
-  contract$scene$width_m <- 400
-  expect_error(validate_methodology_contract_list(contract), "fixed-value mismatch")
+test_that("legacy 300/700 methodology is not the active P1 contract", {
+  active <- yaml::read_yaml(file.path(fuse_test_root, "config/p1_scene_index.yml"))
+  expect_false(300 %in% unlist(active$scene$split_counts))
+  expect_false(700 %in% unlist(active$scene$split_counts))
+  expect_false(any(grepl("250", unlist(active$scene), fixed = TRUE)))
 })

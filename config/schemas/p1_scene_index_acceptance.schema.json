@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "acceptance_id", "status", "authority_id", "plan_id", "scene_index_id", "split_counts", "invariants", "violation_counts", "content_hash", "artifact_checksums"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "acceptance_id": {"type": "string", "pattern": "^sia_[0-9a-f]{24}$"},
+    "status": {"const": "PASS"},
+    "authority_id": {"const": "mta_f90fecff7bc7bb5d231cc79f"},
+    "plan_id": {"type": "string"},
+    "scene_index_id": {"type": "string"},
+    "split_counts": {"type": "object"},
+    "invariants": {"type": "object"},
+    "violation_counts": {"type": "object"},
+    "source_input_ids": {"type": "object"},
+    "implementation_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact_checksums": {"type": "array", "minItems": 2}
+  },
+  "additionalProperties": false
+}

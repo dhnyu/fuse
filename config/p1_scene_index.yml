@@ -1,0 +1,52 @@
+schema_version: "1.0.0"
+implementation_version: "1.0.0"
+authority:
+  expected_id: mta_f90fecff7bc7bb5d231cc79f
+  expected_manifest_sha256: 9aa9285c947c5a695ae158aa5aa6160923a9d395c77e3f3289cc2fc35fe5b35c
+scene:
+  processing_epsg: 5186
+  official_grid_epsg: 5179
+  width_m: 500
+  height_m: 500
+  source_buffer_m: 400
+  coordinate_precision_m: 0.001
+  geometry_tolerance_m: 0.000001
+  official_cell_id_column: SPO_NO_CD
+  split_counts:
+    training: 2421
+    validation: 400
+    evaluation: 1600
+  total_count: 4421
+off_grid_source:
+  artifact_id: ogs_19933828d3de55d16b8861d7
+  split_seed: 26082501
+  split_algorithm: approved_source_order_first_400_validation_remaining_1600_evaluation
+  parquet:
+    path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/off_grid_sources/ogs_19933828d3de55d16b8861d7/approved_off_grid_scene_centers.parquet
+    size_bytes: 84309
+    sha256: 77c035505a2a0d22fb3aefff845c65b505d69b9ca89b5fda9ef36cc2e90177e4
+  manifest:
+    path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/off_grid_sources/ogs_19933828d3de55d16b8861d7/approved_off_grid_scene_source_manifest.json
+    size_bytes: 3640
+    sha256: e8c51e120e15376658b9fd7bd659b8a02677be1881c23c09745bbd978833e26a
+  qc:
+    path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/off_grid_sources/ogs_19933828d3de55d16b8861d7/approved_off_grid_scene_source_qc.json
+    size_bytes: 495
+    sha256: 50bd3f0d927bde08b2ac52e0b9199299b3c5b100c3bd749897480f5c0089eaab
+prototype:
+  seed: 20260824
+  counts:
+    training: 256
+    validation: 32
+    evaluation: 32
+  density_quantiles: [0.25, 0.75, 0.95]
+  boundary_proximity_m: 250
+publication:
+  root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index
+schemas:
+  inventory: config/schemas/p1_study_data_inventory.schema.json
+  off_grid: config/schemas/p1_off_grid_source.schema.json
+  plan: config/schemas/p1_scene_index_plan.schema.json
+  index: config/schemas/p1_scene_index_manifest.schema.json
+  acceptance: config/schemas/p1_scene_index_acceptance.schema.json
+  prototype: config/schemas/p1_prototype_scene_selection.schema.json

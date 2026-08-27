@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "inventory_id", "status", "authority_id", "scientific", "scientific_hash", "execution"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "inventory_id": {"type": "string", "pattern": "^rin_[0-9a-f]{24}$"},
+    "status": {"const": "PASS"},
+    "authority_id": {"const": "mta_f90fecff7bc7bb5d231cc79f"},
+    "scientific": {"type": "object"},
+    "scientific_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "execution": {"type": "object"}
+  },
+  "additionalProperties": false
+}

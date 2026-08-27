@@ -11,6 +11,7 @@ research_function_files <- c(
   "R/research_dynamic_branch_recovery.R",
   "R/research_runtime_mirror.R",
   "R/research_scene_index.R",
+  "R/research_scene_index_reduced.R",
   "R/research_prototype.R",
   "R/research_membership.R",
   "R/research_observation.R",

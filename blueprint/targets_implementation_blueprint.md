@@ -242,6 +242,22 @@ Targets are defined in dependency order:
 | `scene_index_acceptance` | scene index, plan, inventory, P0 authority | Publish accepted 4,421-scene manifest. |
 | `prototype_scene_selection` | accepted scene index | Regenerate deterministic 256/32/32 smoke/pilot selection; mark `scope=prototype`. |
 
+#### P1 Implementation Record (2026-08-27 KST)
+
+| Field | Implemented result |
+|---|---|
+| Status | `P1_INPUTS_SCENE_INDEX_PASS`; P2-P11 and maintenance targets were not executed. |
+| Target graph | `study_data_inputs` -> inventory/source verification -> reduced plan -> full index -> hard acceptance -> prototype selection; final-target ancestry contains P0 and P1 only. |
+| Accepted inputs | Existing 12-file Seoul research input set and immutable off-grid source `ogs_19933828d3de55d16b8861d7`; source seed `26082501` and approved first-400/remaining-1,600 split retained. |
+| Scene identity | Plan `rsp_cabb8d792c3684c97f5fc437`; index `rsi_80031f1493c75163f91b7c71`; P0 authority `mta_f90fecff7bc7bb5d231cc79f`. |
+| Population | Training 2,421, validation 400, evaluation 1,600, total 4,421; EPSG:5186 and exact 500 m bounds. |
+| Acceptance | `sia_0a997e576367b1133517bf6a`; zero count, identity, boundary, buffer, off-grid-distance, intermediate-center, 250 m-center and training-overlap violations. |
+| Prototype | `rps_4dfda380e54a9b7f9f60ac04`; deterministic 256/32/32 selection using scene-index-only boundary, coordinate, distance and source-kind strata; P2 features were not used. |
+| Artifact | `/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index/rsi_80031f1493c75163f91b7c71/`; immutable collision checks are enforced. |
+| Validation | R parse, Python AST, YAML/JSON parse, six P1 schemas, P1 unit/integration tests, full non-execution suite and `tar_validate()` passed. |
+| Execution | Explicit research-store selection completed P1 only; the repeated selection skipped all 22 P0/P1 ancestry targets as current; artifact IDs and checksums were identical. |
+| Invalidation | This accepted reduced index is the first active parent for P2. Legacy 2,421/300/700 and 250 m/intermediate-center artifacts remain historical only. |
+
 <a id="p2-base-spatial-truth"></a>
 ### P2 Base Spatial Truth
 

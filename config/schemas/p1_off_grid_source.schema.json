@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "source_acceptance_id", "status", "source_artifact_id", "row_count", "split_counts", "crs_epsg", "minimum_nearest_training_center_m", "files", "scientific_hash", "execution"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "source_acceptance_id": {"type": "string", "pattern": "^osa_[0-9a-f]{24}$"},
+    "status": {"const": "PASS"},
+    "source_artifact_id": {"const": "ogs_19933828d3de55d16b8861d7"},
+    "row_count": {"const": 2000},
+    "split_counts": {"type": "object"},
+    "crs_epsg": {"const": 5186},
+    "minimum_nearest_training_center_m": {"type": "number", "minimum": 50},
+    "files": {"type": "array", "minItems": 3, "maxItems": 3},
+    "scientific_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "execution": {"type": "object"}
+  },
+  "additionalProperties": false
+}

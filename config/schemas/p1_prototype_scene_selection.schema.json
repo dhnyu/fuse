@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "prototype_id", "status", "scope", "authority_id", "scene_index_id", "row_count", "split_counts", "selection", "scientific_hash", "files"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "prototype_id": {"type": "string", "pattern": "^rps_[0-9a-f]{24}$"},
+    "status": {"const": "PASS"},
+    "scope": {"const": "prototype"},
+    "authority_id": {"const": "mta_f90fecff7bc7bb5d231cc79f"},
+    "scene_index_id": {"type": "string"},
+    "row_count": {"const": 320},
+    "split_counts": {"type": "object"},
+    "selection": {"type": "object"},
+    "scientific_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "files": {"type": "array", "minItems": 1}
+  },
+  "additionalProperties": false
+}

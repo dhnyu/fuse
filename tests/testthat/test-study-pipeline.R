@@ -63,7 +63,12 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "base_spatial_membership_acceptance", "base_spatial_observation_plan",
       "base_vector_observation_shard", "base_raster_observation_shard",
       "base_relation_tiered_execution_acceptance", "base_relation_graph_shard",
-      "base_source_topology_shard", "base_spatial_acceptance"
+      "base_source_topology_shard", "base_spatial_acceptance",
+      "p3_original_scene_cache_contract_files", "original_scene_cache_contract",
+      "original_scene_serialization_plan", "original_scene_serialization_shard",
+      "original_scene_shard_validation", "original_scene_geometry_roundtrip",
+      "original_scene_cache_index", "original_scene_cache_manifest",
+      "original_scene_dataset_acceptance"
     )
   )
   expect_false("seoul_data_preprocess" %in% research_manifest$name)

@@ -20,6 +20,7 @@ research_function_files <- c(
   "R/research_spatial_acceptance.R",
   "R/research_base_spatial.R",
   "R/research_relation_tiered_execution.R",
+  "R/research_original_scene_cache.R",
   "R/research_serialization_plan.R",
   "R/research_serialization_shard.R",
   "R/research_training_dataset_acceptance.R",
@@ -80,6 +81,7 @@ targets::tar_source("targets/research_raster_observation.R")
 targets::tar_source("targets/research_relation.R")
 targets::tar_source("targets/research_spatial_acceptance.R")
 targets::tar_source("targets/research_base_spatial.R")
+targets::tar_source("targets/research_original_scene_cache.R")
 targets::tar_source("targets/research_serialization_plan.R")
 targets::tar_source("targets/research_serialization_shard.R")
 targets::tar_source("targets/research_training_dataset_acceptance.R")
@@ -106,6 +108,7 @@ c(
   list_research_relation,
   list_research_spatial_acceptance,
   list_research_base_spatial,
+  list_research_original_scene_cache,
   list_research_serialization_plan,
   list_research_serialization_shard,
   list_research_training_dataset_acceptance,

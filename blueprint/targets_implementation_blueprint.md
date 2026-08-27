@@ -335,6 +335,21 @@ The original relation set is exactly `SN`, `CNT`, `WIT`, `INT`, `CON`. Augmented
 
 Required road topology at this boundary includes `road_id`, `road_type`, `road_hierarchy`, ordered variable-length `source_node_ids`, `source_node_offsets`, endpoint/internal flags and source-node vertex indices. Absorption provenance is added in P4, not invented in the original cache.
 
+#### P3 implementation record (2026-08-28)
+
+| Field | Accepted implementation |
+|---|---|
+| Status | `P3_ORIGINAL_SCENE_CACHE_PASS`; Serialization-v3 immutable original-scene cache accepted. |
+| Identity | Cache `oscache_c89fa07e3d6cb1819a7994a6`; acceptance `osca_a55d2c02c3737c5f5557092a`; parent P2 acceptance `bsa_e617ee0280a6edfa722994d3`. |
+| Schema | Serialization-v3 `3.0.0`; deterministic POSIX tar shards with canonical member metadata/order, float64 WKB geometry and ordered variable-length source-node values/offsets. |
+| Canonical targets | `original_scene_cache_contract`, `original_scene_serialization_plan`, `original_scene_serialization_shard`, `original_scene_shard_validation`, `original_scene_geometry_roundtrip`, `original_scene_cache_index`, `original_scene_cache_manifest`, `original_scene_dataset_acceptance`. |
+| Population | 96 deterministic shards; training 2,421, validation 400, evaluation 1,600; all 4,421 scenes exactly once. |
+| Roundtrip | Independent reader verified exact member-byte parity for membership, vector WKB/attributes, raster Zarr/context, relations and source topology across all shards. |
+| Execution | Pass A used 40 one-thread workers and completed all 96 serialization branches. Native/resource/scientific failures were zero; Pass B (10) and Pass C (5) were not required. |
+| Artifact | `/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_c89fa07e3d6cb1819a7994a6/`; total payload 2,296,125,440 bytes. |
+| Determinism | Aggregate content SHA-256 `eb29ec22809c7aaf77068dd2478bf569d9511aabe63b2fbde57e6e4b04b3c49e`; repeated explicit acceptance selection skipped the full lineage and changed no cache file metadata. |
+| Promotion | P4 may consume only this accepted cache lineage; legacy Serialization-v2 and augmented/prototype training artifacts remain excluded. |
+
 <a id="p4-augmentation-view-banks"></a>
 ### P4 Augmentation View Banks
 

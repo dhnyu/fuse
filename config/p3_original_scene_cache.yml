@@ -1,0 +1,33 @@
+schema_version: "3.0.0"
+implementation_version: "1.0.0"
+authority_id: mta_f90fecff7bc7bb5d231cc79f
+original_cache_contract_id: mmc_d9d55804892f3127
+scene_index_id: rsi_80031f1493c75163f91b7c71
+scene_acceptance_id: sia_0a997e576367b1133517bf6a
+base_spatial_acceptance_id: bsa_e617ee0280a6edfa722994d3
+original_observation_id: obs_cd00016f6b5bfd960b0a6842
+publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache
+sharding:
+  algorithm: accepted_p2_scene_group_v1
+  expected_shards: 96
+  ordering: branch_id_then_scene_id_radix
+serialization:
+  container: deterministic_posix_tar
+  compression: none
+  tar_mtime: 0
+  tar_uid: 0
+  tar_gid: 0
+  geometry_dtype: float64_wkb
+  integer_dtype: int32_or_int64_without_overflow
+  source_node_representation: ordered_values_offsets
+  raster_channel_order: [landcover, landcover_valid_mask, dem, dem_valid_mask]
+execution:
+  pass_a_workers: 40
+  pass_b_workers: 10
+  pass_c_workers: 5
+  threads_per_worker: 1
+schemas:
+  contract: config/schemas/p3_original_cache_contract.schema.json
+  plan: config/schemas/p3_original_cache_plan.schema.json
+  shard: config/schemas/p3_original_cache_shard.schema.json
+  acceptance: config/schemas/p3_original_cache_acceptance.schema.json

@@ -1,0 +1,23 @@
+schema_version: "1.0.0"
+implementation_version: "1.0.0"
+
+dissertation:
+  repository_path: /members/dhnyu/dhnyu-masters-dissertation
+  repository_identity: dhnyu-masters-dissertation
+  expected_branch: reduced
+  expected_commit_sha: e66d17d65e97a5e3f50fa9a111a51559db05666f
+  entrypoint: template/main.typ
+
+approved_audit:
+  path: /members/dhnyu/fuse/reports/20260827_1748_reduced_methodology_read_only_audit.md
+  expected_sha256: 9283d1070d7e67f81781a86a5afc0bf46dfc231f3487f0f7a552cb049f81a8c1
+
+publication:
+  authority_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/authority
+
+schemas:
+  git_state: config/schemas/p0_methodology_git_state.schema.json
+  source_set: config/schemas/p0_methodology_source_set.schema.json
+  module_contract: config/schemas/p0_methodology_module_contract.schema.json
+  conflict_gate: config/schemas/p0_methodology_conflict_gate.schema.json
+  authority: config/schemas/p0_methodology_authority.schema.json

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p0_methodology_source_set.schema.json",
+  "type": "object",
+  "required": ["schema_version", "source_set_id", "repository_path", "repository_relative_entrypoint", "repository_identity", "branch", "commit_sha", "ordered_files", "import_edges", "unresolved_imports", "duplicate_diagnostics", "cycle_diagnostics", "unsupported_dynamic_imports", "resolver_implementation_version", "resolver_implementation_sha256", "audit", "source_set_content_sha256", "status"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "source_set_id": {"type": "string", "pattern": "^mss_[0-9a-f]{16}$"},
+    "repository_path": {"type": "string", "minLength": 1},
+    "repository_relative_entrypoint": {"type": "string", "minLength": 1},
+    "repository_identity": {"type": "string", "minLength": 1},
+    "branch": {"const": "reduced"},
+    "commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "ordered_files": {
+      "type": "array", "minItems": 1,
+      "items": {"type": "object", "required": ["order", "path", "sha256", "size_bytes", "classification"], "properties": {"order": {"type": "integer", "minimum": 1}, "path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "size_bytes": {"type": "integer", "minimum": 0}, "classification": {"enum": ["scientific_methodology", "scientific_evaluation", "supporting_template", "supporting_bibliography"]}}, "additionalProperties": false}
+    },
+    "import_edges": {
+      "type": "array", "items": {"type": "object", "required": ["order", "importer", "imported_path", "directive", "line", "column", "duplicate", "cycle"], "properties": {"order": {"type": "integer", "minimum": 1}, "importer": {"type": "string"}, "imported_path": {"type": "string"}, "directive": {"enum": ["import", "include", "bibliography"]}, "line": {"type": "integer", "minimum": 1}, "column": {"type": "integer", "minimum": 1}, "duplicate": {"type": "boolean"}, "cycle": {"type": "boolean"}}, "additionalProperties": false}
+    },
+    "unresolved_imports": {"type": "array", "items": {"type": "object"}},
+    "duplicate_diagnostics": {"type": "array", "items": {"type": "object"}},
+    "cycle_diagnostics": {"type": "array", "items": {"type": "object"}},
+    "unsupported_dynamic_imports": {"type": "array", "items": {"type": "object"}},
+    "resolver_implementation_version": {"type": "string"},
+    "resolver_implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "audit": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}, "additionalProperties": false},
+    "source_set_content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"enum": ["PASS", "BLOCKED_BY_MISSING_EVIDENCE", "BLOCKED_BY_REPOSITORY_STATE"]}
+  },
+  "additionalProperties": false
+}

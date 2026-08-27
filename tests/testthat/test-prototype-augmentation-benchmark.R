@@ -1,4 +1,5 @@
 test_that("I19 augmentation contract fixes the resolved attribute policy", {
+  skip("superseded legacy I19 contract references the removed pre-reduced training chapter")
   contract <- load_augmentation_benchmark_config(augmentation_benchmark_contract_paths(fuse_test_root))
   expect_equal(contract$config$attributes$geometry_independent_continuous$status, "disabled_no_eligible_fields")
   expect_length(contract$config$attributes$geometry_independent_continuous$eligible_fields, 0)

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p0_methodology_conflict_gate.schema.json",
+  "type": "object",
+  "required": ["schema_version", "conflict_gate_id", "source_set_id", "records", "blocking_conflict_count", "missing_evidence_count", "unclassified_conflict_count", "status", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "conflict_gate_id": {"type": "string", "pattern": "^mcg_[0-9a-f]{16}$"},
+    "source_set_id": {"type": "string", "pattern": "^mss_[0-9a-f]{16}$"},
+    "records": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["conflict_id", "module", "scientific_field", "normalized_values", "sources", "severity", "classification", "resolution_status"], "properties": {"conflict_id": {"type": "string"}, "module": {"type": "string"}, "scientific_field": {"type": "string"}, "normalized_values": {"type": "array"}, "sources": {"type": "array"}, "severity": {"enum": ["info", "blocking"]}, "classification": {"enum": ["CONSISTENT", "SUPPORTING_DETAIL", "NON_SCIENTIFIC_DIFFERENCE", "BLOCKED_BY_DISSERTATION_CONFLICT", "BLOCKED_BY_MISSING_EVIDENCE"]}, "resolution_status": {"enum": ["RESOLVED", "BLOCKED"]}}, "additionalProperties": false}},
+    "blocking_conflict_count": {"type": "integer", "minimum": 0},
+    "missing_evidence_count": {"type": "integer", "minimum": 0},
+    "unclassified_conflict_count": {"type": "integer", "minimum": 0},
+    "status": {"enum": ["PASS", "BLOCKED_BY_DISSERTATION_CONFLICT", "BLOCKED_BY_MISSING_EVIDENCE"]},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

@@ -7,6 +7,7 @@ research_function_files <- c(
   "R/config_paths.R",
   "R/io_spatial.R",
   "R/research_contracts.R",
+  "R/research_methodology_authority.R",
   "R/research_dynamic_branch_recovery.R",
   "R/research_runtime_mirror.R",
   "R/research_scene_index.R",
@@ -67,6 +68,7 @@ targets::tar_option_set(
   storage = "worker"
 )
 
+targets::tar_source("targets/research_methodology_authority.R")
 targets::tar_source("targets/research_scene_index.R")
 targets::tar_source("targets/research_membership.R")
 targets::tar_source("targets/research_observation.R")
@@ -91,6 +93,7 @@ targets::tar_source("R/research_full_membership_plan.R")
 targets::tar_source("targets/research_full_membership_plan.R")
 
 c(
+  list_research_methodology_authority,
   list_research_scene_index,
   list_research_membership,
   list_research_observation,

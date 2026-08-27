@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p0_methodology_git_state.schema.json",
+  "type": "object",
+  "required": ["schema_version", "git_state_id", "repository_identity", "expected_branch", "observed_branch", "expected_commit_sha", "observed_commit_sha", "head_detached", "working_tree_dirty", "tracked_modification", "staged_modification", "untracked_files", "upstream_ref", "upstream_divergence", "verification_status", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "git_state_id": {"type": "string", "pattern": "^mgs_[0-9a-f]{16}$"},
+    "repository_identity": {"type": "string", "minLength": 1},
+    "repository_path": {"type": "string", "minLength": 1},
+    "expected_branch": {"const": "reduced"},
+    "observed_branch": {"type": ["string", "null"]},
+    "expected_commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "observed_commit_sha": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+    "head_detached": {"type": "boolean"},
+    "working_tree_dirty": {"type": "boolean"},
+    "tracked_modification": {"type": "boolean"},
+    "staged_modification": {"type": "boolean"},
+    "untracked_files": {"type": "boolean"},
+    "source_files_locally_modified": {"type": "boolean"},
+    "upstream_ref": {"type": ["string", "null"]},
+    "upstream_divergence": {
+      "type": ["object", "null"],
+      "properties": {"ahead": {"type": "integer", "minimum": 0}, "behind": {"type": "integer", "minimum": 0}},
+      "required": ["ahead", "behind"], "additionalProperties": false
+    },
+    "diagnostics": {"type": "array", "items": {"type": "string"}},
+    "verification_status": {"enum": ["PASS", "BLOCKED_BY_REPOSITORY_STATE"]},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

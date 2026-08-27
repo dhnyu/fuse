@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p0_methodology_authority.schema.json",
+  "type": "object",
+  "required": ["schema_version", "authority_id", "dissertation_repository_identity", "branch", "commit_sha", "git_state_id", "source_set_id", "ordered_source_hashes", "audit", "module_contracts", "conflict_gate_id", "conflict_gate_status", "implementation_version", "implementation_sha256", "aggregate_content_sha256", "downstream_scope_mapping", "overall_status"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "authority_id": {"type": "string", "pattern": "^mta_[0-9a-f]{24}$"},
+    "dissertation_repository_identity": {"type": "string"},
+    "branch": {"const": "reduced"},
+    "commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "git_state_id": {"type": "string", "pattern": "^mgs_[0-9a-f]{16}$"},
+    "source_set_id": {"type": "string", "pattern": "^mss_[0-9a-f]{16}$"},
+    "ordered_source_hashes": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}, "additionalProperties": false}},
+    "audit": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}, "additionalProperties": false},
+    "module_contracts": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"type": "object", "required": ["module_name", "contract_id", "sha256"], "properties": {"module_name": {"type": "string"}, "contract_id": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}, "additionalProperties": false}},
+    "conflict_gate_id": {"type": "string", "pattern": "^mcg_[0-9a-f]{16}$"},
+    "conflict_gate_status": {"const": "PASS"},
+    "implementation_version": {"type": "string"},
+    "implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "aggregate_content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "downstream_scope_mapping": {"type": "object"},
+    "overall_status": {"const": "PASS"}
+  },
+  "additionalProperties": false
+}

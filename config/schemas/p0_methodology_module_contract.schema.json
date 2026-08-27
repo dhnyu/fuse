@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p0_methodology_module_contract.schema.json",
+  "type": "object",
+  "required": ["schema_version", "contract_id", "module_name", "authoritative_source_citations", "canonical_contract", "source_set_id", "module_content_sha256", "extraction_validation_implementation_sha256", "unresolved_fields", "conflicting_fields", "status"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "contract_id": {"type": "string", "pattern": "^mmc_[0-9a-f]{16}$"},
+    "module_name": {"enum": ["scene", "base_spatial", "original_cache", "augmentation", "model", "training", "evaluation", "downstream"]},
+    "authoritative_source_citations": {
+      "type": "array", "minItems": 1,
+      "items": {"type": "object", "required": ["path", "start_line", "end_line", "evidence_sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "start_line": {"type": "integer", "minimum": 1}, "end_line": {"type": "integer", "minimum": 1}, "evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}, "additionalProperties": false}
+    },
+    "canonical_contract": {"type": "object"},
+    "source_set_id": {"type": "string", "pattern": "^mss_[0-9a-f]{16}$"},
+    "module_content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "extraction_validation_implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "unresolved_fields": {"type": "array", "items": {"type": "string"}},
+    "conflicting_fields": {"type": "array", "items": {"type": "string"}},
+    "status": {"enum": ["PASS", "BLOCKED_BY_DISSERTATION_CONFLICT", "BLOCKED_BY_MISSING_EVIDENCE"]}
+  },
+  "additionalProperties": false
+}

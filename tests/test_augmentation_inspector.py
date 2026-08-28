@@ -53,8 +53,14 @@ def test_template_is_standalone_and_has_required_controls(tmp_path: Path) -> Non
     assert result["case_count"] == 1
     assert "https://" not in text and "http://" not in text
     assert "/mnt/hdd002/" not in text and "/members/dhnyu/" not in text
-    for control in ("caseSelect", "resetZoom", "rasterVar", "rasterMode", "search", "profileFilter"):
+    for control in (
+        "caseSelect", "resetZoom", "rasterVar", "rasterMode", "search",
+        "profileFilter", "attributeFilter", "resetAttributeFilters",
+    ):
         assert f'id="{control}"' in text
+    assert "All attributes" in text
+    assert "Search entity ID or value" in text
+    assert "No attribute changes match the current filters." in text
     for section in ("Vector transformation", "Raster transformation", "Attribute transformation"):
         assert section in text
 
@@ -156,3 +162,81 @@ def test_read_only_contract_does_not_open_artifact_for_write() -> None:
     source = (ROOT / "tools/augmentation_inspector/inspector.py").read_text()
     forbidden = ("p3_root.write", "p4_root.write", "open(\"wb\")", "open('wb')")
     assert not any(token in source for token in forbidden)
+
+
+def test_attribute_filter_logic_is_embedded_and_search_scope_is_narrow() -> None:
+    source = (ROOT / "tools/augmentation_inspector/inspector.py").read_text()
+    assert "function updateAttributeOptions()" in source
+    assert "new Map()" in source
+    assert "a[0]<b[0]?-1" in source
+    assert "row.attribute_name.trim()" in source
+    assert "r.attribute_name===af" in source
+    assert "[r.entity_id,r.original_value,r.augmented_value]" in source
+    assert "JSON.stringify(r).toLowerCase()" not in source
+    assert "function resetAttributeFilters()" in source
+    assert "page=0" in source
+
+
+def test_generated_attribute_filters_in_chromium() -> None:
+    playwright = pytest.importorskip("playwright.sync_api")
+    output = ROOT / "artifacts/augmentation-inspector/p4-augmentation-inspector.html"
+    if not output.is_file() or "attributeFilter" not in output.read_text(encoding="utf-8"):
+        pytest.skip("regenerated inspector HTML is unavailable")
+    chrome = Path("/usr/bin/google-chrome")
+    if not chrome.is_file():
+        pytest.skip("Google Chrome is unavailable")
+    errors: list[str] = []
+    with playwright.sync_playwright() as manager:
+        browser = manager.chromium.launch(
+            executable_path=str(chrome), headless=True, args=["--allow-file-access-from-files"]
+        )
+        page = browser.new_page(viewport={"width": 1600, "height": 1000})
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.goto(output.resolve().as_uri(), wait_until="load", timeout=120_000)
+        page.wait_for_timeout(500)
+        attribute = page.locator("#attributeFilter")
+        assert attribute.input_value() == ""
+        values = attribute.locator("option").evaluate_all("nodes => nodes.map(n => n.value).filter(Boolean)")
+        assert values == sorted(set(values))
+        assert values
+
+        page.locator("#profileFilter").select_option("main_1.0x")
+        main_values = attribute.locator("option").evaluate_all("nodes => nodes.map(n => n.value).filter(Boolean)")
+        assert main_values
+        page.locator("#entityFilter").select_option("R")
+        page.locator("#operationFilter").select_option("PERTURB")
+        assert attribute.locator("option").evaluate_all("nodes => nodes.map(n => n.value).filter(Boolean)") == ["LANES"]
+        attribute.select_option("LANES")
+        assert "matching rows" in page.locator("#rowCount").inner_text()
+        assert page.locator("#attributeBody .empty-state").count() == 0
+
+        page.locator("#search").fill("LANES")
+        assert page.locator("#attributeBody .empty-state").inner_text() == "No attribute changes match the current filters."
+        page.locator("#search").fill("")
+        first_entity = page.locator("#attributeBody tr").first.locator("td").nth(3).inner_text()
+        page.locator("#search").fill(first_entity)
+        assert first_entity in page.locator("#attributeBody").inner_text()
+
+        page.locator("#operationFilter").select_option("REPLACE")
+        assert attribute.is_disabled()
+        assert attribute.locator("option").first.inner_text() == "No attributes available"
+        assert page.locator("#attributeBody .empty-state").count() == 1
+
+        page.locator("#resetAttributeFilters").click()
+        assert page.locator("#profileFilter").input_value() == ""
+        assert page.locator("#entityFilter").input_value() == ""
+        assert page.locator("#operationFilter").input_value() == ""
+        assert attribute.input_value() == ""
+        assert page.locator("#search").input_value() == ""
+        assert page.locator("#changedOnly").is_checked()
+        assert page.locator("#pageInfo").inner_text().startswith("Page 1/")
+
+        if "A9" in attribute.locator("option").evaluate_all("nodes => nodes.map(n => n.value)"):
+            attribute.select_option("A9")
+            page.locator("#entityFilter").select_option("R")
+            assert attribute.input_value() == ""
+        attribute.select_option("")
+        page.locator("#caseSelect").select_option(index=1)
+        assert attribute.input_value() == ""
+        assert not errors
+        browser.close()

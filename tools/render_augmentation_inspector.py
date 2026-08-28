@@ -15,7 +15,10 @@ from augmentation_inspector import InspectorError, generate_inspector, validate_
 
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(description=__doc__)
+    result = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="Generated HTML includes dependent profile/entity/operation/attribute filters.",
+    )
     result.add_argument("--scene-id")
     result.add_argument("--master-view-id", type=int)
     result.add_argument("--preset", choices=("qc-extremes",))

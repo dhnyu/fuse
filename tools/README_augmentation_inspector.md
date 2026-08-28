@@ -49,7 +49,7 @@ The four columns compare the original scene with weak (`0.5x`), main (`1.0x`), a
 
 **Raster transformation** switches between land cover and DEM. Actual land-cover classes use one shared palette; masked cells use a fixed dark hatch. Land-cover difference is categorical changed/unchanged/masked, never arithmetic. DEM actual values share one scale, while differences use one symmetric scale. Native 100 x 100 and 17 x 17 grids are embedded without resampling or smoothing.
 
-**Attribute transformation** provides profile summaries and a searchable, sortable, paginated table. `null`, masked values, and recorded strings remain distinct. Filters cover profile, entity type, operation, and changed-only rows.
+**Attribute transformation** provides profile summaries and a searchable, sortable, paginated table. `null`, masked values, and recorded strings remain distinct. Filters are ordered by profile, entity type, operation, and a dependent attribute selector populated only from the current case's embedded rows. Attribute options show matching counts and update when categorical filters or the changed-only state changes. The search box intentionally searches only entity IDs and original/augmented values; attribute names belong in the dedicated selector. `Reset filters` restores all categorical filters, clears search, checks changed-only, returns to page one, and restores the default profile sort. Empty results are reported explicitly rather than as a blank table.
 
 The provenance drawer records artifact IDs, candidate IDs, branch and candidate-slice checksums, K8 membership, fallback counts, absorption counts, relation summaries, and validation status. `Not recorded` means the scientific payload contains no such field; the inspector does not infer it.
 

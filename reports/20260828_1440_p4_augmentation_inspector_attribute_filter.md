@@ -130,11 +130,18 @@ No scientific payload, target store, extracted shard, screenshot, browser cache,
 ## 17. Commit
 
 - Message: `Improve augmentation attribute filters`
-- Implementation SHA: recorded after commit
+- Implementation SHA: `e38781a4d9e965b474d2345cd2f96ee462b46f3b`
+- Committed files: the inspector renderer and module, focused tests, README, regenerated representative HTML, and this report
+- Staged diff review and `git diff --cached --check`: PASS
 
 ## 18. Push verification
 
-Recorded after normal push, fetch, and local/remote divergence verification.
+- Normal push to `origin/reduced`: PASS
+- Post-push fetch: PASS
+- Local `reduced`: `e38781a4d9e965b474d2345cd2f96ee462b46f3b`
+- `origin/reduced`: `e38781a4d9e965b474d2345cd2f96ee462b46f3b`
+- Ahead/behind: `0/0`
+- Fuse and dissertation working trees after implementation push: clean
 
 ## 19. Recommended next action
 

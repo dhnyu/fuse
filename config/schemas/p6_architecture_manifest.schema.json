@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "status", "model_authority_id", "model_contract_id", "dimensions", "modules", "parameter_counts", "implementation_sha256", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "model_authority_id": {"pattern": "^dma_[0-9a-f]{24}$"},
+    "model_contract_id": {"type": "string"},
+    "dimensions": {"type": "object"},
+    "modules": {"type": "array", "minItems": 33},
+    "parameter_counts": {
+      "type": "object",
+      "required": ["trainable", "non_trainable", "total", "by_module"]
+    },
+    "implementation_sha256": {"pattern": "^[0-9a-f]{64}$"},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}

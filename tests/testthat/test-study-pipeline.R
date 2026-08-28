@@ -79,7 +79,10 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "fixed_evaluation_query_plan", "fixed_query_branch_plan",
       "fixed_query_shard", "fixed_query_shard_validation",
       "fixed_query_acceptance_bundle", "fixed_validation_query_acceptance",
-      "fixed_evaluation_query_acceptance", "fixed_query_acceptance"
+      "fixed_evaluation_query_acceptance", "fixed_query_acceptance",
+      "p6_model_dataloader_contract_files", "d64_model_architecture_contract",
+      "p6_preprocessing_contract", "p6_dataloader_acceptance",
+      "d64_encoder_cpu_smoke", "model_data_acceptance"
     )
   )
   expect_false("seoul_data_preprocess" %in% research_manifest$name)

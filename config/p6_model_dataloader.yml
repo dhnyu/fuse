@@ -1,0 +1,104 @@
+schema_version: "1.0.0"
+implementation_version: "p6-model-dataloader-v1"
+publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data
+
+parents:
+  authority_id: mta_f90fecff7bc7bb5d231cc79f
+  scene_index_id: rsi_80031f1493c75163f91b7c71
+  scene_acceptance_id: sia_0a997e576367b1133517bf6a
+  observation_id: obs_cd00016f6b5bfd960b0a6842
+  base_spatial_acceptance_id: bsa_e617ee0280a6edfa722994d3
+  p3_cache_id: oscache_c89fa07e3d6cb1819a7994a6
+  p3_acceptance_id: osca_a55d2c02c3737c5f5557092a
+  p4_master_bank_id: augbank_a470cb156612cff12fb316fc
+  p4_logical_index_id: abi_f9ff792612ca86f486576491
+  p5_query_authority_id: fqa_bee6289f2531ae48c6f3a550
+  p5_acceptance_id: fqaac_ee6a31db9941031d3db650f6
+
+population:
+  training: 2421
+  validation_gallery: 400
+  validation_queries: 800
+  evaluation_gallery: 1600
+  evaluation_queries: 3200
+
+model:
+  d: 64
+  d_c: 64
+  d_t: 16
+  d_r: 32
+  d_a: 32
+  poi_hierarchy_dimensions: [8, 12, 16, 16, 24, 32]
+  poi_projection_dimension: 32
+  landcover_embedding_dimension: 16
+  relation_layers: 3
+  attention_heads: 4
+  head_dimension: 16
+  ffn_dimension: 128
+  dropout: 0.2
+  wavelengths: {count: 16, minimum_m: 10.0, maximum_m: 1000.0, spacing: geometric}
+  geometry:
+    normalization_length_m: 500.0
+    radial_frequencies: 8
+    angular_orientations: 16
+    minimum_radial_frequency: 0.5
+    maximum_radial_frequency: 50.0
+  raster:
+    landcover_classes: 22
+    landcover_shape: [100, 100]
+    dem_shape: [17, 17]
+    conv_channels: [32, 64, 64]
+    group_norm_groups: 8
+  entity_types: [B, R, P]
+  relation_types: [SN, CNT, WIT, INT, CON]
+
+tensorization:
+  scientific_geometry_dtype: float64
+  model_float_dtype: float32
+  categorical_dtype: int64
+  offset_dtype: int64
+  entity_order: local_entity_id_ascending
+  relation_order: source_destination_relation_mask
+  source_node_order: component_chain_position
+  numerical:
+    fit_split: training
+    estimator: population
+    accumulator_dtype: float64
+    fields:
+      building_observed_area_m2: {transform: log1p, validity: positive_required}
+      building_observed_gross_floor_area_m2: {transform: log1p, validity: nonnegative_or_missing}
+      road_lanes: {transform: identity, validity: positive_required}
+      object_dem_mean_m: {transform: identity, validity: finite_or_missing}
+      object_dem_sd_m: {transform: identity, validity: nonnegative_or_missing}
+      scene_dem_mean_m: {transform: identity, validity: valid_mask_only}
+  categorical:
+    order: source_order_then_utf8_category_key
+    reserved_tokens: [MISSING, MASK]
+    oov_policy: hard_failure
+
+dataloader:
+  training_profile: main_1.0x
+  effective_k: 8
+  pair_without_replacement: true
+  validation_evaluation_fixed_order: true
+  worker_threads: 1
+  smoke_num_workers: [0, 2]
+  sampler_seed: 20260828
+
+smoke:
+  model_seed: 20260828
+  maximum_actual_cases: 12
+  batch_composition_tolerance: 1.0e-5
+  roles:
+    - ordinary_mixed
+    - building_dense
+    - poi_dense
+    - road_dominant
+    - zero_road
+    - empty_edge
+    - shared_source_node
+    - receiver_absorption
+    - geometry_fallback
+    - sparse
+    - validation_query_positive
+    - evaluation_query_positive

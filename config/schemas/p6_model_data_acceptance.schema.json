@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "status", "model_data_acceptance_id", "model_authority_id", "dataloader_acceptance_id", "cpu_smoke_id", "parents", "invariants", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "model_data_acceptance_id": {"pattern": "^mda_[0-9a-f]{24}$"},
+    "model_authority_id": {"pattern": "^dma_[0-9a-f]{24}$"},
+    "dataloader_acceptance_id": {"pattern": "^dla_[0-9a-f]{24}$"},
+    "cpu_smoke_id": {"pattern": "^dcs_[0-9a-f]{24}$"},
+    "parents": {"type": "object"},
+    "invariants": {"type": "object"},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}

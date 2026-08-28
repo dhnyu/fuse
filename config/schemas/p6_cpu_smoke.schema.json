@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "status", "smoke_id", "case_count", "batch_count", "invariants", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "smoke_id": {"pattern": "^dcs_[0-9a-f]{24}$"},
+    "case_count": {"type": "integer", "minimum": 1},
+    "batch_count": {"type": "integer", "minimum": 1},
+    "invariants": {"type": "object"},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}

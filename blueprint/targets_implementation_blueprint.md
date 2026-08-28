@@ -501,31 +501,27 @@ This user-approved implementation supplement completes byte-level mechanics that
 
 | Field | Contract |
 |---|---|
-| Purpose | Implement the full d64 architecture and bank-aware deterministic DataLoader/model objective. |
-| Authoritative inputs | P4 training bank acceptance/effective K8 index, P3 original cache, model/training contracts. |
-| Output artifact | Architecture contract, loader/sampler/collate/mask smoke manifests, CPU/GPU forward and joint-objective smoke acceptance. |
-| Schema requirements | Scene-specific bank lookup; selected view IDs; sampler resume state; ragged source-node chains/offsets; mask decisions; model tensor shapes/dtypes. |
-| Scientific fingerprint | Model config + bank identity + loader/sampler/mask implementation + objective contract; execution hardware separately recorded. |
-| Acceptance invariants | Uniform distinct pair per inclusion; later view/pair reuse allowed; K8 main; online branch masks resampled while target/IP consume the same stored view unmasked; scene raster never masked; single/DDP parity; finite d64 outputs/loss/grad. |
-| Smoke fixture | Ragged empty/sparse/dense scenes and K8 bank with known pair frequencies and source-node chain lengths. |
-| Pilot scale | 32-scene CPU loader/model smoke, then bounded GPU forward only after CPU PASS. |
-| Production scale | 2,421-scene accepted bank access with distributed sampler parity. |
-| Promotion criteria | P0-P6 data/CPU gates PASS; exact resume/replay parity; architecture-row validation PASS. |
+| Purpose | Implement the full d64 architecture and production-ready deterministic readers, Datasets and ragged DataLoader boundary. |
+| Authoritative inputs | P3 original cache, P4 training bank acceptance/effective K8 index, P5 fixed query/gallery authority and P0 model/training contracts. |
+| Output artifact | Architecture contract, training-only preprocessing contract, DataLoader acceptance, bounded CPU functional-smoke manifest and aggregate P6 acceptance. |
+| Schema requirements | Scene-specific bank/query lookup; view/query/positive lineage; ragged entity, geometry, relation and source-node offsets; raster shapes; model tensor shapes/dtypes. |
+| Scientific fingerprint | Model config + P3/P4/P5 identities + reader/tensorizer/collator/sampler/model implementation; execution hardware separately recorded. |
+| Acceptance invariants | K8 main training access; fixed P5 validation/evaluation query and gallery populations; no fabricated entity/edge; float64 scientific geometry with explicit float32 model boundary; finite deterministic d64 CPU outputs. |
+| Smoke fixture | Twelve accepted original/training-query cases spanning ordinary, dense, sparse, zero-road, empty-edge, shared-node, receiver-absorption, geometry-fallback and validation/evaluation query-positive lineage. |
+| Pilot scale | Bounded CPU reader/collator/forward smoke only. GPU, backward, optimizer and checkpoint execution are prohibited in P6. |
+| Production scale | Manifest-level population acceptance for training 2,421, validation 400/800 and evaluation 1,600/3,200; no full-population model forward. |
+| Promotion criteria | P0-P6 authority, architecture, DataLoader and CPU functional gates PASS with repeated final selection fully current. |
 | Downstream invalidation | Model/loader/objective change invalidates P7 onward, not P1-P5 artifacts unless schema input changes. |
 | Prohibited early execution | No optimizer/training before P6 acceptance; no scene-level augmentation in loader; no raster modality masking. |
 
 | Target | Direct dependencies | Role |
 |---|---|---|
-| `d64_model_architecture_contract` | P0 model contract | Machine-readable field-by-field architecture identity. |
-| `stored_view_pair_sampler_smoke` | effective K8 index, bank acceptance | Uniform distinct pair selection, reuse and resume-state gate. |
-| `variable_source_node_collate_smoke` | original/bank schemas | Batch variable-length chains and offsets without truncating topology identity. |
-| `online_modality_masking_smoke` | pair sampler smoke, training contract | Resample entity modality masks; verify MASK/MISSING distinction and raster exclusion. |
-| `d64_encoder_cpu_smoke` | architecture contract, loader/mask smokes | CPU shape/finite/determinism check. |
-| `d64_joint_objective_cpu_smoke` | encoder smoke, training contract | Contrastive + information-preservation + EMA/queue routing check. |
-| `d64_encoder_gpu_smoke` | accepted CPU encoder smoke | Forward/backward shape and finite parity only; no optimizer or training loop. |
-| `d64_joint_objective_gpu_smoke` | accepted CPU joint-objective smoke, GPU encoder smoke | Objective/EMA/queue tensor parity only; no optimizer step. |
-| `d64_ddp_sampler_parity_smoke` | pair sampler/collate smoke | Single-process and DDP scene/view ordering/resume parity; CPU simulation first. |
-| `model_data_acceptance` | all P6 smokes, P0 authority | Aggregate gate required before P7 GPU prototype. |
+| `p6_model_dataloader_contract_files` | tracked P6 config, schemas and implementation | Invalidate P6 when its scientific implementation changes. |
+| `d64_model_architecture_contract` | P0 model contract, accepted category dictionary | Machine-readable field-by-field d64 architecture and parameter identity. |
+| `p6_preprocessing_contract` | P3 originals, P4 K8, P5 authority, P2 dictionary | Fit accepted numerical preprocessing statistics on training scenes only. |
+| `p6_dataloader_acceptance` | accepted P3/P4/P5, preprocessing contract | Validate populations, immutable lookup, split isolation, dtypes and ragged lineage. |
+| `d64_encoder_cpu_smoke` | architecture, DataLoader acceptance, selected accepted edge cases | CPU-only reader/tensorization/collation/forward finite and deterministic gate. |
+| `model_data_acceptance` | architecture, DataLoader acceptance, CPU smoke, P0/P5 authority | Aggregate P6 hard gate required before P7 implementation. |
 
 #### Main representation dimensions
 
@@ -579,6 +575,22 @@ This user-approved implementation supplement completes byte-level mechanics that
 | Road-attribute decoder | 64 | Linear(64,64), GELU, field-specific heads | target-dependent |
 | POI-attribute decoder | 64 | Linear(64,64), GELU, six categorical heads | target-dependent |
 | Environmental-background decoder | 64 | Linear(64,64), GELU, composition 64->22 plus continuous 64->4 | 22 + 4 |
+
+#### P6 implementation evidence (2026-08-28)
+
+| Field | Accepted implementation |
+|---|---|
+| Status | `PASS`; schema and implementation version `1.0.0` / `p6-model-dataloader-v1`. |
+| Targets | `p6_model_dataloader_contract_files` -> `d64_model_architecture_contract`; accepted P3/P4/P5 -> `p6_preprocessing_contract` -> `p6_dataloader_acceptance` -> `d64_encoder_cpu_smoke` -> `model_data_acceptance`. |
+| Identities | Model authority `dma_fefd227ca3d2aae5333e5a6f`; preprocessing `ppc_6a90939ebcde95c8b7a8ad45`; DataLoader acceptance `dla_c3b4a300450866fcd562cabe`; CPU smoke `dcs_8ce168daa68be002952d4f5a`; aggregate `mda_4b50451c69887e8569386225`. |
+| Architecture | All 33 P0 architecture rows matched; `d=d_c=64`, `d_t=16`, `d_r=32`, 3 relation layers, 4 heads x 16, FFN 64->128->64 and dropout 0.2. Total trainable parameters: 934,420; non-trainable: 0. |
+| DataLoader | Training 2,421 scenes and 19,368 main K8 references; validation 400 gallery/800 fixed queries; evaluation 1,600 gallery/3,200 fixed queries. Split leakage and duplicate/missing membership were zero. |
+| Tensor boundary | P3/P4/P5 checksums and lineage are verified read-only; scientific geometry and source-node coordinates remain float64, with explicit float32 conversion only at the model boundary. Ragged entity, geometry, relation and variable-length topology offsets are preserved without dummy scientific rows. |
+| CPU smoke | Twelve accepted edge-case roles and nine batches passed reader, collation, endpoint, finite `(batch,64)`, exact eval replay and query-positive lineage checks. Maximum batch-composition error was `2.205371856689453e-6`. |
+| Execution | Manifest/CPU-only sequential graph; no branch tiers were applicable. No optimizer, backward, checkpoint, full inference, retrieval metric, maintenance or GPU target was executed. |
+| Determinism | Immediate repeated `model_data_acceptance` selection skipped all 1,757 reachable records, rewrote no P6 artifact and left the P6 final lineage with zero outdated targets. |
+| Parent immutability | P3 96, P4 288 and accepted P5 192 payload shard path/size/mtime/SHA-256 snapshots were identical before and after P6. |
+| Promotion | P6 is ready for P7 Prototype Training implementation; P7 execution remains prohibited until separately authorized. |
 
 <a id="p7-prototype-training"></a>
 ### P7 Prototype Training

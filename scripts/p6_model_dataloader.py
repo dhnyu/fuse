@@ -16,7 +16,6 @@ from typing import Any
 
 import pyarrow.parquet as pq
 import torch
-import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
@@ -25,6 +24,8 @@ from p6_data import (ArtifactCatalog, ArtifactDataset, build_vocabulary, canonic
                      fit_training_preprocessing, ragged_collate, read_fixed_query,
                      read_original_scene, read_training_view, scientific_hash, tensorize_scene)
 from p6_model import ReducedSceneEncoder, geometry_fourier_features, parameter_counts
+from canonical_config import canonical_json_bytes as strict_canonical_json_bytes
+from canonical_config import load_strict_yaml
 
 
 def _json(path: str | Path) -> Any:
@@ -46,7 +47,19 @@ def _sha(path: str | Path) -> str:
 
 
 def _config(path: str | Path) -> dict[str, Any]:
-    return yaml.safe_load(Path(path).read_text())
+    value = load_strict_yaml(path)
+    if not isinstance(value, dict):
+        raise ValueError("P6 configuration root must be a mapping")
+    return value
+
+
+def _config_checksums(path: str | Path, config: dict[str, Any]) -> dict[str, str]:
+    scientific = {key: item for key, item in config.items() if key != "publication_root"}
+    return {
+        "raw_config_sha256": _sha(path),
+        "canonical_config_sha256": hashlib.sha256(strict_canonical_json_bytes(config)).hexdigest(),
+        "scientific_config_sha256": hashlib.sha256(strict_canonical_json_bytes(scientific)).hexdigest(),
+    }
 
 
 def _catalog(config: dict[str, Any], roots: dict[str, str]) -> ArtifactCatalog:
@@ -90,8 +103,10 @@ def build_architecture(args: argparse.Namespace) -> None:
                                 "landcover": [22, 100, 100], "dem": [17, 17]},
         "output_tensor_schema": {"scene_embedding": ["batch", 64], "contrastive_embedding": ["batch", 64]},
         "implementation_sha256": implementation_sha,
-        "dependency_checksums": {"config": _sha(args.config), "model_contract": _sha(args.model_contract),
-                                 "categories": _sha(args.categories)},
+        "dependency_checksums": {"config": _config_checksums(args.config, config)["scientific_config_sha256"],
+                                 "canonical_config": _config_checksums(args.config, config)["canonical_config_sha256"],
+                                 "raw_config": _config_checksums(args.config, config)["raw_config_sha256"],
+                                 "model_contract": _sha(args.model_contract), "categories": _sha(args.categories)},
     }
     _finalize(value, "dma_", "model_authority_id")
     _write(value, args.output)

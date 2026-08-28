@@ -24,12 +24,22 @@ import zarr
 EXPECTED = {
     "p3_cache": "oscache_c89fa07e3d6cb1819a7994a6",
     "p3_acceptance": "osca_a55d2c02c3737c5f5557092a",
-    "p4_bank": "augbank_a470cb156612cff12fb316fc",
-    "p4_acceptance": "aba_b6ee67e0d798020a6c418c05",
-    "p4_index": "abi_f9ff792612ca86f486576491",
-    "supplement": "p4-determinism-v1",
+    "p4_bank": "augbank_252ce67e6d74679b02871e57",
+    "p4_acceptance": "aba_39de6c260a8e427767bc01d6",
+    "p4_index": "abi_66dfe52602ffe442336685e0",
+    "supplement": "p4-augmentation-v2",
 }
 PROFILES = ("weak_0.5x", "main_1.0x", "strong_2.0x")
+V1_REFERENCE_CASES = (
+    ("scn_3d67b224edb14c737f1d1e47", 3),
+    ("scn_861aeaab434648ebcb527a0b", 3),
+    ("scn_d8e51d795e7ea8e6ad54aca2", 4),
+    ("scn_9d22d885fc61fb64a01f9c50", 10),
+    ("scn_6df9bdc205ef054db5eac21f", 8),
+    ("scn_d8e51d795e7ea8e6ad54aca2", 15),
+    ("scn_000c176a31e77df2d447faa2", 0),
+    ("scn_10f3017200a57d5ca71598b9", 11),
+)
 PROFILE_LABELS = {
     "original": "Original spatial scene",
     "weak_0.5x": "Weak augmentation (0.5x)",
@@ -40,6 +50,7 @@ TABLES = (
     "candidates", "removals", "geometry", "fallbacks", "attributes",
     "raster", "relation_delta", "topology", "absorption",
 )
+OPTIONAL_TABLES = ("landcover_mask_provenance",)
 
 
 class InspectorError(RuntimeError):
@@ -266,12 +277,34 @@ class AcceptedArtifacts:
             selected.append({"scene_id": key[0], "master_view_id": key[1], "reason": reason, "metric_value": grouped[key][metric]})
         return selected
 
+    def select_v1_reference_cases(self, max_cases: int) -> list[dict[str, Any]]:
+        selected = []
+        for scene_id, master_view_id in V1_REFERENCE_CASES[:max_cases]:
+            self.validate_scene_view(scene_id, master_view_id)
+            selected.append({
+                "scene_id": scene_id,
+                "master_view_id": master_view_id,
+                "reason": "P4 v1/v2 reference pair",
+                "metric_value": None,
+            })
+        return selected
+
 
 def _rows_from_tar(path: Path, names: Iterable[str], candidate_id: str) -> dict[str, list[dict[str, Any]]]:
     result: dict[str, list[dict[str, Any]]] = {}
     with tarfile.open(path) as archive:
+        members = set(archive.getnames())
         for name in names:
             raw = archive.extractfile(f"{name}.parquet").read()
+            result[name] = pq.read_table(
+                io.BytesIO(raw), filters=[("candidate_id", "=", candidate_id)]
+            ).to_pylist()
+        for name in OPTIONAL_TABLES:
+            member = f"{name}.parquet"
+            if member not in members:
+                result[name] = []
+                continue
+            raw = archive.extractfile(member).read()
             result[name] = pq.read_table(
                 io.BytesIO(raw), filters=[("candidate_id", "=", candidate_id)]
             ).to_pylist()
@@ -397,6 +430,11 @@ def _augmented_profile(
         elif row["modality"] == "dem":
             dem[flat] = _normalize(row["value"])
     relation_counts = json.loads(candidate["relation_counts_json"])
+    mask_provenance = (
+        _normalize(selected["landcover_mask_provenance"][0])
+        if len(selected["landcover_mask_provenance"]) == 1
+        else None
+    )
     fallback_ids = [int(row["local_entity_id"]) for row in selected["fallbacks"]]
     direct = sum(1 for role in removals.values() if role == "DIRECT")
     cascade = sum(1 for role in removals.values() if role == "CASCADE_POI")
@@ -418,6 +456,15 @@ def _augmented_profile(
         "geometry_fallbacks": len(fallback_ids),
         "attribute_perturbations": len(attributes),
         "lc_masked_cells": int(candidate["landcover_mask_count"]),
+        "lc_block_mask": "Not recorded" if mask_provenance is None else {
+            "algorithm": mask_provenance["algorithm"],
+            "initial_seed_count": len(json.loads(mask_provenance["initial_seeds_json"])),
+            "reseed_count": len(json.loads(mask_provenance["reseeds_json"])),
+            "maximum_concurrent_fronts": int(mask_provenance["maximum_concurrent_fronts"]),
+            "realized_components": int(mask_provenance["realized_component_count"]),
+            "selected_order_sha256": mask_provenance["selected_order_sha256"],
+            "frontier_order_sha256": mask_provenance["frontier_order_sha256"],
+        },
         "dem_noise_statistics": "Not recorded" if not selected["raster"] else {
             "changed_cells": int(candidate["dem_noise_count"]),
             "max_abs_difference": max((abs(float(dem[i]) - float(original["dem"]["values"][i])) for i in range(len(dem)) if dem[i] is not None and original["dem"]["values"][i] is not None), default=0.0),
@@ -443,6 +490,7 @@ def _augmented_profile(
         "absorption": absorption,
         "attributes": sorted(attributes, key=lambda item: (item["entity_type"], item["entity_id"], item["attribute_name"])),
         "landcover": {"shape": [100, 100], "values": lc},
+        "landcover_mask_provenance": mask_provenance or "Not recorded",
         "dem": {"shape": [17, 17], "values": dem},
         "summary": summary,
         "qc": qc,
@@ -504,7 +552,7 @@ const lcPalette=['#000000','#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#f
 function rasterValues(c,p,v){let d=p==='original'?c.original:c.profiles[p];return d[v].values}
 function renderRasters(){let c=current(),grid=$('rasterGrid'),variable=$('rasterVar').value,mode=$('rasterMode').value;grid.innerHTML='';let all=profiles.map(p=>rasterValues(c,p,variable)),numeric=all.flat().filter(x=>x!==null&&x>=0);let min=Math.min(...numeric),max=Math.max(...numeric),diffs=[];if(variable==='dem')for(let k=1;k<4;k++)all[k].forEach((x,i)=>{let o=all[0][i];if(x!==null&&o!==null)diffs.push(x-o)});let M=Math.max(1e-9,...diffs.map(Math.abs));for(let pi=0;pi<4;pi++){let p=profiles[pi],el=panel(labels[p],'raster'),canvas=el.querySelector('canvas');grid.append(el);requestAnimationFrame(()=>drawRaster(canvas,c,p,variable,mode,min,max,M));canvas.onmousemove=e=>rasterHover(e,canvas,c,p,variable)}}
 function colorRamp(t){t=Math.max(0,Math.min(1,t));let r=Math.round(35+220*t),g=Math.round(92+100*(1-Math.abs(t-.5)*2)),b=Math.round(160-120*t);return`rgb(${r},${g},${b})`}
-function drawRaster(canvas,c,p,v,mode,min,max,M){let [w,h]=resize(canvas),ctx=canvas.getContext('2d'),shape=(p==='original'?c.original:c.profiles[p])[v].shape,vals=rasterValues(c,p,v),orig=rasterValues(c,'original',v),cw=w/shape[1],ch=h/shape[0];ctx.clearRect(0,0,w,h);for(let row=0;row<shape[0];row++)for(let col=0;col<shape[1];col++){let i=row*shape[1]+col,x=vals[i],o=orig[i],color;if(v==='landcover'){if(mode==='difference'){color=x===-1?'#222':x===o?'#e5eaec':'#d68400'}else color=x===-1?'#222':x===0?'#fff':lcPalette[x%lcPalette.length]}else{let value=mode==='difference'?(p==='original'?0:(x===null||o===null?null:x-o)):x;color=value===null?'#fff':mode==='difference'?colorRamp((value+M)/(2*M)):colorRamp((value-min)/(max-min||1))}ctx.fillStyle=color;ctx.fillRect(col*cw,row*ch,Math.ceil(cw)+.2,Math.ceil(ch)+.2);if(v==='landcover'&&x===-1){ctx.strokeStyle='#fff8';ctx.beginPath();ctx.moveTo(col*cw,row*ch);ctx.lineTo((col+1)*cw,(row+1)*ch);ctx.stroke()}}canvas._shape=shape}
+function drawRaster(canvas,c,p,v,mode,min,max,M){let [w,h]=resize(canvas),ctx=canvas.getContext('2d'),shape=(p==='original'?c.original:c.profiles[p])[v].shape,vals=rasterValues(c,p,v),orig=rasterValues(c,'original',v),cw=w/shape[1],ch=h/shape[0];ctx.clearRect(0,0,w,h);for(let row=0;row<shape[0];row++)for(let col=0;col<shape[1];col++){let i=row*shape[1]+col,x=vals[i],o=orig[i],color;if(v==='landcover'){if(mode==='difference'){color=x===-1?'#222':x===o?'#e5eaec':'#d68400'}else color=x===-1?'#222':x===0?'#fff':lcPalette[x%lcPalette.length]}else{let value=mode==='difference'?(p==='original'?0:(x===null||o===null?null:x-o)):x;color=value===null?'#fff':mode==='difference'?colorRamp((value+M)/(2*M)):colorRamp((value-min)/(max-min||1))}ctx.fillStyle=color;ctx.fillRect(col*cw,row*ch,Math.ceil(cw)+.2,Math.ceil(ch)+.2);if(v==='landcover'&&x===-1){ctx.strokeStyle='#fff8';ctx.beginPath();ctx.moveTo(col*cw,row*ch);ctx.lineTo((col+1)*cw,(row+1)*ch);ctx.stroke();ctx.strokeStyle='#65d6d1';ctx.lineWidth=Math.max(1,devicePixelRatio||1);let masked=(rr,cc)=>rr>=0&&cc>=0&&rr<shape[0]&&cc<shape[1]&&vals[rr*shape[1]+cc]===-1;ctx.beginPath();if(!masked(row-1,col)){ctx.moveTo(col*cw,row*ch);ctx.lineTo((col+1)*cw,row*ch)}if(!masked(row+1,col)){ctx.moveTo(col*cw,(row+1)*ch);ctx.lineTo((col+1)*cw,(row+1)*ch)}if(!masked(row,col-1)){ctx.moveTo(col*cw,row*ch);ctx.lineTo(col*cw,(row+1)*ch)}if(!masked(row,col+1)){ctx.moveTo((col+1)*cw,row*ch);ctx.lineTo((col+1)*cw,(row+1)*ch)}ctx.stroke()}}canvas._shape=shape}
 function rasterHover(e,canvas,c,p,v){let r=canvas.getBoundingClientRect(),shape=canvas._shape,col=Math.floor((e.clientX-r.left)/r.width*shape[1]),row=Math.floor((e.clientY-r.top)/r.height*shape[0]);if(row<0||col<0||row>=shape[0]||col>=shape[1])return;let i=row*shape[1]+col,o=rasterValues(c,'original',v)[i],x=rasterValues(c,p,v)[i],b=c.original.bounds,cx=b[0]+(col+.5)*(500/shape[1]),cy=b[3]-(row+.5)*(500/shape[0]);tip.textContent=`${v==='dem'?'DEM':'Land cover'} [${row}, ${col}]\nEPSG:5186 ${cx.toFixed(2)}, ${cy.toFixed(2)}\nOriginal: ${o??'nodata'}\n${labels[p]}: ${x===-1?'masked':x??'nodata'}\nDifference: ${v==='dem'&&o!==null&&x!==null?(x-o).toFixed(4):x===o?'unchanged':'changed'}`;tip.style.display='block';tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY+12)+'px'}
 function renderSummaries(){let c=current(),grid=$('summaryGrid');grid.innerHTML='';for(let p of profiles){let el=document.createElement('div');el.className='panel';let s=p==='original'?{changed_entities:0,masked_fields:0,replaced_categorical_fields:0,lane_perturbations:0,unchanged_entities:c.original.entities.length,removed_entities:0,geometry_only_changes:0,attribute_only_changes:0}:c.profiles[p].summary;el.innerHTML=`<h3>${labels[p]}</h3><div class="summary">${Object.entries(s).map(([k,v])=>`<div><b>${v}</b>${esc(k.replaceAll('_',' '))}</div>`).join('')}</div>`;grid.append(el)}}
 const columns=['profile','master_view_id','entity_type','entity_id','operation','attribute_name','original_value','augmented_value','changed','change_type','provenance_key'];
@@ -515,7 +563,7 @@ function attributeRows(){let q=$('search').value.trim().toLowerCase();return cat
 function activeFilterSummary(){let values=[$('profileFilter').value,$('entityFilter').value,$('operationFilter').value,$('attributeFilter').value].filter(Boolean);if($('search').value.trim())values.push(`search: ${$('search').value.trim()}`);return values.length?values.join(' · '):'All embedded attribute changes'}
 function resetAttributeFilters(){$('profileFilter').value='';$('entityFilter').value='';$('operationFilter').value='';$('attributeFilter').value='';$('search').value='';$('changedOnly').checked=true;page=0;sortKey='profile';sortAsc=true;selectedEntity=null;updateAttributeOptions();renderTable()}
 function renderTable(){let head=$('tableHead');head.innerHTML='';for(let col of columns){let th=document.createElement('th');th.textContent=col.replaceAll('_',' ');th.onclick=()=>{if(sortKey===col)sortAsc=!sortAsc;else{sortKey=col;sortAsc=true}renderTable()};head.append(th)}let total=allAttributeRows().length,rows=attributeRows(),pages=Math.ceil(rows.length/pageSize);page=pages?Math.min(page,pages-1):0;let visible=rows.slice(page*pageSize,(page+1)*pageSize);$('attributeBody').innerHTML=visible.length?visible.map(r=>`<tr class="${selectedEntity===r.entity_id?'selected':''}">${columns.map(c=>`<td title="${esc(r[c])}">${esc(r[c])}</td>`).join('')}</tr>`).join(''):`<tr><td class="empty-state" colspan="${columns.length}">No attribute changes match the current filters.</td></tr>`;$('rowCount').textContent=`${rows.length} matching rows / ${total} total`;$('pageInfo').textContent=pages?`Page ${page+1}/${pages}`:'Page 0/0';$('prevPage').disabled=!pages||page===0;$('nextPage').disabled=!pages||page>=pages-1;$('filterSummary').textContent=activeFilterSummary()}
-function renderProvenance(){let c=current();$('provenanceText').textContent=JSON.stringify({artifact_ids:DATA.artifact_ids,scene_id:c.scene_id,master_view_id:c.master_view_id,reason:c.reason,metric_value:c.metric_value,original_shard_id:c.original.p3_branch_id,profiles:Object.fromEntries(profiles.slice(1).map(p=>[p,{candidate_id:c.profiles[p].candidate_id,candidate_slice_sha256:c.profiles[p].candidate_slice_sha256,augmentation_shard_id:c.profiles[p].branch_id,branch_payload_sha256:c.profiles[p].branch_payload_sha256,in_k8:c.profiles[p].in_k8,qc:c.profiles[p].qc,attempt_histogram:JSON.parse(c.profiles[p].candidate.attempt_histogram_json)}]))},null,2)}
+function renderProvenance(){let c=current();$('provenanceText').textContent=JSON.stringify({artifact_ids:DATA.artifact_ids,scene_id:c.scene_id,master_view_id:c.master_view_id,reason:c.reason,metric_value:c.metric_value,original_shard_id:c.original.p3_branch_id,profiles:Object.fromEntries(profiles.slice(1).map(p=>[p,{candidate_id:c.profiles[p].candidate_id,candidate_slice_sha256:c.profiles[p].candidate_slice_sha256,augmentation_shard_id:c.profiles[p].branch_id,branch_payload_sha256:c.profiles[p].branch_payload_sha256,in_k8:c.profiles[p].in_k8,qc:c.profiles[p].qc,landcover_block_mask:c.profiles[p].landcover_mask_provenance,attempt_histogram:JSON.parse(c.profiles[p].candidate.attempt_histogram_json)}]))},null,2)}
 function render(){let c=current();$('sceneId').value=c.scene_id;$('viewId').value=c.master_view_id;$('caseTitle').textContent=`${c.reason} · metric ${c.metric_value??'Not recorded'}`;$('identity').textContent=`${c.scene_id} / master view ${c.master_view_id}`;selectedEntity=null;updateAttributeOptions();renderVectors();renderRasters();renderSummaries();renderTable();renderProvenance()}
 window.addEventListener('resize',()=>{renderVectors();renderRasters()});window.addEventListener('load',init);</script></body></html>"""
 
@@ -528,7 +576,7 @@ def validate_html(path: Path, expected_cases: int | None = None) -> dict[str, An
         "Strong augmentation (2.0x)", "Vector transformation", "Raster transformation",
         "Attribute transformation", "caseSelect", "rasterVar", "rasterMode", "attributeFilter",
         "All attributes", "Search entity ID or value", "resetAttributeFilters", "provenance",
-        EXPECTED["p3_cache"], EXPECTED["p4_bank"], EXPECTED["p4_index"],
+        EXPECTED["p3_cache"],
     )
     missing = [item for item in required if item not in text]
     external = any(token in text.lower() for token in ("https://", "http://", "cdn.", "@import url"))
@@ -537,6 +585,10 @@ def validate_html(path: Path, expected_cases: int | None = None) -> dict[str, An
     start = text.index(marker) + len(marker)
     end = text.index(";\nconst profiles", start)
     data = json.loads(text[start:end])
+    artifact_ids = data.get("artifact_ids", {})
+    for key, prefix in (("p4_master_bank_id", "augbank_"), ("p4_logical_index_id", "abi_")):
+        if not str(artifact_ids.get(key, "")).startswith(prefix):
+            missing.append(key)
     if expected_cases is not None and len(data["cases"]) != expected_cases:
         missing.append(f"case_count:{len(data['cases'])}")
     if missing or external or absolute:
@@ -562,12 +614,17 @@ def generate_inspector(
         raise InspectorError(f"output exists; pass --overwrite: {output}")
     if preset and (scene_id is not None or master_view_id is not None):
         raise InspectorError("use either an explicit scene/view or a preset")
-    if preset not in (None, "qc-extremes"):
+    if preset not in (None, "qc-extremes", "v1-reference"):
         raise InspectorError(f"unsupported preset: {preset}")
     if not preset and (scene_id is None or master_view_id is None):
         raise InspectorError("explicit mode requires --scene-id and --master-view-id")
     artifacts = AcceptedArtifacts(repository, original_cache_root, augmentation_bank_root, master_bank_id, logical_index_id)
-    specifications = artifacts.select_qc_extremes(max_cases) if preset else [{"scene_id": scene_id, "master_view_id": master_view_id}]
+    if preset == "qc-extremes":
+        specifications = artifacts.select_qc_extremes(max_cases)
+    elif preset == "v1-reference":
+        specifications = artifacts.select_v1_reference_cases(max_cases)
+    else:
+        specifications = [{"scene_id": scene_id, "master_view_id": master_view_id}]
     table_cache: dict[tuple[Path, str], dict[str, list[dict[str, Any]]]] = {}
     with tempfile.TemporaryDirectory(prefix="augmentation-inspector-") as temporary:
         cases = [_case(artifacts, specification, Path(temporary), table_cache) for specification in specifications]
@@ -578,7 +635,7 @@ def generate_inspector(
         "artifact_ids": {
             "p3_cache_id": artifacts.p3_manifest["cache_id"],
             "p3_acceptance_id": artifacts.p3_acceptance["acceptance_id"],
-            "p4_supplement_version": EXPECTED["supplement"],
+            "p4_supplement_version": artifacts.p4_acceptance.get("supplement_version", EXPECTED["supplement"]),
             "p4_master_bank_id": artifacts.p4_acceptance["bank_id"],
             "p4_logical_index_id": artifacts.index_manifest["index_id"],
         },

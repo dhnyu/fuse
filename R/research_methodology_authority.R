@@ -481,8 +481,8 @@ p0_module_definitions <- function() {
       citations = list(
         p0_citation("template/sections/chapters/04-methodology-training.typ", 14L, 71L),
         p0_citation("template/sections/chapters/04-methodology-training.typ", 71L, 94L),
-        p0_citation("template/sections/appendices/appendix-b.typ", 7L, 38L),
-        p0_citation("template/sections/appendices/appendix-b.typ", 127L, 133L),
+        p0_citation("template/sections/appendices/appendix-b.typ", 7L, 52L),
+        p0_citation("template/sections/appendices/appendix-b.typ", 58L, 142L),
         p0_citation("template/sections/chapters/results/05-hyperparameter-study.typ", 8L, 20L)
       ),
       contract = list(
@@ -491,10 +491,10 @@ p0_module_definitions <- function() {
         online_scene_level_augmentation = "prohibited",
         dependent_removal = list(building_removes_hosted_poi = TRUE, dependent_poi_not_primary_count = TRUE),
         road_absorption = list(cascade_deletion = FALSE, receiver_requires_shared_source_node = TRUE, receiver_requires_same_road_type = TRUE, receiver_requires_same_hierarchy = TRUE, receiver_id_preserved = TRUE, receiver_attributes_preserved = TRUE, selected_geometry_inherited = TRUE, selected_source_node_ids_inherited = TRUE, invalid_connection_retains_selected_link = TRUE),
-        geometry = list(complexity_by_entity_type = TRUE, operations = as.list(c("topology_preserving_simplification", "stochastic_vertex_jitter")), protect_all_retained_source_network_nodes = TRUE, protect_internal_absorbed_nodes = TRUE, valid_candidate_required = TRUE, preserved_relation_sets = as.list(c("CNT", "WIT", "INT", "CON")), maximum_attempts_per_entity = 10L, failure_keeps_original_geometry = TRUE, sn_reconstructed_from_final_geometry = TRUE),
+        geometry = list(complexity_by_entity_type = TRUE, operations = as.list(c("topology_preserving_simplification", "stochastic_vertex_jitter")), vertex_selection = "independent_bernoulli", protect_all_retained_source_network_nodes = TRUE, protect_internal_absorbed_nodes = TRUE, valid_candidate_required = TRUE, preserved_relation_sets = as.list(c("CNT", "WIT", "INT", "CON")), maximum_attempts_per_entity = 10L, failure_keeps_original_geometry = TRUE, sn_reconstructed_from_final_geometry = TRUE),
         operation_order = as.list(c("entity_removal_and_road_link_absorption", "geometry_perturbation", "attribute_perturbation_and_geometry_dependent_updates", "raster_perturbation", "reconstruct_all_derived_observations")),
         attribute_perturbation = list(geometry_dependent_building_attributes_recomputed = TRUE, road_lane_attribute_synchronized = TRUE),
-        raster_perturbation = list(scene_raster_recomputed_after_geometry = TRUE),
+        raster_perturbation = list(scene_raster_recomputed_after_geometry = TRUE, land_cover = list(method = "eight_neighbor_round_robin_block_growth", maximum_active_fronts = 4L, target_count = "round_fraction_times_valid", intentional_mask_distinct_from_nodata = TRUE, scene_entity_realization_shared = TRUE), dem = list(gaussian_noise = TRUE, scene_entity_realization_shared = TRUE)),
         derived_reconstruction = as.list(c("entity_center", "relative_position", "intrinsic_geometry", "geometry_derived_building_attributes", "road_lane_attribute", "entity_environmental_background", "scene_raster_inputs", "spatial_relation_graph", "SN", "source_node_identity_based_CON"))
       )
     ),
@@ -650,11 +650,11 @@ p0_actual_conflict_checks <- function() {
       p0_conflict_observation(TRUE, "template/sections/appendices/appendix-b.typ", 16L, 16L, "absorption")
     )),
     list(module = "training", field = "peak_learning_rate", observations = list(
-      p0_conflict_observation(1e-3, "template/materials/tables/results-04-training-configuration-table.typ", 152L, 155L, "10^(-3)"),
+      p0_conflict_observation(1e-3, "template/materials/tables/results-04-training-configuration-table.typ", 157L, 160L, "1 times 10^(-3)"),
       p0_conflict_observation(1e-3, "template/sections/chapters/results/05-hyperparameter-study.typ", 19L, 19L, "1 times 10^(-3)")
     )),
     list(module = "training", field = "lambda_ip", observations = list(
-      p0_conflict_observation(1.0, "template/materials/tables/results-04-training-configuration-table.typ", 138L, 141L, "$1$"),
+      p0_conflict_observation(1.0, "template/materials/tables/results-04-training-configuration-table.typ", 143L, 146L, "$1$"),
       p0_conflict_observation(1.0, "template/sections/chapters/results/05-hyperparameter-study.typ", 17L, 17L, "=1")
     )),
     list(module = "evaluation", field = "validation_evaluation_counts", observations = list(

@@ -83,7 +83,7 @@ def test_seed_field_change_changes_identity():
     assert stable_id("fq_", left) != stable_id("fq_", right)
 
 
-def test_p4_training_seed_backward_bytes_are_unchanged():
+def test_p4_v2_training_seed_regression_vector_is_stable():
     expected = base_digest("main_1.0x", "scene-regression", 7, "geometry", "road-12", 3)
     vector = p4_seed_regression_vector()
     assert vector["payload_sha256"] == expected.hex()

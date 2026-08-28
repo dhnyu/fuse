@@ -1,0 +1,14 @@
+schema_version: "1.0.0"
+p1:
+  scene_index_id: rsi_80031f1493c75163f91b7c71
+  root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index/rsi_80031f1493c75163f91b7c71
+p2:
+  observation_id: obs_cd00016f6b5bfd960b0a6842
+  acceptance_id: bsa_e617ee0280a6edfa722994d3
+  root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_cd00016f6b5bfd960b0a6842/production/acceptance/bsa_e617ee0280a6edfa722994d3
+p3:
+  cache_id: oscache_c89fa07e3d6cb1819a7994a6
+  acceptance_id: osca_a55d2c02c3737c5f5557092a
+  root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_c89fa07e3d6cb1819a7994a6
+  shard_count: 96
+  scene_count: 4421

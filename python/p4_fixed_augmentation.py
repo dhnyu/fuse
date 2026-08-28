@@ -50,6 +50,9 @@ PARQUET_SCHEMAS = {
         ("cascade_removed_count", pa.int64()), ("absorbed_donor_count", pa.int64()), ("retained_entity_count", pa.int64()),
         ("geometry_entity_count", pa.int64()), ("geometry_override_count", pa.int64()), ("geometry_fallback_count", pa.int64()),
         ("attribute_override_count", pa.int64()), ("landcover_mask_count", pa.int64()), ("dem_noise_count", pa.int64()),
+        ("landcover_mask_digest", pa.string()), ("landcover_component_count", pa.int64()),
+        ("landcover_initial_seed_count", pa.int64()), ("landcover_reseed_count", pa.int64()),
+        ("landcover_maximum_active_fronts", pa.int64()),
         ("sn_added_count", pa.int64()), ("sn_removed_count", pa.int64()), ("invariant_relation_hash", pa.string()),
         ("invariant_counts_json", pa.string()), ("relation_counts_json", pa.string()), ("attempt_histogram_json", pa.string()),
         ("operation_order_json", pa.string()), ("operation_seeds_json", pa.string()), ("status", pa.string()),
@@ -61,6 +64,8 @@ PARQUET_SCHEMAS = {
         ("xmin", pa.float64()), ("ymin", pa.float64()), ("xmax", pa.float64()), ("ymax", pa.float64()),
         ("area_m2", pa.float64()), ("length_m", pa.float64()), ("receiver_road_id", pa.string()),
         ("geometry_operation", pa.string()), ("accepted_attempt", pa.int16()), ("accepted_attempt_seed", pa.string()),
+        ("sampled_simplification_tolerance_m", pa.float64()), ("jitter_selected_vertex_count", pa.int64()),
+        ("maximum_vertex_displacement_m", pa.float64()),
         ("attempts_json", pa.string()), ("fallback", pa.bool_()), ("changed_from_post_absorption", pa.bool_()),
         ("observed_area_m2", pa.float64()), ("observed_gross_floor_area_m2", pa.float64()),
     ]),
@@ -69,6 +74,12 @@ PARQUET_SCHEMAS = {
     "attributes": _fields(IDENTITY_FIELDS, [("local_entity_id", pa.int64()), ("field", pa.string()),
                                               ("original", pa.string()), ("augmented", pa.string()), ("action", pa.string())]),
     "raster": _fields(IDENTITY_FIELDS, [("modality", pa.string()), ("flat_index", pa.int64()), ("value", pa.float64())]),
+    "landcover_mask_provenance": _fields(IDENTITY_FIELDS, [
+        ("algorithm", pa.string()), ("valid_cell_count", pa.int64()), ("target_mask_count", pa.int64()),
+        ("initial_seeds_json", pa.string()), ("reseeds_json", pa.string()),
+        ("selected_order_sha256", pa.string()), ("frontier_order_sha256", pa.string()),
+        ("maximum_concurrent_fronts", pa.int64()), ("realized_component_count", pa.int64()),
+    ]),
     "context": _fields(IDENTITY_FIELDS, [("local_entity_id", pa.int64()), ("support_measure_unit", pa.string()),
         ("lc_total_support", pa.float64()), ("lc_valid_support", pa.float64()), ("lc_valid_support_ratio", pa.float64()),
         ("dem_total_support", pa.float64()), ("dem_valid_support", pa.float64()), ("dem_valid_support_ratio", pa.float64()),
@@ -141,6 +152,126 @@ def deterministic_tar(source: Path, output: Path) -> list[dict[str, Any]]:
                 archive.addfile(info, stream)
             members.append({"path": relative, "size_bytes": path.stat().st_size, "sha256": sha256_file(path)})
     return members
+
+
+def _eight_neighbors(flat_index: int, shape: tuple[int, int]) -> list[int]:
+    rows, columns = shape
+    row, column = divmod(flat_index, columns)
+    result = []
+    for row_delta in (-1, 0, 1):
+        for column_delta in (-1, 0, 1):
+            if row_delta == 0 and column_delta == 0:
+                continue
+            next_row, next_column = row + row_delta, column + column_delta
+            if 0 <= next_row < rows and 0 <= next_column < columns:
+                result.append(next_row * columns + next_column)
+    return result
+
+
+def _component_count(selected: set[int], shape: tuple[int, int]) -> int:
+    remaining = set(selected)
+    count = 0
+    while remaining:
+        count += 1
+        stack = [remaining.pop()]
+        while stack:
+            for neighbor in _eight_neighbors(stack.pop(), shape):
+                if neighbor in remaining:
+                    remaining.remove(neighbor)
+                    stack.append(neighbor)
+    return count
+
+
+def landcover_block_mask(valid_cells: list[int], fraction: float, digest: bytes,
+                         shape: tuple[int, int] = (100, 100), maximum_fronts: int = 4) -> dict[str, Any]:
+    """Select the exact revised round-robin eight-neighbor block mask."""
+    valid = sorted(set(int(value) for value in valid_cells))
+    if len(valid) != len(valid_cells):
+        raise ValueError("land-cover valid-cell identities must be unique")
+    if maximum_fronts <= 0:
+        raise ValueError("maximum active fronts must be positive")
+    target = min(len(valid), max(0, int(round(float(fraction) * len(valid)))))
+    if target == 0:
+        empty_digest = sha256_bytes(canonical_json([]))
+        return {"selected": [], "initial_seeds": [], "reseeds": [],
+                "selected_order_sha256": empty_digest, "frontier_order_sha256": empty_digest,
+                "maximum_concurrent_fronts": 0, "realized_component_count": 0,
+                "valid_cell_count": len(valid), "target_mask_count": 0}
+
+    work = list(valid)
+    seed_count = min(maximum_fronts, target, len(work))
+    initial_seeds = []
+    for index in range(seed_count):
+        chosen = index + uniform_integer(digest, "landcover_seed", index, len(work) - index)
+        work[index], work[chosen] = work[chosen], work[index]
+        initial_seeds.append(work[index])
+
+    selected_order = list(initial_seeds)
+    masked = set(initial_seeds)
+    fronts: dict[int, dict[str, set[int]]] = {}
+    for slot, seed in enumerate(initial_seeds):
+        fronts[slot] = {
+            "region": {seed},
+            "frontier": {value for value in _eight_neighbors(seed, shape) if value in valid and value not in masked},
+        }
+    frontier_order: list[int] = []
+    reseeds: list[dict[str, int]] = []
+    frontier_draw = 0
+    reseed_draw = 0
+    slot_cursor = 0
+    maximum_observed = len(fronts)
+    valid_set = set(valid)
+
+    while len(masked) < target:
+        slots = sorted(fronts)
+        if not slots:
+            raise ValueError("land-cover block growth exhausted before target")
+        slot = slots[slot_cursor % len(slots)]
+        slot_cursor += 1
+        front = fronts[slot]
+        front["frontier"].difference_update(masked)
+        if not front["frontier"]:
+            unmasked = sorted(valid_set - masked)
+            if not unmasked:
+                break
+            seed = unmasked[uniform_integer(digest, "landcover_reseed", reseed_draw, len(unmasked))]
+            reseed_draw += 1
+            reseeds.append({"slot": slot, "cell": seed, "selection_position": len(selected_order)})
+            masked.add(seed)
+            selected_order.append(seed)
+            front["region"] = {seed}
+            front["frontier"] = {
+                value for value in _eight_neighbors(seed, shape) if value in valid_set and value not in masked
+            }
+            maximum_observed = max(maximum_observed, len(fronts))
+            continue
+
+        candidates = sorted(front["frontier"])
+        selected = candidates[uniform_integer(digest, "landcover_frontier", frontier_draw, len(candidates))]
+        frontier_draw += 1
+        frontier_order.append(slot)
+        masked.add(selected)
+        selected_order.append(selected)
+        for other in fronts.values():
+            other["frontier"].discard(selected)
+        front["region"].add(selected)
+        front["frontier"].update(
+            value for value in _eight_neighbors(selected, shape) if value in valid_set and value not in masked
+        )
+
+    if len(masked) != target or len(selected_order) != target:
+        raise ValueError("land-cover block mask did not reach exact target")
+    return {
+        "selected": selected_order,
+        "initial_seeds": initial_seeds,
+        "reseeds": reseeds,
+        "selected_order_sha256": sha256_bytes(canonical_json(selected_order)),
+        "frontier_order_sha256": sha256_bytes(canonical_json(frontier_order)),
+        "maximum_concurrent_fronts": maximum_observed,
+        "realized_component_count": _component_count(masked, shape),
+        "valid_cell_count": len(valid),
+        "target_mask_count": target,
+    }
 
 
 def _parts(geometry: Any) -> list[Any]:
@@ -539,7 +670,7 @@ def augment_scene(scene: dict[str, Any], profile: dict[str, Any], resources: dic
         if entities[local]["entity_type"] == "R":
             protected = {(x, y) for chain in road_nodes.get(local, []) for _, x, y in chain}
         simplify = coordinate_count(original) > float(threshold[entities[local]["entity_type"]])
-        accepted = None; accepted_attempt = None; accepted_seed = None; failures = []
+        accepted = None; accepted_attempt = None; accepted_seed = None; accepted_tolerance = None; failures = []
         for attempt in range(1, 11):
             gdigest = base_digest(profile_id, scene_id, view, "geometry", entities[local]["source_entity_id"], attempt)
             if simplify:
@@ -555,13 +686,22 @@ def augment_scene(scene: dict[str, Any], profile: dict[str, Any], resources: dic
                 valid = relations == reference
                 reason = "RELATION_SET_CHANGED"
             if valid:
-                accepted = candidate; accepted_attempt = attempt; accepted_seed = gdigest.hex(); attempts_hist[attempt] += 1; break
+                accepted = candidate; accepted_attempt = attempt; accepted_seed = gdigest.hex()
+                accepted_tolerance = tolerance if simplify else None
+                attempts_hist[attempt] += 1; break
             geometries[local] = original; failures.append({"attempt": attempt, "seed": gdigest.hex(), "reason": reason})
         if accepted is None:
             geometries[local] = original; attempts_hist[10] += 1
             fallback_rows.append({"scene_id": scene_id, "profile_id": profile_id, "master_view_id": view, "local_entity_id": local,
                                   "attempt_count": 10, "attempts_json": json.dumps(failures, sort_keys=True, separators=(",", ":")), "fallback": True})
         geom = geometries[local]; center = geometry_center(geom); source = entities[local]
+        jitter_selected = 0; maximum_displacement = 0.0
+        if not simplify and structure_signature(geom) == structure_signature(original):
+            original_xy = shapely.get_coordinates(original); final_xy = shapely.get_coordinates(geom)
+            if len(original_xy) == len(final_xy):
+                displacements = np.linalg.norm(final_xy - original_xy, axis=1)
+                jitter_selected = int(np.count_nonzero(displacements > 0))
+                maximum_displacement = float(displacements.max()) if len(displacements) else 0.0
         row = {"scene_id": scene_id, "profile_id": profile_id, "master_view_id": view, "local_entity_id": local,
                "geometry_wkb": geom.wkb, "geometry_dtype": "float64_wkb", "center_x": center[0], "center_y": center[1],
                "relative_x": center[0]-scene["center"][0], "relative_y": center[1]-scene["center"][1],
@@ -569,7 +709,9 @@ def augment_scene(scene: dict[str, Any], profile: dict[str, Any], resources: dic
                "area_m2": float(geom.area), "length_m": float(geom.length),
                "receiver_road_id": str(source["source_entity_id"]) if local in donor_map.values() else None,
                "geometry_operation": "SIMPLIFY" if simplify else "JITTER", "accepted_attempt": accepted_attempt,
-               "accepted_attempt_seed": accepted_seed, "attempts_json": json.dumps(
+               "accepted_attempt_seed": accepted_seed, "sampled_simplification_tolerance_m": accepted_tolerance,
+               "jitter_selected_vertex_count": jitter_selected, "maximum_vertex_displacement_m": maximum_displacement,
+               "attempts_json": json.dumps(
                    failures + ([] if accepted_attempt is None else [{"attempt": accepted_attempt, "seed": accepted_seed, "reason": "ACCEPTED"}]),
                    sort_keys=True, separators=(",", ":")),
                "fallback": accepted is None, "changed_from_post_absorption": geom.wkb != pre_perturb[local].wkb}
@@ -650,13 +792,25 @@ def augment_scene(scene: dict[str, Any], profile: dict[str, Any], resources: dic
     # Raster perturbation and exact geometry support context.
     lc = scene["lc"].copy(); lc_valid = scene["lc_valid"].copy(); dem = scene["dem"].copy(); dem_valid = scene["dem_valid"].copy()
     valid_lc = [int(x) for x in np.flatnonzero(scene["lc_mask"] > 0)]
-    lc_count = removal_count(float(profile["landcover_mask_fraction"]), len(valid_lc))
     ldigest=base_digest(profile_id,scene_id,view,"landcover",None,None)
-    selected_lc = [int(x) for x in sample_without_replacement([f"{x:020d}" for x in valid_lc],lc_count,ldigest,"landcover_mask")]
+    lc_mask = landcover_block_mask(valid_lc, float(profile["landcover_mask_fraction"]), ldigest)
+    selected_lc = lc_mask["selected"]
     raster_rows=[]
     for flat in selected_lc:
         row,col=divmod(flat,100); lc[:,row,col]=0; lc_valid[row,col]=0
         raster_rows.append({"scene_id":scene_id,"profile_id":profile_id,"master_view_id":view,"modality":"landcover","flat_index":flat,"value":None})
+    landcover_provenance_rows = [{
+        "scene_id": scene_id, "profile_id": profile_id, "master_view_id": view,
+        "algorithm": "eight_neighbor_round_robin_block_growth_v1",
+        "valid_cell_count": lc_mask["valid_cell_count"],
+        "target_mask_count": lc_mask["target_mask_count"],
+        "initial_seeds_json": json.dumps(lc_mask["initial_seeds"], separators=(",", ":")),
+        "reseeds_json": json.dumps(lc_mask["reseeds"], sort_keys=True, separators=(",", ":")),
+        "selected_order_sha256": lc_mask["selected_order_sha256"],
+        "frontier_order_sha256": lc_mask["frontier_order_sha256"],
+        "maximum_concurrent_fronts": lc_mask["maximum_concurrent_fronts"],
+        "realized_component_count": lc_mask["realized_component_count"],
+    }]
     valid_dem=[int(x) for x in np.flatnonzero(scene["dem_mask"]>0)]; ddigest=base_digest(profile_id,scene_id,view,"dem",None,None)
     for draw,flat in enumerate(valid_dem):
         noise=float(profile["dem_noise_sd_m"])*standard_normal(ddigest,"dem_gaussian",draw); row,col=divmod(flat,17)
@@ -696,6 +850,9 @@ def augment_scene(scene: dict[str, Any], profile: dict[str, Any], resources: dic
                "retained_entity_count":len(retained),"geometry_entity_count":len(geometry_rows),
                "geometry_override_count":sum(bool(row["changed_from_post_absorption"]) for row in geometry_rows),"geometry_fallback_count":len(fallback_rows),
                "attribute_override_count":len(attribute_rows),"landcover_mask_count":len(selected_lc),"dem_noise_count":len(valid_dem),
+               "landcover_mask_digest":lc_mask["selected_order_sha256"],"landcover_component_count":lc_mask["realized_component_count"],
+               "landcover_initial_seed_count":len(lc_mask["initial_seeds"]),"landcover_reseed_count":len(lc_mask["reseeds"]),
+               "landcover_maximum_active_fronts":lc_mask["maximum_concurrent_fronts"],
                "sn_added_count":relation_counts["SN"]["added"],"sn_removed_count":relation_counts["SN"]["removed"],"invariant_relation_hash":relation_hash(final_invariant),
                "invariant_counts_json":json.dumps({k:len(v) for k,v in final_invariant.items()},sort_keys=True,separators=(",",":")),
                "relation_counts_json":json.dumps(relation_counts,sort_keys=True,separators=(",",":")),
@@ -706,10 +863,11 @@ def augment_scene(scene: dict[str, Any], profile: dict[str, Any], resources: dic
         row.update(scene_id=scene_id, profile_id=profile_id, master_view_id=view,
                    donor_source_road_id=str(entities[row["donor"]]["source_entity_id"]),
                    receiver_source_road_id=None if row["receiver"] is None else str(entities[row["receiver"]]["source_entity_id"]))
-    for values in (removals,geometry_rows,fallback_rows,attribute_rows,raster_rows,context_rows,relation_rows,topology_rows,absorption):
+    for values in (removals,geometry_rows,fallback_rows,attribute_rows,raster_rows,landcover_provenance_rows,context_rows,relation_rows,topology_rows,absorption):
         for row in values: row["candidate_id"]=candidate_id
     return {"candidates":[candidate],"removals":removals,"geometry":geometry_rows,"fallbacks":fallback_rows,"attributes":attribute_rows,
-            "raster":raster_rows,"context":context_rows,"relation_delta":relation_rows,"topology":topology_rows,"absorption":absorption}
+            "raster":raster_rows,"landcover_mask_provenance":landcover_provenance_rows,"context":context_rows,
+            "relation_delta":relation_rows,"topology":topology_rows,"absorption":absorption}
 
 
 def scan_resources(parent_tars: list[Path], output: Path, cache_id: str, implementation_hash: str) -> dict[str, Any]:
@@ -736,23 +894,42 @@ def scan_resources(parent_tars: list[Path], output: Path, cache_id: str, impleme
 
 def build_branch(spec: dict[str, Any], output_dir: Path) -> dict[str, Any]:
     initialize_worker(); started=time.time(); output_dir.mkdir(parents=True,exist_ok=False)
-    with tempfile.TemporaryDirectory(prefix="p4-parent-") as temporary:
-        parent=Path(temporary); extract_parent(Path(spec["parent_tar"]),parent); tables=read_scene_tables(parent)
-        resources=json.loads(Path(spec["resources_path"]).read_text()); resources["cache_id"]=spec["cache_id"]; resources["implementation_hash"]=spec["implementation_hash"]
-        accumulated={key:[] for key in ("candidates","removals","geometry","fallbacks","attributes","raster","context","relation_delta","topology","absorption")}
-        for scene_id in spec["scene_ids"]:
-            scene=scene_data(tables,scene_id)
-            for view in range(16):
-                result=augment_scene(scene,spec["profile"],resources,view)
-                for key in accumulated: accumulated[key].extend(result[key])
     payload_dir=output_dir/"payload"; payload_dir.mkdir()
-    for key,rows in accumulated.items(): write_parquet(payload_dir/f"{key}.parquet",rows,PARQUET_SCHEMAS[key])
+    writers = {
+        key: pq.ParquetWriter(
+            payload_dir / f"{key}.parquet",
+            schema,
+            compression="zstd",
+            compression_level=7,
+            use_dictionary=False,
+            write_statistics=True,
+            data_page_version="1.0",
+        )
+        for key, schema in PARQUET_SCHEMAS.items()
+    }
+    candidate_count = 0
+    try:
+        with tempfile.TemporaryDirectory(prefix="p4-parent-") as temporary:
+            parent=Path(temporary); extract_parent(Path(spec["parent_tar"]),parent); tables=read_scene_tables(parent)
+            resources=json.loads(Path(spec["resources_path"]).read_text()); resources["cache_id"]=spec["cache_id"]; resources["implementation_hash"]=spec["implementation_hash"]
+            for scene_id in spec["scene_ids"]:
+                scene=scene_data(tables,scene_id)
+                for view in range(16):
+                    result=augment_scene(scene,spec["profile"],resources,view)
+                    candidate_count += len(result["candidates"])
+                    for key, writer in writers.items():
+                        rows = result[key]
+                        if rows:
+                            writer.write_table(pa.Table.from_pylist(rows, schema=PARQUET_SCHEMAS[key]))
+    finally:
+        for writer in writers.values():
+            writer.close()
     payload=output_dir/f"{spec['branch_id']}.tar"; members=deterministic_tar(payload_dir,payload); shutil.rmtree(payload_dir)
-    manifest={"schema_version":"1.0.0","status":"PASS","supplement_version":"p4-determinism-v1",
+    manifest={"schema_version":"1.0.0","status":"PASS","supplement_version":"p4-augmentation-v2",
               "bank_id":spec["bank_id"],"branch_id":spec["branch_id"],"profile_id":spec["profile"]["profile_id"],"profile":spec["profile"],
               "parent_cache_id":spec["cache_id"],"parent_acceptance_id":spec["cache_acceptance_id"],
               "parent_tar_sha256":spec["parent_tar_sha256"],"scene_ids":spec["scene_ids"],"scene_count":len(spec["scene_ids"]),
-              "candidate_count":len(accumulated["candidates"]),"payload":{"filename":payload.name,"size_bytes":payload.stat().st_size,"sha256":sha256_file(payload)},
+              "candidate_count":candidate_count,"payload":{"filename":payload.name,"size_bytes":payload.stat().st_size,"sha256":sha256_file(payload)},
               "members":members,"logical_content_sha256":sha256_bytes(canonical_json(members)),
               "implementation_hash":spec["implementation_hash"],
               "payload_contract":{"physical_k":16,"geometry_dtype":"float64_wkb","relation_representation":"parent_plus_complete_typed_delta",

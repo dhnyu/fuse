@@ -47,10 +47,26 @@ def main() -> None:
         for row in candidates.itertuples():
             if json.loads(row.operation_order_json)!=expected_order: failures.append("operation_order"); break
             seeds=json.loads(row.operation_seeds_json)
-            expected={operation:hashlib.sha256("|".join(("p4-determinism-v1","training-bank",unicodedata.normalize("NFC",row.profile_id),
+            expected={operation:hashlib.sha256("|".join(("p4-augmentation-v2","training-bank",unicodedata.normalize("NFC",row.profile_id),
                      unicodedata.normalize("NFC",row.scene_id),str(int(row.master_view_id)),operation,"NONE","NONE")).encode()).hexdigest()
                      for operation in ("entity_removal","landcover","dem")}
             if seeds!=expected: failures.append("seed_replay"); break
+            if int(row.landcover_maximum_active_fronts) > 4: failures.append("landcover_active_fronts"); break
+            if int(row.landcover_mask_count) < 0 or not row.landcover_mask_digest: failures.append("landcover_candidate_summary"); break
+    mask_provenance=tables.get("landcover_mask_provenance")
+    if mask_provenance is None or candidates is None or len(mask_provenance)!=len(candidates):
+        failures.append("landcover_provenance_coverage")
+    elif len(mask_provenance):
+        if mask_provenance.duplicated(["candidate_id"]).any(): failures.append("landcover_provenance_duplicate")
+        for row in mask_provenance.itertuples():
+            seeds=json.loads(row.initial_seeds_json); reseeds=json.loads(row.reseeds_json)
+            if row.algorithm!="eight_neighbor_round_robin_block_growth_v1": failures.append("landcover_algorithm"); break
+            if int(row.maximum_concurrent_fronts)>4 or int(row.maximum_concurrent_fronts)<0: failures.append("landcover_active_fronts"); break
+            if len(seeds)>4 or len(set(seeds))!=len(seeds): failures.append("landcover_initial_seeds"); break
+            if int(row.target_mask_count)!=int(candidates.loc[candidates.candidate_id==row.candidate_id,"landcover_mask_count"].iloc[0]): failures.append("landcover_target_count"); break
+            if int(row.target_mask_count)>int(row.valid_cell_count): failures.append("landcover_valid_support"); break
+            if any(int(item["cell"]) in seeds for item in reseeds): failures.append("landcover_reseed_overlap"); break
+            if not all(len(value)==64 for value in (row.selected_order_sha256,row.frontier_order_sha256)): failures.append("landcover_digest"); break
     geometry=tables.get("geometry")
     maximum_error=0.0
     if geometry is not None and len(geometry):

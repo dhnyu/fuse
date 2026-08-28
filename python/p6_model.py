@@ -222,6 +222,10 @@ class ReducedSceneEncoder(nn.Module):
         landcover = torch.einsum("bchw,cd->bdhw", fraction, self.landcover_embedding.weight[:22])
         valid = rasters["landcover_valid_mask"].bool()
         landcover = torch.where(valid[:, None], landcover, self.landcover_embedding.weight[22][None, :, None, None])
+        intentional = rasters.get("landcover_intentional_mask", torch.zeros_like(valid)).bool()
+        if torch.any(intentional & valid):
+            raise ValueError("intentional land-cover mask overlaps valid support")
+        landcover = torch.where(intentional[:, None], self.landcover_embedding.weight[23][None, :, None, None], landcover)
         landcover_scene = self.landcover_projection(self.landcover_cnn(landcover))
         dem_scene = self.dem_projection(self.dem_cnn(rasters["dem_standardized_mean"][:, None]))
         scene = self.scene_fusion(torch.cat((type_summary.flatten(1), landcover_scene, dem_scene), 1))

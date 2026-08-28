@@ -20,6 +20,7 @@ from augmentation_inspector.inspector import (  # noqa: E402
     _template,
     canonical_json,
     validate_html,
+    V1_REFERENCE_CASES,
 )
 
 
@@ -175,6 +176,23 @@ def test_attribute_filter_logic_is_embedded_and_search_scope_is_narrow() -> None
     assert "JSON.stringify(r).toLowerCase()" not in source
     assert "function resetAttributeFilters()" in source
     assert "page=0" in source
+
+
+def test_v2_block_mask_provenance_and_boundaries_are_embedded() -> None:
+    source = (ROOT / "tools/augmentation_inspector/inspector.py").read_text()
+    assert 'OPTIONAL_TABLES = ("landcover_mask_provenance",)' in source
+    assert '"maximum_concurrent_fronts"' in source
+    assert '"realized_components"' in source
+    assert "landcover_block_mask" in source
+    assert "let masked=(rr,cc)" in source
+    assert "'#65d6d1'" in source
+
+
+def test_v1_reference_preset_is_stable() -> None:
+    assert len(V1_REFERENCE_CASES) == 8
+    assert V1_REFERENCE_CASES[0] == ("scn_3d67b224edb14c737f1d1e47", 3)
+    assert V1_REFERENCE_CASES[-1] == ("scn_10f3017200a57d5ca71598b9", 11)
+    assert len(set(V1_REFERENCE_CASES)) == 8
 
 
 def test_generated_attribute_filters_in_chromium() -> None:

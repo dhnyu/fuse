@@ -1,5 +1,5 @@
 p5_branch_resources <- targets::tar_resources(
-  crew = targets::tar_resources_crew(controller = "controller_40", seconds_timeout = 7200)
+  crew = targets::tar_resources_crew(controller = "controller_05", seconds_timeout = 7200)
 )
 
 list_research_fixed_queries <- list(
@@ -11,15 +11,17 @@ list_research_fixed_queries <- list(
   targets::tar_target(
     fixed_query_methodology_contract,
     p5_build_contract(evaluation_methodology_contract, augmentation_methodology_contract,
-                      original_scene_dataset_acceptance, augmentation_profile_plan,
-                      augmentation_bank_plan, p5_deterministic_contract_files),
+                      accepted_p3_dataset_acceptance_reference, augmentation_profile_plan,
+                      augmentation_bank_plan, augmentation_bank_acceptance,
+                      effective_augmentation_bank_index, reduced_methodology_authority,
+                      p5_deterministic_contract_files),
     format = "file", resources = controller_05_resources
   ),
   targets::tar_target(
     fixed_query_shard_plan,
-    p5_build_shard_plan(fixed_query_methodology_contract, spatial_scene_index,
-                        original_scene_cache_index, original_scene_serialization_shard,
-                        original_scene_dataset_acceptance, augmentation_bank_plan,
+    p5_build_shard_plan(fixed_query_methodology_contract, accepted_p1_scene_index_reference,
+                        accepted_p3_index_reference, accepted_p3_shard_reference,
+                        accepted_p3_dataset_acceptance_reference, augmentation_bank_plan,
                         p5_deterministic_contract_files),
     format = "rds", iteration = "list", resources = controller_05_resources
   ),
@@ -39,22 +41,29 @@ list_research_fixed_queries <- list(
     format = "rds", iteration = "list", resources = controller_05_resources
   ),
   targets::tar_target(
+    fixed_query_execution,
+    p5_run_tiered_queries(fixed_query_branch_plan, p5_deterministic_contract_files),
+    format = "file", resources = p5_branch_resources
+  ),
+  targets::tar_target(
     fixed_query_shard,
-    p5_build_query_shard(fixed_query_branch_plan, p5_deterministic_contract_files),
+    p5_build_query_shard(fixed_query_branch_plan, p5_deterministic_contract_files,
+                         fixed_query_execution),
     pattern = map(fixed_query_branch_plan), iteration = "list", format = "file",
     resources = p5_branch_resources, error = "continue"
   ),
   targets::tar_target(
     fixed_query_shard_validation,
-    p5_validate_query_shard(fixed_query_shard, p5_deterministic_contract_files),
-    pattern = map(fixed_query_shard), iteration = "list", format = "rds",
+    p5_validate_query_shard(fixed_query_shard, fixed_query_branch_plan,
+                            p5_deterministic_contract_files),
+    pattern = map(fixed_query_shard, fixed_query_branch_plan), iteration = "list", format = "rds",
     resources = p5_branch_resources, error = "continue"
   ),
   targets::tar_target(
     fixed_query_acceptance_bundle,
     p5_accept_queries(fixed_query_branch_plan, fixed_query_shard,
                       fixed_query_shard_validation, fixed_query_methodology_contract,
-                      original_scene_dataset_acceptance, p5_deterministic_contract_files),
+                      accepted_p3_dataset_acceptance_reference, p5_deterministic_contract_files),
     format = "file", resources = controller_05_resources
   ),
   targets::tar_target(

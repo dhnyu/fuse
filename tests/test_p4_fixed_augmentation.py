@@ -81,6 +81,10 @@ def test_profile_configuration_exact():
     value = yaml.safe_load((ROOT / "config/p4_deterministic_augmentation.yml").read_text())
     assert [(x["scale"], x["removal_fraction"], x["dem_noise_sd_m"]) for x in value["profiles"]] == [
         (0.5, 0.05, 0.5), (1.0, 0.10, 1.0), (2.0, 0.20, 2.0)]
+    assert [(x["jitter_probability"], x["jitter_displacement_m"], x["simplification_tolerance_m"])
+            for x in value["profiles"]] == [(0.1, 0.5, 0.5), (0.2, 1.0, 1.0), (0.4, 2.0, 2.0)]
+    assert value["supplement_version"] == "p4-augmentation-v2"
+    assert value["fixed_parameters"]["landcover_maximum_active_fronts"] == 4
     assert value["banks"] == {"physical_k": 16, "logical_prefixes": [2, 4, 8, 16], "default_k": 8,
                               "expected_physical_candidates": 116208, "expected_default_references": 58104}
 
@@ -90,3 +94,34 @@ def test_incomplete_and_collision_policy_is_not_writer_bypass(tmp_path):
     final.mkdir()
     (final / "payload").write_bytes(b"first")
     assert p4.sha256_file(final / "payload") != p4.sha256_bytes(b"second")
+
+
+def test_landcover_block_mask_exact_deterministic_and_bounded():
+    digest = p4.base_digest("main_1.0x", "scene-block", 0, "landcover", None, None)
+    valid = [row * 100 + column for row in range(10, 40) for column in range(20, 70)]
+    first = p4.landcover_block_mask(valid, 0.1, digest)
+    second = p4.landcover_block_mask(list(reversed(valid)), 0.1, digest)
+    assert first == second
+    assert len(first["selected"]) == round(0.1 * len(valid))
+    assert set(first["selected"]).issubset(valid)
+    assert first["maximum_concurrent_fronts"] <= 4
+    assert first["realized_component_count"] <= 4
+
+
+def test_landcover_block_mask_fragmented_support_reseeds_without_nodata():
+    digest = p4.base_digest("strong_2.0x", "scene-fragment", 5, "landcover", None, None)
+    valid = [0, 2, 200, 202, 505, 707, 909]
+    result = p4.landcover_block_mask(valid, 1.0, digest)
+    assert set(result["selected"]) == set(valid)
+    assert len(result["selected"]) == len(valid)
+    assert result["reseeds"]
+    assert result["maximum_concurrent_fronts"] <= 4
+
+
+def test_bernoulli_jitter_preserves_protected_vertex():
+    profile = {"jitter_probability": 1.0, "jitter_displacement_m": 1.0}
+    geometry = LineString([(1.0, 1.0), (2.0, 2.0), (3.0, 3.0)])
+    digest = p4.base_digest("main_1.0x", "scene-jitter", 0, "geometry", "road", 1)
+    changed = p4.jitter_geometry(geometry, digest, profile, {(2.0, 2.0)}, (0.0, 0.0, 10.0, 10.0))
+    assert list(changed.coords)[1] == (2.0, 2.0)
+    assert list(changed.coords)[0] != (1.0, 1.0)

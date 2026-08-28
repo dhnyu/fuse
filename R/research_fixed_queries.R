@@ -2,11 +2,13 @@ p5_contract_paths <- function(root = getwd()) {
   root <- normalizePath(root, mustWork = TRUE)
   cfg <- yaml::read_yaml(file.path(root, "config/p5_deterministic_queries.yml"))
   c(config = file.path(root, "config/p5_deterministic_queries.yml"),
-    blueprint = file.path(root, "blueprint/targets_implementation_blueprint.md"),
     vapply(cfg$schemas, function(path) file.path(root, path), character(1L)),
     helper = file.path(root, "R/research_fixed_queries.R"),
+    canonical_r = file.path(root, "R/research_canonical_config.R"),
+    canonical_python = file.path(root, "python/canonical_config.py"),
     python = file.path(root, "python/p5_fixed_queries.py"),
     cli = file.path(root, "scripts/p5_fixed_queries.py"),
+    runner = file.path(root, "scripts/run_p5_tiered_queries.py"),
     targets = file.path(root, "targets/research_fixed_queries.R"))
 }
 
@@ -17,56 +19,68 @@ p5_load_spec <- function(files, root = getwd()) {
     files[basename(files) == basename(path)][[1L]]
   }, character(1L)), names(cfg$schemas))
   relative <- sub(paste0("^", normalizePath(root, mustWork = TRUE), "/"), "", files)
-  scientific <- grepl("^(config/p5_|config/schemas/p5_|R/research_fixed_queries|python/p5_|scripts/p5_|targets/research_fixed_queries)", relative)
+  scientific <- grepl("^(config/p5_|config/schemas/p5_|python/(p5_|canonical_config))", relative) &
+    relative != "scripts/run_p5_tiered_queries.py"
   scientific_config <- cfg
   scientific_config$publication_root <- NULL
   scientific_config$execution <- NULL
+  canonical_config_sha256 <- canonical_yaml_sha256(files[basename(files) == "p5_deterministic_queries.yml"],
+                                                    c("publication_root", "execution"))
   implementation_hash <- p0_scientific_sha256(list(
     version = cfg$implementation_version,
     files = lapply(which(scientific)[order(relative[scientific], method = "radix")], function(index) {
       sha256 <- if (identical(relative[[index]], "config/p5_deterministic_queries.yml")) {
-        p0_scientific_sha256(scientific_config)
+        canonical_config_sha256
       } else {
         sha256_file(files[[index]])
       }
       list(path = relative[[index]], sha256 = sha256)
     })
   ))
-  list(config = cfg, files = files, schemas = schemas, implementation_hash = implementation_hash)
+  list(config = cfg, files = files, schemas = schemas, implementation_hash = implementation_hash,
+       canonical_config_sha256 = canonical_config_sha256,
+       raw_config_sha256 = sha256_file(files[basename(files) == "p5_deterministic_queries.yml"]))
 }
 
 p5_read <- function(paths, name) jsonlite::read_json(artifact_path(paths, name), simplifyVector = FALSE)
 
 p5_build_contract <- function(evaluation_methodology_contract, augmentation_methodology_contract,
                               original_scene_dataset_acceptance, augmentation_profile_plan,
-                              augmentation_bank_plan, contract_files) {
+                              augmentation_bank_plan, augmentation_bank_acceptance,
+                              effective_augmentation_bank_index, reduced_methodology_authority,
+                              contract_files) {
   spec <- p5_load_spec(contract_files); cfg <- spec$config
   evaluation <- p5_read(evaluation_methodology_contract, "evaluation_methodology_contract.json")
   augmentation <- p5_read(augmentation_methodology_contract, "augmentation_methodology_contract.json")
   p3 <- p5_read(original_scene_dataset_acceptance, "original_scene_dataset_acceptance.json")
   p4_profile <- p5_read(augmentation_profile_plan, "augmentation_profile_plan.json")
   p4_plan <- augmentation_bank_plan[[1L]]
+  p4_acceptance <- p5_read(augmentation_bank_acceptance, "augmentation_bank_acceptance.json")
+  p4_index <- p5_read(effective_augmentation_bank_index, "effective_bank_index.json")
+  authority <- p5_read(reduced_methodology_authority, "reduced_methodology_authority.json")
   if (evaluation$status != "PASS" || augmentation$status != "PASS" ||
       evaluation$canonical_contract$validation$originals != 400L ||
       evaluation$canonical_contract$validation$augmented_queries != 800L ||
       evaluation$canonical_contract$evaluation$originals != 1600L ||
       evaluation$canonical_contract$evaluation$augmented_queries != 3200L ||
       evaluation$canonical_contract$fixed_query_profile != 1 ||
-      p3$cache_id != cfg$p3_cache_id || p3$acceptance_id != cfg$p3_acceptance_id ||
-      augmentation$contract_id != cfg$augmentation_contract_id ||
+      authority$commit_sha != cfg$dissertation_commit ||
       p4_profile$supplement_version != cfg$p4_supplement_id ||
-      p4_plan$bank_id != cfg$p4_master_bank_id ||
-      p4_plan$implementation_hash != cfg$p4_accepted_augmenter_sha256) {
+      p4_acceptance$bank_id != p4_plan$bank_id || p4_index$bank_id != p4_plan$bank_id ||
+      p4_plan$implementation_hash != p4_profile$implementation_hash) {
     stop("P5 deterministic-query authority/parent mismatch", call. = FALSE)
   }
   value <- list(
     schema_version = cfg$schema_version, status = "PASS", supplement_id = cfg$supplement_id,
-    authority_id = cfg$authority_id, augmentation_contract_id = cfg$augmentation_contract_id,
-    p3_cache_id = cfg$p3_cache_id, p3_acceptance_id = cfg$p3_acceptance_id,
+    authority_id = authority$authority_id, dissertation_commit = authority$commit_sha,
+    augmentation_contract_id = augmentation$contract_id,
+    p3_cache_id = p3$cache_id, p3_acceptance_id = p3$acceptance_id,
     p4_supplement_id = cfg$p4_supplement_id,
-    p4_accepted_augmenter_sha256 = cfg$p4_accepted_augmenter_sha256,
+    p4_master_bank_id = p4_acceptance$bank_id, p4_logical_index_id = p4_index$index_id,
+    p4_accepted_augmenter_sha256 = p4_plan$implementation_hash,
     profile = cfg$profile, namespaces = cfg$namespaces, query_indices = cfg$query_indices,
-    seed = cfg$seed, publication = cfg$publication, implementation_hash = spec$implementation_hash
+    seed = cfg$seed, publication = cfg$publication, implementation_hash = spec$implementation_hash,
+    canonical_config_sha256 = spec$canonical_config_sha256, raw_config_sha256 = spec$raw_config_sha256
   )
   value$content_sha256 <- p0_scientific_sha256(value)
   value$contract_id <- paste0("fqc_", substr(value$content_sha256, 1L, 24L))
@@ -97,12 +111,20 @@ p5_build_shard_plan <- function(fixed_query_methodology_contract, spatial_scene_
   parent_map <- setNames(parents, vapply(parents, `[[`, character(1L), "branch_id"))
   p4_plan <- augmentation_bank_plan[[1L]]
   resources_path <- p4_plan$resources_path
+  runtime_config <- cfg
+  runtime_config$authority_id <- contract$authority_id
+  runtime_config$augmentation_contract_id <- contract$augmentation_contract_id
+  runtime_config$p3_cache_id <- contract$p3_cache_id
+  runtime_config$p3_acceptance_id <- contract$p3_acceptance_id
+  runtime_config$p4_master_bank_id <- contract$p4_master_bank_id
+  runtime_config$p4_logical_index_id <- contract$p4_logical_index_id
+  runtime_config$p4_accepted_augmenter_sha256 <- contract$p4_accepted_augmenter_sha256
   scientific <- list(
-    supplement = contract$content_sha256, evaluation_contract = cfg$authority_id,
+    supplement = contract$content_sha256, evaluation_contract = contract$authority_id,
     p3_cache_id = p3$cache_id, p3_acceptance_id = p3$acceptance_id,
     p3_aggregate = p3$aggregate_content_sha256,
-    p4_bank_id = cfg$p4_master_bank_id, p4_index_id = cfg$p4_logical_index_id,
-    p4_accepted_augmenter_sha256 = cfg$p4_accepted_augmenter_sha256,
+    p4_bank_id = contract$p4_master_bank_id, p4_index_id = contract$p4_logical_index_id,
+    p4_accepted_augmenter_sha256 = contract$p4_accepted_augmenter_sha256,
     parent_payloads = lapply(parents[order(names(parent_map), method = "radix")], function(parent) parent[c("branch_id", "sha256")]),
     populations = lapply(cfg$namespaces, function(value) value[c("namespace", "originals", "queries", "gallery")]),
     query_indices = cfg$query_indices, profile = cfg$profile, implementation_hash = spec$implementation_hash
@@ -122,7 +144,7 @@ p5_build_shard_plan <- function(fixed_query_methodology_contract, spatial_scene_
          scene_ids = as.list(sort(group$scene_id, method = "radix")), resources_path = resources_path,
          implementation_hash = spec$implementation_hash,
          output_directory = file.path(cfg$publication_root, authority_id, namespace, "shards", branch_id),
-         config = cfg)
+         config = runtime_config)
   }))
   branches <- branches[order(vapply(branches, `[[`, character(1L), "branch_id"), method = "radix")]
   if (sum(vapply(branches, function(branch) length(branch$scene_ids), integer(1L))) != 2000L) stop("P5 plan coverage mismatch", call. = FALSE)
@@ -148,12 +170,57 @@ p5_build_shard_plan <- function(fixed_query_methodology_contract, spatial_scene_
 
 p5_filter_plan <- function(plan, split) plan[vapply(plan, function(branch) identical(branch$split, split), logical(1L))]
 
-p5_build_query_shard <- function(plan_branch, contract_files) {
+p5_run_tiered_queries <- function(plan, contract_files) {
+  spec <- p5_load_spec(contract_files)
+  if (length(plan) != 192L) stop("P5 tiered execution requires 192 planned branches", call. = FALSE)
+  authority_id <- plan[[1L]]$query_authority_id
+  plan_dir <- dirname(plan[[1L]]$.plan_path)
+  authority_root <- dirname(dirname(plan_dir))
+  attempt_id <- paste0(format(Sys.time(), "%Y%m%d_%H%M%S"), "_", Sys.getpid())
+  execution_root <- file.path(authority_root, "executions", paste0("tiered_", attempt_id))
+  dir.create(execution_root, recursive = TRUE, showWarnings = FALSE)
+  runner <- spec$files[basename(spec$files) == "run_p5_tiered_queries.py"]
+  previous_ledger <- NULL; ledgers <- character(); logs <- character()
+  passes <- list(A = 40L, B = 10L, C = 5L)
+  for (pass_name in names(passes)) {
+    if (pass_name != "A") {
+      previous <- jsonlite::read_json(previous_ledger, simplifyVector = FALSE)
+      retryable <- sum(unlist(previous$status_counts[c("FAILED_NATIVE", "FAILED_RESOURCE", "UNATTEMPTED")], use.names = FALSE))
+      if (retryable == 0L) break
+    }
+    workers <- passes[[pass_name]]; pass_slug <- tolower(pass_name)
+    ledger <- file.path(execution_root, paste0("pass_", pass_slug, "_ledger.json"))
+    log <- file.path(execution_root, paste0("pass_", pass_slug, ".log"))
+    staging <- file.path(authority_root, "staging", paste0("pass_", pass_slug, "_", workers), attempt_id)
+    args <- c(runner, "--plan-dir", plan_dir, "--pass-name", pass_name,
+              "--workers", as.character(workers), "--staging-root", staging, "--ledger", ledger)
+    if (!is.null(previous_ledger)) args <- c(args, "--retry-ledger", previous_ledger)
+    exit_status <- system2(research_python_executable(), args, stdout = log, stderr = log)
+    if (!file.exists(ledger)) stop("P5 tiered runner did not publish a ledger for Pass ", pass_name, call. = FALSE)
+    value <- jsonlite::read_json(ledger, simplifyVector = FALSE)
+    if (value$status_counts$FAILED_SCIENTIFIC > 0L || identical(exit_status, 2L))
+      stop("P5 Pass ", pass_name, " scientific failure; see ", log, call. = FALSE)
+    ledgers <- c(ledgers, ledger); logs <- c(logs, log); previous_ledger <- ledger
+  }
+  final <- jsonlite::read_json(previous_ledger, simplifyVector = FALSE)
+  unresolved <- sum(unlist(final$status_counts[c("FAILED_NATIVE", "FAILED_RESOURCE", "FAILED_SCIENTIFIC", "UNATTEMPTED")], use.names = FALSE))
+  if (unresolved != 0L) stop("P5 tiered execution exhausted recovery passes with unresolved branches", call. = FALSE)
+  summary <- list(schema_version = "1.0.0", status = "PASS", query_authority_id = authority_id,
+                  plan_id = plan[[1L]]$plan_id, branch_count = 192L,
+                  pass_ledgers = basename(ledgers), final_completed = final$status_counts$COMPLETED)
+  summary_path <- write_json_file(summary, file.path(execution_root, "tiered_execution_summary.json"))
+  normalizePath(c(summary_path, ledgers, logs), mustWork = TRUE)
+}
+
+p5_build_query_shard <- function(plan_branch, contract_files, tiered_execution) {
   spec <- p5_load_spec(contract_files)
   Sys.setenv(OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1",
              BLIS_NUM_THREADS = "1", VECLIB_MAXIMUM_THREADS = "1", NUMEXPR_NUM_THREADS = "1",
              GDAL_NUM_THREADS = "1", ARROW_NUM_THREADS = "1", PYTHONDONTWRITEBYTECODE = "1")
   data.table::setDTthreads(1L)
+  summary <- p5_read(tiered_execution, "tiered_execution_summary.json")
+  if (summary$status != "PASS" || summary$query_authority_id != plan_branch$query_authority_id)
+    stop("P5 tiered execution summary does not authorize branch validation", call. = FALSE)
   final <- plan_branch$output_directory; payload <- paste0(plan_branch$branch_id, ".tar")
   existing <- file.path(final, c(payload, "branch_manifest.json", "execution.json"))
   if (all(file.exists(existing))) {
@@ -164,24 +231,13 @@ p5_build_query_shard <- function(plan_branch, contract_files) {
     }
     return(normalizePath(existing, mustWork = TRUE))
   }
-  publish_deterministic_directory(final, c(payload, "branch_manifest.json", "execution.json"),
-    compare_basenames = c(payload, "branch_manifest.json"), writer = function(stage) {
-      build <- file.path(stage, "build")
-      result <- system2(research_python_executable(), c(
-        spec$files[basename(spec$files) == "p5_fixed_queries.py" & grepl("/scripts/", spec$files)],
-        "branch", "--spec", plan_branch$.path, "--output-dir", build), stdout = TRUE, stderr = TRUE)
-      if ((attr(result, "status") %||% 0L) != 0L) stop("P5 branch failed: ", paste(result, collapse = " | "), call. = FALSE)
-      files <- list.files(build, full.names = TRUE)
-      if (!all(file.rename(files, file.path(stage, basename(files))))) stop("P5 branch staging promotion failed", call. = FALSE)
-      unlink(build, recursive = TRUE)
-      validate_json_schema_file(file.path(stage, "branch_manifest.json"), spec$schemas[["shard"]])
-    })
+  stop("P5 tiered execution did not publish canonical branch: ", plan_branch$branch_id, call. = FALSE)
 }
 
-p5_validate_query_shard <- function(shard_files, contract_files) {
+p5_validate_query_shard <- function(shard_files, plan_branch, contract_files) {
   spec <- p5_load_spec(contract_files)
   config_json <- tempfile(fileext = ".json"); output <- tempfile(fileext = ".json")
-  write_json_file(spec$config, config_json)
+  write_json_file(plan_branch$config, config_json)
   result <- system2(research_python_executable(), c(
     spec$files[basename(spec$files) == "p5_fixed_queries.py" & grepl("/scripts/", spec$files)],
     "validate", "--manifest", artifact_path(shard_files, "branch_manifest.json"),

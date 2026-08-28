@@ -23,7 +23,7 @@ import p4_fixed_augmentation as p4
 from p4_deterministic_rng import counter_block
 
 SCHEMA_VERSION = "1.0.0"
-SUPPLEMENT_ID = "p5-fixed-query-v1"
+SUPPLEMENT_ID = "p5-fixed-query-v2"
 PROFILE_ID = "main_1.0x"
 NAMESPACES = {"validation": "validation-query", "evaluation": "evaluation-query"}
 QUERY_INDICES = (0, 1)

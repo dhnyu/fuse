@@ -5,7 +5,7 @@ dissertation:
   repository_path: /members/dhnyu/dhnyu-masters-dissertation
   repository_identity: dhnyu-masters-dissertation
   expected_branch: reduced
-  expected_commit_sha: e66d17d65e97a5e3f50fa9a111a51559db05666f
+  expected_commit_sha: 109355b3d744248ca14749c5f74511537970d660
   entrypoint: template/main.typ
 
 approved_audit:

@@ -1,6 +1,6 @@
 testthat::test_that("P5 supplement fixes namespaces, populations and query indices", {
   config <- yaml::read_yaml(testthat::test_path("..", "..", "config", "p5_deterministic_queries.yml"))
-  testthat::expect_identical(config$supplement_id, "p5-fixed-query-v1")
+  testthat::expect_identical(config$supplement_id, "p5-fixed-query-v2")
   testthat::expect_identical(config$schema_version, "1.0.0")
   testthat::expect_identical(config$profile$profile_id, "main_1.0x")
   testthat::expect_identical(as.integer(unlist(config$query_indices)), c(0L, 1L))
@@ -9,6 +9,9 @@ testthat::test_that("P5 supplement fixes namespaces, populations and query indic
   testthat::expect_identical(as.integer(config$namespaces$validation$queries), 800L)
   testthat::expect_identical(as.integer(config$namespaces$evaluation$queries), 3200L)
   testthat::expect_identical(config$publication$training_bank_membership, "prohibited")
+  testthat::expect_identical(config$p4_supplement_id, "p4-augmentation-v2")
+  testthat::expect_identical(config$p4_master_bank_id, "dynamic_from_augmentation_bank_acceptance")
+  testthat::expect_identical(config$p4_logical_index_id, "dynamic_from_effective_augmentation_bank_index")
 })
 
 testthat::test_that("P5 target declaration excludes P6, maintenance and GPU dependencies", {

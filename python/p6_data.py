@@ -250,6 +250,7 @@ def _extract_raster(archive_path: Path, scene_id: str) -> tuple[dict[str, np.nda
         arrays = {
             "landcover_class_fraction": np.asarray(lc["class_fraction"][index], dtype=np.float32),
             "landcover_valid_mask": np.asarray(lc["valid_mask"][index], dtype=np.uint8),
+            "landcover_intentional_mask": np.zeros_like(np.asarray(lc["valid_mask"][index], dtype=np.uint8)),
             "landcover_valid_support": np.asarray(lc["valid_support_ratio"][index], dtype=np.float32),
             "dem_raw_mean": np.asarray(dem["raw_mean_m"][index], dtype=np.float64),
             "dem_valid_mask": np.asarray(dem["valid_mask"][index], dtype=np.uint8),
@@ -350,6 +351,7 @@ def apply_delta(original: dict[str, Any], delta: dict[str, list[dict[str, Any]]]
         if row["modality"] == "landcover":
             y, x = divmod(index, 100); rasters["landcover_class_fraction"][:, y, x] = 0
             rasters["landcover_valid_mask"][y, x] = 0
+            rasters["landcover_intentional_mask"][y, x] = 1
         elif row["modality"] == "dem":
             y, x = divmod(index, 17); rasters["dem_raw_mean"][y, x] = float(row["value"])
         else: raise ValueError("unknown augmented raster modality")
@@ -517,6 +519,7 @@ def tensorize_scene(scene: dict[str, Any], preprocessing: dict[str, Any], vocab:
                      "source_node_xy_5186": torch.tensor(source_node_xy, dtype=torch.float64).reshape((-1, 2)), "source_node_ids": source_node_ids},
         "rasters": {"landcover_class_fraction": torch.tensor(rasters["landcover_class_fraction"], dtype=torch.float32),
                     "landcover_valid_mask": torch.tensor(rasters["landcover_valid_mask"], dtype=torch.uint8),
+                    "landcover_intentional_mask": torch.tensor(rasters["landcover_intentional_mask"], dtype=torch.uint8),
                     "landcover_valid_support": torch.tensor(rasters["landcover_valid_support"], dtype=torch.float32),
                     "dem_standardized_mean": torch.tensor(dem_standardized), "dem_valid_mask": torch.tensor(rasters["dem_valid_mask"], dtype=torch.uint8),
                     "dem_valid_support": torch.tensor(rasters["dem_valid_support"], dtype=torch.float32)},

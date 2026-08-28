@@ -1,5 +1,5 @@
 p4_branch_resources <- targets::tar_resources(
-  crew = targets::tar_resources_crew(controller = "controller_40", seconds_timeout = 7200)
+  crew = targets::tar_resources_crew(controller = "controller_05", seconds_timeout = 7200)
 )
 
 list_research_fixed_augmentation_banks <- list(
@@ -16,26 +16,32 @@ list_research_fixed_augmentation_banks <- list(
   ),
   targets::tar_target(
     road_link_absorption_smoke,
-    p4_run_smoke("road", augmentation_profile_plan, original_scene_dataset_acceptance,
+    p4_run_smoke("road", augmentation_profile_plan, accepted_p3_dataset_acceptance_reference,
                  p4_deterministic_contract_files),
     format = "file", resources = controller_05_resources
   ),
   targets::tar_target(
     geometry_consistency_smoke,
-    p4_run_smoke("geometry", augmentation_profile_plan, original_scene_dataset_acceptance,
+    p4_run_smoke("geometry", augmentation_profile_plan, accepted_p3_dataset_acceptance_reference,
                  p4_deterministic_contract_files),
     format = "file", resources = controller_05_resources
   ),
   targets::tar_target(
     augmentation_bank_plan,
     p4_build_bank_plan(augmentation_profile_plan, road_link_absorption_smoke,
-                       geometry_consistency_smoke, original_scene_serialization_shard,
-                       original_scene_dataset_acceptance, p4_deterministic_contract_files),
+                       geometry_consistency_smoke, accepted_p3_shard_reference,
+                       accepted_p3_dataset_acceptance_reference, p4_deterministic_contract_files),
     format = "rds", iteration = "list", resources = controller_05_resources
   ),
   targets::tar_target(
+    augmentation_bank_execution,
+    p4_run_tiered_bank(augmentation_bank_plan, p4_deterministic_contract_files),
+    format = "file", resources = p4_branch_resources
+  ),
+  targets::tar_target(
     augmentation_bank_shard,
-    p4_build_bank_shard(augmentation_bank_plan, p4_deterministic_contract_files),
+    p4_build_bank_shard(augmentation_bank_plan, p4_deterministic_contract_files,
+                        augmentation_bank_execution),
     pattern = map(augmentation_bank_plan), iteration = "list", format = "file",
     resources = p4_branch_resources, error = "continue"
   ),
@@ -48,7 +54,7 @@ list_research_fixed_augmentation_banks <- list(
   targets::tar_target(
     augmentation_bank_acceptance,
     p4_accept_bank(augmentation_bank_plan, augmentation_bank_shard,
-                   augmentation_bank_shard_validation, original_scene_dataset_acceptance,
+                   augmentation_bank_shard_validation, accepted_p3_dataset_acceptance_reference,
                    p4_deterministic_contract_files),
     format = "file", resources = controller_05_resources
   ),

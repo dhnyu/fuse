@@ -1,4 +1,4 @@
-"""P4 domain-separated SHA-256 counter draws (p4-determinism-v1)."""
+"""P4 domain-separated SHA-256 counter draws (p4-augmentation-v2)."""
 
 from __future__ import annotations
 
@@ -8,14 +8,15 @@ import struct
 import unicodedata
 from collections.abc import Sequence
 
-VERSION = "p4-determinism-v1"
+VERSION = "p4-augmentation-v2"
 NAMESPACE = "training-bank"
 NONE = "NONE"
 DOMAINS = frozenset({
     "removal_fraction", "entity_selection", "receiver_selection",
     "geometry_jitter_gate", "geometry_jitter_value", "geometry_simplification",
     "categorical_mask", "categorical_replacement", "lane_perturbation",
-    "landcover_mask", "dem_gaussian",
+    "landcover_mask", "landcover_seed", "landcover_frontier", "landcover_reseed",
+    "dem_gaussian",
 })
 
 

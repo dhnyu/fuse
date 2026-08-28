@@ -6,6 +6,7 @@ p6_contract_names <- function() {
     "config/schemas/p6_dataloader_acceptance.schema.json",
     "config/schemas/p6_cpu_smoke.schema.json",
     "config/schemas/p6_model_data_acceptance.schema.json",
+    "R/research_canonical_config.R", "python/canonical_config.py",
     "python/p6_data.py", "python/p6_model.py", "scripts/p6_model_dataloader.py"
   )
 }
@@ -24,13 +25,53 @@ p6_spec <- function(contract_files) {
   names(contract_files) <- p6_contract_names()
   config_path <- contract_files[["config/p6_model_dataloader.yml"]]
   config <- yaml::read_yaml(config_path)
+  full_canonical_config_sha256 <- canonical_yaml_sha256(config_path)
+  if (!identical(full_canonical_config_sha256,
+                 "499cda4904633b052a5b55e50212d7f8dc423fe7ece9bdb8e823e1d44c4d21f8")) {
+    stop("P6 committed canonical configuration checksum mismatch", call. = FALSE)
+  }
   scientific <- config
   scientific$publication_root <- NULL
   files <- lapply(sort(names(contract_files), method = "radix"), function(name) {
-    list(path = name, sha256 = if (name == "config/p6_model_dataloader.yml") p0_scientific_sha256(scientific) else sha256_file(contract_files[[name]]))
+    list(path = name, sha256 = if (name == "config/p6_model_dataloader.yml") canonical_yaml_sha256(config_path, "publication_root") else sha256_file(contract_files[[name]]))
   })
   list(config = config, config_path = config_path, files = files,
+       full_canonical_config_sha256 = full_canonical_config_sha256,
        implementation_hash = p0_scientific_sha256(list(version = config$implementation_version, files = files)))
+}
+
+p6_runtime_config <- function(spec, reduced_methodology_authority,
+                              original_scene_dataset_acceptance,
+                              augmentation_bank_acceptance,
+                              effective_augmentation_bank_index,
+                              fixed_query_acceptance,
+                              base_spatial_acceptance) {
+  authority <- jsonlite::read_json(artifact_path(reduced_methodology_authority, "reduced_methodology_authority.json"), simplifyVector = FALSE)
+  p3 <- jsonlite::read_json(artifact_path(original_scene_dataset_acceptance, "original_scene_dataset_acceptance.json"), simplifyVector = FALSE)
+  p4 <- jsonlite::read_json(artifact_path(augmentation_bank_acceptance, "augmentation_bank_acceptance.json"), simplifyVector = FALSE)
+  p4_index <- jsonlite::read_json(artifact_path(effective_augmentation_bank_index, "effective_bank_index.json"), simplifyVector = FALSE)
+  p5 <- jsonlite::read_json(artifact_path(fixed_query_acceptance, "fixed_query_acceptance.json"), simplifyVector = FALSE)
+  p2 <- jsonlite::read_json(artifact_path(base_spatial_acceptance, "base_spatial_acceptance.json"), simplifyVector = FALSE)
+  if (!all(vapply(list(authority, p3, p4, p4_index, p5, p2), function(x) identical(x$status %||% x$overall_status, "PASS"), logical(1L)))) {
+    stop("P6 runtime parent is not accepted", call. = FALSE)
+  }
+  config <- spec$config
+  config$parents <- list(
+    authority_id = authority$authority_id,
+    scene_index_id = p2$scene_index_id,
+    scene_acceptance_id = p2$scene_acceptance_id,
+    observation_id = p2$original_observation_id,
+    base_spatial_acceptance_id = p2$acceptance_id,
+    p3_cache_id = p3$cache_id,
+    p3_acceptance_id = p3$acceptance_id,
+    p4_master_bank_id = p4$bank_id,
+    p4_logical_index_id = p4_index$index_id,
+    p5_query_authority_id = p5$query_authority_id,
+    p5_acceptance_id = p5$acceptance_id
+  )
+  path <- tempfile(fileext = ".json")
+  write_json_file(config, path)
+  path
 }
 
 p6_contract_file <- function(contract_files, name) {
@@ -62,12 +103,19 @@ p6_publish_json <- function(source, destination, filename, schema, id_field) {
   })
 }
 
-p6_build_architecture <- function(model_methodology_contract, base_spatial_acceptance, contract_files) {
+p6_build_architecture <- function(model_methodology_contract, reduced_methodology_authority,
+                                  original_scene_dataset_acceptance, augmentation_bank_acceptance,
+                                  effective_augmentation_bank_index, fixed_query_acceptance,
+                                  base_spatial_acceptance, contract_files) {
   spec <- p6_spec(contract_files); cfg <- spec$config
+  runtime_config <- p6_runtime_config(spec, reduced_methodology_authority, original_scene_dataset_acceptance,
+                                      augmentation_bank_acceptance, effective_augmentation_bank_index,
+                                      fixed_query_acceptance, base_spatial_acceptance)
+  on.exit(unlink(runtime_config), add = TRUE)
   model_contract <- artifact_path(model_methodology_contract, "model_methodology_contract.json")
   category_path <- artifact_path(base_spatial_acceptance, "spatial_categories.json")
   output <- tempfile(fileext = ".json")
-  p6_run(c("scripts/p6_model_dataloader.py", "architecture", "--config", spec$config_path,
+  p6_run(c("scripts/p6_model_dataloader.py", "architecture", "--config", runtime_config,
            "--model-contract", model_contract, "--categories", category_path, "--output", output))
   value <- jsonlite::read_json(output, simplifyVector = FALSE)
   destination <- file.path(cfg$publication_root, "architecture")
@@ -78,14 +126,19 @@ p6_build_architecture <- function(model_methodology_contract, base_spatial_accep
 }
 
 p6_build_preprocessing <- function(original_scene_dataset_acceptance, augmentation_bank_acceptance,
-                                   fixed_query_acceptance, base_spatial_acceptance,
+                                   effective_augmentation_bank_index, fixed_query_acceptance,
+                                   reduced_methodology_authority, base_spatial_acceptance,
                                    contract_files) {
   spec <- p6_spec(contract_files); cfg <- spec$config
+  runtime_config <- p6_runtime_config(spec, reduced_methodology_authority, original_scene_dataset_acceptance,
+                                      augmentation_bank_acceptance, effective_augmentation_bank_index,
+                                      fixed_query_acceptance, base_spatial_acceptance)
+  on.exit(unlink(runtime_config), add = TRUE)
   roots <- c(p3 = p6_root_from_artifact(original_scene_dataset_acceptance, 3L),
              p4 = p6_root_from_artifact(augmentation_bank_acceptance, 3L),
              p5 = p6_root_from_artifact(fixed_query_acceptance, 3L))
   output <- tempfile(fileext = ".json")
-  p6_run(c("scripts/p6_model_dataloader.py", "preprocessing", "--config", spec$config_path,
+  p6_run(c("scripts/p6_model_dataloader.py", "preprocessing", "--config", runtime_config,
            "--p3-root", roots[["p3"]], "--p4-root", roots[["p4"]], "--p5-root", roots[["p5"]],
            "--categories", artifact_path(base_spatial_acceptance, "spatial_categories.json"), "--output", output))
   value <- jsonlite::read_json(output, simplifyVector = FALSE)
@@ -97,14 +150,19 @@ p6_build_preprocessing <- function(original_scene_dataset_acceptance, augmentati
 }
 
 p6_build_dataloader_acceptance <- function(original_scene_dataset_acceptance, augmentation_bank_acceptance,
-                                           fixed_query_acceptance, base_spatial_acceptance,
+                                           effective_augmentation_bank_index, fixed_query_acceptance,
+                                           reduced_methodology_authority, base_spatial_acceptance,
                                            p6_preprocessing_contract, contract_files) {
   spec <- p6_spec(contract_files); cfg <- spec$config
+  runtime_config <- p6_runtime_config(spec, reduced_methodology_authority, original_scene_dataset_acceptance,
+                                      augmentation_bank_acceptance, effective_augmentation_bank_index,
+                                      fixed_query_acceptance, base_spatial_acceptance)
+  on.exit(unlink(runtime_config), add = TRUE)
   roots <- c(p3 = p6_root_from_artifact(original_scene_dataset_acceptance, 3L),
              p4 = p6_root_from_artifact(augmentation_bank_acceptance, 3L),
              p5 = p6_root_from_artifact(fixed_query_acceptance, 3L))
   output <- tempfile(fileext = ".json")
-  p6_run(c("scripts/p6_model_dataloader.py", "dataloader", "--config", spec$config_path,
+  p6_run(c("scripts/p6_model_dataloader.py", "dataloader", "--config", runtime_config,
            "--p3-root", roots[["p3"]], "--p4-root", roots[["p4"]], "--p5-root", roots[["p5"]],
            "--categories", artifact_path(base_spatial_acceptance, "spatial_categories.json"),
            "--preprocessing", artifact_path(p6_preprocessing_contract, "preprocessing_contract.json"), "--output", output))
@@ -115,10 +173,15 @@ p6_build_dataloader_acceptance <- function(original_scene_dataset_acceptance, au
 }
 
 p6_build_cpu_smoke <- function(original_scene_dataset_acceptance, augmentation_bank_acceptance,
-                               fixed_query_acceptance, base_spatial_acceptance,
+                               effective_augmentation_bank_index, fixed_query_acceptance,
+                               reduced_methodology_authority, base_spatial_acceptance,
                                p6_preprocessing_contract, d64_model_architecture_contract,
                                p6_dataloader_acceptance, contract_files) {
   spec <- p6_spec(contract_files); cfg <- spec$config
+  runtime_config <- p6_runtime_config(spec, reduced_methodology_authority, original_scene_dataset_acceptance,
+                                      augmentation_bank_acceptance, effective_augmentation_bank_index,
+                                      fixed_query_acceptance, base_spatial_acceptance)
+  on.exit(unlink(runtime_config), add = TRUE)
   roots <- c(p3 = p6_root_from_artifact(original_scene_dataset_acceptance, 3L),
              p4 = p6_root_from_artifact(augmentation_bank_acceptance, 3L),
              p5 = p6_root_from_artifact(fixed_query_acceptance, 3L))
@@ -127,7 +190,7 @@ p6_build_cpu_smoke <- function(original_scene_dataset_acceptance, augmentation_b
              BLIS_NUM_THREADS = "1", VECLIB_MAXIMUM_THREADS = "1", NUMEXPR_NUM_THREADS = "1",
              GDAL_NUM_THREADS = "1", ARROW_NUM_THREADS = "1", PYTHONDONTWRITEBYTECODE = "1")
   data.table::setDTthreads(1L)
-  p6_run(c("scripts/p6_model_dataloader.py", "smoke", "--config", spec$config_path,
+  p6_run(c("scripts/p6_model_dataloader.py", "smoke", "--config", runtime_config,
            "--p3-root", roots[["p3"]], "--p4-root", roots[["p4"]], "--p5-root", roots[["p5"]],
            "--categories", artifact_path(base_spatial_acceptance, "spatial_categories.json"),
            "--scene-stats", artifact_path(base_spatial_acceptance, "scene_spatial_statistics.parquet"),
@@ -140,10 +203,16 @@ p6_build_cpu_smoke <- function(original_scene_dataset_acceptance, augmentation_b
 
 p6_final_acceptance <- function(d64_model_architecture_contract, p6_dataloader_acceptance,
                                 d64_encoder_cpu_smoke, reduced_methodology_authority,
-                                fixed_query_acceptance, contract_files) {
+                                original_scene_dataset_acceptance, augmentation_bank_acceptance,
+                                effective_augmentation_bank_index, fixed_query_acceptance,
+                                base_spatial_acceptance, contract_files) {
   spec <- p6_spec(contract_files); cfg <- spec$config
+  runtime_config <- p6_runtime_config(spec, reduced_methodology_authority, original_scene_dataset_acceptance,
+                                      augmentation_bank_acceptance, effective_augmentation_bank_index,
+                                      fixed_query_acceptance, base_spatial_acceptance)
+  on.exit(unlink(runtime_config), add = TRUE)
   output <- tempfile(fileext = ".json")
-  p6_run(c("scripts/p6_model_dataloader.py", "aggregate", "--config", spec$config_path,
+  p6_run(c("scripts/p6_model_dataloader.py", "aggregate", "--config", runtime_config,
            "--architecture", artifact_path(d64_model_architecture_contract, "architecture_manifest.json"),
            "--dataloader", artifact_path(p6_dataloader_acceptance, "dataloader_acceptance.json"),
            "--smoke", artifact_path(d64_encoder_cpu_smoke, "cpu_functional_smoke.json"), "--output", output))

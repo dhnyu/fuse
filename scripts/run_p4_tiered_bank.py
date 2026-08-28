@@ -81,6 +81,26 @@ def run_branch(spec_path: Path, staging_root: Path, builder: Path, validator: Pa
                pass_name: str, workers: int) -> dict[str, object]:
     spec = json.loads(spec_path.read_text())
     branch_id = spec["branch_id"]
+    final = Path(spec["output_directory"])
+    canonical_manifest = final / "branch_manifest.json"
+    if canonical_manifest.exists():
+        manifest = json.loads(canonical_manifest.read_text())
+        payload = final / manifest["payload"]["filename"]
+        if (manifest.get("branch_id") != branch_id or
+                manifest.get("bank_id") != spec.get("bank_id") or
+                not payload.is_file() or
+                sha256_file(payload) != manifest["payload"]["sha256"]):
+            raise RuntimeError(f"immutable canonical collision: {branch_id}")
+        return {
+            "branch_id": branch_id, "status": "COMPLETED", "returncode": 0,
+            "profile_id": spec["profile"]["profile_id"],
+            "scene_count": len(spec["scene_ids"]),
+            "candidate_count": manifest["candidate_count"],
+            "payload_bytes": manifest["payload"]["size_bytes"],
+            "payload_sha256": manifest["payload"]["sha256"],
+            "publication": "REUSED_IDENTICAL", "wall_seconds": 0,
+            "staging_path": None,
+        }
     stage = staging_root / branch_id
     build = stage / "build"
     stage.mkdir(parents=True, exist_ok=False)
@@ -111,11 +131,11 @@ def run_branch(spec_path: Path, staging_root: Path, builder: Path, validator: Pa
         return {"branch_id": branch_id, "status": "FAILED_SCIENTIFIC", "returncode": 0,
                 "wall_seconds": time.time() - started, "staging_path": str(stage), "error": "validator rejected branch"}
     try:
-        publication = publish(build, Path(spec["output_directory"]))
+        publication = publish(build, final)
     except Exception as error:
         return {"branch_id": branch_id, "status": "FAILED_SCIENTIFIC", "returncode": 0,
                 "wall_seconds": time.time() - started, "staging_path": str(stage), "error": str(error)}
-    manifest = json.loads((Path(spec["output_directory"]) / "branch_manifest.json").read_text())
+    manifest = json.loads((final / "branch_manifest.json").read_text())
     return {"branch_id": branch_id, "status": "COMPLETED", "returncode": 0,
             "profile_id": spec["profile"]["profile_id"], "scene_count": len(spec["scene_ids"]),
             "candidate_count": manifest["candidate_count"], "payload_bytes": manifest["payload"]["size_bytes"],

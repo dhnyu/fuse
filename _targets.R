@@ -7,6 +7,8 @@ research_function_files <- c(
   "R/config_paths.R",
   "R/io_spatial.R",
   "R/research_contracts.R",
+  "R/research_canonical_config.R",
+  "R/research_immutable_parent_references.R",
   "R/research_methodology_authority.R",
   "R/research_dynamic_branch_recovery.R",
   "R/research_runtime_mirror.R",
@@ -56,7 +58,7 @@ controller_40 <- crew::crew_controller_local(
   name = "controller_40",
   workers = fuse_controller_worker_count("FUSE_CONTROLLER_40_WORKERS", 40L),
   seconds_timeout = 3600,
-  crashes_max = fuse_controller_worker_count("FUSE_CONTROLLER_40_CRASHES_MAX", 192L)
+  crashes_max = fuse_controller_crash_limit("FUSE_CONTROLLER_40_CRASHES_MAX", 0L)
 )
 controller_gpu_02 <- crew::crew_controller_local(
   name = "controller_gpu_02",
@@ -87,6 +89,7 @@ targets::tar_source("targets/research_relation.R")
 targets::tar_source("targets/research_spatial_acceptance.R")
 targets::tar_source("targets/research_base_spatial.R")
 targets::tar_source("targets/research_original_scene_cache.R")
+targets::tar_source("targets/research_immutable_parent_references.R")
 targets::tar_source("targets/research_fixed_augmentation_banks.R")
 targets::tar_source("targets/research_fixed_queries.R")
 targets::tar_source("targets/research_model_dataloader.R")
@@ -117,6 +120,7 @@ c(
   list_research_spatial_acceptance,
   list_research_base_spatial,
   list_research_original_scene_cache,
+  list_research_immutable_parent_references,
   list_research_fixed_augmentation_banks,
   list_research_fixed_queries,
   list_research_model_dataloader,

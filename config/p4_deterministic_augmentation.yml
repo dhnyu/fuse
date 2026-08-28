@@ -1,10 +1,15 @@
 schema_version: "1.0.0"
-supplement_version: p4-determinism-v1
-implementation_version: "1.0.0"
-authority_id: mta_f90fecff7bc7bb5d231cc79f
-augmentation_contract_id: mmc_065f894aea3f8475
-original_cache_id: oscache_c89fa07e3d6cb1819a7994a6
-original_cache_acceptance_id: osca_a55d2c02c3737c5f5557092a
+supplement_version: p4-augmentation-v2
+implementation_version: "2.0.0"
+dissertation_commit: 109355b3d744248ca14749c5f74511537970d660
+authority_id: dynamic_from_reduced_methodology_authority
+augmentation_contract_id: dynamic_from_augmentation_methodology_contract
+original_cache_id: dynamic_from_original_scene_dataset_acceptance
+original_cache_acceptance_id: dynamic_from_original_scene_dataset_acceptance
+supersedes:
+  supplement: p4-determinism-v1
+  bank_id: augbank_a470cb156612cff12fb316fc
+  logical_index_id: abi_f9ff792612ca86f486576491
 publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/augmentation_banks
 namespace: training-bank
 population:
@@ -12,15 +17,18 @@ population:
   scenes: 2421
   excluded_splits: [validation, evaluation]
 profiles:
-  - {profile_id: weak_0.5x, scale: 0.5, removal_fraction: 0.05, jitter_probability: 0.25, jitter_displacement_m: 1.0, simplification_tolerance_m: 1.0, categorical_mask_probability: 0.05, categorical_replacement_probability: 0.05, lane_probability: 0.05, landcover_mask_fraction: 0.05, dem_noise_sd_m: 0.5}
-  - {profile_id: main_1.0x, scale: 1.0, removal_fraction: 0.10, jitter_probability: 0.50, jitter_displacement_m: 2.0, simplification_tolerance_m: 2.0, categorical_mask_probability: 0.10, categorical_replacement_probability: 0.10, lane_probability: 0.10, landcover_mask_fraction: 0.10, dem_noise_sd_m: 1.0}
-  - {profile_id: strong_2.0x, scale: 2.0, removal_fraction: 0.20, jitter_probability: 1.00, jitter_displacement_m: 4.0, simplification_tolerance_m: 4.0, categorical_mask_probability: 0.20, categorical_replacement_probability: 0.20, lane_probability: 0.20, landcover_mask_fraction: 0.20, dem_noise_sd_m: 2.0}
+  - {profile_id: weak_0.5x, scale: 0.5, removal_fraction: 0.05, jitter_probability: 0.10, jitter_displacement_m: 0.5, simplification_tolerance_m: 0.5, categorical_mask_probability: 0.05, categorical_replacement_probability: 0.05, lane_probability: 0.05, landcover_mask_fraction: 0.05, dem_noise_sd_m: 0.5}
+  - {profile_id: main_1.0x, scale: 1.0, removal_fraction: 0.10, jitter_probability: 0.20, jitter_displacement_m: 1.0, simplification_tolerance_m: 1.0, categorical_mask_probability: 0.10, categorical_replacement_probability: 0.10, lane_probability: 0.10, landcover_mask_fraction: 0.10, dem_noise_sd_m: 1.0}
+  - {profile_id: strong_2.0x, scale: 2.0, removal_fraction: 0.20, jitter_probability: 0.40, jitter_displacement_m: 2.0, simplification_tolerance_m: 2.0, categorical_mask_probability: 0.20, categorical_replacement_probability: 0.20, lane_probability: 0.20, landcover_mask_fraction: 0.20, dem_noise_sd_m: 2.0}
 fixed_parameters:
   geometry_complexity_quantile: 0.90
   poi_earliest_replacement_level: 4
   lane_offsets: [-1, 1]
   geometry_attempts_per_entity: 10
   geometry_failure_action: retain_unperturbed_entity_geometry
+  landcover_maximum_active_fronts: 4
+  landcover_target_rounding: ties_to_even_binary64
+  landcover_adjacency: eight_neighbor
 banks:
   physical_k: 16
   logical_prefixes: [2, 4, 8, 16]
@@ -28,7 +36,7 @@ banks:
   expected_physical_candidates: 116208
   expected_default_references: 58104
 seed:
-  version: p4-determinism-v1
+  version: p4-augmentation-v2
   fields: [version, namespace, profile_id, scene_id, master_view_id, operation, entity_id, attempt]
   missing_entity_sentinel: NONE
   missing_attempt_sentinel: NONE
@@ -45,6 +53,9 @@ seed:
     - categorical_replacement
     - lane_perturbation
     - landcover_mask
+    - landcover_seed
+    - landcover_frontier
+    - landcover_reseed
     - dem_gaussian
   uniform_integer: uint64_be_rejection_sampling
   uniform_real: upper_53_bits_binary64

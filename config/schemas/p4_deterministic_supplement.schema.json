@@ -1,1 +1,250 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["schema_version","supplement_version","authority_id","augmentation_contract_id","original_cache_id","population","profiles","fixed_parameters","banks","seed","removal","receiver_absorption","operation_order","execution"],"properties":{"schema_version":{"const":"1.0.0"},"supplement_version":{"const":"p4-determinism-v1"},"authority_id":{"const":"mta_f90fecff7bc7bb5d231cc79f"},"augmentation_contract_id":{"const":"mmc_065f894aea3f8475"},"original_cache_id":{"const":"oscache_c89fa07e3d6cb1819a7994a6"},"population":{"type":"object","required":["split","scenes"],"properties":{"split":{"const":"training"},"scenes":{"const":2421}},"additionalProperties":true},"profiles":{"type":"array","minItems":3,"maxItems":3,"items":{"type":"object","required":["profile_id","scale","removal_fraction","jitter_probability","jitter_displacement_m","simplification_tolerance_m","categorical_mask_probability","categorical_replacement_probability","lane_probability","landcover_mask_fraction","dem_noise_sd_m"]}},"fixed_parameters":{"type":"object","required":["geometry_complexity_quantile","poi_earliest_replacement_level","geometry_attempts_per_entity","geometry_failure_action"],"properties":{"geometry_complexity_quantile":{"const":0.9},"poi_earliest_replacement_level":{"const":4},"geometry_attempts_per_entity":{"const":10},"geometry_failure_action":{"const":"retain_unperturbed_entity_geometry"}},"additionalProperties":true},"banks":{"type":"object","required":["physical_k","logical_prefixes","default_k","expected_physical_candidates","expected_default_references"],"properties":{"physical_k":{"const":16},"logical_prefixes":{"const":[2,4,8,16]},"default_k":{"const":8},"expected_physical_candidates":{"const":116208},"expected_default_references":{"const":58104}},"additionalProperties":false},"seed":{"type":"object","required":["version","fields","domains","uniform_integer","uniform_real","gaussian","without_replacement"],"properties":{"version":{"const":"p4-determinism-v1"},"domains":{"type":"array","uniqueItems":true,"contains":{"const":"dem_gaussian"}}},"additionalProperties":true},"removal":{"type":"object","required":["integerization","force_minimum"],"properties":{"integerization":{"const":"floor_fraction_times_eligible_count"},"force_minimum":{"const":false}},"additionalProperties":true},"receiver_absorption":{"type":"object","required":["donor_order","geometry","source_nodes","prohibited"]},"operation_order":{"const":["entity_removal_and_road_link_absorption","geometry_perturbation","attribute_perturbation_and_geometry_dependent_updates","raster_perturbation","reconstruct_all_derived_observations"]},"execution":{"type":"object","required":["expected_branches","pass_a_workers","pass_b_workers","pass_c_workers","threads_per_worker"],"properties":{"expected_branches":{"const":288},"pass_a_workers":{"const":40},"pass_b_workers":{"const":10},"pass_c_workers":{"const":5},"threads_per_worker":{"const":1}},"additionalProperties":true}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "augmentation_contract_id": {
+      "const": "dynamic_from_augmentation_methodology_contract"
+    },
+    "authority_id": {
+      "const": "dynamic_from_reduced_methodology_authority"
+    },
+    "banks": {
+      "additionalProperties": false,
+      "properties": {
+        "default_k": {
+          "const": 8
+        },
+        "expected_default_references": {
+          "const": 58104
+        },
+        "expected_physical_candidates": {
+          "const": 116208
+        },
+        "logical_prefixes": {
+          "const": [
+            2,
+            4,
+            8,
+            16
+          ]
+        },
+        "physical_k": {
+          "const": 16
+        }
+      },
+      "required": [
+        "physical_k",
+        "logical_prefixes",
+        "default_k",
+        "expected_physical_candidates",
+        "expected_default_references"
+      ],
+      "type": "object"
+    },
+    "dissertation_commit": {
+      "const": "109355b3d744248ca14749c5f74511537970d660"
+    },
+    "execution": {
+      "additionalProperties": true,
+      "properties": {
+        "expected_branches": {
+          "const": 288
+        },
+        "pass_a_workers": {
+          "const": 40
+        },
+        "pass_b_workers": {
+          "const": 10
+        },
+        "pass_c_workers": {
+          "const": 5
+        },
+        "threads_per_worker": {
+          "const": 1
+        }
+      },
+      "required": [
+        "expected_branches",
+        "pass_a_workers",
+        "pass_b_workers",
+        "pass_c_workers",
+        "threads_per_worker"
+      ],
+      "type": "object"
+    },
+    "fixed_parameters": {
+      "additionalProperties": true,
+      "properties": {
+        "geometry_attempts_per_entity": {
+          "const": 10
+        },
+        "geometry_complexity_quantile": {
+          "const": 0.9
+        },
+        "geometry_failure_action": {
+          "const": "retain_unperturbed_entity_geometry"
+        },
+        "poi_earliest_replacement_level": {
+          "const": 4
+        },
+        "landcover_maximum_active_fronts": {
+          "const": 4
+        },
+        "landcover_target_rounding": {
+          "const": "ties_to_even_binary64"
+        },
+        "landcover_adjacency": {
+          "const": "eight_neighbor"
+        }
+      },
+      "required": [
+        "geometry_complexity_quantile",
+        "poi_earliest_replacement_level",
+        "geometry_attempts_per_entity",
+        "geometry_failure_action",
+        "landcover_maximum_active_fronts",
+        "landcover_target_rounding",
+        "landcover_adjacency"
+      ],
+      "type": "object"
+    },
+    "operation_order": {
+      "const": [
+        "entity_removal_and_road_link_absorption",
+        "geometry_perturbation",
+        "attribute_perturbation_and_geometry_dependent_updates",
+        "raster_perturbation",
+        "reconstruct_all_derived_observations"
+      ]
+    },
+    "original_cache_id": {
+      "const": "dynamic_from_original_scene_dataset_acceptance"
+    },
+    "population": {
+      "additionalProperties": true,
+      "properties": {
+        "scenes": {
+          "const": 2421
+        },
+        "split": {
+          "const": "training"
+        }
+      },
+      "required": [
+        "split",
+        "scenes"
+      ],
+      "type": "object"
+    },
+    "profiles": {
+      "items": {
+        "required": [
+          "profile_id",
+          "scale",
+          "removal_fraction",
+          "jitter_probability",
+          "jitter_displacement_m",
+          "simplification_tolerance_m",
+          "categorical_mask_probability",
+          "categorical_replacement_probability",
+          "lane_probability",
+          "landcover_mask_fraction",
+          "dem_noise_sd_m"
+        ],
+        "type": "object"
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "type": "array"
+    },
+    "receiver_absorption": {
+      "required": [
+        "donor_order",
+        "geometry",
+        "source_nodes",
+        "prohibited"
+      ],
+      "type": "object"
+    },
+    "removal": {
+      "additionalProperties": true,
+      "properties": {
+        "force_minimum": {
+          "const": false
+        },
+        "integerization": {
+          "const": "floor_fraction_times_eligible_count"
+        }
+      },
+      "required": [
+        "integerization",
+        "force_minimum"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "seed": {
+      "additionalProperties": true,
+      "properties": {
+        "domains": {
+          "contains": {
+            "const": "dem_gaussian"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "version": {
+          "const": "p4-augmentation-v2"
+        }
+      },
+      "required": [
+        "version",
+        "fields",
+        "domains",
+        "uniform_integer",
+        "uniform_real",
+        "gaussian",
+        "without_replacement"
+      ],
+      "type": "object"
+    },
+    "supersedes": {
+      "additionalProperties": false,
+      "properties": {
+        "supplement": {"const": "p4-determinism-v1"},
+        "bank_id": {"const": "augbank_a470cb156612cff12fb316fc"},
+        "logical_index_id": {"const": "abi_f9ff792612ca86f486576491"}
+      },
+      "required": [
+        "supplement",
+        "bank_id",
+        "logical_index_id"
+      ],
+      "type": "object"
+    },
+    "supplement_version": {
+      "const": "p4-augmentation-v2"
+    }
+  },
+  "required": [
+    "schema_version",
+    "supplement_version",
+    "authority_id",
+    "augmentation_contract_id",
+    "original_cache_id",
+    "population",
+    "profiles",
+    "fixed_parameters",
+    "banks",
+    "seed",
+    "removal",
+    "receiver_absorption",
+    "operation_order",
+    "execution",
+    "dissertation_commit",
+    "supersedes"
+  ],
+  "type": "object"
+}

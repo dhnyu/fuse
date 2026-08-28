@@ -5,7 +5,7 @@
 - **상태:** 승인된 read-only audit를 반영한 active implementation blueprint.
 - **개정 시각:** 2026-08-27 KST.
 - **구현 저장소 기준:** `/members/dhnyu/fuse`, branch `reduced`, HEAD `075504fa7aea7eba0eec5a990c8a87636a2c9ad2`.
-- **논문 저장소 기준:** `/members/dhnyu/dhnyu-masters-dissertation`, branch `reduced`, HEAD `e66d17d65e97a5e3f50fa9a111a51559db05666f`.
+- **논문 저장소 기준:** `/members/dhnyu/dhnyu-masters-dissertation`, branch `reduced`, HEAD `109355b3d744248ca14749c5f74511537970d660`.
 - **승인 근거:** [20260827_1748 reduced methodology read-only audit](../reports/20260827_1748_reduced_methodology_read_only_audit.md).
 - **방법론 권위:** dissertation reduced Typst 원문, 승인 감사 보고서, 이 blueprint, 기존 구현/artifact 순이다.
 - **작업 범위:** 이 개정은 구현 계획만 변경한다. R/Python/config/schema/test/target graph/store/artifact/dissertation은 이 작업에서 변경하거나 실행하지 않는다.
@@ -169,7 +169,7 @@ Each phase uses the same promotion fields: purpose, authoritative inputs, target
 | Field | Contract |
 |---|---|
 | Purpose | Freeze the dissertation reduced branch and imported Typst source set as immutable methodology authority. |
-| Authoritative inputs | Dissertation `reduced` at `e66d17d65e97a5e3f50fa9a111a51559db05666f`; ordered imports; approved audit. |
+| Authoritative inputs | Dissertation `reduced` at `109355b3d744248ca14749c5f74511537970d660`; ordered imports; approved baseline audit plus the tracked revised P4 authority supplement. |
 | Output artifact | Source-set manifest, git-state record, module contracts, conflict-gate result, aggregate authority manifest. |
 | Schema requirements | Branch, full commit, dirty flag, ordered path/hash list, import edges, module name/version/hash, conflict list, audit SHA, authority ID. |
 | Scientific fingerprint | SHA-256 of commit + ordered imported file hashes + module contract hashes + schema/implementation versions. |
@@ -407,7 +407,7 @@ Every augmented road record/schema can represent:
 - Apply exactly: entity removal/road absorption, geometry perturbation, attribute perturbation and geometry-dependent updates, raster perturbation, reconstruction of all derived observations.
 - Reconstructed outputs include centers, relative positions, intrinsic geometry, geometry-derived building/road attributes, object environmental context, scene rasters, relations, `SN` and source-node-based `CON`.
 
-#### User-approved deterministic implementation supplement (`p4-determinism-v1`)
+#### Superseded deterministic implementation supplement (`p4-determinism-v1`)
 
 This supplement freezes byte-level mechanics that the dissertation and immutable P0 contract did not specify. It does not change the scientific augmentation operations, does not modify P0-P3 artifacts, and applies only to P4 bank identities and descendants. The tracked source is `config/p4_deterministic_augmentation.yml`; the obsolete `config/augmentation.yml` is not an active P4 parent.
 
@@ -417,22 +417,44 @@ This supplement freezes byte-level mechanics that the dissertation and immutable
 - Multiple donors assigned to one receiver are composed as an ordered multipart value: receiver parts first, then donor parts by canonical donor road ID and original part index. Component direction and each original source-node-chain order are retained; component and chain boundaries use nested offsets. The complete donor-to-receiver map is fixed before relation remapping, and donor receivers, chains, cycles and cross-type/hierarchy assignments are prohibited.
 - P4 publishes three independent training profiles (`0.5x`, `1.0x`, `2.0x`) over exactly 2,421 training scenes. Each profile has a physical K16 master. Logical K2/K4/K8/K16 banks are prefixes `[0:K)` of that same ordered master; K8 payloads are references, not copies. This yields 116,208 physical views and 58,104 main K8 references. Validation and evaluation scenes remain outside P4.
 
-#### P4 implementation evidence (2026-08-28)
+The immutable v1 bank `augbank_a470cb156612cff12fb316fc` and logical index `abi_f9ff792612ca86f486576491` are preserved as superseded lineage and are never overwritten.
+
+#### Revised augmentation supplement (`p4-augmentation-v2`)
+
+Dissertation `reduced@109355b3d744248ca14749c5f74511537970d660` is authoritative. The v2 namespace retains the receiver-absorption, dependency, per-entity ten-attempt fallback, relation-preservation and K16/K2/K4/K8 mechanics above, but it has a distinct RNG identity and the following revised scientific parameters.
+
+| Parameter | Weak `0.5x` | Main `1.0x` | Strong `2.0x` |
+|---|---:|---:|---:|
+| `r_rem` | 0.05 | 0.10 | 0.20 |
+| `p_jit` | 0.10 | 0.20 | 0.40 |
+| `Delta_jit` | 0.5 m | 1 m | 2 m |
+| `delta_simp` | 0.5 m | 1 m | 2 m |
+| `p_catmask`, `p_catrep`, `p_lane`, `r_rasmask` | 0.05 | 0.10 | 0.20 |
+| `sigma_DEM` | 0.5 m | 1 m | 2 m |
+| `q_simp`, `k_poirep`, `B_ras` | 0.90, 4, 4 | 0.90, 4, 4 | 0.90, 4, 4 |
+
+- Eligible non-protected vertices are selected independently by Bernoulli draws. The implementation does not require a strict subset to change.
+- Land-cover masking selects exactly `round(r_rasmask * N_valid)` valid cells with eight-neighbor block growth. At most four fronts are active, front scheduling is round-robin, exhausted fronts are deterministically reseeded, regions may merge, and nodata is never selected.
+- The mask records initial seeds, reseeds, selection/front-order digests, maximum concurrent fronts and realized component count. The same intentional-mask field is used for scene and entity context, remains distinct from nodata, and is removed from entity valid support.
+- The same realized DEM noise field is shared by scene and entity-level representations.
+- P4/P5/P6 configuration identity is the SHA-256 of strict parsed canonical JSON (sorted mappings, preserved sequence/scalar semantics, compact UTF-8 and one LF). Raw YAML hashes are provenance only; duplicate keys, unsupported tags and non-finite values are rejected.
+
+#### P4 implementation evidence (2026-08-29)
 
 | Field | Accepted implementation |
 |---|---|
-| Status | `P4_FIXED_AUGMENTATION_BANKS_PASS`; deterministic fixed training banks accepted under supplement `p4-determinism-v1`. |
+| Status | `PASS`; revised deterministic fixed training banks accepted under supplement `p4-augmentation-v2`, schema `1.0.0`. The v1 bank remains immutable and superseded. |
 | Parent | Original-scene cache `oscache_c89fa07e3d6cb1819a7994a6`; P3 acceptance `osca_a55d2c02c3737c5f5557092a`. |
 | Canonical targets | `augmentation_profile_plan`, `road_link_absorption_smoke`, `geometry_consistency_smoke`, `augmentation_bank_plan`, `augmentation_bank_shard`, `augmentation_bank_shard_validation`, `augmentation_bank_acceptance`, `effective_augmentation_bank_index`, `augmentation_bank_benchmark`. |
-| Identity | Physical master bank `augbank_a470cb156612cff12fb316fc`; acceptance `aba_b6ee67e0d798020a6c418c05`; logical index `abi_f9ff792612ca86f486576491`. |
+| Identity | Physical master bank `augbank_252ce67e6d74679b02871e57`; acceptance `aba_39de6c260a8e427767bc01d6`; logical index `abi_66dfe52602ffe442336685e0`. |
 | Scope | 2,421 training scenes only; weak/main/strong profiles; 116,208 physical K16 views and 58,104 logical K8 references. Validation/evaluation bank membership is zero. |
-| Deterministic mechanics | Domain-separated SHA-256 counter draws, floor removal counts, per-entity ten-attempt geometry fallback, and canonical multi-donor receiver composition are schema- and fixture-validated. |
-| Scientific QC | Missing/duplicate candidates, invalid receivers/cycles/geometries, float32 geometry, derived-value inconsistencies, relation/topology/raster violations and RNG replay mismatches are all zero. Maximum geometry-derived error is 0. |
-| Geometry fallback | Weak 8,906; main 32,375; strong 906,879 entity fallbacks. Each retains original geometry after ten failed attempts with complete provenance; unresolved candidate failures are zero. |
-| Road absorption | Weak 28,582 donors/28,133 groups; main 56,793/55,032; strong 112,911/105,433. Donor provenance count equals absorbed-donor count in every profile. |
-| Execution | Pass A dispatched all 288 branches with 40 one-thread workers and completed 288/288; native/resource/scientific failures were zero. Pass B and Pass C had no retry input and were not run. |
-| Payload | 10,849,576,960 bytes total: weak 2,721,812,480; main 3,354,890,240; strong 4,772,874,240. |
-| Determinism | Aggregate content SHA-256 `7e4a629367de14159264c9cb7bc6254e16715d14460037770409a384dd790151`; repeated explicit final selection skipped all 1,359 targets, rewrote no payload, and left P4 outdated count at zero. |
+| Deterministic mechanics | A v2-specific SHA-256 RNG namespace, Bernoulli vertex selection, per-entity ten-attempt geometry fallback, canonical multi-donor composition and deterministic eight-neighbor land-cover block growth with at most four fronts are schema- and fixture-validated. |
+| Scientific QC | The 24-scene pilot and all 116,208 production views had zero missing/duplicate candidates, invalid geometries, preserved-relation violations, dangling references, schema violations, block-mask count errors or RNG replay mismatches. |
+| Geometry fallback | Production fallbacks: weak 8,494; main 8,372; strong 15,998. In the bounded v1/v2 pilot, main fell from 3,652 to 298 and strong from 44,290 to 1,495, while weak-to-main-to-strong realized perturbation remained monotone. |
+| Road absorption | Weak 27,855 donors/27,432 groups; main 56,999/55,175; strong 111,805/104,522. Donor provenance count equals absorbed-donor count in every profile. |
+| Execution | Pass A dispatched all 288 branches with 40 one-thread workers, reached 40 concurrent processes and completed 288/288 in 11,154.779 seconds; native/resource/scientific/unattempted counts were zero. Pass B and Pass C had no retry input and were not run. |
+| Payload | 16,836,618,240 bytes total: weak 5,522,186,240; main 5,594,982,400; strong 5,719,449,600. |
+| Determinism | Aggregate content SHA-256 `83ea470aa6656d57f15b34f344dd9f712a4f13728f991ca1d5e84654673e029b`; repeated explicit final selection skipped 600 reachable targets, built zero targets and rewrote no payload. |
 | Upstream protection | All 96 P3 tar path/size/mtime/SHA records and P3 manifest/acceptance checksums are unchanged. |
 | Promotion | P5 may consume the accepted augmenter/profile implementation, but fixed validation/evaluation queries remain separate artifacts and namespaces. |
 
@@ -465,7 +487,7 @@ This supplement freezes byte-level mechanics that the dissertation and immutable
 
 Training bank, validation query and evaluation query roots must be distinct, for example `training_banks/`, `fixed_queries/validation/`, and `fixed_queries/evaluation/`. No manifest may list an artifact from another namespace as a view member.
 
-#### P5 deterministic-query supplement (`p5-fixed-query-v1`)
+#### Superseded deterministic-query supplement (`p5-fixed-query-v1`)
 
 This user-approved implementation supplement completes byte-level mechanics that are not fixed by the dissertation while preserving its two independently augmented, fixed `1.0x` views per original. It applies only to P5 artifacts and does not alter or invalidate accepted P0-P4 artifacts.
 
@@ -481,19 +503,23 @@ This user-approved implementation supplement completes byte-level mechanics that
 | Publication | Schema `1.0.0`, branch-isolated staging, independent validation, atomic publication and hard failure for same-ID/different-content collision. |
 | Scientific identity exclusions | Absolute paths, host/user, timestamps, worker/shard counts, store/staging paths and device information. |
 
-#### P5 implementation evidence (2026-08-28)
+#### Revised deterministic-query supplement (`p5-fixed-query-v2`)
+
+P5 v2 preserves the exact 400/800 validation and 1,600/3,200 evaluation populations, isolated namespaces, query indices `{0,1}`, P3 gallery references and `main_1.0x` profile. Its root identity additionally binds dissertation `109355b3d744248ca14749c5f74511537970d660`, `p4-augmentation-v2`, the revised accepted augmenter checksum and strict canonical configuration checksum. It never references P4 K16/K8 membership. The v1 query authority and all 192 v1 shards remain immutable and superseded.
+
+#### P5 implementation evidence (2026-08-29)
 
 | Field | Accepted implementation |
 |---|---|
-| Status | `PASS`; supplement `p5-fixed-query-v1`, artifact schema `1.0.0`. |
+| Status | `PASS`; supplement `p5-fixed-query-v2`, artifact schema `1.0.0`. The v1 query lineage remains immutable and superseded. |
 | Targets | `p5_deterministic_contract_files` -> `fixed_query_methodology_contract` -> `fixed_query_shard_plan` -> split plans -> mapped `fixed_query_shard` and `fixed_query_shard_validation` -> `fixed_query_acceptance_bundle` -> split acceptances -> `fixed_query_acceptance`. |
 | Parent | P3 cache `oscache_c89fa07e3d6cb1819a7994a6` and acceptance `osca_a55d2c02c3737c5f5557092a`; accepted P4 augmenter behavior is reused without P4 bank membership or payload mutation. |
-| Query authority | `fqa_bee6289f2531ae48c6f3a550`; validation index `fqi_00a6e199fa4514ae0d8c701d`, gallery `fgg_325a8031c9428d72943848ff`; evaluation index `fqi_55aa7d01752b5f3b1bdbd6c2`, gallery `fgg_2fa46178130bfc397a9e722c`. |
+| Query authority | `fqa_89741b3e7b3ff7e44597ca67`; validation index `fqi_d7ec7e7a88237145e72e6f8a`, gallery `fgg_325a8031c9428d72943848ff`; evaluation index `fqi_6ecc67271d84706614942d31`, gallery `fgg_2fa46178130bfc397a9e722c`. |
 | Population | Validation 400 originals/800 queries/400 gallery references; evaluation 1,600 originals/3,200 queries/1,600 gallery references; training membership and cross-split references are zero. |
-| Acceptance | Aggregate `fqaac_ee6a31db9941031d3db650f6`; validation `fqsa_adee2b7d92f37f33ba9e3882`; evaluation `fqsa_3a2581d57c735d2e5ebc91fd`. Population, seed, lineage, schema, topology, relation, dangling-reference and leakage checks passed independently. |
-| Publication | 192 immutable query branches and 411,361,280 payload bytes; gallery manifests reference P3 originals without payload duplication. |
-| Execution | Pass A used 40 one-thread workers, reached 40 concurrent branch processes and completed all 192 canonical branches without native, resource or scientific failure. Pass B/C had no input and were not run. |
-| Determinism | Aggregate content SHA-256 `ee6a31db9941031d3db650f67d1fa7029b28e832236cf6e961b6ac5f5c53f004`; immediate repeated final selection was fully current, rewrote no accepted payload, and preserved file size/mtime/checksum identity. |
+| Acceptance | Aggregate `fqaac_9151e9e0a34525ac8ecdb444`; validation `fqsa_27565de68d9432e47fe7b99d`; evaluation `fqsa_10b033797d7e225139d85f34`. Population, seed, lineage, schema, topology, relation, dangling-reference and leakage checks passed independently. |
+| Publication | 192 immutable query branches and 380,395,520 payload bytes; gallery manifests reference P3 originals without payload duplication. |
+| Execution | Pass A used 40 one-thread workers, reached 40 concurrent branch processes and completed all 192 canonical branches in 428.369 seconds without native, resource, scientific or unattempted failures. Pass B/C had no input and were not run. |
+| Determinism | Immediate repeated final selection was fully current, rewrote no accepted payload, and preserved file size/mtime/checksum identity. |
 | Promotion | P5 is ready for P6 implementation. Evaluation-query artifacts remain prohibited ancestors of training, validation history, early stopping, checkpoint selection and hyperparameter selection. |
 
 <a id="p6-model-and-dataloader"></a>
@@ -513,6 +539,8 @@ This user-approved implementation supplement completes byte-level mechanics that
 | Promotion criteria | P0-P6 authority, architecture, DataLoader and CPU functional gates PASS with repeated final selection fully current. |
 | Downstream invalidation | Model/loader/objective change invalidates P7 onward, not P1-P5 artifacts unless schema input changes. |
 | Prohibited early execution | No optimizer/training before P6 acceptance; no scene-level augmentation in loader; no raster modality masking. |
+
+P6 uses the unchanged architecture while resolving P0/P3/P4/P5 parent IDs from accepted target values at execution time. The tracked P6 YAML canonical checksum is `499cda4904633b052a5b55e50212d7f8dc423fe7ece9bdb8e823e1d44c4d21f8`; paths are excluded from its scientific sub-hash. Revised P4 intentional land-cover masks use the existing second non-class embedding (`C_cat+2`) and remain distinct from nodata without changing the 934,420 parameter architecture.
 
 | Target | Direct dependencies | Role |
 |---|---|---|
@@ -576,20 +604,20 @@ This user-approved implementation supplement completes byte-level mechanics that
 | POI-attribute decoder | 64 | Linear(64,64), GELU, six categorical heads | target-dependent |
 | Environmental-background decoder | 64 | Linear(64,64), GELU, composition 64->22 plus continuous 64->4 | 22 + 4 |
 
-#### P6 implementation evidence (2026-08-28)
+#### P6 implementation evidence (2026-08-29)
 
 | Field | Accepted implementation |
 |---|---|
 | Status | `PASS`; schema and implementation version `1.0.0` / `p6-model-dataloader-v1`. |
 | Targets | `p6_model_dataloader_contract_files` -> `d64_model_architecture_contract`; accepted P3/P4/P5 -> `p6_preprocessing_contract` -> `p6_dataloader_acceptance` -> `d64_encoder_cpu_smoke` -> `model_data_acceptance`. |
-| Identities | Model authority `dma_fefd227ca3d2aae5333e5a6f`; preprocessing `ppc_6a90939ebcde95c8b7a8ad45`; DataLoader acceptance `dla_c3b4a300450866fcd562cabe`; CPU smoke `dcs_8ce168daa68be002952d4f5a`; aggregate `mda_4b50451c69887e8569386225`. |
+| Identities | Model authority `dma_c09fdf20f402774af8e4ac24`; preprocessing `ppc_4465193d7d1af28291492ee0`; DataLoader acceptance `dla_ac640dacf3adcc8f38219589`; CPU smoke `dcs_14f14a5d63675f161e603c0b`; aggregate `mda_2dba53473f273769394a38f2`. |
 | Architecture | All 33 P0 architecture rows matched; `d=d_c=64`, `d_t=16`, `d_r=32`, 3 relation layers, 4 heads x 16, FFN 64->128->64 and dropout 0.2. Total trainable parameters: 934,420; non-trainable: 0. |
 | DataLoader | Training 2,421 scenes and 19,368 main K8 references; validation 400 gallery/800 fixed queries; evaluation 1,600 gallery/3,200 fixed queries. Split leakage and duplicate/missing membership were zero. |
 | Tensor boundary | P3/P4/P5 checksums and lineage are verified read-only; scientific geometry and source-node coordinates remain float64, with explicit float32 conversion only at the model boundary. Ragged entity, geometry, relation and variable-length topology offsets are preserved without dummy scientific rows. |
 | CPU smoke | Twelve accepted edge-case roles and nine batches passed reader, collation, endpoint, finite `(batch,64)`, exact eval replay and query-positive lineage checks. Maximum batch-composition error was `2.205371856689453e-6`. |
 | Execution | Manifest/CPU-only sequential graph; no branch tiers were applicable. No optimizer, backward, checkpoint, full inference, retrieval metric, maintenance or GPU target was executed. |
-| Determinism | Immediate repeated `model_data_acceptance` selection skipped all 1,757 reachable records, rewrote no P6 artifact and left the P6 final lineage with zero outdated targets. |
-| Parent immutability | P3 96, P4 288 and accepted P5 192 payload shard path/size/mtime/SHA-256 snapshots were identical before and after P6. |
+| Determinism | Normal `model_data_acceptance` ancestry traversal completed 400 targets and skipped 605; immediate repetition skipped all 1,005 reachable targets, built zero targets and rewrote no P6 artifact. Active revised P4/P5/P6 targets are not outdated. |
+| Parent immutability | The pre/post snapshot of 1,770 accepted P0-P6 v1 files, including P3 96, old P4 288 and old P5 192 payload shards, had zero path/size/mtime/SHA-256 changes. |
 | Promotion | P6 is ready for P7 Prototype Training implementation; P7 execution remains prohibited until separately authorized. |
 
 <a id="p7-prototype-training"></a>

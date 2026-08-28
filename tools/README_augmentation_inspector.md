@@ -1,6 +1,6 @@
 # P4 Augmentation Inspector
 
-This standalone utility provides human visual QC for accepted P3 original scenes and P4 fixed augmentation banks. It is deliberately outside the scientific `targets` graph: it reads immutable artifacts, embeds only requested scene/view cases, and never regenerates augmentation data. Visual inspection supplements, but does not replace, P4 scientific acceptance.
+This standalone utility provides human visual QC for accepted P3 original scenes and P4 fixed augmentation banks, including the revised `p4-augmentation-v2` lineage. It is deliberately outside the scientific `targets` graph: it reads immutable artifacts, embeds only requested scene/view cases, and never regenerates augmentation data. Visual inspection supplements, but does not replace, P4 scientific acceptance.
 
 ## Requirements
 
@@ -26,10 +26,13 @@ Render the deterministic QC preset:
 
 ```bash
 python tools/render_augmentation_inspector.py \
-  --preset qc-extremes \
+  --preset v1-reference \
   --max-cases 8 \
-  --output artifacts/augmentation-inspector/p4-augmentation-inspector.html
+  --output artifacts/augmentation-inspector/p4-augmentation-inspector.html \
+  --overwrite
 ```
+
+For direct P4 v1/v2 comparison, `--preset v1-reference` preserves the eight previously published scene/view pairs. It is the preset used for the revised representative inspector.
 
 Existing output is protected. Add `--overwrite` only when intentionally replacing a generated inspector. Validate an existing file without reading artifacts:
 
@@ -51,7 +54,7 @@ The four columns compare the original scene with weak (`0.5x`), main (`1.0x`), a
 
 **Attribute transformation** provides profile summaries and a searchable, sortable, paginated table. `null`, masked values, and recorded strings remain distinct. Filters are ordered by profile, entity type, operation, and a dependent attribute selector populated only from the current case's embedded rows. Attribute options show matching counts and update when categorical filters or the changed-only state changes. The search box intentionally searches only entity IDs and original/augmented values; attribute names belong in the dedicated selector. `Reset filters` restores all categorical filters, clears search, checks changed-only, returns to page one, and restores the default profile sort. Empty results are reported explicitly rather than as a blank table.
 
-The provenance drawer records artifact IDs, candidate IDs, branch and candidate-slice checksums, K8 membership, fallback counts, absorption counts, relation summaries, and validation status. `Not recorded` means the scientific payload contains no such field; the inspector does not infer it.
+The provenance drawer records artifact IDs, candidate IDs, branch and candidate-slice checksums, K8 membership, fallback counts, absorption counts, relation summaries, and validation status. For P4 v2 it also records the block-growth algorithm, initial-seed and reseed counts, maximum concurrent fronts, realized components, and selection/frontier digests. Cyan outlines expose realized mask-region boundaries without resampling the raster. `Not recorded` means the scientific payload contains no such field; the inspector does not infer it.
 
 Geometry fallback means all ten deterministic entity-level perturbation attempts failed and P4 retained that entity's original geometry. Road donor/receiver styling follows the accepted receiver-group absorption provenance; the original P3 topology is never edited.
 

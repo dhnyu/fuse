@@ -10,12 +10,14 @@ kst_stamp <- function() {
 
 set_single_thread_environment <- function() {
   set_native_thread_limits(1L)
+  Sys.setenv(PYTHONDONTWRITEBYTECODE = "1")
 }
 
 native_thread_environment_variables <- function() {
   c(
     "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
-    "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS", "GDAL_NUM_THREADS"
+    "BLIS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
+    "GDAL_NUM_THREADS", "ARROW_NUM_THREADS"
   )
 }
 
@@ -28,9 +30,23 @@ assert_positive_integer <- function(value, label) {
   integer
 }
 
+assert_nonnegative_integer <- function(value, label) {
+  integer <- suppressWarnings(as.integer(value))
+  if (length(value) != 1L || is.na(integer) ||
+      !identical(as.character(integer), as.character(value)) || integer < 0L) {
+    stop(label, " must be a nonnegative integer", call. = FALSE)
+  }
+  integer
+}
+
 fuse_controller_worker_count <- function(variable, default) {
   value <- Sys.getenv(variable, unset = as.character(default))
   assert_positive_integer(value, variable)
+}
+
+fuse_controller_crash_limit <- function(variable, default = 0L) {
+  value <- Sys.getenv(variable, unset = as.character(default))
+  assert_nonnegative_integer(value, variable)
 }
 
 fuse_parallel_spec <- function(workers, threads, available = parallelly::availableCores()) {

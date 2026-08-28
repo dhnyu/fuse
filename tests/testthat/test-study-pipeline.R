@@ -69,14 +69,18 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "original_scene_shard_validation", "original_scene_geometry_roundtrip",
       "original_scene_cache_index", "original_scene_cache_manifest",
       "original_scene_dataset_acceptance",
+      "accepted_immutable_parent_config", "accepted_p1_scene_index_reference",
+      "accepted_p2_base_spatial_reference", "accepted_p3_shard_files_reference",
+      "accepted_p3_shard_reference", "accepted_p3_index_reference",
+      "accepted_p3_dataset_acceptance_reference",
       "p4_deterministic_contract_files", "augmentation_profile_plan",
       "road_link_absorption_smoke", "geometry_consistency_smoke",
-      "augmentation_bank_plan", "augmentation_bank_shard",
+      "augmentation_bank_plan", "augmentation_bank_execution", "augmentation_bank_shard",
       "augmentation_bank_shard_validation", "augmentation_bank_acceptance",
       "effective_augmentation_bank_index", "augmentation_bank_benchmark",
       "p5_deterministic_contract_files", "fixed_query_methodology_contract",
       "fixed_query_shard_plan", "fixed_validation_query_plan",
-      "fixed_evaluation_query_plan", "fixed_query_branch_plan",
+      "fixed_evaluation_query_plan", "fixed_query_execution", "fixed_query_branch_plan",
       "fixed_query_shard", "fixed_query_shard_validation",
       "fixed_query_acceptance_bundle", "fixed_validation_query_acceptance",
       "fixed_evaluation_query_acceptance", "fixed_query_acceptance",
@@ -100,6 +104,15 @@ test_that("controller and target-level parallel specifications are validated", {
   expect_equal(fuse_controller_worker_count(variable, 3L), 7L)
   Sys.setenv(FUSE_TEST_CONTROLLER_WORKERS = "0")
   expect_error(fuse_controller_worker_count(variable, 3L), "positive integer")
+
+  crash_variable <- "FUSE_TEST_CONTROLLER_CRASHES"
+  crash_old <- Sys.getenv(crash_variable, unset = NA_character_)
+  on.exit(if (is.na(crash_old)) Sys.unsetenv(crash_variable) else
+    do.call(Sys.setenv, setNames(list(crash_old), crash_variable)), add = TRUE)
+  Sys.setenv(FUSE_TEST_CONTROLLER_CRASHES = "0")
+  expect_equal(fuse_controller_crash_limit(crash_variable, 5L), 0L)
+  Sys.setenv(FUSE_TEST_CONTROLLER_CRASHES = "-1")
+  expect_error(fuse_controller_crash_limit(crash_variable, 5L), "nonnegative integer")
 
   specification <- fuse_parallel_spec(5, 4, available = 48)
   expect_equal(specification$workers, 5L)

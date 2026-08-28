@@ -29,7 +29,7 @@ def main():
     candidates=[]; profile_stats=defaultdict(Counter); payload_bytes=Counter(); ordered=[]; attempt_stats=defaultdict(Counter); relation_stats=defaultdict(lambda:defaultdict(Counter))
     for manifest_path,manifest in sorted(zip(spec["manifests"],manifests),key=lambda x:x[1]["branch_id"]):
         payload=Path(manifest_path).parent/manifest["payload"]["filename"]; rows=table(payload,"candidates"); candidates.extend(rows)
-        absorptions=table(payload,"absorption")
+        absorptions=table(payload,"absorption"); masks=table(payload,"landcover_mask_provenance")
         profile=manifest["profile_id"]; payload_bytes[profile]+=manifest["payload"]["size_bytes"]
         for row in rows:
             stat=profile_stats[profile]; stat["physical_candidates"]+=1; stat["primary_removals"]+=row["primary_removal_count"]; stat["direct_removals"]+=row["direct_removed_count"]
@@ -42,6 +42,17 @@ def main():
         profile_stats[profile]["absorbed_donors_provenance"]+=len(accepted)
         profile_stats[profile]["receiver_groups"]+=len({(x["candidate_id"],x["receiver"]) for x in accepted})
         profile_stats[profile]["unique_receivers"]+=len({(x["scene_id"],x["receiver"]) for x in accepted})
+        if len(masks) != len(rows): raise SystemExit("land-cover provenance coverage failed")
+        for mask in masks:
+            if int(mask["target_mask_count"]) != int(round(float(manifest["profile"]["landcover_mask_fraction"]) * int(mask["valid_cell_count"]))):
+                raise SystemExit("land-cover exact target count failed")
+            if int(mask["maximum_concurrent_fronts"]) > 4: raise SystemExit("land-cover concurrent-front contract failed")
+            profile_stats[profile]["landcover_initial_seeds"] += len(json.loads(mask["initial_seeds_json"]))
+            profile_stats[profile]["landcover_reseeds"] += len(json.loads(mask["reseeds_json"]))
+            profile_stats[profile]["landcover_components"] += int(mask["realized_component_count"])
+            profile_stats[profile]["landcover_maximum_concurrent_fronts"] = max(
+                profile_stats[profile]["landcover_maximum_concurrent_fronts"], int(mask["maximum_concurrent_fronts"])
+            )
         ordered.append({"branch_id":manifest["branch_id"],"profile_id":profile,"payload_sha256":manifest["payload"]["sha256"],"logical_content_sha256":manifest["logical_content_sha256"]})
     if len(candidates)!=116208 or len({x["candidate_id"] for x in candidates})!=116208: raise SystemExit("physical candidate coverage failed")
     scenes={x["scene_id"] for x in candidates}; profiles={x["profile_id"] for x in candidates}
@@ -61,7 +72,7 @@ def main():
                  "relation_statistics":{rel:dict(values) for rel,values in sorted(relation_stats[name].items())}}
            for name,values in sorted(profile_stats.items())}
     maximum_error=max((float(x.get("maximum_geometry_derived_error",0.0)) for x in spec.get("validations",[])),default=0.0)
-    acceptance={"schema_version":"1.0.0","status":"PASS","acceptance_id":acceptance_id,"bank_id":spec["bank_id"],"parent_cache_id":spec["cache_id"],"parent_acceptance_id":spec["cache_acceptance_id"],
+    acceptance={"schema_version":"1.0.0","status":"PASS","supplement_version":spec["supplement_version"],"acceptance_id":acceptance_id,"bank_id":spec["bank_id"],"parent_cache_id":spec["cache_id"],"parent_acceptance_id":spec["cache_acceptance_id"],
                 "scene_count":2421,"profile_count":3,"physical_candidate_count":116208,"logical_k8_reference_count":58104,"branch_count":len(manifests),"profile_statistics":stats,
                 "total_payload_bytes":sum(payload_bytes.values()),"maximum_geometry_derived_error":maximum_error,
                 "aggregate_content_sha256":content,"violations":{"missing_candidates":0,"duplicate_candidates":0,"prefix":0,"scientific":0,
@@ -70,7 +81,7 @@ def main():
     Path(args.acceptance).write_bytes(canonical(acceptance))
     index_content=digest(index_rows); index_id="abi_"+index_content[:24]
     pq.write_table(pa.Table.from_pylist(index_rows),args.index_parquet,compression="zstd",use_dictionary=False)
-    index={"schema_version":"1.0.0","status":"PASS","index_id":index_id,"bank_id":spec["bank_id"],"scene_count":2421,"profile_count":3,"prefixes":[2,4,8,16],"default_k":8,"default_reference_count":58104,"row_count":len(index_rows),"content_sha256":index_content}
+    index={"schema_version":"1.0.0","status":"PASS","supplement_version":spec["supplement_version"],"index_id":index_id,"bank_id":spec["bank_id"],"scene_count":2421,"profile_count":3,"prefixes":[2,4,8,16],"default_k":8,"default_reference_count":58104,"row_count":len(index_rows),"content_sha256":index_content}
     Path(args.index_manifest).write_bytes(canonical(index))
 
 

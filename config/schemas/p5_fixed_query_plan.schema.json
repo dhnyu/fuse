@@ -5,8 +5,8 @@
   "properties": {
     "schema_version": {"const": "1.0.0"}, "status": {"const": "PASS"},
     "query_authority_id": {"pattern": "^fqa_[0-9a-f]{24}$"}, "plan_id": {"pattern": "^fqp_[0-9a-f]{24}$"},
-    "supplement_id": {"const": "p5-fixed-query-v1"}, "parent_cache_id": {"const": "oscache_c89fa07e3d6cb1819a7994a6"},
-    "parent_acceptance_id": {"const": "osca_a55d2c02c3737c5f5557092a"},
+    "supplement_id": {"const": "p5-fixed-query-v2"}, "parent_cache_id": {"pattern": "^oscache_[0-9a-f]{24}$"},
+    "parent_acceptance_id": {"pattern": "^osca_[0-9a-f]{24}$"},
     "branch_count": {"type": "integer", "minimum": 1}, "scene_count": {"const": 2000}, "query_count": {"const": 4000},
     "split_counts": {"type": "object", "required": ["validation", "evaluation"]},
     "scientific_fingerprint": {"pattern": "^[0-9a-f]{64}$"}, "implementation_hash": {"pattern": "^[0-9a-f]{64}$"},

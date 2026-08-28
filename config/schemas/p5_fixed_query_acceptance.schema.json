@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "status", "acceptance_id", "query_authority_id", "supplement_id", "parent_cache_id", "validation_acceptance_id", "evaluation_acceptance_id", "scene_count", "query_count", "gallery_count", "total_payload_bytes", "aggregate_content_sha256", "violations"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "status": {"const": "PASS"}, "acceptance_id": {"pattern": "^fqaac_[0-9a-f]{24}$"},
+    "query_authority_id": {"pattern": "^fqa_[0-9a-f]{24}$"}, "supplement_id": {"const": "p5-fixed-query-v1"},
+    "parent_cache_id": {"const": "oscache_c89fa07e3d6cb1819a7994a6"}, "scene_count": {"const": 2000},
+    "query_count": {"const": 4000}, "gallery_count": {"const": 2000}, "total_payload_bytes": {"type": "integer", "minimum": 1},
+    "aggregate_content_sha256": {"pattern": "^[0-9a-f]{64}$"}, "violations": {"type": "object"}
+  }, "additionalProperties": true
+}

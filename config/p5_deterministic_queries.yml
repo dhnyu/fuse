@@ -1,0 +1,67 @@
+schema_version: "1.0.0"
+supplement_id: p5-fixed-query-v1
+implementation_version: "1.0.0"
+authority_id: mta_f90fecff7bc7bb5d231cc79f
+augmentation_contract_id: mmc_065f894aea3f8475
+p3_cache_id: oscache_c89fa07e3d6cb1819a7994a6
+p3_acceptance_id: osca_a55d2c02c3737c5f5557092a
+p4_supplement_id: p4-determinism-v1
+p4_master_bank_id: augbank_a470cb156612cff12fb316fc
+p4_logical_index_id: abi_f9ff792612ca86f486576491
+p4_accepted_augmenter_sha256: 79f429652e329e347a5ac849be96e0bb9a7f1ab396466a4dd60a20d5411c73b8
+publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/fixed_queries
+profile:
+  profile_id: main_1.0x
+  scale: 1.0
+  removal_fraction: 0.10
+  jitter_probability: 0.50
+  jitter_displacement_m: 2.0
+  simplification_tolerance_m: 2.0
+  categorical_mask_probability: 0.10
+  categorical_replacement_probability: 0.10
+  lane_probability: 0.10
+  landcover_mask_fraction: 0.10
+  dem_noise_sd_m: 1.0
+namespaces:
+  validation:
+    namespace: validation-query
+    originals: 400
+    queries: 800
+    gallery: 400
+  evaluation:
+    namespace: evaluation-query
+    originals: 1600
+    queries: 3200
+    gallery: 1600
+query_indices: [0, 1]
+seed:
+  canonical_encoding: canonical_json_utf8_no_whitespace
+  root_fields:
+    - schema_version
+    - namespace
+    - scene_id
+    - query_index
+    - profile_id
+    - p3_cache_id
+    - augmentation_contract_id
+    - augmenter_implementation_sha256
+  operation_substream: sha256_root_digest_nul_canonical_operation_context
+  operation_context_fields: [operation, entity_id, attempt]
+  digest_to_rng: p4-determinism-v1
+  missing_sentinel: NONE
+publication:
+  training_bank_membership: prohibited
+  namespace_isolation: required
+  collision_policy: hard_failure_same_id_different_bytes
+  atomic: true
+execution:
+  pass_a_workers: 40
+  pass_b_workers: 10
+  pass_c_workers: 5
+  threads_per_worker: 1
+schemas:
+  supplement: config/schemas/p5_deterministic_query_supplement.schema.json
+  plan: config/schemas/p5_fixed_query_plan.schema.json
+  shard: config/schemas/p5_fixed_query_shard.schema.json
+  split_acceptance: config/schemas/p5_fixed_query_split_acceptance.schema.json
+  aggregate_acceptance: config/schemas/p5_fixed_query_acceptance.schema.json

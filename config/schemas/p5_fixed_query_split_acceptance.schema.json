@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "status", "acceptance_id", "query_authority_id", "namespace", "split", "scene_count", "query_count", "gallery_count", "query_index_id", "gallery_id", "mapping_id", "aggregate_content_sha256", "violations"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "status": {"const": "PASS"}, "acceptance_id": {"pattern": "^fqsa_[0-9a-f]{24}$"},
+    "query_authority_id": {"pattern": "^fqa_[0-9a-f]{24}$"}, "namespace": {"enum": ["validation-query", "evaluation-query"]},
+    "split": {"enum": ["validation", "evaluation"]}, "scene_count": {"enum": [400, 1600]}, "query_count": {"enum": [800, 3200]},
+    "gallery_count": {"enum": [400, 1600]}, "query_index_id": {"pattern": "^fqi_[0-9a-f]{24}$"},
+    "gallery_id": {"pattern": "^fgg_[0-9a-f]{24}$"}, "mapping_id": {"pattern": "^fqpm_[0-9a-f]{24}$"},
+    "aggregate_content_sha256": {"pattern": "^[0-9a-f]{64}$"}, "violations": {"type": "object"}
+  }, "additionalProperties": true
+}

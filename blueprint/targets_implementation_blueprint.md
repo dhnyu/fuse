@@ -465,6 +465,37 @@ This supplement freezes byte-level mechanics that the dissertation and immutable
 
 Training bank, validation query and evaluation query roots must be distinct, for example `training_banks/`, `fixed_queries/validation/`, and `fixed_queries/evaluation/`. No manifest may list an artifact from another namespace as a view member.
 
+#### P5 deterministic-query supplement (`p5-fixed-query-v1`)
+
+This user-approved implementation supplement completes byte-level mechanics that are not fixed by the dissertation while preserving its two independently augmented, fixed `1.0x` views per original. It applies only to P5 artifacts and does not alter or invalidate accepted P0-P4 artifacts.
+
+| Field | Deterministic contract |
+|---|---|
+| Parent | Read accepted P3 originals directly. P4 K16/K8 membership is prohibited; only the accepted P4 augmenter behavior and `p4-determinism-v1` draw conversion are reused. |
+| Namespaces | `validation-query` and `evaluation-query`, with isolated immutable roots and manifests. |
+| Query identity | Per original, integer query indices `{0,1}` under profile `main_1.0x`; neither index is a P4 `master_view_id`. |
+| Root seed payload | Canonical JSON over `schema_version`, namespace, scene ID, query index, profile ID, P3 cache ID, augmentation-contract ID and accepted augmenter implementation SHA-256. UTF-8, sorted keys, compact separators and no trailing whitespace are required. |
+| Operation streams | SHA-256 of root digest, a NUL separator and canonical operation context (`operation`, `entity_id`, `attempt`), followed by the unchanged domain-separated P4 counter-block conversion and draw ordering. |
+| Population | Validation 400 originals/800 queries/400 gallery references; evaluation 1,600 originals/3,200 queries/1,600 gallery references. Training membership is zero. |
+| Gallery | Content-addressed references into P3 shards; original payload bytes are not copied. |
+| Publication | Schema `1.0.0`, branch-isolated staging, independent validation, atomic publication and hard failure for same-ID/different-content collision. |
+| Scientific identity exclusions | Absolute paths, host/user, timestamps, worker/shard counts, store/staging paths and device information. |
+
+#### P5 implementation evidence (2026-08-28)
+
+| Field | Accepted implementation |
+|---|---|
+| Status | `PASS`; supplement `p5-fixed-query-v1`, artifact schema `1.0.0`. |
+| Targets | `p5_deterministic_contract_files` -> `fixed_query_methodology_contract` -> `fixed_query_shard_plan` -> split plans -> mapped `fixed_query_shard` and `fixed_query_shard_validation` -> `fixed_query_acceptance_bundle` -> split acceptances -> `fixed_query_acceptance`. |
+| Parent | P3 cache `oscache_c89fa07e3d6cb1819a7994a6` and acceptance `osca_a55d2c02c3737c5f5557092a`; accepted P4 augmenter behavior is reused without P4 bank membership or payload mutation. |
+| Query authority | `fqa_bee6289f2531ae48c6f3a550`; validation index `fqi_00a6e199fa4514ae0d8c701d`, gallery `fgg_325a8031c9428d72943848ff`; evaluation index `fqi_55aa7d01752b5f3b1bdbd6c2`, gallery `fgg_2fa46178130bfc397a9e722c`. |
+| Population | Validation 400 originals/800 queries/400 gallery references; evaluation 1,600 originals/3,200 queries/1,600 gallery references; training membership and cross-split references are zero. |
+| Acceptance | Aggregate `fqaac_ee6a31db9941031d3db650f6`; validation `fqsa_adee2b7d92f37f33ba9e3882`; evaluation `fqsa_3a2581d57c735d2e5ebc91fd`. Population, seed, lineage, schema, topology, relation, dangling-reference and leakage checks passed independently. |
+| Publication | 192 immutable query branches and 411,361,280 payload bytes; gallery manifests reference P3 originals without payload duplication. |
+| Execution | Pass A used 40 one-thread workers, reached 40 concurrent branch processes and completed all 192 canonical branches without native, resource or scientific failure. Pass B/C had no input and were not run. |
+| Determinism | Aggregate content SHA-256 `ee6a31db9941031d3db650f67d1fa7029b28e832236cf6e961b6ac5f5c53f004`; immediate repeated final selection was fully current, rewrote no accepted payload, and preserved file size/mtime/checksum identity. |
+| Promotion | P5 is ready for P6 implementation. Evaluation-query artifacts remain prohibited ancestors of training, validation history, early stopping, checkpoint selection and hyperparameter selection. |
+
 <a id="p6-model-and-dataloader"></a>
 ### P6 Model and DataLoader
 

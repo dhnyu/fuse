@@ -73,7 +73,13 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "road_link_absorption_smoke", "geometry_consistency_smoke",
       "augmentation_bank_plan", "augmentation_bank_shard",
       "augmentation_bank_shard_validation", "augmentation_bank_acceptance",
-      "effective_augmentation_bank_index", "augmentation_bank_benchmark"
+      "effective_augmentation_bank_index", "augmentation_bank_benchmark",
+      "p5_deterministic_contract_files", "fixed_query_methodology_contract",
+      "fixed_query_shard_plan", "fixed_validation_query_plan",
+      "fixed_evaluation_query_plan", "fixed_query_branch_plan",
+      "fixed_query_shard", "fixed_query_shard_validation",
+      "fixed_query_acceptance_bundle", "fixed_validation_query_acceptance",
+      "fixed_evaluation_query_acceptance", "fixed_query_acceptance"
     )
   )
   expect_false("seoul_data_preprocess" %in% research_manifest$name)

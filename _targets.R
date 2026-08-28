@@ -22,6 +22,7 @@ research_function_files <- c(
   "R/research_relation_tiered_execution.R",
   "R/research_original_scene_cache.R",
   "R/research_fixed_augmentation_banks.R",
+  "R/research_fixed_queries.R",
   "R/research_serialization_plan.R",
   "R/research_serialization_shard.R",
   "R/research_training_dataset_acceptance.R",
@@ -54,7 +55,7 @@ controller_40 <- crew::crew_controller_local(
   name = "controller_40",
   workers = fuse_controller_worker_count("FUSE_CONTROLLER_40_WORKERS", 40L),
   seconds_timeout = 3600,
-  crashes_max = 0L
+  crashes_max = fuse_controller_worker_count("FUSE_CONTROLLER_40_CRASHES_MAX", 192L)
 )
 controller_gpu_02 <- crew::crew_controller_local(
   name = "controller_gpu_02",
@@ -86,6 +87,7 @@ targets::tar_source("targets/research_spatial_acceptance.R")
 targets::tar_source("targets/research_base_spatial.R")
 targets::tar_source("targets/research_original_scene_cache.R")
 targets::tar_source("targets/research_fixed_augmentation_banks.R")
+targets::tar_source("targets/research_fixed_queries.R")
 targets::tar_source("targets/research_serialization_plan.R")
 targets::tar_source("targets/research_serialization_shard.R")
 targets::tar_source("targets/research_training_dataset_acceptance.R")
@@ -114,6 +116,7 @@ c(
   list_research_base_spatial,
   list_research_original_scene_cache,
   list_research_fixed_augmentation_banks,
+  list_research_fixed_queries,
   list_research_serialization_plan,
   list_research_serialization_shard,
   list_research_training_dataset_acceptance,

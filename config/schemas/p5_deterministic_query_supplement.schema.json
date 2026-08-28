@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "supplement_id", "authority_id", "augmentation_contract_id", "p3_cache_id", "p3_acceptance_id", "p4_supplement_id", "profile", "namespaces", "query_indices", "seed", "publication"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "supplement_id": {"const": "p5-fixed-query-v1"},
+    "authority_id": {"const": "mta_f90fecff7bc7bb5d231cc79f"},
+    "augmentation_contract_id": {"type": "string", "minLength": 1},
+    "p3_cache_id": {"const": "oscache_c89fa07e3d6cb1819a7994a6"},
+    "p3_acceptance_id": {"const": "osca_a55d2c02c3737c5f5557092a"},
+    "p4_supplement_id": {"const": "p4-determinism-v1"},
+    "profile": {"type": "object", "required": ["profile_id"], "properties": {"profile_id": {"const": "main_1.0x"}}},
+    "namespaces": {"type": "object", "required": ["validation", "evaluation"]},
+    "query_indices": {"const": [0, 1]},
+    "seed": {"type": "object", "required": ["root_fields", "operation_substream", "digest_to_rng"]},
+    "publication": {"type": "object", "required": ["training_bank_membership", "namespace_isolation", "collision_policy"]}
+  },
+  "additionalProperties": true
+}

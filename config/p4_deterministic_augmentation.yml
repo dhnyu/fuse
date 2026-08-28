@@ -1,0 +1,88 @@
+schema_version: "1.0.0"
+supplement_version: p4-determinism-v1
+implementation_version: "1.0.0"
+authority_id: mta_f90fecff7bc7bb5d231cc79f
+augmentation_contract_id: mmc_065f894aea3f8475
+original_cache_id: oscache_c89fa07e3d6cb1819a7994a6
+original_cache_acceptance_id: osca_a55d2c02c3737c5f5557092a
+publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/augmentation_banks
+namespace: training-bank
+population:
+  split: training
+  scenes: 2421
+  excluded_splits: [validation, evaluation]
+profiles:
+  - {profile_id: weak_0.5x, scale: 0.5, removal_fraction: 0.05, jitter_probability: 0.25, jitter_displacement_m: 1.0, simplification_tolerance_m: 1.0, categorical_mask_probability: 0.05, categorical_replacement_probability: 0.05, lane_probability: 0.05, landcover_mask_fraction: 0.05, dem_noise_sd_m: 0.5}
+  - {profile_id: main_1.0x, scale: 1.0, removal_fraction: 0.10, jitter_probability: 0.50, jitter_displacement_m: 2.0, simplification_tolerance_m: 2.0, categorical_mask_probability: 0.10, categorical_replacement_probability: 0.10, lane_probability: 0.10, landcover_mask_fraction: 0.10, dem_noise_sd_m: 1.0}
+  - {profile_id: strong_2.0x, scale: 2.0, removal_fraction: 0.20, jitter_probability: 1.00, jitter_displacement_m: 4.0, simplification_tolerance_m: 4.0, categorical_mask_probability: 0.20, categorical_replacement_probability: 0.20, lane_probability: 0.20, landcover_mask_fraction: 0.20, dem_noise_sd_m: 2.0}
+fixed_parameters:
+  geometry_complexity_quantile: 0.90
+  poi_earliest_replacement_level: 4
+  lane_offsets: [-1, 1]
+  geometry_attempts_per_entity: 10
+  geometry_failure_action: retain_unperturbed_entity_geometry
+banks:
+  physical_k: 16
+  logical_prefixes: [2, 4, 8, 16]
+  default_k: 8
+  expected_physical_candidates: 116208
+  expected_default_references: 58104
+seed:
+  version: p4-determinism-v1
+  fields: [version, namespace, profile_id, scene_id, master_view_id, operation, entity_id, attempt]
+  missing_entity_sentinel: NONE
+  missing_attempt_sentinel: NONE
+  canonical_encoding: utf8_nfc_pipe_delimited
+  counter_block: sha256_digest_nul_domain_length_be_domain_draw_index_be_counter_be
+  domains:
+    - removal_fraction
+    - entity_selection
+    - receiver_selection
+    - geometry_jitter_gate
+    - geometry_jitter_value
+    - geometry_simplification
+    - categorical_mask
+    - categorical_replacement
+    - lane_perturbation
+    - landcover_mask
+    - dem_gaussian
+  uniform_integer: uint64_be_rejection_sampling
+  uniform_real: upper_53_bits_binary64
+  gaussian: box_muller_cosine_no_spare
+  gaussian_runtime: cpython_3.14_math_glibc_2.39_ieee754_binary64
+  pi_source: python_math_pi_binary64
+  without_replacement: canonical_partial_fisher_yates
+removal:
+  sampled_fraction: uniform_0_to_profile_max
+  integerization: floor_fraction_times_eligible_count
+  force_minimum: false
+  dependent_poi_separate_from_primary_quota: true
+receiver_absorption:
+  donor_order: canonical_road_id
+  receiver_candidates: canonical_road_id
+  receiver_may_be_donor: false
+  geometry: ordered_multipart_receiver_then_donors
+  source_nodes: nested_component_and_chain_offsets
+  relation_remap: complete_map_then_canonical_deduplication
+  prohibited: [self_absorption, donor_to_donor, cycle, type_mismatch, hierarchy_mismatch, non_adjacent, unresolved_receiver]
+operation_order:
+  - entity_removal_and_road_link_absorption
+  - geometry_perturbation
+  - attribute_perturbation_and_geometry_dependent_updates
+  - raster_perturbation
+  - reconstruct_all_derived_observations
+execution:
+  branch_basis: p3_shard_by_profile
+  expected_branches: 288
+  pass_a_workers: 40
+  pass_b_workers: 10
+  pass_c_workers: 5
+  threads_per_worker: 1
+schemas:
+  supplement: config/schemas/p4_deterministic_supplement.schema.json
+  profile_plan: config/schemas/p4_augmentation_profile_plan.schema.json
+  bank_plan: config/schemas/p4_augmentation_bank_plan.schema.json
+  shard: config/schemas/p4_augmentation_bank_shard.schema.json
+  acceptance: config/schemas/p4_augmentation_bank_acceptance.schema.json
+  index: config/schemas/p4_effective_bank_index.schema.json
+  benchmark: config/schemas/p4_augmentation_bank_benchmark.schema.json

@@ -68,7 +68,12 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
       "original_scene_serialization_plan", "original_scene_serialization_shard",
       "original_scene_shard_validation", "original_scene_geometry_roundtrip",
       "original_scene_cache_index", "original_scene_cache_manifest",
-      "original_scene_dataset_acceptance"
+      "original_scene_dataset_acceptance",
+      "p4_deterministic_contract_files", "augmentation_profile_plan",
+      "road_link_absorption_smoke", "geometry_consistency_smoke",
+      "augmentation_bank_plan", "augmentation_bank_shard",
+      "augmentation_bank_shard_validation", "augmentation_bank_acceptance",
+      "effective_augmentation_bank_index", "augmentation_bank_benchmark"
     )
   )
   expect_false("seoul_data_preprocess" %in% research_manifest$name)

@@ -407,6 +407,35 @@ Every augmented road record/schema can represent:
 - Apply exactly: entity removal/road absorption, geometry perturbation, attribute perturbation and geometry-dependent updates, raster perturbation, reconstruction of all derived observations.
 - Reconstructed outputs include centers, relative positions, intrinsic geometry, geometry-derived building/road attributes, object environmental context, scene rasters, relations, `SN` and source-node-based `CON`.
 
+#### User-approved deterministic implementation supplement (`p4-determinism-v1`)
+
+This supplement freezes byte-level mechanics that the dissertation and immutable P0 contract did not specify. It does not change the scientific augmentation operations, does not modify P0-P3 artifacts, and applies only to P4 bank identities and descendants. The tracked source is `config/p4_deterministic_augmentation.yml`; the obsolete `config/augmentation.yml` is not an active P4 parent.
+
+- Geometry validity attempts are per perturbed entity, numbered 1 through 10. The first valid geometry is accepted. After ten failures the post-removal/post-absorption unperturbed geometry and its matching derived values are retained, the ten seeds and failure reasons are recorded, and the physical view remains eligible subject to its global hard invariants.
+- Random draws use domain-separated SHA-256 counter blocks over the canonical bank-seed payload. Uniform integers use unbiased 64-bit rejection sampling, binary64 uniforms use the upper 53 bits, Gaussian draws use the Box-Muller cosine branch without spare caching, and without-replacement samples use partial Fisher-Yates over canonical IDs.
+- A sampled removal fraction `f` and eligible count `N` produce `floor(f*N)` direct primary targets, including zero for positive fractions below one entity. Building-hosted dependent POIs are recorded separately and never consume the direct quota.
+- Multiple donors assigned to one receiver are composed as an ordered multipart value: receiver parts first, then donor parts by canonical donor road ID and original part index. Component direction and each original source-node-chain order are retained; component and chain boundaries use nested offsets. The complete donor-to-receiver map is fixed before relation remapping, and donor receivers, chains, cycles and cross-type/hierarchy assignments are prohibited.
+- P4 publishes three independent training profiles (`0.5x`, `1.0x`, `2.0x`) over exactly 2,421 training scenes. Each profile has a physical K16 master. Logical K2/K4/K8/K16 banks are prefixes `[0:K)` of that same ordered master; K8 payloads are references, not copies. This yields 116,208 physical views and 58,104 main K8 references. Validation and evaluation scenes remain outside P4.
+
+#### P4 implementation evidence (2026-08-28)
+
+| Field | Accepted implementation |
+|---|---|
+| Status | `P4_FIXED_AUGMENTATION_BANKS_PASS`; deterministic fixed training banks accepted under supplement `p4-determinism-v1`. |
+| Parent | Original-scene cache `oscache_c89fa07e3d6cb1819a7994a6`; P3 acceptance `osca_a55d2c02c3737c5f5557092a`. |
+| Canonical targets | `augmentation_profile_plan`, `road_link_absorption_smoke`, `geometry_consistency_smoke`, `augmentation_bank_plan`, `augmentation_bank_shard`, `augmentation_bank_shard_validation`, `augmentation_bank_acceptance`, `effective_augmentation_bank_index`, `augmentation_bank_benchmark`. |
+| Identity | Physical master bank `augbank_a470cb156612cff12fb316fc`; acceptance `aba_b6ee67e0d798020a6c418c05`; logical index `abi_f9ff792612ca86f486576491`. |
+| Scope | 2,421 training scenes only; weak/main/strong profiles; 116,208 physical K16 views and 58,104 logical K8 references. Validation/evaluation bank membership is zero. |
+| Deterministic mechanics | Domain-separated SHA-256 counter draws, floor removal counts, per-entity ten-attempt geometry fallback, and canonical multi-donor receiver composition are schema- and fixture-validated. |
+| Scientific QC | Missing/duplicate candidates, invalid receivers/cycles/geometries, float32 geometry, derived-value inconsistencies, relation/topology/raster violations and RNG replay mismatches are all zero. Maximum geometry-derived error is 0. |
+| Geometry fallback | Weak 8,906; main 32,375; strong 906,879 entity fallbacks. Each retains original geometry after ten failed attempts with complete provenance; unresolved candidate failures are zero. |
+| Road absorption | Weak 28,582 donors/28,133 groups; main 56,793/55,032; strong 112,911/105,433. Donor provenance count equals absorbed-donor count in every profile. |
+| Execution | Pass A dispatched all 288 branches with 40 one-thread workers and completed 288/288; native/resource/scientific failures were zero. Pass B and Pass C had no retry input and were not run. |
+| Payload | 10,849,576,960 bytes total: weak 2,721,812,480; main 3,354,890,240; strong 4,772,874,240. |
+| Determinism | Aggregate content SHA-256 `7e4a629367de14159264c9cb7bc6254e16715d14460037770409a384dd790151`; repeated explicit final selection skipped all 1,359 targets, rewrote no payload, and left P4 outdated count at zero. |
+| Upstream protection | All 96 P3 tar path/size/mtime/SHA records and P3 manifest/acceptance checksums are unchanged. |
+| Promotion | P5 may consume the accepted augmenter/profile implementation, but fixed validation/evaluation queries remain separate artifacts and namespaces. |
+
 <a id="p5-fixed-validation-and-evaluation-queries"></a>
 ### P5 Fixed Validation and Evaluation Queries
 

@@ -2,7 +2,7 @@
 
 ## 1. VERDICT
 
-`P4_AUGMENTATION_INSPECTOR_PASS_PUSHED` (commit and push details are completed below after publication).
+`P4_AUGMENTATION_INSPECTOR_PASS_PUSHED`
 
 ## 2. Repository state
 
@@ -159,11 +159,17 @@ Only the inspector source, module, README, focused tests, representative HTML, a
 ## 21. Commit
 
 - Message: `Add P4 augmentation inspector`
-- SHA: recorded after commit
+- Implementation commit SHA: `77af5085e143258eb159c2010954d8fbaf30ee31`
+- Commit file review: seven intended inspector/report files only; no target store, scientific payload, cache, log, screenshot, or credential
+- The report-finalization commit is self-referential and is therefore recorded in the final task response.
 
 ## 22. Push verification
 
-Recorded after fast-forward push and fetch verification.
+- Implementation push: fast-forward success to `origin/reduced`
+- Verified local SHA: `77af5085e143258eb159c2010954d8fbaf30ee31`
+- Verified remote SHA: `77af5085e143258eb159c2010954d8fbaf30ee31`
+- Verified divergence after implementation push: ahead 0 / behind 0
+- Final report-only push and synchronization are recorded in the final task response.
 
 ## 23. Recommended next action
 

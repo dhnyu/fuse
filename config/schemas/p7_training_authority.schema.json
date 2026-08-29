@@ -1,0 +1,9 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,
+  "required":["schema_version","status","training_authority_id","supplement_name","run_id","parents","population","scientific_config","checksums","invariants","content_sha256"],
+  "properties":{
+    "schema_version":{"const":"1.0.0"},"status":{"const":"PASS"},
+    "training_authority_id":{"type":"string","pattern":"^p7a_[0-9a-f]{24}$"},"run_id":{"type":"string","pattern":"^p7run_[0-9a-f]{24}$"},
+    "supplement_name":{"const":"p7-deterministic-training-v1"},"parents":{"type":"object"},"population":{"type":"object"},"scientific_config":{"type":"object"},"checksums":{"type":"object"},"invariants":{"type":"object"},"content_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}
+  }
+}

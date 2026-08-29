@@ -1,0 +1,127 @@
+schema_version: "1.0.0"
+supplement_name: p7-deterministic-training-v1
+publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype
+staging_root: /mnt/hdd002/dhnyu/fusedata/tmp/fuse/p7_prototype_training
+parent_roots:
+  scene_data: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced
+  methodology_authority: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/authority
+
+parents:
+  methodology_authority_id: mta_c17568508b283afd3316e925
+  training_contract_id: mmc_3b3719e274996c7d
+  p1_scene_index_id: rsi_80031f1493c75163f91b7c71
+  prototype_selection_id: rps_4dfda380e54a9b7f9f60ac04
+  p2_observation_id: obs_cd00016f6b5bfd960b0a6842
+  p2_acceptance_id: bsa_e617ee0280a6edfa722994d3
+  p3_cache_id: oscache_c89fa07e3d6cb1819a7994a6
+  p3_acceptance_id: osca_a55d2c02c3737c5f5557092a
+  p4_supplement_id: p4-augmentation-v2
+  p4_master_bank_id: augbank_252ce67e6d74679b02871e57
+  p4_acceptance_id: aba_39de6c260a8e427767bc01d6
+  p4_logical_index_id: abi_66dfe52602ffe442336685e0
+  p5_query_authority_id: fqa_89741b3e7b3ff7e44597ca67
+  p5_acceptance_id: fqaac_9151e9e0a34525ac8ecdb444
+  p6_model_authority_id: dma_c09fdf20f402774af8e4ac24
+  p6_preprocessing_id: ppc_4465193d7d1af28291492ee0
+  p6_dataloader_acceptance_id: dla_ac640dacf3adcc8f38219589
+  p6_cpu_smoke_id: dcs_14f14a5d63675f161e603c0b
+  p6_aggregate_acceptance_id: mda_2dba53473f273769394a38f2
+
+population:
+  training_scenes: 256
+  validation_scenes: 32
+  validation_queries: 64
+  validation_gallery: 32
+  evaluation_scenes_declared_but_prohibited: 32
+
+training:
+  root_seed: 20260828
+  profile_id: main_1.0x
+  logical_k: 8
+  views_per_scene: 2
+  global_batch_size: 32
+  world_size: 2
+  per_rank_batch_size: 16
+  maximum_epochs: 200
+  updates_per_epoch: 8
+  maximum_updates: 1600
+  modality_mask_probability: 0.30
+
+optimizer:
+  name: AdamW
+  peak_learning_rate: 0.001
+  weight_decay: 0.0001
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  parameter_grouping: all_trainable_parameters_same_weight_decay
+  gradient_clip:
+    norm_type: 2.0
+    maximum_norm: 1.0
+
+scheduler:
+  indexing: one_based_optimizer_update
+  warmup_updates: 80
+  decay_updates: 1520
+  minimum_learning_rate: 0.0
+  restart: false
+  update_order: set_before_optimizer_update
+
+objective:
+  contrastive_temperature: 0.1
+  negative_exclusion_distance_m: 750.0
+  information_preservation_weight: 1.0
+  huber_delta: 1.0
+  phase_relative_magnitude_threshold: 0.05
+  empty_component_rule: exclude_from_active_modality_average
+  directions: [view_0_to_view_1, view_1_to_view_0]
+
+ema:
+  coefficient: 0.999
+  initialization: exact_online_copy
+  update_after_optimizer: true
+
+queue:
+  capacity: 8192
+  embedding_dimension: 64
+  initialization: empty_zero_storage
+  gather_order: rank_then_local_sample_then_view
+  enqueue_views: [0, 1]
+
+validation:
+  interval_epochs: 5
+  patience_events: 4
+  primary_metric: validation_retrieval_loss
+  equivalence_threshold: 0.0001
+  secondary_metric: mean_source_separation_margin
+  final_tie_break: earlier_epoch
+  patience_reset: selected_best_event
+  supplementary_metrics: [MRR, HIT@1, HIT@5, HIT@10]
+  evaluation_consumption: prohibited
+
+numeric:
+  backend: nccl
+  precision: float32
+  amp: false
+  grad_scaler: false
+  tf32_matmul: false
+  tf32_cudnn: false
+  deterministic_algorithms: true
+  deterministic_warn_only: false
+  cudnn_deterministic: true
+  cudnn_benchmark: false
+  cublas_workspace_config: ":4096:8"
+
+runtime:
+  selected_gpu_indices: [0, 1]
+  dataloader_workers_per_rank: 0
+  native_threads_per_rank: 1
+  gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
+  gpu_lock_timeout_seconds: 120
+  nccl_p2p_disable: true
+  nccl_ib_disable: true
+  reference_tolerance:
+    loss_atol: 1.0e-6
+    gradient_atol: 1.0e-6
+    gradient_rtol: 1.0e-5
+  resume_equivalence_updates: 4
+  resume_interrupt_after_updates: 2

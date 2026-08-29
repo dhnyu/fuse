@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":true,
+  "required":["schema_version","status","execution_id","run_id","world_size","backend","precision","runtime","resources","non_execution","content_sha256"],
+  "properties":{"schema_version":{"const":"1.0.0"},"status":{"const":"PASS"},"execution_id":{"type":"string","pattern":"^p7exe_[0-9a-f]{24}$"},"world_size":{"const":2},"backend":{"const":"nccl"},"precision":{"const":"float32"},"runtime":{"type":"object"},"resources":{"type":"object"},"non_execution":{"type":"object"},"content_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}
+}

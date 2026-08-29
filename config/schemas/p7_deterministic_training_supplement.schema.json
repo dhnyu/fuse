@@ -1,0 +1,10 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":true,
+  "required":["schema_version","supplement_name","parents","population","training","optimizer","scheduler","objective","ema","queue","validation","numeric","runtime"],
+  "properties":{
+    "schema_version":{"const":"1.0.0"},"supplement_name":{"const":"p7-deterministic-training-v1"},
+    "population":{"type":"object","required":["training_scenes","validation_scenes","validation_queries","validation_gallery"],"properties":{"training_scenes":{"const":256},"validation_scenes":{"const":32},"validation_queries":{"const":64},"validation_gallery":{"const":32}}},
+    "training":{"type":"object","required":["root_seed","global_batch_size","world_size","per_rank_batch_size","maximum_epochs","maximum_updates"],"properties":{"root_seed":{"const":20260828},"global_batch_size":{"const":32},"world_size":{"const":2},"per_rank_batch_size":{"const":16},"maximum_epochs":{"const":200},"maximum_updates":{"const":1600}}},
+    "numeric":{"type":"object","required":["backend","precision","amp","tf32_matmul","tf32_cudnn","deterministic_algorithms"],"properties":{"backend":{"const":"nccl"},"precision":{"const":"float32"},"amp":{"const":false},"tf32_matmul":{"const":false},"tf32_cudnn":{"const":false},"deterministic_algorithms":{"const":true}}}
+  }
+}

@@ -673,6 +673,51 @@ Main configuration:
 
 Checkpoint selection is ordered: lower validation retrieval loss; if the loss difference is less than `1 x 10^-4`, larger mean source-separation margin; if still tied, earlier epoch. MRR and HIT@K are supplementary only.
 
+#### Deterministic training supplement (`p7-deterministic-training-v1`)
+
+The user-approved schema `1.0.0` supplement fixes the remaining byte-level and
+distributed execution decisions without changing the reduced dissertation
+objective. Its scientific population is the accepted P1 prototype selection:
+256 training scenes and 32 validation scenes. The declared 32 evaluation
+scenes, all evaluation-query artifacts, P8+, maintenance, and full-population
+training are prohibited P7 inputs.
+
+| Field | Supplement contract |
+|---|---|
+| Root seed | `20260828`; canonical compact sorted-JSON SHA-256 substreams for sampler, view selection, masking, dropout, reconstruction, workers, ranks and devices. |
+| Distributed batch | NCCL DDP, exactly two ranks, global batch 32, rank batch 16; every training scene occurs exactly once in each deterministic epoch permutation. |
+| Numeric policy | FP32 throughout; AMP, GradScaler and TF32 disabled; deterministic algorithms required; cuDNN deterministic with benchmark disabled; one native CPU thread per rank. |
+| Optimizer | AdamW over all trainable parameters, peak LR `1e-3`, weight decay `1e-4`, betas `[0.9, 0.999]`, epsilon `1e-8`; global L2 gradient clipping at 1.0. |
+| Scheduler | Update `u=1..80`: `1e-3*u/80`; update `u=81..1600`: `0.5e-3*(1+cos(pi*(u-80)/1520))`; LR is set before the update and state identifies the next update exactly. |
+| Target/queue order | optimizer, scheduler bookkeeping, EMA (`0.999`), ascending-rank key gather, FIFO queue update; the 8,192 x 64 queue begins empty and invalid slots never enter logits. |
+| Objective | Symmetric scene InfoNCE at temperature `0.1`, 750 m negative exclusion, plus information preservation weighted by `lambda_IP=1`; global numerators and denominators define the DDP objective. |
+| Validation | Every five completed epochs, using only the 32-scene/64-query revised P5 validation subset and P3 positives. Lower retrieval loss wins; within `1e-4`, higher margin wins; then earlier epoch. Only a selected best event resets patience four. |
+| Checkpoints | Immutable, atomic, collision-checked full state including both models, AdamW, scheduler, queue, sampler/view state, per-rank RNG, selector/patience and complete trace. |
+| Gates | DDP init, single update, two-rank/reference parity, exact interrupted/resumed parity, production training, independent selected-checkpoint acceptance, then repeated target no-op. |
+
+Active P7 target order is
+`p7_deterministic_training_authority` -> `p7_ddp_initialization_smoke` ->
+`p7_single_update_smoke` -> `p7_ddp_reference_acceptance` ->
+`p7_resume_equivalence` -> `prototype_training_run` ->
+`prototype_validation_retrieval`/`prototype_checkpoint_selection`/
+`prototype_training_execution_record` -> `prototype_training_acceptance`.
+
+#### P7 implementation evidence (2026-08-29)
+
+| Field | Accepted implementation |
+|---|---|
+| Status | `PASS`; supplement `p7-deterministic-training-v1`, schema `1.0.0`, authority `p7a_ee0cafa07978d7d2b168ef27`. |
+| Parent lineage | Revised P4 bank `augbank_252ce67e6d74679b02871e57` / K8 `abi_66dfe52602ffe442336685e0`, P5 validation authority `fqa_89741b3e7b3ff7e44597ca67`, and P6 aggregate `mda_2dba53473f273769394a38f2`. Evaluation-query lineage is absent. |
+| Population | Exactly 256 prototype training scenes and 32 prototype validation scenes (64 fixed queries and 32 original galleries); evaluation consumption was zero. |
+| GPU gates | Two-rank NCCL initialization, one-update optimizer/EMA/queue smoke, two-rank versus ordered global-batch reference, and interrupted/resumed exact-state equivalence all passed. Maximum DDP/reference gradient difference was `5.960464477539063e-8`. |
+| Training | Run `p7run_62e6f3fec4f935ba04718d3a` completed 130 epochs / 1,040 optimizer updates and stopped after four non-selected validation events. All 1,040 logged losses, scheduler updates, EMA counts, queue states, sampler/view identities, gradients, and validation events passed independent replay. |
+| Selector | Selector `p7sel_ad43bc13493d97a643247563` chose epoch 110 with validation retrieval loss `0.04505845904350281` and margin `0.4306797981262207`. MRR/HIT were diagnostic only. |
+| Checkpoints | Best `p7ck_9e557e1440253ac52fac4197` (`c954ab77ef7e001709f8804e1dccc1be772a82ccbed2ae9171f1d292f9d43b57`); latest `p7ck_f01b68dde9837780feff5c98` (`7b07b963084a8b5fa7fe809454dc92ed1a294531dfcd294c08e5d8ead4802de3`). Both full-state manifests and all 26 validation checkpoints passed checksum/state validation. |
+| Runtime | Execution `p7exe_4186e92820f595693e1712c8`; two RTX A6000 GPUs, FP32, AMP/TF32 disabled, mean/peak utilization `67.14%`/`89%`, peak VRAM `8,853 MiB`, wall time `16,935.60 s`. NCCL P2P and IB transports were disabled as operational compatibility settings without changing scientific identity. |
+| Acceptance | Trace `p7tr_1a6b15bb63dfbe3d703a87c5`; aggregate acceptance `p7acc_d9fa1683bbccd4de7f2636b2`. Queue ended full at 8,192 entries with pointer 1,024 after 66,560 enqueues. |
+| Determinism and immutability | Immediate repeated explicit final selection skipped all 15 reachable targets, built zero targets, and rewrote no P7 artifact. The P3/P4/P5/P6 snapshot was byte-for-byte unchanged; P8+, maintenance, full-population training, and evaluation execution counts were zero. |
+| Promotion | P7 is ready for the separately authorized P8 Experiment Plan. No P8 target was implemented or executed here. |
+
 <a id="p8-experiment-plan"></a>
 ### P8 Experiment Plan
 

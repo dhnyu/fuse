@@ -1,17 +1,13 @@
-test_that("I21 is the explicit optimizer boundary and enforces 40 workers", {
-  body_text <- paste(deparse(body(run_prototype_training)), collapse = "\n")
-  expect_match(body_text, "run_prototype_training_ddp_locked.py", fixed = TRUE)
-  expect_match(body_text, "workers), 40L", fixed = TRUE)
-  expect_match(body_text, "one-native-thread", fixed = TRUE)
-
+test_that("superseded I21 optimizer target is excluded from the active P7 graph", {
   manifest <- targets::tar_manifest(
     script = file.path(fuse_test_root, "_targets.R"), callr_arguments = list(wd = fuse_test_root)
   )
-  expect_true("prototype_training" %in% manifest$name)
+  expect_false("prototype_training" %in% manifest$name)
   expect_false("prototype_training_completed_artifacts" %in% manifest$name)
-  training_command <- manifest$command[manifest$name == "prototype_training"]
-  expect_match(training_command, "recover_prototype_training_target_metadata", fixed = TRUE)
-  expect_match(training_command, "run_prototype_training", fixed = TRUE)
+  expect_true(all(c("p7_training_contract_files", "p7_deterministic_training_authority",
+                    "prototype_training_run", "prototype_training_acceptance") %in% manifest$name))
+  run_command <- manifest$command[manifest$name == "prototype_training_run"]
+  expect_match(run_command, "p7_run_production", fixed = TRUE)
 })
 
 test_that("I21 schema keeps identity dynamic and fixes canonical direct outputs", {

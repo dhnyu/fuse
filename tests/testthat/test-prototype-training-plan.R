@@ -52,27 +52,30 @@ test_that("I20 scientific identity includes validation and scheduler implementat
   expect_true(any(grepl("dissertation_sources <-", source_lines, fixed = TRUE)))
 })
 
-test_that("I20 has all approved parents and I21 is the first optimizer target", {
+test_that("active P7 graph has bounded gates and aggregate acceptance", {
   manifest <- targets::tar_manifest(
     script = file.path(fuse_test_root, "_targets.R"), callr_arguments = list(wd = fuse_test_root)
   )
-  expect_true("prototype_training" %in% manifest$name)
+  expect_false("prototype_training" %in% manifest$name)
   expect_true("prototype_training_acceptance" %in% manifest$name)
-  expect_true("prototype_training_plan" %in% manifest$name)
+  expect_true(all(c("p7_deterministic_training_authority", "p7_ddp_initialization_smoke",
+                    "p7_single_update_smoke", "p7_ddp_reference_acceptance",
+                    "p7_resume_equivalence", "prototype_training_run") %in% manifest$name))
   network <- targets::tar_network(
     script = file.path(fuse_test_root, "_targets.R"), callr_arguments = list(wd = fuse_test_root)
   )
-  parents <- intersect(network$edges$from[network$edges$to == "prototype_training_plan"], manifest$name)
-  expect_setequal(parents, c("prototype_training_dataset_acceptance", "prototype_encoder_smoke",
-                             "prototype_dataloader_smoke", "prototype_scientific_geometry_roundtrip",
-                             "prototype_augmentation_benchmark", "prototype_joint_model_smoke",
-                             "prototype_distributed_joint_model_smoke",
-                             "training_plan_contract_files"))
-  training_parents <- intersect(network$edges$from[network$edges$to == "prototype_training"], manifest$name)
-  expect_setequal(training_parents, c("prototype_training_plan", "prototype_training_contract_files"))
+  training_parents <- intersect(network$edges$from[network$edges$to == "prototype_training_run"], manifest$name)
+  expect_setequal(training_parents, c("p7_deterministic_training_authority",
+                                      "p7_immutable_parent_reference", "p7_p6_parent_reference",
+                                      "p7_resume_equivalence", "p7_training_contract_files",
+                                      "p7_validation_query_reference"))
   acceptance_parents <- intersect(network$edges$from[network$edges$to == "prototype_training_acceptance"], manifest$name)
-  expect_setequal(acceptance_parents, c("prototype_training_plan", "prototype_training",
-                                        "prototype_training_contract_files"))
+  expect_setequal(acceptance_parents,
+                  c("p7_ddp_initialization_smoke", "p7_ddp_reference_acceptance",
+                    "p7_deterministic_training_authority", "p7_resume_equivalence",
+                    "p7_single_update_smoke", "p7_training_contract_files",
+                    "prototype_checkpoint_selection", "prototype_training_execution_record",
+                    "prototype_training_run", "prototype_validation_retrieval"))
 })
 
 test_that("distributed joint smoke stops before every optimizer step", {

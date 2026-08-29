@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,
+  "required":["schema_version","status","checkpoint_id","role","epoch","global_update","state_content_sha256","payload","parents","run_id","training_authority_id"],
+  "properties":{"schema_version":{"const":"1.0.0"},"status":{"const":"PASS"},"checkpoint_id":{"type":"string","pattern":"^p7ck_[0-9a-f]{24}$"},"role":{"enum":["validation","latest","best","resume_fixture"]},"epoch":{"type":"integer","minimum":0,"maximum":200},"global_update":{"type":"integer","minimum":0,"maximum":1600},"state_content_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"payload":{"type":"object","required":["filename","size_bytes","sha256"]},"parents":{"type":"object"},"run_id":{"type":"string","pattern":"^p7run_[0-9a-f]{24}$"},"training_authority_id":{"type":"string","pattern":"^p7a_[0-9a-f]{24}$"}}
+}

@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":true,
+  "required":["schema_version","status","gate_id","gate","training_authority_id","world_size","checks","content_sha256"],
+  "properties":{"schema_version":{"const":"1.0.0"},"status":{"const":"PASS"},"gate_id":{"type":"string","pattern":"^p7g_[0-9a-f]{24}$"},"gate":{"enum":["ddp_initialization","single_update","ddp_reference","resume_equivalence"]},"world_size":{"const":2},"checks":{"type":"object"},"content_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}
+}

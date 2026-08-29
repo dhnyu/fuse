@@ -83,6 +83,18 @@ def validate_config(config: dict[str, Any]) -> None:
             not numeric["deterministic_algorithms"], numeric["deterministic_warn_only"],
             not numeric["cudnn_deterministic"], numeric["cudnn_benchmark"])):
         raise ValueError("P7 numeric determinism contract mismatch")
+    execution = config.get("execution_contract", {})
+    required_execution = {
+        "geometry_layout_version": "3.0.0", "geometry_cache_schema_version": "3.0.0",
+        "geometry_cache_memory_limit_gib_per_rank": 4,
+        "packed_evidence_materialization": True, "deterministic_cpu_lookahead_batches": 1,
+        "ddp_find_unused_parameters": False, "ddp_bucket_cap_mb": 50,
+        "ddp_gradient_as_bucket_view": False, "ddp_static_graph": False,
+        "disjoint_rank_cpu_affinity": True, "distributed_validation": True,
+        "validation_batch_size": 8, "old_p7_checkpoint_resume": "prohibited",
+    }
+    if execution != required_execution:
+        raise ValueError("P7 optimized execution contract mismatch")
 
 
 def scientific_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -522,8 +534,11 @@ def reconstruction_terms(model: ReducedSceneEncoder, batch: dict[str, Any], geom
     delta = float(objective["huber_delta"])
     result: dict[str, dict[str, Any]] = {"modalities": {}, "fields": {}}
 
-    def term(name: str, value: torch.Tensor, count: int, namespace: str = "fields") -> None:
-        result[namespace][name] = {"sum": value, "count": int(count)}
+    def term(name: str, value: torch.Tensor, count: int | torch.Tensor, namespace: str = "fields") -> None:
+        count_tensor = (count.detach().to(device=value.device, dtype=torch.int64)
+                        if isinstance(count, torch.Tensor)
+                        else torch.tensor(int(count), device=value.device, dtype=torch.int64))
+        result[namespace][name] = {"sum": value, "count": count_tensor}
 
     relative_prediction = model.relative_position_decoder(modalities["relative"])
     relative_target = entities["relative_position_m"] / 500.0
@@ -550,11 +565,11 @@ def reconstruction_terms(model: ReducedSceneEncoder, batch: dict[str, Any], geom
         geometry_values = torch.where(valid_entity, 0.5 * (magnitude_values + phase_values), magnitude_values)
         geometry_sum = geometry_values.sum()
         term("geometry.magnitude", magnitude_values.sum(), magnitude_values.numel())
-        term("geometry.phase", phase_values[valid_entity].sum(), int(valid_entity.sum()))
+        term("geometry.phase", phase_values[valid_entity].sum(), valid_entity.sum())
     else:
         geometry_sum = _zero(model.geometry_decoder_shared, modalities["geometry"])
         term("geometry.magnitude", geometry_sum, 0); term("geometry.phase", geometry_sum, 0)
-    term("geometry", geometry_sum, int(geometry_rows.sum()), "modalities")
+    term("geometry", geometry_sum, geometry_rows.sum(), "modalities")
 
     semantic_values: list[torch.Tensor] = []
     for prefix, categorical_names, numerical_names in (
@@ -572,14 +587,14 @@ def reconstruction_terms(model: ReducedSceneEncoder, batch: dict[str, Any], geom
             target = category[:, column]
             valid = target != masks[name]
             values = F.cross_entropy(logits, target, reduction="none") if target.numel() else logits.sum(1)
-            fields.append((values, valid)); term(f"semantic.{prefix}.{name}", values[valid].sum(), int(valid.sum()))
+            fields.append((values, valid)); term(f"semantic.{prefix}.{name}", values[valid].sum(), valid.sum())
         if numerical_names:
             prediction = getattr(model, f"{prefix}_decoder_heads")["numerical"](hidden)
             numerical, missing = entities[f"{prefix}_numerical"], entities[f"{prefix}_missing"].bool()
             for column, name in enumerate(numerical_names):
                 values = F.huber_loss(prediction[:, column], numerical[:, column], delta=delta, reduction="none")
                 valid = ~missing[:, column]
-                fields.append((values, valid)); term(f"semantic.{prefix}.{name}", values[valid].sum(), int(valid.sum()))
+                fields.append((values, valid)); term(f"semantic.{prefix}.{name}", values[valid].sum(), valid.sum())
         values = _entity_means(fields, rows.numel())
         if values.numel():
             semantic_values.append(values)
@@ -602,10 +617,10 @@ def reconstruction_terms(model: ReducedSceneEncoder, batch: dict[str, Any], geom
     continuous_valid[:, 1] = context[:, 25] > 0
     continuous_valid[:, 2] = context[:, 25] > 0
     fields = [(composition_values, composition_valid)]
-    term("environmental.composition", composition_values[composition_valid].sum(), int(composition_valid.sum()))
+    term("environmental.composition", composition_values[composition_valid].sum(), composition_valid.sum())
     for index in range(4):
         valid = continuous_valid[:, index]; values = continuous_values[:, index]
-        fields.append((values, valid)); term(f"environmental.continuous_{index}", values[valid].sum(), int(valid.sum()))
+        fields.append((values, valid)); term(f"environmental.continuous_{index}", values[valid].sum(), valid.sum())
     environmental_values = _entity_means(fields, context.shape[0])
     environmental_sum = environmental_values.sum() if environmental_values.numel() else _zero(model.environment_decoder_shared, modalities["environmental"])
     term("environmental", environmental_sum, environmental_values.numel(), "modalities")

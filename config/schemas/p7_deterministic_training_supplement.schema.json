@@ -1,10 +1,12 @@
 {
   "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":true,
-  "required":["schema_version","supplement_name","parents","population","training","optimizer","scheduler","objective","ema","queue","validation","numeric","runtime"],
+  "required":["schema_version","supplement_name","parents","supersession","population","training","optimizer","scheduler","objective","ema","queue","validation","numeric","runtime","execution_contract"],
   "properties":{
     "schema_version":{"const":"1.0.0"},"supplement_name":{"const":"p7-deterministic-training-v1"},
+    "supersession":{"type":"object","required":["training_authority_id","acceptance_id","best_checkpoint_id","latest_checkpoint_id","status","reason","resume_allowed"],"properties":{"status":{"const":"superseded_research_use_blocked"},"resume_allowed":{"const":false}}},
     "population":{"type":"object","required":["training_scenes","validation_scenes","validation_queries","validation_gallery"],"properties":{"training_scenes":{"const":256},"validation_scenes":{"const":32},"validation_queries":{"const":64},"validation_gallery":{"const":32}}},
     "training":{"type":"object","required":["root_seed","global_batch_size","world_size","per_rank_batch_size","maximum_epochs","maximum_updates"],"properties":{"root_seed":{"const":20260828},"global_batch_size":{"const":32},"world_size":{"const":2},"per_rank_batch_size":{"const":16},"maximum_epochs":{"const":200},"maximum_updates":{"const":1600}}},
-    "numeric":{"type":"object","required":["backend","precision","amp","tf32_matmul","tf32_cudnn","deterministic_algorithms"],"properties":{"backend":{"const":"nccl"},"precision":{"const":"float32"},"amp":{"const":false},"tf32_matmul":{"const":false},"tf32_cudnn":{"const":false},"deterministic_algorithms":{"const":true}}}
+    "numeric":{"type":"object","required":["backend","precision","amp","tf32_matmul","tf32_cudnn","deterministic_algorithms"],"properties":{"backend":{"const":"nccl"},"precision":{"const":"float32"},"amp":{"const":false},"tf32_matmul":{"const":false},"tf32_cudnn":{"const":false},"deterministic_algorithms":{"const":true}}},
+    "execution_contract":{"type":"object","required":["geometry_layout_version","geometry_cache_schema_version","packed_evidence_materialization","deterministic_cpu_lookahead_batches","ddp_find_unused_parameters","ddp_bucket_cap_mb","ddp_gradient_as_bucket_view","distributed_validation"],"properties":{"geometry_layout_version":{"const":"3.0.0"},"geometry_cache_schema_version":{"const":"3.0.0"},"packed_evidence_materialization":{"const":true},"deterministic_cpu_lookahead_batches":{"const":1},"ddp_find_unused_parameters":{"const":false},"ddp_bucket_cap_mb":{"const":50},"ddp_gradient_as_bucket_view":{"const":false},"distributed_validation":{"const":true}}}
   }
 }

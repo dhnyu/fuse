@@ -59,6 +59,7 @@ test_that("active P7 graph has bounded gates and aggregate acceptance", {
   expect_false("prototype_training" %in% manifest$name)
   expect_true("prototype_training_acceptance" %in% manifest$name)
   expect_true(all(c("p7_deterministic_training_authority", "p7_ddp_initialization_smoke",
+                    "p7_geometry_feature_cache",
                     "p7_single_update_smoke", "p7_ddp_reference_acceptance",
                     "p7_resume_equivalence", "prototype_training_run") %in% manifest$name))
   network <- targets::tar_network(
@@ -67,12 +68,14 @@ test_that("active P7 graph has bounded gates and aggregate acceptance", {
   training_parents <- intersect(network$edges$from[network$edges$to == "prototype_training_run"], manifest$name)
   expect_setequal(training_parents, c("p7_deterministic_training_authority",
                                       "p7_immutable_parent_reference", "p7_p6_parent_reference",
+                                      "p7_geometry_feature_cache",
                                       "p7_resume_equivalence", "p7_training_contract_files",
                                       "p7_validation_query_reference"))
   acceptance_parents <- intersect(network$edges$from[network$edges$to == "prototype_training_acceptance"], manifest$name)
   expect_setequal(acceptance_parents,
                   c("p7_ddp_initialization_smoke", "p7_ddp_reference_acceptance",
                     "p7_deterministic_training_authority", "p7_resume_equivalence",
+                    "p7_geometry_feature_cache",
                     "p7_single_update_smoke", "p7_training_contract_files",
                     "prototype_checkpoint_selection", "prototype_training_execution_record",
                     "prototype_training_run", "prototype_validation_retrieval"))

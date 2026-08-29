@@ -219,8 +219,9 @@ p7_contract_names <- function() {
     "config/schemas/p7_training_trace.schema.json",
     "config/schemas/p7_selector_result.schema.json",
     "config/schemas/p7_training_execution.schema.json",
+    "config/schemas/p7_geometry_cache_manifest.schema.json",
     "config/schemas/p7_prototype_training_acceptance.schema.json",
-    "python/p7_training.py", "scripts/p7_prototype_training.py"
+    "python/p7_training.py", "python/p7_geometry_cache.py", "scripts/p7_prototype_training.py"
   )
 }
 
@@ -414,10 +415,34 @@ p7_build_authority <- function(model_data_acceptance, d64_model_architecture_con
                          "training_authority_id")
 }
 
+p7_build_geometry_cache <- function(authority, model_data_acceptance, d64_model_architecture_contract,
+                                    p6_preprocessing_contract, prototype_scene_selection,
+                                    original_scene_dataset_acceptance, augmentation_bank_acceptance,
+                                    fixed_validation_query_acceptance, base_spatial_acceptance, contract_files) {
+  cfg <- p7_config(contract_files)
+  arguments <- c("scripts/p7_prototype_training.py", "cache-build",
+                 p7_common_arguments(model_data_acceptance, d64_model_architecture_contract,
+                                     p6_preprocessing_contract, prototype_scene_selection,
+                                     original_scene_dataset_acceptance, augmentation_bank_acceptance,
+                                     fixed_validation_query_acceptance, base_spatial_acceptance, contract_files),
+                 "--authority", artifact_path(authority, "training_authority.json"),
+                 "--output-root", cfg$publication_root, "--staging-root", cfg$staging_root,
+                 "--schema", p7_contract_file(contract_files, "config/schemas/p7_geometry_cache_manifest.schema.json"))
+  output <- p7_python(arguments, stream = TRUE)
+  authority_value <- jsonlite::read_json(artifact_path(authority, "training_authority.json"), simplifyVector = FALSE)
+  roots <- list.dirs(file.path(cfg$publication_root, "geometry_cache", authority_value$training_authority_id),
+                     recursive = FALSE, full.names = TRUE)
+  paths <- file.path(roots, "geometry_cache_manifest.json"); paths <- paths[file.exists(paths)]
+  if (length(paths) != 1L) stop("P7 geometry cache artifact is missing or ambiguous", call. = FALSE)
+  validate_json_schema_file(paths, p7_contract_file(contract_files, "config/schemas/p7_geometry_cache_manifest.schema.json"))
+  normalizePath(paths, mustWork = TRUE)
+}
+
 p7_gpu_gate <- function(gate, authority, model_data_acceptance, d64_model_architecture_contract,
                         p6_preprocessing_contract, prototype_scene_selection,
                         original_scene_dataset_acceptance, augmentation_bank_acceptance,
-                        fixed_validation_query_acceptance, base_spatial_acceptance, contract_files) {
+                        fixed_validation_query_acceptance, base_spatial_acceptance, geometry_cache,
+                        contract_files) {
   cfg <- p7_config(contract_files)
   arguments <- c("scripts/p7_prototype_training.py", "gpu-gate",
                  p7_common_arguments(model_data_acceptance, d64_model_architecture_contract,
@@ -425,6 +450,7 @@ p7_gpu_gate <- function(gate, authority, model_data_acceptance, d64_model_archit
                                      original_scene_dataset_acceptance, augmentation_bank_acceptance,
                                      fixed_validation_query_acceptance, base_spatial_acceptance, contract_files),
                  "--authority", artifact_path(authority, "training_authority.json"),
+                 "--geometry-cache", geometry_cache,
                  "--gate", gate, "--output-root", cfg$publication_root,
                  "--staging-root", cfg$staging_root)
   p7_python(arguments, stream = TRUE)
@@ -442,7 +468,7 @@ p7_run_production <- function(authority, resume_gate, model_data_acceptance,
                               d64_model_architecture_contract, p6_preprocessing_contract,
                               prototype_scene_selection, original_scene_dataset_acceptance,
                               augmentation_bank_acceptance, fixed_validation_query_acceptance,
-                              base_spatial_acceptance, contract_files) {
+                              base_spatial_acceptance, geometry_cache, contract_files) {
   if (!identical(jsonlite::read_json(resume_gate, simplifyVector = FALSE)$status, "PASS")) stop("P7 resume gate did not pass", call. = FALSE)
   cfg <- p7_config(contract_files)
   arguments <- c("scripts/p7_prototype_training.py", "production",
@@ -451,6 +477,7 @@ p7_run_production <- function(authority, resume_gate, model_data_acceptance,
                                      original_scene_dataset_acceptance, augmentation_bank_acceptance,
                                      fixed_validation_query_acceptance, base_spatial_acceptance, contract_files),
                  "--authority", artifact_path(authority, "training_authority.json"),
+                 "--geometry-cache", geometry_cache,
                  "--output-root", cfg$publication_root, "--staging-root", cfg$staging_root)
   p7_python(arguments, stream = TRUE)
   value <- jsonlite::read_json(artifact_path(authority, "training_authority.json"), simplifyVector = FALSE)
@@ -465,11 +492,12 @@ p7_extract_run_artifact <- function(run_manifest, filename, schema, contract_fil
   normalizePath(file.path(dirname(run_manifest), filename), mustWork = TRUE)
 }
 
-p7_final_acceptance <- function(authority, run_manifest, trace, selector, execution, gates, contract_files) {
+p7_final_acceptance <- function(authority, run_manifest, trace, selector, execution, geometry_cache, gates, contract_files) {
   cfg <- p7_config(contract_files); output <- tempfile(fileext = ".json"); on.exit(unlink(output), add = TRUE)
   schema <- p7_contract_file(contract_files, "config/schemas/p7_prototype_training_acceptance.schema.json")
   arguments <- c("scripts/p7_prototype_training.py", "aggregate", "--authority", artifact_path(authority, "training_authority.json"),
                  "--run-manifest", run_manifest, "--trace", trace, "--selector", selector, "--execution", execution,
+                 "--geometry-cache", geometry_cache,
                  "--gates", gates, "--schema", schema, "--output", output)
   p7_python(arguments)
   p7_publish_single_json(output, file.path(cfg$publication_root, "acceptance"),

@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "type":"object",
+  "required":["schema_version","status","geometry_layout_version","training_authority_id","cache_id","entry_count","total_raw_tensor_bytes","total_disk_bytes","entries","content_sha256"],
+  "properties":{
+    "schema_version":{"const":"3.0.0"},
+    "status":{"const":"PASS"},
+    "geometry_layout_version":{"const":"3.0.0"},
+    "training_authority_id":{"pattern":"^p7a_[0-9a-f]{24}$"},
+    "cache_id":{"pattern":"^p7gc_[0-9a-f]{24}$"},
+    "entry_count":{"type":"integer","minimum":1},
+    "total_raw_tensor_bytes":{"type":"integer","minimum":1},
+    "total_disk_bytes":{"type":"integer","minimum":1},
+    "entries":{"type":"array","minItems":1},
+    "content_sha256":{"pattern":"^[0-9a-f]{64}$"}
+  },
+  "additionalProperties":true
+}

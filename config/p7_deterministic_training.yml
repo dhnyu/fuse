@@ -21,11 +21,20 @@ parents:
   p4_logical_index_id: abi_66dfe52602ffe442336685e0
   p5_query_authority_id: fqa_89741b3e7b3ff7e44597ca67
   p5_acceptance_id: fqaac_9151e9e0a34525ac8ecdb444
-  p6_model_authority_id: dma_c09fdf20f402774af8e4ac24
-  p6_preprocessing_id: ppc_4465193d7d1af28291492ee0
-  p6_dataloader_acceptance_id: dla_ac640dacf3adcc8f38219589
-  p6_cpu_smoke_id: dcs_14f14a5d63675f161e603c0b
-  p6_aggregate_acceptance_id: mda_2dba53473f273769394a38f2
+  p6_model_authority_id: dma_d1b7fb09b063740c38fdb7ac
+  p6_preprocessing_id: ppc_d09fd3a54fcef0e58769e894
+  p6_dataloader_acceptance_id: dla_d7bcbaab25a9666256ce38ae
+  p6_cpu_smoke_id: dcs_c07e56c3c7fba40543aea7d4
+  p6_aggregate_acceptance_id: mda_b07032bd970d101ec1da7a4b
+
+supersession:
+  training_authority_id: p7a_ee0cafa07978d7d2b168ef27
+  acceptance_id: p7acc_d9fa1683bbccd4de7f2636b2
+  best_checkpoint_id: p7ck_9e557e1440253ac52fac4197
+  latest_checkpoint_id: p7ck_f01b68dde9837780feff5c98
+  status: superseded_research_use_blocked
+  reason: p6_geometry_layout_2_batch_context_contamination
+  resume_allowed: false
 
 population:
   training_scenes: 256
@@ -125,3 +134,18 @@ runtime:
     gradient_rtol: 1.0e-5
   resume_equivalence_updates: 4
   resume_interrupt_after_updates: 2
+
+execution_contract:
+  geometry_layout_version: "3.0.0"
+  geometry_cache_schema_version: "3.0.0"
+  geometry_cache_memory_limit_gib_per_rank: 4
+  packed_evidence_materialization: true
+  deterministic_cpu_lookahead_batches: 1
+  ddp_find_unused_parameters: false
+  ddp_bucket_cap_mb: 50
+  ddp_gradient_as_bucket_view: false
+  ddp_static_graph: false
+  disjoint_rank_cpu_affinity: true
+  distributed_validation: true
+  validation_batch_size: 8
+  old_p7_checkpoint_resume: prohibited

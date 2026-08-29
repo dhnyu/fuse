@@ -30,13 +30,25 @@ list_research_prototype_training <- list(
     format = "file", resources = controller_05_resources
   ),
   targets::tar_target(
+    p7_geometry_feature_cache,
+    p7_build_geometry_cache(
+      p7_deterministic_training_authority, p7_p6_parent_reference,
+      p7_p6_parent_reference, p7_p6_parent_reference,
+      p7_immutable_parent_reference, p7_immutable_parent_reference,
+      p7_immutable_parent_reference,
+      p7_validation_query_reference, p7_immutable_parent_reference,
+      p7_training_contract_files
+    ),
+    format = "file", resources = controller_gpu_02_resources
+  ),
+  targets::tar_target(
     p7_ddp_initialization_smoke,
     p7_gpu_gate(
       "init", p7_deterministic_training_authority, p7_p6_parent_reference,
       p7_p6_parent_reference, p7_p6_parent_reference,
       p7_immutable_parent_reference, p7_immutable_parent_reference,
       p7_immutable_parent_reference, p7_validation_query_reference,
-      p7_immutable_parent_reference, p7_training_contract_files
+      p7_immutable_parent_reference, p7_geometry_feature_cache, p7_training_contract_files
     ),
     format = "file", resources = controller_gpu_02_resources
   ),
@@ -49,7 +61,7 @@ list_research_prototype_training <- list(
         p7_p6_parent_reference, p7_p6_parent_reference,
         p7_immutable_parent_reference, p7_immutable_parent_reference,
         p7_immutable_parent_reference, p7_validation_query_reference,
-        p7_immutable_parent_reference, p7_training_contract_files
+        p7_immutable_parent_reference, p7_geometry_feature_cache, p7_training_contract_files
       )
     },
     format = "file", resources = controller_gpu_02_resources
@@ -63,7 +75,7 @@ list_research_prototype_training <- list(
         p7_p6_parent_reference, p7_p6_parent_reference,
         p7_immutable_parent_reference, p7_immutable_parent_reference,
         p7_immutable_parent_reference, p7_validation_query_reference,
-        p7_immutable_parent_reference, p7_training_contract_files
+        p7_immutable_parent_reference, p7_geometry_feature_cache, p7_training_contract_files
       )
     },
     format = "file", resources = controller_gpu_02_resources
@@ -77,7 +89,7 @@ list_research_prototype_training <- list(
         p7_p6_parent_reference, p7_p6_parent_reference,
         p7_immutable_parent_reference, p7_immutable_parent_reference,
         p7_immutable_parent_reference, p7_validation_query_reference,
-        p7_immutable_parent_reference, p7_training_contract_files
+        p7_immutable_parent_reference, p7_geometry_feature_cache, p7_training_contract_files
       )
     },
     format = "file", resources = controller_gpu_02_resources
@@ -89,7 +101,7 @@ list_research_prototype_training <- list(
       p7_p6_parent_reference, p7_p6_parent_reference,
       p7_p6_parent_reference, p7_immutable_parent_reference,
       p7_immutable_parent_reference, p7_immutable_parent_reference,
-      p7_validation_query_reference, p7_immutable_parent_reference,
+      p7_validation_query_reference, p7_immutable_parent_reference, p7_geometry_feature_cache,
       p7_training_contract_files
     ),
     format = "file", resources = controller_gpu_02_resources
@@ -118,6 +130,7 @@ list_research_prototype_training <- list(
       p7_deterministic_training_authority, prototype_training_run,
       prototype_validation_retrieval, prototype_checkpoint_selection,
       prototype_training_execution_record,
+      p7_geometry_feature_cache,
       c(p7_ddp_initialization_smoke, p7_single_update_smoke,
         p7_ddp_reference_acceptance, p7_resume_equivalence),
       p7_training_contract_files

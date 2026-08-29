@@ -697,13 +697,20 @@ training are prohibited P7 inputs.
 | Gates | DDP init, single update, two-rank/reference parity, exact interrupted/resumed parity, production training, independent selected-checkpoint acceptance, then repeated target no-op. |
 
 Active P7 target order is
-`p7_deterministic_training_authority` -> `p7_ddp_initialization_smoke` ->
+`p7_deterministic_training_authority` -> `p7_geometry_feature_cache` ->
+`p7_ddp_initialization_smoke` ->
 `p7_single_update_smoke` -> `p7_ddp_reference_acceptance` ->
 `p7_resume_equivalence` -> `prototype_training_run` ->
 `prototype_validation_retrieval`/`prototype_checkpoint_selection`/
 `prototype_training_execution_record` -> `prototype_training_acceptance`.
 
 #### P7 implementation evidence (2026-08-29)
+
+The implementation below is retained as deterministic historical evidence but
+is superseded and blocked from research, evaluation, downstream use, and
+checkpoint resume because P6 geometry layout `2.0.0` allowed a preceding
+scene's polygon-ring coordinates to contaminate the next scene's first road
+part. It is not an accepted parent of the recovered P7 run.
 
 | Field | Accepted implementation |
 |---|---|
@@ -717,7 +724,22 @@ Active P7 target order is
 | Runtime | Execution `p7exe_4186e92820f595693e1712c8`; two RTX A6000 GPUs, FP32, AMP/TF32 disabled, mean/peak utilization `67.14%`/`89%`, peak VRAM `8,853 MiB`, wall time `16,935.60 s`. NCCL P2P and IB transports were disabled as operational compatibility settings without changing scientific identity. |
 | Acceptance | Trace `p7tr_1a6b15bb63dfbe3d703a87c5`; aggregate acceptance `p7acc_d9fa1683bbccd4de7f2636b2`. Queue ended full at 8,192 entries with pointer 1,024 after 66,560 enqueues. |
 | Determinism and immutability | Immediate repeated explicit final selection skipped all 15 reachable targets, built zero targets, and rewrote no P7 artifact. The P3/P4/P5/P6 snapshot was byte-for-byte unchanged; P8+, maintenance, full-population training, and evaluation execution counts were zero. |
-| Promotion | P7 is ready for the separately authorized P8 Experiment Plan. No P8 target was implemented or executed here. |
+| Promotion | `SUPERSEDED_RESEARCH_USE_BLOCKED`; no P8 target may consume this acceptance. |
+
+#### P7 geometry-recovery execution contract (2026-08-29)
+
+The recovered authority is bound to P6 aggregate
+`mda_b07032bd970d101ec1da7a4b` and geometry layout/cache schema `3.0.0`.
+Production uses the experimentally selected exact-trajectory D6 path:
+immutable corrected geometry features, packed end-of-update evidence,
+deterministic one-batch CPU look-ahead, `find_unused_parameters=False`, a
+50 MiB DDP bucket cap, disjoint rank CPU affinity, and independent 0.5-second
+NVML sampling. `gradient_as_bucket_view`, static graph, branch elision,
+collective packing, static InfoNCE, large GPU LRU, AMP, TF32, and compile are
+excluded. Validation uses exact deterministic two-rank sharding, canonical
+embedding/ID reconstruction, and the unchanged selector. The cache is built
+cold from layout-v3 scene-local geometry, validates every feature against the
+online encoder bytes, and cannot read or relabel layout-v2 caches.
 
 <a id="p8-experiment-plan"></a>
 ### P8 Experiment Plan

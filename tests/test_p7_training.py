@@ -29,7 +29,7 @@ def test_supplement_and_all_p7_schemas_parse():
     schema = json.loads((ROOT / "config/schemas/p7_deterministic_training_supplement.schema.json").read_text())
     jsonschema.Draft202012Validator(schema).validate(value)
     schema_paths = sorted((ROOT / "config/schemas").glob("p7_*.schema.json"))
-    assert len(schema_paths) == 8
+    assert len(schema_paths) == 9
     for path in schema_paths:
         candidate = json.loads(path.read_text())
         jsonschema.Draft202012Validator.check_schema(candidate)

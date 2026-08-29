@@ -1,0 +1,81 @@
+schema_version: "1.0.0"
+plan_name: p8-formal-experiment-plan-v1
+publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan
+
+methodology:
+  dissertation_commit: a456f46566c5e760c048091ead53cb4debe73832
+  modules:
+    - template/sections/chapters/results/01-experimental-setup.typ
+    - template/sections/chapters/results/05-hyperparameter-study.typ
+    - template/materials/tables/results-02-model-dimension-table.typ
+    - template/materials/tables/results-04-training-configuration-table.typ
+  compatibility_scope: p8_hyperparameter_plan_p9_comparison_training_p10_evaluation
+  p0_p7_main_semantics_changed: false
+
+parents:
+  p6_acceptance_id: mda_b07032bd970d101ec1da7a4b
+  p7_acceptance_id: p7acc_3c78cc0e85b93aec6a0cc02c
+  p7_best_checkpoint_id: p7ck_7d25fec7944dc108c5849cd7
+  p7_latest_checkpoint_id: p7ck_294f2e926ed88ee63e0bb267
+  p7_runtime_contract_id: p7rt_713d65cfbba7abf2f58e5097
+  p7_runtime_acceptance_id: p7rta_c780441a553abe26772827d0
+  p4_bank_id: augbank_252ce67e6d74679b02871e57
+  p4_acceptance_id: aba_39de6c260a8e427767bc01d6
+  p4_index_id: abi_66dfe52602ffe442336685e0
+  p5_validation_acceptance_id: fqsa_27565de68d9432e47fe7b99d
+  p5_validation_query_index_id: fqi_d7ec7e7a88237145e72e6f8a
+  p5_validation_gallery_id: fgg_325a8031c9428d72943848ff
+
+parent_artifacts:
+  p6_acceptance: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data/acceptance/mda_b07032bd970d101ec1da7a4b/model_data_acceptance.json
+  p7_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype/acceptance/p7acc_3c78cc0e85b93aec6a0cc02c/prototype_training_acceptance.json
+  p7_runtime_contract: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype/runtime/contract/p7rt_713d65cfbba7abf2f58e5097/cold_path_runtime_contract.json
+  p7_runtime_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype/runtime/acceptance/p7rta_c780441a553abe26772827d0/cold_path_runtime_acceptance.json
+  p4_acceptance: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/augmentation_banks/augbank_252ce67e6d74679b02871e57/acceptance/aba_39de6c260a8e427767bc01d6/augmentation_bank_acceptance.json
+  p4_index: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/augmentation_banks/augbank_252ce67e6d74679b02871e57/acceptance/aba_39de6c260a8e427767bc01d6/effective_bank_index.json
+  p5_validation_acceptance: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/fixed_queries/fqa_89741b3e7b3ff7e44597ca67/acceptance/fqaac_9151e9e0a34525ac8ecdb444/validation_acceptance.json
+
+scientific_defaults:
+  d: 64
+  d_c: 64
+  d_t: 16
+  d_r: 32
+  attention_heads: 4
+  per_head_dimension: 16
+  ffn_multiplier: 2
+  effective_k: 8
+  intensity: main_1.0x
+  ema: 0.999
+  lambda_ip: 1.0
+  peak_learning_rate: 0.001
+  dropout: 0.2
+  optimizer: AdamW
+  scheduler: linear_warmup_then_cosine_zero
+  checkpoint_selector: validation_retrieval_loss_margin_1e-4_earlier_epoch
+  validation_interval_epochs: 5
+  validation_patience_events: 4
+
+run_accounting:
+  hyperparameter_attempts: 13
+  comparison_attempts: 7
+  total_attempts: 20
+  main_training_duplication: 0
+  immediately_executable_specs: 13
+  materializable_comparison_specs_before_selection: 0
+
+divergence_policy:
+  terminal_status: SCIENTIFIC_DIVERGENCE
+  triggers: [non_finite_loss, non_finite_gradients, non_finite_parameters, non_finite_validation_metrics, scientifically_invalid_optimizer_state, deterministic_unrecoverable_numerical_divergence]
+  required_evidence: [last_valid_update, detection_reason, complete_trace_through_last_valid_update, deterministic_detection_record]
+  winner_eligible: false
+  replacement_learning_rate_allowed: false
+  infrastructure_failure_may_use_status: false
+
+execution_prohibitions:
+  optimizer_updates: 0
+  checkpoint_creation: 0
+  evaluation_ancestry: false
+  p9_execution: false
+  p10_execution: false
+  p11_execution: false
+  maintenance_execution: false

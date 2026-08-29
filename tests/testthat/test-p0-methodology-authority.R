@@ -169,6 +169,16 @@ test_that("actual reduced dissertation produces a complete deterministic P0 auth
 
   source_files <- build_reduced_methodology_source_files(spec)
   git_state <- build_reduced_methodology_git_state(source_files, spec)
+  git_value <- jsonlite::read_json(git_state, simplifyVector = FALSE)
+  if (!identical(git_value$observed_commit_sha, spec$dissertation$expected_commit_sha)) {
+    # P8-only methodology revisions are bound by the scoped P8 compatibility
+    # record and must not silently republish the repository-wide P0 authority.
+    expect_identical(git_value$verification_status, "BLOCKED_BY_REPOSITORY_STATE")
+    expect_true("commit_mismatch" %in% unlist(git_value$diagnostics))
+    expect_error(build_reduced_methodology_source_set(source_files, git_state, spec),
+                 "Dissertation Git state is not accepted")
+    return(invisible(NULL))
+  }
   source_set <- build_reduced_methodology_source_set(source_files, git_state, spec)
   source_value <- jsonlite::read_json(source_set, simplifyVector = FALSE)
   expect_identical(source_value$status, "PASS")

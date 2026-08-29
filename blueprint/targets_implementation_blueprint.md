@@ -3,8 +3,10 @@
 ## 0. Document Status and Authority
 
 - **상태:** 승인된 read-only audit를 반영한 active implementation blueprint.
-- **개정 시각:** 2026-08-27 KST.
-- **구현 저장소 기준:** `/members/dhnyu/fuse`, branch `reduced`, HEAD `075504fa7aea7eba0eec5a990c8a87636a2c9ad2`.
+- **개정 시각:** 2026-08-30 KST.
+- **구현 저장소 기준:** `/members/dhnyu/fuse`, branch `reduced`; P8 implementation commit is bound by the published P8 authority.
+- **논문 방법론 기준:** `/members/dhnyu/dhnyu-masters-dissertation`, branch `reduced`, commit `a456f46566c5e760c048091ead53cb4debe73832`.
+- **Active status:** P0-P7 accepted; P7 runtime acceptance `p7rta_c780441a553abe26772827d0`; P8 is the current plan-only implementation unit.
 - **논문 저장소 기준:** `/members/dhnyu/dhnyu-masters-dissertation`, branch `reduced`, HEAD `109355b3d744248ca14749c5f74511537970d660`.
 - **승인 근거:** [20260827_1748 reduced methodology read-only audit](../reports/20260827_1748_reduced_methodology_read_only_audit.md).
 - **방법론 권위:** dissertation reduced Typst 원문, 승인 감사 보고서, 이 blueprint, 기존 구현/artifact 순이다.
@@ -114,7 +116,7 @@ SERIALIZATION HARD BOUNDARY
 | `MODIFY` | P2 topology fields, P3 serialization schema, P6 d64 model/loader, P7/P9 training contracts and P11 downstream integration. |
 | `REPLACE` | Old methodology contract, serialization-v2 dataset acceptance, online augmentation, old DataLoader, prototype validation/checkpoint selection and old sweep plans. |
 | `REMOVE` | Legacy authorization and obsolete artifact families lose active outgoing edges; bytes/files are not deleted. |
-| `ADD` | P0 reduced authority, P4 banks, P5 fixed queries, P8 11-config matrix, P9 selector identities, P10 held-out evaluation and P11 leakage gates. |
+| `ADD` | P0 reduced authority, P4 banks, P5 fixed queries, P8 13-config plus 7-template plan, P9 selector identities, P10 held-out evaluation and P11 leakage gates. |
 
 ## 3. Scientific Identity, Seeds, and Fingerprints
 
@@ -626,7 +628,7 @@ P6 uses the unchanged architecture while resolving P0/P3/P4/P5 parent IDs from a
 
 | Field | Contract |
 |---|---|
-| Purpose | Prove the main reduced protocol end to end before the 11 formal configurations. |
+| Purpose | Prove the main reduced protocol end to end before the P9-A/P9-B formal attempts. |
 | Authoritative inputs | P6 model/data acceptance, fixed validation queries, training contract. Evaluation queries are excluded. |
 | Output artifact | Prototype plan/run/checkpoints, validation history, deterministic checkpoint decision and prototype acceptance. |
 | Schema requirements | Scientific/execution config, epoch/step metrics, complete resume state, validation retrieval loss/margin/MRR/HIT, selector decision. |
@@ -773,30 +775,34 @@ execution parent only for future P9 training authorities.
 
 | Field | Contract |
 |---|---|
-| Purpose | Define exactly 11 unique OFAT scientific configurations and their bank reuse without duplicate main execution. |
-| Authoritative inputs | P7 acceptance, P4 accepted banks/indices, fixed validation identity, training/model contracts. |
-| Output artifact | Unique configuration matrix, bank-use index, run plan and acceptance. |
-| Schema requirements | Config ID, changed factor/value, complete defaults, bank ID/effective K, validation identity, scientific hash, expected run count. |
+| Purpose | Freeze 13 unique OFAT hyperparameter configurations and seven selected-FM-derived comparison templates without duplicate main execution. |
+| Authoritative inputs | Scoped dissertation methodology, P7 acceptance/best checkpoint, P7 runtime acceptance, P4 accepted banks/indices and fixed validation identity. |
+| Output artifact | Methodology compatibility, configuration/template matrices, bank-use index, P9-A plan, deferred P9-B materialization template and acceptance. |
+| Schema requirements | Complete config/defaults and transformation contracts, bank/subset and validation identities, canonical hashes, sequencing and terminal-outcome policy. |
 | Scientific fingerprint | Canonical complete config + bank subset identity + fixed validation identity; one hash per unique row. |
-| Acceptance invariants | Six factors, 11 unique rows, one main row, one-factor differences only, no duplicate hashes, query identity equal across rows. |
+| Acceptance invariants | Six factors, 13 unique rows, seven deferred comparison templates, one main, OFAT only, no duplicate hashes, validation identity equal, evaluation ancestry zero. |
 | Smoke fixture | Matrix generator test that rejects duplicate main and simultaneous two-factor change. |
 | Pilot scale | Plan-only plus one non-main dry specification; no formal training. |
-| Production scale | Exactly 11 accepted run specifications. |
+| Production scale | 13 concrete P9-A specifications plus seven deferred P9-B templates; expected P9 attempts 20. |
 | Promotion criteria | Matrix/bank reuse/query fingerprint acceptance PASS and prototype training accepted. |
 | Downstream invalidation | Factor set/value/bank mapping change invalidates P9 runs and P10 comparisons. |
-| Prohibited early execution | No formal training before all 11 specs are accepted. Evaluation query identity is not an input. |
+| Prohibited early execution | No formal training before P8 acceptance; no P9-B materialization before selected FM; evaluation query identity is not an input. |
 
 | Target | Direct dependencies | Role |
 |---|---|---|
-| `hyperparameter_configuration_matrix` | P7 acceptance, model/training contracts | Emit exactly 11 canonical scientific configurations. |
+| `p8_methodology_compatibility` | scoped dissertation sources, P7 acceptance | Preserve P0-P7 while binding the new P8/P9/P10 methodology scope. |
+| `hyperparameter_configuration_matrix` | P7 acceptance, model/training contracts | Emit exactly 13 canonical scientific configurations. |
+| `comparison_variant_template_matrix` | methodology compatibility, selected-FM derivation contract | Emit seven unresolved comparison templates. |
 | `experiment_augmentation_bank_index` | configuration matrix, P4 bank acceptance/effective indices | Map each configuration to a reused bank/subset. |
-| `formal_experiment_plan` | configuration matrix, bank index, fixed validation acceptance | Emit one formal run spec per unique scientific hash. |
-| `formal_experiment_plan_acceptance` | all three P8 artifacts | Verify OFAT uniqueness, bank/query reuse and count. |
+| `formal_hyperparameter_experiment_plan` | configuration matrix, bank index, fixed validation acceptance | Emit the 13 P9-A run specifications. |
+| `comparison_variant_materialization_template` | template matrix, selected-FM dependency | Defer seven final hashes until P9-A selection. |
+| `formal_experiment_plan_acceptance` | all P8 artifacts | Verify 13+7 accounting, sequencing, bank/query reuse and zero evaluation ancestry. |
 
 | Config ID | Changed factor | d | K | Intensity | EMA | `lambda_IP` | Peak LR | Bank |
 |---|---|---:|---:|---:|---:|---:|---:|---|
 | `cfg_main` | main | 64 | 8 | 1.0x | .999 | 1 | `1e-3` | main-intensity master16 subset K8 |
 | `cfg_d48` | d | 48 | 8 | 1.0x | .999 | 1 | `1e-3` | main K8 |
+| `cfg_d128` | d | 128 | 8 | 1.0x | .999 | 1 | `1e-3` | main K8 |
 | `cfg_k2` | K | 64 | 2 | 1.0x | .999 | 1 | `1e-3` | master16 subset K2 |
 | `cfg_k4` | K | 64 | 4 | 1.0x | .999 | 1 | `1e-3` | master16 subset K4 |
 | `cfg_k16` | K | 64 | 16 | 1.0x | .999 | 1 | `1e-3` | master16 subset K16 |
@@ -806,15 +812,18 @@ execution parent only for future P9 training authorities.
 | `cfg_ip_0` | `lambda_IP` | 64 | 8 | 1.0x | .999 | 0 | `1e-3` | main K8 |
 | `cfg_lr_2` | peak LR | 64 | 8 | 1.0x | .999 | 1 | `2e-3` | main K8 |
 | `cfg_lr_3` | peak LR | 64 | 8 | 1.0x | .999 | 1 | `3e-3` | main K8 |
+| `cfg_lr_10` | peak LR | 64 | 8 | 1.0x | .999 | 1 | `1e-2` | main K8 |
 
-All 11 configurations consume the same fixed `1.0x` validation query identity. The P5 evaluation query identity is also configuration-independent but is deliberately absent from P8/P9 ancestry and joins only in P10. The main-intensity physical master has 16 views; K2/K4/K8/K16 are nested ordered subsets. Only weak and strong intensity use separate K8 banks. The six factors are `d`, `K_aug`, augmentation intensity, `mu_EMA`, `lambda_IP`, and peak learning rate.
+All 13 configurations consume fixed validation acceptance `fqsa_27565de68d9432e47fe7b99d`. Evaluation identity is absent from P8/P9 and joins only in P10. The physical master has 16 views; K2/K4/K8/K16 are nested ordered subsets, while weak and strong use K8. The six factors are `d`, `K_aug`, intensity, `mu_EMA`, `lambda_IP`, and peak LR. An evidence-complete non-finite or unrecoverable numerical outcome is `SCIENTIFIC_DIVERGENCE`, remains reportable, is winner-ineligible and cannot trigger a replacement LR; infrastructure failure cannot use that status.
+
+The comparison templates are `cmp_a1_no_geometry`, `cmp_a2_no_semantics`, `cmp_a3_no_raster_context`, `cmp_a4_no_spatial_relations`, `cmp_a5_radius_context`, `cmp_ssv_like` and `cmp_ds_like`. They inherit the validation-selected stable FM configuration except for their explicit transformation, do not compete in hyperparameter selection and have unresolved final scientific hashes in P8. Main training is reused, not duplicated.
 
 <a id="p9-formal-training"></a>
 ### P9 Formal Training
 
 | Field | Contract |
 |---|---|
-| Purpose | Train, validate and select checkpoints for each accepted scientific configuration without evaluation leakage. |
+| Purpose | P9-A trains/selects 13 hyperparameter configurations, freezes selected FM, then P9-B materializes and trains seven controlled comparisons. |
 | Authoritative inputs | P8 accepted plans, P6 model/data acceptance, P4 accepted bank indices, P5 validation queries only. |
 | Output artifact | Per-config run, validation history, checkpoint decision, acceptance, selected checkpoint identity, validation-only selected configuration identity and execution record. |
 | Schema requirements | Separate scientific/execution specs, complete resume state, validation event rows, selector rationale, checkpoint/content hash, hardware/runtime record. |
@@ -822,10 +831,10 @@ All 11 configurations consume the same fixed `1.0x` validation query identity. T
 | Acceptance invariants | One accepted run per config; exact schedule/batch/EMA/queue; no evaluation dependency; selector/patience exact; resumable deterministic sampler. |
 | Smoke fixture | Completed P7 protocol fixture and selector tie fixture. |
 | Pilot scale | One accepted main configuration production-shape run authorization before remaining configurations. |
-| Production scale | Exactly 11 formal configuration runs. |
-| Promotion criteria | Each run/validation/checkpoint/record complete; 11 selected checkpoint identities and one validation-only selected configuration identity accepted. |
+| Production scale | 13 P9-A attempts plus seven P9-B attempts, total 20; main duplication zero. |
+| Promotion criteria | Stable runs have selected checkpoints; evidence-complete divergence is accepted without a checkpoint but is winner-ineligible; selected FM must be stable before P9-B. |
 | Downstream invalidation | Scientific config change invalidates that run/checkpoint/evaluation; execution-only change creates a record without changing scientific config identity. |
-| Prohibited early execution | No P9 before P8 acceptance; no evaluation split/query dependency; failed validation acceptance cannot publish selected checkpoint. |
+| Prohibited early execution | No P9 before P8 acceptance, no P9-B before frozen selected FM, and no evaluation split/query dependency. Infrastructure failure is not a terminal scientific outcome. |
 
 | Target | Direct dependencies | Role |
 |---|---|---|
@@ -838,6 +847,8 @@ All 11 configurations consume the same fixed `1.0x` validation query identity. T
 | `selected_checkpoint_identity` | accepted selector and checkpoint bytes | Publish immutable selected checkpoint for each config. |
 | `hyperparameter_selection` | accepted validation histories, configuration matrix, selected per-config checkpoints | Apply the approved validation-only configuration decision; evaluation artifacts are forbidden inputs. |
 | `selected_configuration_identity` | accepted hyperparameter selection | Publish the frozen configuration/checkpoint identity entering primary held-out evaluation. |
+| `comparison_training_configuration_plan` | selected FM identity, seven accepted templates | Materialize exactly seven final P9-B configurations. |
+| `comparison_training_acceptance` | comparison runs, validation histories, selectors | Publish seven frozen comparison checkpoints without entering hyperparameter selection. |
 
 Scientific configuration includes model/loss/optimizer/schedule/bank and run seed. Execution configuration contains worker count, threads, device mapping, runtime path and controller. Numeric modes such as precision or DDP that change results belong to training-run identity; pure host/path placement remains execution-only.
 
@@ -846,7 +857,7 @@ Scientific configuration includes model/loss/optimizer/schedule/bank and run see
 
 | Field | Contract |
 |---|---|
-| Purpose | Evaluate frozen selected checkpoints on validation and held-out evaluation, then produce retrieval, representation and controlled-comparison results. |
+| Purpose | Evaluate the frozen selected FM and accepted comparison checkpoints; no training or checkpoint creation occurs in P10. |
 | Authoritative inputs | P9 selected checkpoints and frozen selected configuration, P5 fixed validation/evaluation query/gallery acceptances, evaluation contract. |
 | Output artifact | Embeddings, metrics/rankings, qualitative retrieval, UMAP/HDBSCAN, representation analysis, baselines/ablations, model comparison and acceptance. |
 | Schema requirements | Checkpoint/query/gallery IDs, embedding dimension/hash, full ranks, retrieval loss/margin/MRR/HIT, analysis seeds/parameters, baseline config, result provenance. |
@@ -871,9 +882,9 @@ Scientific configuration includes model/loss/optimizer/schedule/bank and run see
 | `representation_analysis` | held-out and validation embeddings | Original-space/statistical representation analysis. |
 | `umap_analysis` | accepted frozen embeddings | Fixed-seed UMAP coordinates and parameters. |
 | `hdbscan_analysis` | accepted frozen embeddings | HDBSCAN labels/probabilities and original-space validation metrics. |
-| `ablation_plan` | selected model/config identities, evaluation contract | Define controlled ablations with one mechanism changed at a time. |
+| `ablation_plan` | accepted P9-B ablation checkpoints, evaluation contract | Map frozen ablation checkpoints to fixed evaluation queries; never define training. |
 | `ablation_evaluation` | mapped ablation plan, fixed query artifacts | Evaluate ablations under the same fixed evaluation identity. |
-| `controlled_baseline_plan` | selected model/config identities, evaluation contract | Define controlled external/internal baselines. |
+| `controlled_baseline_plan` | accepted P9-B baseline checkpoints, evaluation contract | Map frozen baseline checkpoints to fixed evaluation queries; never define training. |
 | `controlled_baseline_evaluation` | mapped baseline plan, fixed query artifacts | Evaluate baselines under the same evaluation identity. |
 | `final_model_comparison` | retrieval, representation, UMAP/HDBSCAN, ablations/baselines | Publish cross-model/config comparison tables. |
 | `evaluation_acceptance` | all P10 artifacts, P0 authority | Final held-out evaluation gate and immutable result manifest. |
@@ -938,12 +949,15 @@ flowchart TD
   BI --> MD[model_data_acceptance]
   MD --> PT[prototype_training_acceptance]
   VQ --> PT
-  PT --> EP[formal_experiment_plan_acceptance]
-  EP --> FT[formal_training_acceptance]
-  VQ --> FT
-  FT --> CK[selected_checkpoint_identity]
+  PT --> EP[formal_experiment_plan_acceptance: 13 configs + 7 templates]
+  EP --> FTA[P9-A hyperparameter training]
+  VQ --> FTA
+  FTA --> CK[selected_checkpoint_identity]
   CK --> HS[hyperparameter_selection]
   HS --> SC[selected_configuration_identity]
+  SC --> FTB[P9-B comparison training]
+  VQ --> FTB
+  FTB --> EV
   SC --> EV[evaluation_acceptance]
   VQ --> EV
   EQ --> EV
@@ -1015,7 +1029,7 @@ Promotion is strictly sequential:
 4. Full CPU bank pilot.
 5. Full augmentation bank.
 6. GPU prototype training.
-7. Formal 11-configuration training.
+7. P8 plan-only acceptance, then P9-A 13-config and P9-B 7-comparison training.
 8. Held-out evaluation.
 9. Downstream evaluation.
 
@@ -1031,7 +1045,7 @@ P0-P6 must all be approved before any GPU training. Each phase acceptance manife
 | P5 -> P7/P9/P10 | accepted fixed queries; namespace leakage checks | evaluation ancestry into selection/tuning |
 | P6 -> P7 | loader/model/data acceptance | all GPU optimizer work before P0-P6 PASS |
 | P7 -> P8 | protocol-faithful prototype acceptance | untested main configuration expansion |
-| P8 -> P9 | 11 unique plan acceptance | duplicate main or non-OFAT run |
+| P8 -> P9 | 13 unique configs plus 7 deferred templates | duplicate main, non-OFAT row or premature comparison materialization |
 | P9 -> P10 | selected checkpoint identities | held-out use before freeze |
 | P10 -> P11 | evaluation acceptance | downstream encoder fine-tuning |
 
@@ -1059,7 +1073,7 @@ Historical implementation evidence is retained, but no entry in this section is 
 | I18 encoder and old d128 forward smoke | `superseded` | P6 full d64 architecture smoke. |
 | old joint/DDP smoke | `superseded` | P6 bank-routed objective/sampler parity. |
 | I20-I24 prototype training/model acceptance | `superseded` | P7 protocol-faithful prototype. |
-| C12-C16 experiment/training acceptance | `superseded` | P8/P9 11-config plan and formal runs. |
+| C12-C16 experiment/training acceptance | `superseded` | P8 13+7 plan and P9-A/P9-B formal runs. |
 | C17-C19 embedding family | `superseded` | P10 split-specific frozen embeddings. |
 | T01-T06 retrieval/robustness | `superseded` | P5 fixed queries and P10 retrieval. |
 | T07-T13 downstream concept | `retained code` where generic | P11 leakage-controlled frozen ridge evaluation. |
@@ -1135,7 +1149,9 @@ This checklist is normative and must be checked after every blueprint or target 
 | Peak LR | `1 x 10^-3` |
 | `lambda_IP` | 1 |
 | Validation interval/patience | 5 epochs / 4 validation events |
-| Hyperparameter study | six factors, exactly 11 unique scientific configurations |
+| Hyperparameter study | six factors, exactly 13 unique scientific configurations |
+| Comparison templates | exactly 7 selected-FM-derived templates; selection eligibility false |
+| P9 attempt accounting | 13 hyperparameter + 7 comparison = 20; duplicate main 0 |
 | Road removal | receiver absorption; no degree-two cascade in active lineage |
 | Source-node chain | ordered variable-length values + offsets |
 | Seed namespaces | training bank, validation query, evaluation query separated |
@@ -1145,6 +1161,6 @@ This checklist is normative and must be checked after every blueprint or target 
 
 ## 13. Implementation Start and Final Blueprint Verdict
 
-The next single implementation unit is P0 Authority only: implement `reduced_methodology_source_files`, `reduced_methodology_git_state`, ordered source-set/import resolution, module-specific contracts, conflict gate and `reduced_methodology_authority`. It must not execute P1 data work or modify artifacts outside its own authority manifests.
+The next single implementation unit is P8 plan-only publication: freeze the 13 hyperparameter configurations and seven comparison templates, validate scoped methodology compatibility, and publish `formal_experiment_plan_acceptance`. It must not execute P9 training or consume evaluation queries.
 
-**Blueprint verdict: `READY_FOR_P0_AUTHORITY_IMPLEMENTATION`**
+**Blueprint verdict: `READY_FOR_P8_PLAN_ONLY_IMPLEMENTATION`**

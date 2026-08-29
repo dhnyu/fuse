@@ -36,6 +36,7 @@ research_function_files <- c(
   "R/research_distributed_joint_model_smoke.R",
   "R/research_prototype_training.R",
   "R/research_p7_cold_path_runtime.R",
+  "R/research_p8_experiment_plan.R",
   "R/research_prototype_model_validation.R",
   "R/research_prototype_model_acceptance.R",
   "R/research_training_plan.R"
@@ -105,6 +106,7 @@ targets::tar_source("targets/research_distributed_joint_model_smoke.R")
 targets::tar_source("targets/research_training_plan.R")
 targets::tar_source("targets/research_prototype_training.R")
 targets::tar_source("targets/research_p7_cold_path_runtime.R")
+targets::tar_source("targets/research_p8_experiment_plan.R")
 targets::tar_source("targets/research_prototype_model_validation.R")
 targets::tar_source("targets/research_prototype_model_acceptance.R")
 targets::tar_source("R/research_metadata_recovery.R")
@@ -137,6 +139,7 @@ c(
   list_research_training_plan,
   list_research_prototype_training,
   list_research_p7_cold_path_runtime,
+  list_research_p8_experiment_plan,
   list_research_prototype_model_validation,
   list_research_prototype_model_acceptance,
   list_research_full_membership_plan

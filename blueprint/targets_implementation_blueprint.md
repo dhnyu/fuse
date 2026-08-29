@@ -741,6 +741,33 @@ embedding/ID reconstruction, and the unchanged selector. The cache is built
 cold from layout-v3 scene-local geometry, validates every feature against the
 online encoder bytes, and cannot read or relabel layout-v2 caches.
 
+#### P7/P9 cold-path runtime contract (`p7-cold-path-runtime-v1`)
+
+The execution-only runtime contract does not replace the accepted P7
+scientific authority, run, cache, checkpoints, or acceptance. It binds the
+existing P6/P7 lineage to a production cache-construction and preload runtime
+whose restored tensor bytes and first-40 scientific trajectory are exact.
+
+| Field | Runtime contract |
+|---|---|
+| CPU preparation | Spawn start method; requested tier 32 with 24/16 memory-admission fallback; one native computational thread per worker; CUDA initialization in workers is prohibited. |
+| GPU producers | Exactly one process/context per selected GPU, batch size one; even canonical indices use GPU 0 and odd indices use GPU 1. Completion order cannot determine cache or manifest order. |
+| Handoff | Fixed-index disk-backed bounded staging. Payloads bind global index, source identity and checksum; missing, duplicate, stale or foreign results fail closed. Full tensor pickle queues are prohibited. |
+| Publication | Entry temporary write and atomic transition, complete fixed-index coverage, canonical manifest order, and valid marker only after validation. Repeated finalization must not rewrite an identical completed cache. |
+| Memory and disk | Worker tier is admitted using measured peak memory, fixed/worker overhead and at least 25% safety margin. Unsafe overrides, swap-in beyond the declared bound, insufficient staging space and overlapping accepted/store roots fail closed. |
+| Eager preload | All required training and distributed-validation entries load in canonical index order before optimizer update 1. RNG, sampler, view/mask order and scientific checkpoint state remain unchanged; both ranks synchronize only after complete validation. |
+| Evidence gates | Full 2,144-entry raw tensor parity, corrected 28-coordinate problem view, exact first-40 trace and validation, and exact interrupted/resumed state. Verification artifacts use an isolated runtime namespace. |
+| Compatibility | P8 continues to consume acceptance `p7acc_3c78cc0e85b93aec6a0cc02c` and best checkpoint `p7ck_7d25fec7944dc108c5849cd7`. Future P9 authorities must additionally bind the accepted cold-path runtime identity. |
+| Prohibited variants | Layout-v2 fallback, 40-worker default, GPU batch size four, completion-order manifests, partial publication, cross-rank mutable host cache, and any P7 scientific-configuration change. |
+
+Active runtime publication order is
+`p7_cold_path_runtime_contract_files` ->
+`p7_cold_path_runtime_contract` ->
+`p7_cold_path_runtime_verification_reference` ->
+`p7_cold_path_runtime_acceptance`. The runtime acceptance is not an ancestor
+of the already accepted P7 run and does not trigger training. It is a required
+execution parent only for future P9 training authorities.
+
 <a id="p8-experiment-plan"></a>
 ### P8 Experiment Plan
 

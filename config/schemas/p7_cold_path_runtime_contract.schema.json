@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "contract_id", "contract_name", "source_commit", "parents", "configuration", "checksums", "invariants", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "contract_id": {"pattern": "^p7rt_[0-9a-f]{24}$"},
+    "contract_name": {"const": "p7-cold-path-runtime-v1"},
+    "source_commit": {"pattern": "^[0-9a-f]{40}$"},
+    "parents": {
+      "type": "object", "additionalProperties": false,
+      "required": ["p6_aggregate_acceptance_id", "p7_training_authority_id", "p7_run_id", "p7_acceptance_id", "p7_best_checkpoint_id", "p7_latest_checkpoint_id", "p7_geometry_cache_id"],
+      "properties": {
+        "p6_aggregate_acceptance_id": {"const": "mda_b07032bd970d101ec1da7a4b"},
+        "p7_training_authority_id": {"const": "p7a_99b71dcd4fc17e00b1cad76e"},
+        "p7_run_id": {"const": "p7run_d5947018e270c55ae60f2696"},
+        "p7_acceptance_id": {"const": "p7acc_3c78cc0e85b93aec6a0cc02c"},
+        "p7_best_checkpoint_id": {"const": "p7ck_7d25fec7944dc108c5849cd7"},
+        "p7_latest_checkpoint_id": {"const": "p7ck_294f2e926ed88ee63e0bb267"},
+        "p7_geometry_cache_id": {"const": "p7gc_4de4a140d54765f01a30e656"}
+      }
+    },
+    "configuration": {"type": "object", "required": ["cpu_preparation", "memory_admission", "gpu_producers", "disk_staging", "eager_preload", "scientific_invariants", "p8", "future_p9", "prohibited_variants", "experimental_evidence"]},
+    "checksums": {"type": "object", "additionalProperties": {"pattern": "^[0-9a-f]{64}$"}, "required": ["runtime_config_sha256", "runtime_module_sha256", "runtime_script_sha256", "p6_acceptance_sha256", "p7_acceptance_sha256", "p7_cache_manifest_sha256"]},
+    "invariants": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scientific_configuration_unchanged", "existing_p7_artifacts_immutable", "p8_parent_unchanged", "future_p9_runtime_binding_required", "full_p7_execution_zero", "p8_p9_execution_zero"],
+      "properties": {
+        "scientific_configuration_unchanged": {"const": true},
+        "existing_p7_artifacts_immutable": {"const": true},
+        "p8_parent_unchanged": {"const": true},
+        "future_p9_runtime_binding_required": {"const": true},
+        "full_p7_execution_zero": {"const": true},
+        "p8_p9_execution_zero": {"const": true}
+      }
+    },
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  }
+}

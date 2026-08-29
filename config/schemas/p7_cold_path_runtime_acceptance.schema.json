@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "acceptance_id", "contract_id", "source_commit", "parents", "verification", "memory_admission", "compatibility", "non_mutation", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "acceptance_id": {"pattern": "^p7rta_[0-9a-f]{24}$"},
+    "contract_id": {"pattern": "^p7rt_[0-9a-f]{24}$"},
+    "source_commit": {"pattern": "^[0-9a-f]{40}$"},
+    "parents": {"type": "object"},
+    "verification": {"type": "object", "required": ["status", "selected_workers", "cache_entry_count", "cache_parity_failures", "cache_missing", "cache_duplicate", "cache_build_wall_seconds", "first_40_trace_exact", "validation_exact", "resume_exact", "preload_rng_unchanged", "accepted_artifact_mutations", "target_store_mutations", "existing_cache_checkpoint_mutations", "dissertation_mutations", "full_p7_executions", "p8_p9_executions"]},
+    "memory_admission": {
+      "type": "object", "additionalProperties": false,
+      "required": ["worker_tiers", "selected_active_tier", "required_bytes_by_tier", "safety_margin_fraction"],
+      "properties": {
+        "worker_tiers": {"const": [32, 24, 16]},
+        "selected_active_tier": {"enum": [32, 24, 16]},
+        "required_bytes_by_tier": {"type": "object"},
+        "safety_margin_fraction": {"type": "number", "minimum": 0.25}
+      }
+    },
+    "compatibility": {
+      "type": "object", "additionalProperties": false,
+      "required": ["existing_p7_acceptance_unchanged", "p8_acceptance_id", "p8_checkpoint_id", "future_p9_runtime_acceptance_required"],
+      "properties": {
+        "existing_p7_acceptance_unchanged": {"const": true},
+        "p8_acceptance_id": {"const": "p7acc_3c78cc0e85b93aec6a0cc02c"},
+        "p8_checkpoint_id": {"const": "p7ck_7d25fec7944dc108c5849cd7"},
+        "future_p9_runtime_acceptance_required": {"const": true}
+      }
+    },
+    "non_mutation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["accepted_artifact_mutations", "target_store_mutations", "existing_cache_checkpoint_mutations", "dissertation_mutations"],
+      "properties": {
+        "accepted_artifact_mutations": {"const": 0},
+        "target_store_mutations": {"const": 0},
+        "existing_cache_checkpoint_mutations": {"const": 0},
+        "dissertation_mutations": {"const": 0}
+      }
+    },
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  }
+}

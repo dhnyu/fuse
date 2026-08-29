@@ -1,5 +1,5 @@
 schema_version: "1.0.0"
-implementation_version: "p6-model-dataloader-v1"
+implementation_version: "p6-model-dataloader-v2"
 publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data
 
 parents:
@@ -53,6 +53,7 @@ model:
   relation_types: [SN, CNT, WIT, INT, CON]
 
 tensorization:
+  geometry_layout_version: "3.0.0"
   scientific_geometry_dtype: float64
   model_float_dtype: float32
   categorical_dtype: int64

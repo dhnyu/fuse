@@ -347,7 +347,7 @@ def collate(samples: Sequence[dict[str, Any]], vocabulary: dict[str, Any]) -> di
 
 def to_device(value: Any, device: torch.device, key: str = "") -> Any:
     if isinstance(value, torch.Tensor):
-        if key == "coordinates_xy_m_scientific":
+        if key in {"part_coordinates_xy_m_scientific", "ring_coordinates_xy_m_scientific"}:
             return value
         return value.to(device, non_blocking=False)
     if isinstance(value, dict):

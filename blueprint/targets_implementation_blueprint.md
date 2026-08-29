@@ -530,7 +530,7 @@ P5 v2 preserves the exact 400/800 validation and 1,600/3,200 evaluation populati
 | Purpose | Implement the full d64 architecture and production-ready deterministic readers, Datasets and ragged DataLoader boundary. |
 | Authoritative inputs | P3 original cache, P4 training bank acceptance/effective K8 index, P5 fixed query/gallery authority and P0 model/training contracts. |
 | Output artifact | Architecture contract, training-only preprocessing contract, DataLoader acceptance, bounded CPU functional-smoke manifest and aggregate P6 acceptance. |
-| Schema requirements | Scene-specific bank/query lookup; view/query/positive lineage; ragged entity, geometry, relation and source-node offsets; raster shapes; model tensor shapes/dtypes. |
+| Schema requirements | Geometry layout `3.0.0`; independent road-part and polygon-ring coordinate storage/pointers; scene-specific bank/query lookup; view/query/positive lineage; ragged entity, relation and source-node offsets; raster shapes; model tensor shapes/dtypes. Layout `2.0.0`, missing versions and unknown major versions are rejected at the P6 geometry/batch boundary. |
 | Scientific fingerprint | Model config + P3/P4/P5 identities + reader/tensorizer/collator/sampler/model implementation; execution hardware separately recorded. |
 | Acceptance invariants | K8 main training access; fixed P5 validation/evaluation query and gallery populations; no fabricated entity/edge; float64 scientific geometry with explicit float32 model boundary; finite deterministic d64 CPU outputs. |
 | Smoke fixture | Twelve accepted original/training-query cases spanning ordinary, dense, sparse, zero-road, empty-edge, shared-node, receiver-absorption, geometry-fallback and validation/evaluation query-positive lineage. |
@@ -540,7 +540,7 @@ P5 v2 preserves the exact 400/800 validation and 1,600/3,200 evaluation populati
 | Downstream invalidation | Model/loader/objective change invalidates P7 onward, not P1-P5 artifacts unless schema input changes. |
 | Prohibited early execution | No optimizer/training before P6 acceptance; no scene-level augmentation in loader; no raster modality masking. |
 
-P6 uses the unchanged architecture while resolving P0/P3/P4/P5 parent IDs from accepted target values at execution time. The tracked P6 YAML canonical checksum is `499cda4904633b052a5b55e50212d7f8dc423fe7ece9bdb8e823e1d44c4d21f8`; paths are excluded from its scientific sub-hash. Revised P4 intentional land-cover masks use the existing second non-class embedding (`C_cat+2`) and remain distinct from nodata without changing the 934,420 parameter architecture.
+P6 uses the unchanged architecture while resolving P0/P3/P4/P5 parent IDs from accepted target values at execution time. Geometry layout `3.0.0` separates road-part coordinates from duplicated polygon-ring coordinates so every interval is bounded by its own scene-local storage. The tracked P6 YAML canonical checksum is `aade17047da6983e8cfa40b4d71a56b3cffb1b25561f64e128d4197f375ddc8c`; paths are excluded from its scientific sub-hash. Revised P4 intentional land-cover masks use the existing second non-class embedding (`C_cat+2`) and remain distinct from nodata without changing the 934,420 parameter architecture.
 
 | Target | Direct dependencies | Role |
 |---|---|---|
@@ -604,19 +604,20 @@ P6 uses the unchanged architecture while resolving P0/P3/P4/P5 parent IDs from a
 | POI-attribute decoder | 64 | Linear(64,64), GELU, six categorical heads | target-dependent |
 | Environmental-background decoder | 64 | Linear(64,64), GELU, composition 64->22 plus continuous 64->4 | 22 + 4 |
 
-#### P6 implementation evidence (2026-08-29)
+#### P6 geometry-layout recovery evidence (2026-08-29)
 
 | Field | Accepted implementation |
 |---|---|
-| Status | `PASS`; schema and implementation version `1.0.0` / `p6-model-dataloader-v1`. |
+| Status | `PASS`; artifact schema `1.0.0`, implementation `p6-model-dataloader-v2`, incompatible geometry layout `3.0.0`. |
 | Targets | `p6_model_dataloader_contract_files` -> `d64_model_architecture_contract`; accepted P3/P4/P5 -> `p6_preprocessing_contract` -> `p6_dataloader_acceptance` -> `d64_encoder_cpu_smoke` -> `model_data_acceptance`. |
-| Identities | Model authority `dma_c09fdf20f402774af8e4ac24`; preprocessing `ppc_4465193d7d1af28291492ee0`; DataLoader acceptance `dla_ac640dacf3adcc8f38219589`; CPU smoke `dcs_14f14a5d63675f161e603c0b`; aggregate `mda_2dba53473f273769394a38f2`. |
+| Identities | Model authority `dma_d1b7fb09b063740c38fdb7ac`; preprocessing `ppc_d09fd3a54fcef0e58769e894`; DataLoader acceptance `dla_d7bcbaab25a9666256ce38ae`; CPU smoke `dcs_c07e56c3c7fba40543aea7d4`; aggregate `mda_b07032bd970d101ec1da7a4b`. The previous P6 layout-2 lineage remains immutable and is superseded. |
 | Architecture | All 33 P0 architecture rows matched; `d=d_c=64`, `d_t=16`, `d_r=32`, 3 relation layers, 4 heads x 16, FFN 64->128->64 and dropout 0.2. Total trainable parameters: 934,420; non-trainable: 0. |
 | DataLoader | Training 2,421 scenes and 19,368 main K8 references; validation 400 gallery/800 fixed queries; evaluation 1,600 gallery/3,200 fixed queries. Split leakage and duplicate/missing membership were zero. |
-| Tensor boundary | P3/P4/P5 checksums and lineage are verified read-only; scientific geometry and source-node coordinates remain float64, with explicit float32 conversion only at the model boundary. Ragged entity, geometry, relation and variable-length topology offsets are preserved without dummy scientific rows. |
+| Tensor boundary | P3/P4/P5 checksums and lineage are verified read-only; scientific geometry and source-node coordinates remain float64, with explicit float32 conversion only at the model boundary. Road-part and polygon-ring coordinates have independent v3 storages and pointers. Layout 2 artifacts are rejected rather than converted or relabeled. |
+| Historical defect gate | Candidate `augv_0c7fb311e3c582cf84136d90` / scene `scn_28a3bd91311d83e99834f532` is exactly 28 coordinates with a six-coordinate first road part when alone, after the former five-coordinate trailing-ring context, and before it. The historical 33-coordinate observation, wrong ranges, batch-context variants and road Fourier-input corruptions are all zero. |
 | CPU smoke | Twelve accepted edge-case roles and nine batches passed reader, collation, endpoint, finite `(batch,64)`, exact eval replay and query-positive lineage checks. Maximum batch-composition error was `2.205371856689453e-6`. |
 | Execution | Manifest/CPU-only sequential graph; no branch tiers were applicable. No optimizer, backward, checkpoint, full inference, retrieval metric, maintenance or GPU target was executed. |
-| Determinism | Normal `model_data_acceptance` ancestry traversal completed 400 targets and skipped 605; immediate repetition skipped all 1,005 reachable targets, built zero targets and rewrote no P6 artifact. Active revised P4/P5/P6 targets are not outdated. |
+| Determinism | Explicit `model_data_acceptance` rebuilt the six P6 targets and skipped 999 reachable targets. Immediate repetition skipped all 1,005 reachable targets, built zero targets and rewrote no P6 artifact. |
 | Parent immutability | The pre/post snapshot of 1,770 accepted P0-P6 v1 files, including P3 96, old P4 288 and old P5 192 payload shards, had zero path/size/mtime/SHA-256 changes. |
 | Promotion | P6 is ready for P7 Prototype Training implementation; P7 execution remains prohibited until separately authorized. |
 

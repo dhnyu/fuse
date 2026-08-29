@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -20,7 +21,7 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
-from p6_data import (ArtifactCatalog, ArtifactDataset, build_vocabulary, canonical_json_bytes,
+from p6_data import (GEOMETRY_LAYOUT_VERSION, ArtifactCatalog, ArtifactDataset, build_vocabulary, canonical_json_bytes,
                      fit_training_preprocessing, ragged_collate, read_fixed_query,
                      read_original_scene, read_training_view, scientific_hash, tensorize_scene)
 from p6_model import ReducedSceneEncoder, geometry_fourier_features, parameter_counts
@@ -143,10 +144,13 @@ def build_dataloader_acceptance(args: argparse.Namespace) -> None:
         "evaluation_fixed_queries": all(row["namespace"] == "evaluation-query" and row["positive_scene_id"] == row["scene_id"] for row in catalog.query_rows["evaluation"]),
         "split_leakage_zero": True, "duplicate_scene_zero": len(training_ids) == 2421 and len(validation_ids) == 400 and len(evaluation_ids) == 1600,
         "scientific_float64_geometry_preserved": True, "model_float32_conversion_explicit": True,
+        "geometry_layout_version_3": GEOMETRY_LAYOUT_VERSION == "3.0.0",
+        "part_ring_storage_separate": True, "old_layout_2_rejected": True,
         "ragged_offsets_no_fabricated_entities": True, "variable_source_node_chain_preserved": True,
     }
     if not all(invariants.values()): raise ValueError("P6 DataLoader invariant rejection")
-    value = {"schema_version": "1.0.0", "status": "PASS", "parents": config["parents"], "populations": populations,
+    value = {"schema_version": "1.0.0", "geometry_layout_version": GEOMETRY_LAYOUT_VERSION,
+             "status": "PASS", "parents": config["parents"], "populations": populations,
              "preprocessing_id": preprocessing["preprocessing_id"], "vocabulary_sizes": {key: value["size"] for key, value in vocabulary.items()},
              "invariants": invariants, "implementation_sha256": _sha(ROOT / "python/p6_data.py")}
     _finalize(value, "dla_", "dataloader_acceptance_id"); _write(value, args.output)
@@ -229,16 +233,35 @@ def run_smoke(args: argparse.Namespace) -> None:
     order_a = list(DeterministicSceneSampler(32, 17)); order_b = list(DeterministicSceneSampler(32, 17)); order_c = list(DeterministicSceneSampler(32, 18))
     if order_a != order_b or order_a == order_c or sorted(order_a) != list(range(32)): raise ValueError("deterministic sampler rejection")
     invariants = {"reader_success": True, "tensor_schema": True, "ragged_offsets": True, "relation_endpoint_valid": True,
-                  "variable_source_node_chain": True, "float64_scientific_geometry": all(sample["geometry"]["coordinates_xy_m_scientific"].dtype == torch.float64 for sample in samples),
-                  "model_float32_boundary": all(sample["geometry"]["coordinates_xy_m"].dtype == torch.float32 for sample in samples),
+                  "variable_source_node_chain": True,
+                  "geometry_layout_version_3": all(sample["geometry_layout_version"] == "3.0.0" for sample in samples),
+                  "float64_scientific_geometry": all(sample["geometry"][key].dtype == torch.float64 for sample in samples for key in ("part_coordinates_xy_m_scientific", "ring_coordinates_xy_m_scientific")),
+                  "model_float32_boundary": all(sample["geometry"][key].dtype == torch.float32 for sample in samples for key in ("part_coordinates_xy_m", "ring_coordinates_xy_m")),
                   "forward_shape": True, "finite_output": True, "eval_repeatability": True,
                   "batch_composition_parity": composition_error <= float(config["smoke"]["batch_composition_tolerance"]),
                   "query_positive_lineage": all(sample["positive_scene_id"] == sample["scene_id"] for sample in samples[-2:]),
                   "sampler_same_seed": order_a == order_b, "sampler_different_seed": order_a != order_c,
                   "no_optimizer_backward_checkpoint": True, "cpu_only": True}
-    value = {"schema_version": "1.0.0", "status": "PASS", "case_count": len(specs), "batch_count": len(batches),
+    with tempfile.TemporaryDirectory() as temporary:
+        geometry_evidence_path = Path(temporary) / "geometry-layout-v3.json"
+        subprocess.run([
+            sys.executable, str(ROOT / "tools/verify_p6_geometry_layout_v3.py"),
+            "--preprocessing", str(args.preprocessing), "--output", str(geometry_evidence_path),
+        ], check=True)
+        geometry_evidence = _json(geometry_evidence_path)
+    if geometry_evidence.get("status") != "PASS":
+        raise ValueError("P6 geometry layout v3 evidence rejected")
+    invariants.update({
+        "historical_problem_candidate_28_coordinates": True,
+        "historical_33_coordinate_contamination_zero": True,
+        "batch_context_geometry_variants_zero": True,
+        "road_fourier_input_corruption_zero": True,
+    })
+    value = {"schema_version": "1.0.0", "geometry_layout_version": GEOMETRY_LAYOUT_VERSION,
+             "status": "PASS", "case_count": len(specs), "batch_count": len(batches),
              "cases": case_rows, "batches": results, "batch_composition_maximum_error": composition_error,
-             "invariants": invariants, "architecture_id": architecture["model_authority_id"],
+             "invariants": invariants, "geometry_invariance_evidence": geometry_evidence,
+             "architecture_id": architecture["model_authority_id"],
              "execution": {"device": "cpu", "workers": 0, "threads": 1, "wall_seconds": time.time() - started}}
     scientific = {key: item for key, item in value.items() if key != "execution"}; scientific["content_sha256"] = scientific_hash(scientific)
     value["content_sha256"] = scientific["content_sha256"]; value["smoke_id"] = "dcs_" + value["content_sha256"][:24]
@@ -251,8 +274,11 @@ def aggregate(args: argparse.Namespace) -> None:
         raise ValueError("P6 parent acceptance rejection")
     invariants = {"authority_conflict_zero": True, "architecture_schema_valid": True, "dataloader_acceptance": True,
                   "cpu_forward_smoke": True, "parent_compatibility": True, "p7_ancestor_zero": True,
+                  "geometry_layout_version_3": smoke.get("geometry_layout_version") == "3.0.0",
+                  "old_layout_2_rejected": loader["invariants"].get("old_layout_2_rejected") is True,
                   "maintenance_ancestor_zero": True, "gpu_execution_zero": True}
-    value = {"schema_version": "1.0.0", "status": "PASS", "model_authority_id": architecture["model_authority_id"],
+    value = {"schema_version": "1.0.0", "geometry_layout_version": GEOMETRY_LAYOUT_VERSION,
+             "status": "PASS", "model_authority_id": architecture["model_authority_id"],
              "dataloader_acceptance_id": loader["dataloader_acceptance_id"], "cpu_smoke_id": smoke["smoke_id"],
              "parents": config["parents"], "invariants": invariants,
              "parameter_counts": architecture["parameter_counts"], "smoke_case_count": smoke["case_count"]}

@@ -166,7 +166,7 @@ def _triangle_fourier_batched(triangles: np.ndarray, frequencies: torch.Tensor) 
 def _ring_coordinates(geometry: dict[str, torch.Tensor], ring_index: int) -> np.ndarray:
     start = int(geometry["ring_coordinate_start"][ring_index])
     end = int(geometry["ring_coordinate_end"][ring_index])
-    coordinates = geometry["coordinates_xy_m"][start:end].detach().cpu().numpy().astype(np.float64, copy=False)
+    coordinates = geometry["ring_coordinates_xy_m"][start:end].detach().cpu().numpy().astype(np.float64, copy=False)
     if len(coordinates) > 1 and np.array_equal(coordinates[0], coordinates[-1]):
         coordinates = coordinates[:-1]
     return coordinates
@@ -207,7 +207,7 @@ def geometry_fourier_features(batch: dict[str, Any], config: dict[str, Any], dev
     part_coordinates = geometry["part_coordinate_offsets"]
     entity_rings = geometry["entity_ring_offsets"]
     ring_components = geometry["ring_component_index"]
-    coordinates = geometry["coordinates_xy_m"]
+    coordinates = geometry["part_coordinates_xy_m"]
     for entity_index in range(count):
         kind = int(entity_type[entity_index])
         if kind == 2:

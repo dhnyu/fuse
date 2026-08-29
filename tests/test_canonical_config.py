@@ -40,5 +40,5 @@ def test_unsafe_or_ambiguous_yaml_is_rejected(tmp_path, payload):
 
 def test_p6_committed_canonical_checksum():
     assert canonical_yaml_sha256(ROOT / "config/p6_model_dataloader.yml") == (
-        "499cda4904633b052a5b55e50212d7f8dc423fe7ece9bdb8e823e1d44c4d21f8"
+        "aade17047da6983e8cfa40b4d71a56b3cffb1b25561f64e128d4197f375ddc8c"
     )

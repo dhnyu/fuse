@@ -25,6 +25,7 @@ from serialize_prototype_shard import geometry_parts
 
 RELATION_BITS = {"SN": 1, "CNT": 2, "WIT": 4, "INT": 8, "CON": 16}
 TYPE_CODES = {"B": 0, "R": 1, "P": 2}
+GEOMETRY_LAYOUT_VERSION = "3.0.0"
 
 
 def sha256_file(path: str | Path) -> str:
@@ -444,7 +445,8 @@ def tensorize_scene(scene: dict[str, Any], preprocessing: dict[str, Any], vocab:
             attribute = f"CLASS_L{level}"
             values.append(_category(vocab, attribute, _poi_category_key(row, level, vocab), attribute in masked))
         poi_category.append(values)
-    coordinates, entity_offsets, part_offsets, entity_part_offsets = [], [0], [0], [0]
+    part_coordinates, entity_offsets, part_offsets, entity_part_offsets = [], [0], [0], [0]
+    ring_coordinates = []
     ring_start, ring_end, ring_hole, ring_component, entity_ring_offsets = [], [], [], [], [0]
     geometry_types, available = [], []
     for row in entities:
@@ -455,11 +457,11 @@ def tensorize_scene(scene: dict[str, Any], preprocessing: dict[str, Any], vocab:
         center = np.asarray([row["observed_center_x_5186"], row["observed_center_y_5186"]], dtype=np.float64)
         for part in parts:
             values = np.asarray(part, dtype=np.float64)
-            coordinates.extend((values - center).tolist()); part_offsets.append(len(coordinates))
-        entity_offsets.append(len(coordinates)); entity_part_offsets.append(len(part_offsets) - 1)
+            part_coordinates.extend((values - center).tolist()); part_offsets.append(len(part_coordinates))
+        entity_offsets.append(len(part_coordinates)); entity_part_offsets.append(len(part_offsets) - 1)
         for (ring, is_hole), component in zip(rings, component_indices, strict=True):
-            values = np.asarray(ring, dtype=np.float64); start = len(coordinates)
-            coordinates.extend((values - center).tolist()); end = len(coordinates)
+            values = np.asarray(ring, dtype=np.float64); start = len(ring_coordinates)
+            ring_coordinates.extend((values - center).tolist()); end = len(ring_coordinates)
             ring_start.append(start); ring_end.append(end); ring_hole.append(is_hole); ring_component.append(entity_part_offsets[-2] + component)
         entity_ring_offsets.append(len(ring_hole))
     edge_groups: dict[tuple[int, int], int] = defaultdict(int)
@@ -492,6 +494,7 @@ def tensorize_scene(scene: dict[str, Any], preprocessing: dict[str, Any], vocab:
     dem_standardized[valid_dem] = ((dem[valid_dem] - dem_stats["mean"]) / dem_stats["scale"]).astype(np.float32)
     sample = {
         "scene_id": scene["scene_id"], "split": scene["split"], "view_id": scene["view_id"], "profile": scene["profile"],
+        "geometry_layout_version": GEOMETRY_LAYOUT_VERSION,
         "positive_scene_id": scene["positive_scene_id"], "lineage": {"parent": scene["parent"]},
         "entities": {
             "local_entity_id": torch.tensor(local_ids), "entity_type": torch.tensor(types),
@@ -504,8 +507,10 @@ def tensorize_scene(scene: dict[str, Any], preprocessing: dict[str, Any], vocab:
             "poi_row_index": torch.tensor(poi_rows, dtype=torch.int64), "poi_category": torch.tensor(poi_category, dtype=torch.int64).reshape((-1, 6)),
         },
         "geometry": {
-            "coordinates_xy_m": torch.tensor(coordinates, dtype=torch.float64).reshape((-1, 2)).to(torch.float32),
-            "coordinates_xy_m_scientific": torch.tensor(coordinates, dtype=torch.float64).reshape((-1, 2)),
+            "part_coordinates_xy_m": torch.tensor(part_coordinates, dtype=torch.float64).reshape((-1, 2)).to(torch.float32),
+            "part_coordinates_xy_m_scientific": torch.tensor(part_coordinates, dtype=torch.float64).reshape((-1, 2)),
+            "ring_coordinates_xy_m": torch.tensor(ring_coordinates, dtype=torch.float64).reshape((-1, 2)).to(torch.float32),
+            "ring_coordinates_xy_m_scientific": torch.tensor(ring_coordinates, dtype=torch.float64).reshape((-1, 2)),
             "geometry_type": torch.tensor(geometry_types), "geometry_available": torch.tensor(available, dtype=torch.uint8),
             "entity_coordinate_offsets": torch.tensor(entity_offsets), "entity_part_offsets": torch.tensor(entity_part_offsets),
             "part_coordinate_offsets": torch.tensor(part_offsets), "entity_component_offsets": torch.tensor(entity_part_offsets),
@@ -524,21 +529,72 @@ def tensorize_scene(scene: dict[str, Any], preprocessing: dict[str, Any], vocab:
                     "dem_standardized_mean": torch.tensor(dem_standardized), "dem_valid_mask": torch.tensor(rasters["dem_valid_mask"], dtype=torch.uint8),
                     "dem_valid_support": torch.tensor(rasters["dem_valid_support"], dtype=torch.float32)},
     }
-    sample["resources"] = {"nodes": len(entities), "ordered_edges": len(edge_keys), "coordinates": len(coordinates),
+    sample["resources"] = {"nodes": len(entities), "ordered_edges": len(edge_keys),
+                           "part_coordinates": len(part_coordinates), "ring_coordinates": len(ring_coordinates),
+                           "coordinates": len(part_coordinates) + len(ring_coordinates),
                            "source_nodes": len(source_node_ids)}
+    validate_geometry_layout(sample)
     return sample
+
+
+def _validate_intervals(starts: torch.Tensor, ends: torch.Tensor, length: int, label: str) -> None:
+    if starts.shape != ends.shape:
+        raise ValueError(f"{label} interval shape mismatch")
+    if starts.numel() and bool(((starts < 0) | (starts > ends) | (ends > length)).any()):
+        raise ValueError(f"{label} interval is outside its storage")
+
+
+def validate_geometry_layout(value: dict[str, Any]) -> None:
+    """Validate the incompatible P6 v3 split part/ring coordinate layout."""
+    version = value.get("geometry_layout_version")
+    if version != GEOMETRY_LAYOUT_VERSION:
+        raise ValueError(
+            f"incompatible P6 geometry layout: expected {GEOMETRY_LAYOUT_VERSION}, got {version!r}"
+        )
+    geometry = value.get("geometry", {})
+    required = {
+        "part_coordinates_xy_m", "part_coordinates_xy_m_scientific",
+        "ring_coordinates_xy_m", "ring_coordinates_xy_m_scientific",
+        "entity_coordinate_offsets", "part_coordinate_offsets", "component_coordinate_offsets",
+        "ring_coordinate_start", "ring_coordinate_end",
+    }
+    missing = sorted(required - set(geometry))
+    if missing:
+        raise ValueError(f"P6 geometry layout fields are missing: {missing}")
+    part_length = int(geometry["part_coordinates_xy_m"].shape[0])
+    ring_length = int(geometry["ring_coordinates_xy_m"].shape[0])
+    if geometry["part_coordinates_xy_m_scientific"].shape != geometry["part_coordinates_xy_m"].shape:
+        raise ValueError("part scientific/model coordinate shapes differ")
+    if geometry["ring_coordinates_xy_m_scientific"].shape != geometry["ring_coordinates_xy_m"].shape:
+        raise ValueError("ring scientific/model coordinate shapes differ")
+    for key in ("entity_coordinate_offsets", "part_coordinate_offsets", "component_coordinate_offsets"):
+        offsets = geometry[key]
+        if offsets.numel() == 0 or int(offsets[0]) != 0 or int(offsets[-1]) != part_length:
+            raise ValueError(f"{key} terminal does not match part-coordinate storage")
+        if bool((offsets[1:] < offsets[:-1]).any()):
+            raise ValueError(f"{key} is not monotone")
+    _validate_intervals(geometry["ring_coordinate_start"], geometry["ring_coordinate_end"], ring_length, "ring")
+    if geometry["ring_coordinate_start"].numel():
+        if int(geometry["ring_coordinate_start"][0]) != 0 or int(geometry["ring_coordinate_end"][-1]) != ring_length:
+            raise ValueError("ring intervals do not cover ring-coordinate storage")
+        if not torch.equal(geometry["ring_coordinate_start"][1:], geometry["ring_coordinate_end"][:-1]):
+            raise ValueError("ring intervals are not contiguous")
 
 
 def ragged_collate(samples: Sequence[dict[str, Any]]) -> dict[str, Any]:
     if not samples: raise ValueError("cannot collate empty batch")
+    for sample in samples:
+        validate_geometry_layout(sample)
     node_counts = [sample["resources"]["nodes"] for sample in samples]
-    coordinate_counts = [sample["resources"]["coordinates"] for sample in samples]
+    part_coordinate_counts = [sample["resources"]["part_coordinates"] for sample in samples]
+    ring_coordinate_counts = [sample["resources"]["ring_coordinates"] for sample in samples]
     part_counts = [sample["geometry"]["part_coordinate_offsets"].numel() - 1 for sample in samples]
     ring_counts = [sample["geometry"]["ring_is_hole"].numel() for sample in samples]
     chain_counts = [sample["topology"]["source_chain_offsets"].numel() - 1 for sample in samples]
     source_node_counts = [sample["resources"]["source_nodes"] for sample in samples]
     ptr = lambda counts: torch.tensor([0, *np.cumsum(counts).tolist()], dtype=torch.int64)
-    scene_ptr, coordinate_ptr, part_ptr, ring_ptr, chain_ptr, source_node_ptr = map(ptr, (node_counts, coordinate_counts, part_counts, ring_counts, chain_counts, source_node_counts))
+    scene_ptr, part_coordinate_ptr, ring_coordinate_ptr, part_ptr, ring_ptr, chain_ptr, source_node_ptr = map(
+        ptr, (node_counts, part_coordinate_counts, ring_coordinate_counts, part_counts, ring_counts, chain_counts, source_node_counts))
     entities = {}
     for key in ("local_entity_id", "entity_type", "relative_position_m", "object_raster", "modality_available"):
         entities[key] = torch.cat([sample["entities"][key] for sample in samples])
@@ -547,16 +603,18 @@ def ragged_collate(samples: Sequence[dict[str, Any]]) -> dict[str, Any]:
         entities[row_key] = torch.cat([sample["entities"][row_key] + scene_ptr[index] for index, sample in enumerate(samples)])
         for suffix in (("category",) if prefix == "poi" else ("category", "numerical", "missing")):
             entities[f"{prefix}_{suffix}"] = torch.cat([sample["entities"][f"{prefix}_{suffix}"] for sample in samples])
-    geometry = {key: torch.cat([sample["geometry"][key] for sample in samples]) for key in ("coordinates_xy_m", "coordinates_xy_m_scientific", "geometry_type", "geometry_available", "ring_is_hole")}
-    geometry["entity_coordinate_offsets"] = torch.cat([samples[0]["geometry"]["entity_coordinate_offsets"][:1], *[sample["geometry"]["entity_coordinate_offsets"][1:] + coordinate_ptr[index] for index, sample in enumerate(samples)]])
+    geometry = {key: torch.cat([sample["geometry"][key] for sample in samples]) for key in (
+        "part_coordinates_xy_m", "part_coordinates_xy_m_scientific", "ring_coordinates_xy_m",
+        "ring_coordinates_xy_m_scientific", "geometry_type", "geometry_available", "ring_is_hole")}
+    geometry["entity_coordinate_offsets"] = torch.cat([samples[0]["geometry"]["entity_coordinate_offsets"][:1], *[sample["geometry"]["entity_coordinate_offsets"][1:] + part_coordinate_ptr[index] for index, sample in enumerate(samples)]])
     for key in ("entity_part_offsets", "entity_component_offsets"):
         geometry[key] = torch.cat([samples[0]["geometry"][key][:1], *[sample["geometry"][key][1:] + part_ptr[index] for index, sample in enumerate(samples)]])
     for key in ("part_coordinate_offsets", "component_coordinate_offsets"):
-        geometry[key] = torch.cat([samples[0]["geometry"][key][:1], *[sample["geometry"][key][1:] + coordinate_ptr[index] for index, sample in enumerate(samples)]])
+        geometry[key] = torch.cat([samples[0]["geometry"][key][:1], *[sample["geometry"][key][1:] + part_coordinate_ptr[index] for index, sample in enumerate(samples)]])
     geometry["entity_ring_offsets"] = torch.cat([samples[0]["geometry"]["entity_ring_offsets"][:1], *[sample["geometry"]["entity_ring_offsets"][1:] + ring_ptr[index] for index, sample in enumerate(samples)]])
     geometry["ring_component_index"] = torch.cat([sample["geometry"]["ring_component_index"] + part_ptr[index] for index, sample in enumerate(samples)])
     for key in ("ring_coordinate_start", "ring_coordinate_end"):
-        geometry[key] = torch.cat([sample["geometry"][key] + coordinate_ptr[index] for index, sample in enumerate(samples)])
+        geometry[key] = torch.cat([sample["geometry"][key] + ring_coordinate_ptr[index] for index, sample in enumerate(samples)])
     edges = {"edge_index": torch.cat([sample["edges"]["edge_index"] + scene_ptr[index] for index, sample in enumerate(samples)], 1),
              "relation_mask": torch.cat([sample["edges"]["relation_mask"] for sample in samples])}
     topology = {"source_node_xy_5186": torch.cat([sample["topology"]["source_node_xy_5186"] for sample in samples]),
@@ -564,13 +622,17 @@ def ragged_collate(samples: Sequence[dict[str, Any]]) -> dict[str, Any]:
                 "source_chain_road_index": torch.cat([sample["topology"]["source_chain_road_index"] + scene_ptr[index] for index, sample in enumerate(samples)])}
     topology["source_chain_offsets"] = torch.cat([samples[0]["topology"]["source_chain_offsets"][:1], *[sample["topology"]["source_chain_offsets"][1:] + source_node_ptr[index] for index, sample in enumerate(samples)]])
     rasters = {key: torch.stack([sample["rasters"][key] for sample in samples]) for key in samples[0]["rasters"]}
-    return {"scene_ids": [sample["scene_id"] for sample in samples], "splits": [sample["split"] for sample in samples],
+    batch = {"scene_ids": [sample["scene_id"] for sample in samples], "splits": [sample["split"] for sample in samples],
             "view_ids": [sample["view_id"] for sample in samples], "profiles": [sample["profile"] for sample in samples],
             "positive_scene_ids": [sample["positive_scene_id"] for sample in samples], "lineage": [sample["lineage"] for sample in samples],
-            "scene_ptr": scene_ptr, "coordinate_ptr": coordinate_ptr, "part_ptr": part_ptr, "ring_ptr": ring_ptr,
+            "geometry_layout_version": GEOMETRY_LAYOUT_VERSION,
+            "scene_ptr": scene_ptr, "part_coordinate_ptr": part_coordinate_ptr,
+            "ring_coordinate_ptr": ring_coordinate_ptr, "part_ptr": part_ptr, "ring_ptr": ring_ptr,
             "chain_ptr": chain_ptr, "source_node_ptr": source_node_ptr, "entities": entities, "geometry": geometry,
             "edges": edges, "topology": topology, "rasters": rasters,
             "entity_scene_index": torch.repeat_interleave(torch.arange(len(samples)), torch.tensor(node_counts))}
+    validate_geometry_layout(batch)
+    return batch
 
 
 class DeterministicSceneSampler(Sampler[int]):

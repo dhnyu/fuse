@@ -7,7 +7,8 @@ p6_contract_names <- function() {
     "config/schemas/p6_cpu_smoke.schema.json",
     "config/schemas/p6_model_data_acceptance.schema.json",
     "R/research_canonical_config.R", "python/canonical_config.py",
-    "python/p6_data.py", "python/p6_model.py", "scripts/p6_model_dataloader.py"
+    "python/p6_data.py", "python/p6_model.py", "scripts/p6_model_dataloader.py",
+    "tools/verify_p6_geometry_layout_v3.py"
   )
 }
 
@@ -27,7 +28,7 @@ p6_spec <- function(contract_files) {
   config <- yaml::read_yaml(config_path)
   full_canonical_config_sha256 <- canonical_yaml_sha256(config_path)
   if (!identical(full_canonical_config_sha256,
-                 "499cda4904633b052a5b55e50212d7f8dc423fe7ece9bdb8e823e1d44c4d21f8")) {
+                 "aade17047da6983e8cfa40b4d71a56b3cffb1b25561f64e128d4197f375ddc8c")) {
     stop("P6 committed canonical configuration checksum mismatch", call. = FALSE)
   }
   scientific <- config

@@ -11,7 +11,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
-from p6_data import DeterministicSceneSampler, _poi_category_key, ragged_collate
+from p6_data import (GEOMETRY_LAYOUT_VERSION, DeterministicSceneSampler,
+                     _poi_category_key, ragged_collate, validate_geometry_layout)
 from p6_model import ReducedSceneEncoder, RelationAwareLayer, parameter_counts
 
 
@@ -35,6 +36,7 @@ def sample(scene: str, entity_types=(0,), edges=(), relation_masks=(), source_no
                   if edges else torch.empty((2, 0), dtype=torch.int64))
     return {
         "scene_id": scene, "split": "training", "view_id": "original", "profile": None,
+        "geometry_layout_version": GEOMETRY_LAYOUT_VERSION,
         "positive_scene_id": scene, "lineage": {"parent": "fixture"},
         "entities": {
             "local_entity_id": torch.arange(count), "entity_type": torch.tensor(entity_types),
@@ -52,8 +54,10 @@ def sample(scene: str, entity_types=(0,), edges=(), relation_masks=(), source_no
             "poi_category": torch.zeros((len(rows[2]), 6), dtype=torch.int64),
         },
         "geometry": {
-            "coordinates_xy_m": torch.zeros((coordinates, 2)),
-            "coordinates_xy_m_scientific": torch.zeros((coordinates, 2), dtype=torch.float64),
+            "part_coordinates_xy_m": torch.zeros((coordinates, 2)),
+            "part_coordinates_xy_m_scientific": torch.zeros((coordinates, 2), dtype=torch.float64),
+            "ring_coordinates_xy_m": torch.empty((0, 2)),
+            "ring_coordinates_xy_m_scientific": torch.empty((0, 2), dtype=torch.float64),
             "geometry_type": torch.zeros(count, dtype=torch.int64),
             "geometry_available": torch.ones(count, dtype=torch.uint8),
             "entity_coordinate_offsets": torch.arange(0, coordinates + 1, 2),
@@ -86,6 +90,7 @@ def sample(scene: str, entity_types=(0,), edges=(), relation_masks=(), source_no
             "dem_valid_support": torch.ones((17, 17)),
         },
         "resources": {"nodes": count, "ordered_edges": len(relation_masks),
+                      "part_coordinates": coordinates, "ring_coordinates": 0,
                       "coordinates": coordinates, "source_nodes": source_nodes},
     }
 
@@ -166,3 +171,44 @@ def test_batch_input_is_not_mutated():
     original = copy.deepcopy(fixture)
     ragged_collate([fixture])
     assert torch.equal(fixture["edges"]["edge_index"], original["edges"]["edge_index"])
+
+
+def test_geometry_layout_v3_rejects_old_missing_and_unknown_versions():
+    fixture = sample("versioned")
+    validate_geometry_layout(fixture)
+    for version in (None, "2.0.0", "4.0.0"):
+        changed = copy.deepcopy(fixture)
+        if version is None:
+            changed.pop("geometry_layout_version")
+        else:
+            changed["geometry_layout_version"] = version
+        with pytest.raises(ValueError, match="incompatible P6 geometry layout"):
+            validate_geometry_layout(changed)
+
+
+@pytest.mark.parametrize("ring_count", [0, 1, 5, 13])
+def test_part_and_ring_coordinates_are_rebased_independently(ring_count):
+    polygon = sample("polygon", (0,))
+    polygon["geometry"]["ring_coordinates_xy_m"] = torch.arange(ring_count * 2, dtype=torch.float32).reshape(-1, 2)
+    polygon["geometry"]["ring_coordinates_xy_m_scientific"] = polygon["geometry"]["ring_coordinates_xy_m"].to(torch.float64)
+    polygon["geometry"]["ring_coordinate_start"] = torch.tensor([0], dtype=torch.int64) if ring_count else torch.empty(0, dtype=torch.int64)
+    polygon["geometry"]["ring_coordinate_end"] = torch.tensor([ring_count], dtype=torch.int64) if ring_count else torch.empty(0, dtype=torch.int64)
+    polygon["geometry"]["ring_is_hole"] = torch.zeros(1, dtype=torch.uint8) if ring_count else torch.empty(0, dtype=torch.uint8)
+    polygon["geometry"]["ring_component_index"] = torch.zeros(1, dtype=torch.int64) if ring_count else torch.empty(0, dtype=torch.int64)
+    polygon["geometry"]["entity_ring_offsets"] = torch.tensor([0, int(bool(ring_count))], dtype=torch.int64)
+    polygon["resources"]["ring_coordinates"] = ring_count
+    polygon["resources"]["coordinates"] += ring_count
+    road = sample("road", (1,))
+    road_bytes = road["geometry"]["part_coordinates_xy_m"].clone()
+    for ordered in ([polygon, road], [road, polygon]):
+        batch = ragged_collate(ordered)
+        road_index = ordered.index(road)
+        start, end = batch["part_coordinate_ptr"][road_index:road_index + 2]
+        assert torch.equal(batch["geometry"]["part_coordinates_xy_m"][start:end], road_bytes)
+
+
+def test_collated_layout_rejects_wrong_part_terminal():
+    fixture = sample("bad")
+    fixture["geometry"]["part_coordinate_offsets"][-1] -= 1
+    with pytest.raises(ValueError, match="terminal"):
+        ragged_collate([fixture])

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["schema_version", "status", "dataloader_acceptance_id", "parents", "populations", "invariants", "content_sha256"],
+  "required": ["schema_version", "geometry_layout_version", "status", "dataloader_acceptance_id", "parents", "populations", "invariants", "content_sha256"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "status": {"const": "PASS"},
@@ -9,7 +9,8 @@
     "parents": {"type": "object"},
     "populations": {"type": "object"},
     "invariants": {"type": "object"},
-    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"},
+    "geometry_layout_version": {"const": "3.0.0"}
   },
   "additionalProperties": true
 }

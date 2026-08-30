@@ -1,0 +1,90 @@
+schema_version: "1.0.0"
+contract_name: p9-production-cache-and-formal-authorization-v1
+
+canonical_implementation_commit: eb90f6f667d1717684f47ddef30043992b70e788
+readiness_implementation_commit: 9e700754023c548d9940acba854f4559a05888a3
+dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
+
+parents:
+  p9_readiness_id: p9ready_521c12a65d9b2984fac2cf11
+  p8_authority_id: p8a_3cb1c49084529987f0244a93
+  p8_acceptance_id: p8acc_c9f16a07275aadfae928d329
+  p8_hyperparameter_matrix_id: p8hm_f34f1666b62255babab0ae08
+  p8_comparison_matrix_id: p8cm_cd7d0f45dd41a7c351ea4d78
+  p8_a5_contract_id: p8a5_497d83d2e948107488b44397
+  p8_ds_contract_id: p8ds_73137985bd6b172f6711a062
+  p8_bank_index_id: p8bi_2e492527089bf5ce9d00a933
+  p7_acceptance_id: p7acc_3c78cc0e85b93aec6a0cc02c
+  p7_runtime_acceptance_id: p7rta_c780441a553abe26772827d0
+  p7_selected_checkpoint_id: p7ck_7d25fec7944dc108c5849cd7
+  p6_acceptance_id: mda_b07032bd970d101ec1da7a4b
+
+artifacts:
+  p9_readiness: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/infrastructure/p9ready_521c12a65d9b2984fac2cf11/p9_infrastructure_readiness.json
+  p8_bundle_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_3cb1c49084529987f0244a93/p8acc_c9f16a07275aadfae928d329
+  p7_runtime_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype/runtime/acceptance/p7rta_c780441a553abe26772827d0/cold_path_runtime_acceptance.json
+  p7_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype/acceptance/p7acc_3c78cc0e85b93aec6a0cc02c/prototype_training_acceptance.json
+  p7_geometry_cache: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype/geometry_cache/p7a_99b71dcd4fc17e00b1cad76e/p7gc_4de4a140d54765f01a30e656/geometry_cache_manifest.json
+
+roots:
+  p3: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_c89fa07e3d6cb1819a7994a6
+  p4: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/augmentation_banks/augbank_252ce67e6d74679b02871e57
+  p5: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/fixed_queries/fqa_89741b3e7b3ff7e44597ca67
+  publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization
+  cache: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/production_cache
+  staging: /mnt/hdd002/dhnyu/fusedata/tmp/fuse/p9_production_cache
+  locks: /mnt/hdd002/dhnyu/fusedata/runtime/p9_attempt_locks
+  target_store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-research
+
+inputs:
+  preprocessing: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data/preprocessing/ppc_d09fd3a54fcef0e58769e894/preprocessing_contract.json
+  architecture: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data/architecture/dma_d1b7fb09b063740c38fdb7ac/architecture_manifest.json
+  categories: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_cd00016f6b5bfd960b0a6842/production/acceptance/bsa_e617ee0280a6edfa722994d3/spatial_categories.json
+  p6_model_config: config/p6_model_dataloader.yml
+  p7_training_config: config/p7_deterministic_training.yml
+
+cache:
+  schema_version: "1.0.0"
+  geometry_schema_version: "3.0.0"
+  geometry_layout_version: "3.0.0"
+  ds_contract_id: p8ds_73137985bd6b172f6711a062
+  ds_shape: [26, 100, 100]
+  ds_dtype: torch.float32
+  shard_count: 64
+  cpu_worker_tiers: [32, 24, 16]
+  requested_workers: 32
+  gpu_producers: 2
+  gpu_batch_size: 1
+  minimum_free_space_bytes: 536870912000
+  memory_safety_fraction: 0.25
+  measured_32_worker_peak_rss_bytes: 255627681792
+  expected_geometry_raw_bytes_per_entry: 1425815
+  expected_ds_raw_bytes_per_entry: 1040000
+  maximum_plan_overrun_fraction: 0.35
+  allowed_profiles:
+    main_1.0x: 16
+    weak_0.5x: 8
+    strong_2.0x: 8
+
+formal:
+  hyperparameter_attempts: 13
+  unresolved_comparison_templates: 7
+  evaluation_ancestry: false
+  world_size: 2
+  global_batch_size: 32
+  per_rank_batch_size: 16
+  maximum_epochs: 200
+  updates_per_epoch: 76
+  validation_interval_epochs: 5
+  patience_events: 4
+  cfg_main_status: AUTHORIZED_NOT_STARTED
+
+prohibited:
+  - optimizer_execution
+  - formal_validation_execution
+  - checkpoint_creation
+  - selected_fm_materialization
+  - p9_b_attempt_authority
+  - evaluation_query_consumption
+  - accepted_cache_overwrite
+  - automatic_stale_lock_deletion

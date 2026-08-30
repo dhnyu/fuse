@@ -1,0 +1,60 @@
+schema_version: "1.0.0"
+contract_name: p9-formal-training-infrastructure-v1
+publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/infrastructure
+p8_bundle_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_3cb1c49084529987f0244a93/p8acc_c9f16a07275aadfae928d329
+authorization:
+  formal_training: false
+  hyperparameter_selection: false
+  comparison_materialization: false
+  bounded_pilot_max_updates: 40
+parents:
+  dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
+  p8_acceptance_id: p8acc_c9f16a07275aadfae928d329
+  p8_hyperparameter_matrix_id: p8hm_f34f1666b62255babab0ae08
+  p8_comparison_matrix_id: p8cm_cd7d0f45dd41a7c351ea4d78
+  p8_a5_contract_id: p8a5_497d83d2e948107488b44397
+  p8_ds_contract_id: p8ds_73137985bd6b172f6711a062
+  p8_bank_index_id: p8bi_2e492527089bf5ce9d00a933
+  p7_acceptance_id: p7acc_3c78cc0e85b93aec6a0cc02c
+  p7_runtime_acceptance_id: p7rta_c780441a553abe26772827d0
+  p6_acceptance_id: mda_b07032bd970d101ec1da7a4b
+population:
+  training_scenes: 2421
+  validation_scenes: 400
+  validation_queries: 800
+  evaluation_ancestry: false
+sampler:
+  contract: config/full_training_sampler.yml
+  policy: deterministic_epoch_rotating_padding
+  padded_scenes_per_epoch: 2432
+  padding_scenes_per_epoch: 11
+  optimizer_updates_per_epoch: 76
+  duplicate_scene_negative_policy: excluded
+execution:
+  world_size: 2
+  global_batch_size: 32
+  per_rank_batch_size: 16
+  backend: nccl
+  precision: float32
+  amp: false
+  tf32: false
+  deterministic_algorithms: true
+  find_unused_parameters: false
+  bucket_cap_mb: 50
+  gradient_as_bucket_view: false
+  static_graph: false
+  runtime_acceptance_required: true
+selection:
+  interval_epochs: 5
+  primary: validation_retrieval_loss
+  equivalence_threshold: 0.0001
+  secondary: mean_source_separation_margin
+  final_tie_break: earlier_epoch
+  patience_events: 4
+prohibited:
+  - evaluation_query_ancestry
+  - p7_checkpoint_warm_start
+  - cfg_main_duplicate_attempt
+  - p9_b_before_selected_fm
+  - unresolved_comparison_materialization
+  - formal_execution_from_bounded_pilot

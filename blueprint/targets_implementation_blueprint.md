@@ -865,6 +865,31 @@ The primary interpretations are conditional on this declared nesting: A2-A1 meas
 
 Scientific configuration includes model/loss/optimizer/schedule/bank and run seed. Execution configuration contains worker count, threads, device mapping, runtime path and controller. Numeric modes such as precision or DDP that change results belong to training-run identity; pure host/path placement remains execution-only.
 
+#### P9 implementation-readiness boundary
+
+The active P9 infrastructure binds immutable P8 acceptance `p8acc_c9f16a07275aadfae928d329`,
+comparison matrix `p8cm_cd7d0f45dd41a7c351ea4d78`, and cold-path runtime acceptance
+`p7rta_c780441a553abe26772827d0`. The full 2,421-scene sampler uses the approved
+deterministic epoch-rotating padding contract: 11 explicit duplicate scene identities
+produce 2,432 consumptions and 76 global batches, and duplicate identities are excluded
+from one another as contrastive negatives. Drop-last, arbitrary padding, and a reduced
+tail batch are prohibited.
+
+Eight explicit model-family implementations are required: FM, nested A1-A5, SSV, and
+DS. Inactive modality, relation, raster, and reconstruction modules are absent from the
+trainable graph rather than hidden with unused-parameter discovery. A5 preserves the FM
+directed edge tensor byte-for-byte and maps all relation labels to one learnable relation.
+DS materializes `C_cat + 4` channels on the accepted 100 x 100 grid, uses the realized
+17 x 17 DEM with cell-center bilinear interpolation, and fails closed on incomplete DEM
+support.
+
+Until a separate formal authorization is accepted, only `p9_infrastructure_readiness`
+and a temporary, externally namespaced pilot of at most 40 optimizer updates are
+permitted. The readiness artifact records zero formal attempts and zero optimizer
+updates; no training target is reachable from it. P9-B remains unmaterialized until a
+stable validation-selected FM identity exists, and evaluation query identity remains
+absent throughout P9.
+
 <a id="p10-evaluation"></a>
 ### P10 Evaluation
 

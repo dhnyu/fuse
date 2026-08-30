@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "status", "readiness_id", "source_commit", "parents", "counts", "gates", "configuration_hashes", "comparison_template_hashes", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "readiness_id": {"pattern": "^p9ready_[0-9a-f]{24}$"},
+    "source_commit": {"pattern": "^[0-9a-f]{40}$"},
+    "parents": {
+      "type": "object",
+      "required": ["dissertation_commit", "p8_acceptance_id", "p8_hyperparameter_matrix_id", "p8_comparison_matrix_id", "p8_a5_contract_id", "p8_ds_contract_id", "p8_bank_index_id", "p7_acceptance_id", "p7_runtime_acceptance_id", "p6_acceptance_id"],
+      "properties": {
+        "dissertation_commit": {"const": "ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a"},
+        "p8_acceptance_id": {"const": "p8acc_c9f16a07275aadfae928d329"},
+        "p8_hyperparameter_matrix_id": {"const": "p8hm_f34f1666b62255babab0ae08"},
+        "p8_comparison_matrix_id": {"const": "p8cm_cd7d0f45dd41a7c351ea4d78"},
+        "p8_a5_contract_id": {"const": "p8a5_497d83d2e948107488b44397"},
+        "p8_ds_contract_id": {"const": "p8ds_73137985bd6b172f6711a062"},
+        "p8_bank_index_id": {"const": "p8bi_2e492527089bf5ce9d00a933"},
+        "p7_acceptance_id": {"const": "p7acc_3c78cc0e85b93aec6a0cc02c"},
+        "p7_runtime_acceptance_id": {"const": "p7rta_c780441a553abe26772827d0"},
+        "p6_acceptance_id": {"const": "mda_b07032bd970d101ec1da7a4b"}
+      },
+      "additionalProperties": false
+    },
+    "counts": {
+      "type": "object",
+      "required": ["hyperparameter_configurations", "comparison_templates", "formal_attempts_executed", "optimizer_updates_executed"],
+      "properties": {
+        "hyperparameter_configurations": {"const": 13},
+        "comparison_templates": {"const": 7},
+        "formal_attempts_executed": {"const": 0},
+        "optimizer_updates_executed": {"const": 0}
+      },
+      "additionalProperties": false
+    },
+    "gates": {
+      "type": "object",
+      "required": ["evaluation_ancestry_zero", "p9_b_deferred", "formal_training_disabled", "model_family_registry_complete", "sampler_contract_bound", "duplicate_main_prohibited"],
+      "properties": {
+        "evaluation_ancestry_zero": {"const": true},
+        "p9_b_deferred": {"const": true},
+        "formal_training_disabled": {"const": true},
+        "model_family_registry_complete": {"const": true},
+        "sampler_contract_bound": {"const": true},
+        "duplicate_main_prohibited": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "configuration_hashes": {"type": "array", "minItems": 13, "maxItems": 13, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "comparison_template_hashes": {"type": "array", "minItems": 7, "maxItems": 7, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

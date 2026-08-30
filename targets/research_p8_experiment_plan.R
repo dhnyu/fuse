@@ -19,8 +19,18 @@ list_research_p8_experiment_plan <- list(
     format = "file", resources = controller_05_resources
   ),
   targets::tar_target(
+    a5_generic_relation_mapping_contract,
+    p8_bundle_artifact(p8_experiment_plan_bundle, "a5_generic_relation_mapping_contract", hyperparameter_configuration_matrix),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    ds_raster_materialization_contract,
+    p8_bundle_artifact(p8_experiment_plan_bundle, "ds_raster_materialization_contract", a5_generic_relation_mapping_contract),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
     comparison_variant_template_matrix,
-    p8_bundle_artifact(p8_experiment_plan_bundle, "comparison_variant_template_matrix", hyperparameter_configuration_matrix),
+    p8_bundle_artifact(p8_experiment_plan_bundle, "comparison_variant_template_matrix", ds_raster_materialization_contract),
     format = "file", resources = controller_05_resources
   ),
   targets::tar_target(

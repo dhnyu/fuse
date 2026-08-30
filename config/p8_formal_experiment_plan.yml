@@ -3,7 +3,7 @@ plan_name: p8-formal-experiment-plan-v1
 publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan
 
 methodology:
-  dissertation_commit: a456f46566c5e760c048091ead53cb4debe73832
+  dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
   modules:
     - template/sections/chapters/results/01-experimental-setup.typ
     - template/sections/chapters/results/05-hyperparameter-study.typ
@@ -79,3 +79,11 @@ execution_prohibitions:
   p10_execution: false
   p11_execution: false
   maintenance_execution: false
+
+superseded_p8:
+  authority_id: p8a_ced1badc5a539f3823a0fdd0
+  acceptance_id: p8acc_6a37d2978af940d03c597511
+  comparison_matrix_id: p8cm_6b21d8791d82d24bf5e39ca3
+  hyperparameter_matrix_path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_ced1badc5a539f3823a0fdd0/p8acc_6a37d2978af940d03c597511/hyperparameter_configuration_matrix.json
+  comparison_matrix_path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_ced1badc5a539f3823a0fdd0/p8acc_6a37d2978af940d03c597511/comparison_variant_template_matrix.json
+  bank_index_path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_ced1badc5a539f3823a0fdd0/p8acc_6a37d2978af940d03c597511/experiment_augmentation_bank_index.json

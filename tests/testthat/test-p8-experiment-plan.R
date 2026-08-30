@@ -5,6 +5,7 @@ testthat::test_that("P8 target family is plan-only and ordered", {
   )
   required <- c(
     "p8_methodology_compatibility", "hyperparameter_configuration_matrix",
+    "a5_generic_relation_mapping_contract", "ds_raster_materialization_contract",
     "comparison_variant_template_matrix", "experiment_augmentation_bank_index",
     "formal_hyperparameter_experiment_plan", "comparison_variant_materialization_template",
     "formal_experiment_plan_acceptance"

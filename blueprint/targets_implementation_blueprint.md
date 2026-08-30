@@ -5,12 +5,11 @@
 - **상태:** 승인된 read-only audit를 반영한 active implementation blueprint.
 - **개정 시각:** 2026-08-30 KST.
 - **구현 저장소 기준:** `/members/dhnyu/fuse`, branch `reduced`; P8 implementation commit is bound by the published P8 authority.
-- **논문 방법론 기준:** `/members/dhnyu/dhnyu-masters-dissertation`, branch `reduced`, commit `a456f46566c5e760c048091ead53cb4debe73832`.
-- **Active status:** P0-P7 accepted; P7 runtime acceptance `p7rta_c780441a553abe26772827d0`; P8 is the current plan-only implementation unit.
-- **논문 저장소 기준:** `/members/dhnyu/dhnyu-masters-dissertation`, branch `reduced`, HEAD `109355b3d744248ca14749c5f74511537970d660`.
+- **논문 방법론 기준:** `/members/dhnyu/dhnyu-masters-dissertation`, branch `reduced`, commit `ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a`.
+- **Active status:** P0-P7 accepted; P7 runtime acceptance `p7rta_c780441a553abe26772827d0`; P8 nested-comparison republication is the current plan-only implementation unit.
 - **승인 근거:** [20260827_1748 reduced methodology read-only audit](../reports/20260827_1748_reduced_methodology_read_only_audit.md).
 - **방법론 권위:** dissertation reduced Typst 원문, 승인 감사 보고서, 이 blueprint, 기존 구현/artifact 순이다.
-- **작업 범위:** 이 개정은 구현 계획만 변경한다. R/Python/config/schema/test/target graph/store/artifact/dissertation은 이 작업에서 변경하거나 실행하지 않는다.
+- **작업 범위:** 이 개정은 P8-P9 comparison 계획과 그 plan-only publication contract만 변경한다. P1-P7 scientific artifacts, P9 training, evaluation and maintenance execution remain outside scope.
 
 이 문서의 active roadmap은 [P0 Authority](#p0-authority)부터 [P11 Downstream Evaluation](#p11-downstream-evaluation)까지다. 이전 I/C/T milestone은 active 순서를 결정하지 않으며 [Legacy Lineage](#9-legacy-lineage)에 disposition과 실행 이력만 보존한다.
 
@@ -792,6 +791,8 @@ execution parent only for future P9 training authorities.
 |---|---|---|
 | `p8_methodology_compatibility` | scoped dissertation sources, P7 acceptance | Preserve P0-P7 while binding the new P8/P9/P10 methodology scope. |
 | `hyperparameter_configuration_matrix` | P7 acceptance, model/training contracts | Emit exactly 13 canonical scientific configurations. |
+| `a5_generic_relation_mapping_contract` | scoped dissertation methodology, P7 acceptance | Preserve FM directed edge instances, direction and multiplicity while mapping all five relation labels to one generic learnable relation. |
+| `ds_raster_materialization_contract` | scoped dissertation methodology, accepted augmentation views | Fix the common 100 x 100 raster, realized 17 x 17 DEM interpolation and fail-closed valid-support contract. |
 | `comparison_variant_template_matrix` | methodology compatibility, selected-FM derivation contract | Emit seven unresolved comparison templates. |
 | `experiment_augmentation_bank_index` | configuration matrix, P4 bank acceptance/effective indices | Map each configuration to a reused bank/subset. |
 | `formal_hyperparameter_experiment_plan` | configuration matrix, bank index, fixed validation acceptance | Emit the 13 P9-A run specifications. |
@@ -816,7 +817,19 @@ execution parent only for future P9 training authorities.
 
 All 13 configurations consume fixed validation acceptance `fqsa_27565de68d9432e47fe7b99d`. Evaluation identity is absent from P8/P9 and joins only in P10. The physical master has 16 views; K2/K4/K8/K16 are nested ordered subsets, while weak and strong use K8. The six factors are `d`, `K_aug`, intensity, `mu_EMA`, `lambda_IP`, and peak LR. An evidence-complete non-finite or unrecoverable numerical outcome is `SCIENTIFIC_DIVERGENCE`, remains reportable, is winner-ineligible and cannot trigger a replacement LR; infrastructure failure cannot use that status.
 
-The comparison templates are `cmp_a1_no_geometry`, `cmp_a2_no_semantics`, `cmp_a3_no_raster_context`, `cmp_a4_no_spatial_relations`, `cmp_a5_radius_context`, `cmp_ssv_like` and `cmp_ds_like`. They inherit the validation-selected stable FM configuration except for their explicit transformation, do not compete in hyperparameter selection and have unresolved final scientific hashes in P8. Main training is reused, not duplicated.
+The comparison templates are `cmp_a1_geometric_core`, `cmp_a2_semantic_enriched`, `cmp_a3_object_context_enriched`, `cmp_a4_raster_complete_non_relational`, `cmp_a5_relation_type_agnostic`, `cmp_ssv_like` and `cmp_ds_like`. They inherit the validation-selected stable FM configuration except for their explicit transformation, do not compete in hyperparameter selection and have unresolved final scientific hashes in P8. Main training is reused, not duplicated.
+
+| Variant | Canonical nested contract |
+|---|---|
+| A1, geometric core | Relative position and intrinsic geometry only; semantics, object raster, scene raster and relational context are absent. |
+| A2, semantic enriched | A1 plus building, road and POI semantics. |
+| A3, object-context enriched | A2 plus object-level land-cover/elevation background. |
+| A4, raster-complete non-relational | A3 plus the scene-level raster branch; relational contextualization remains absent. |
+| A5, relation-type agnostic | A4 plus exactly the FM directed edge instances with direction and multiplicity unchanged; `SN/CNT/WIT/INT/CON` map to one learnable generic relation and the FM attention/message/residual/FFN structure is retained. Radius reconstruction and any edge-support change are prohibited. |
+| SSV | Relative position plus semantics with the common contrastive objective and only their IP terms; the accepted template is byte-identical and reused. |
+| DS | All inputs on the common 100 x 100 land-cover grid. The realized augmented 17 x 17 DEM is resampled by cell-center bilinear interpolation without regenerating perturbation; complete valid support is mandatory. Input has `C_cat + 4` channels and no entity encoder, modality fusion, relational context or IP objective (`lambda_IP=0`). |
+
+The primary interpretations are conditional on this declared nesting: A2-A1 measures semantics, A3-A2 object-level environmental context, A4-A3 scene-level raster context, A5-A4 generic contextualization, FM-A5 heterogeneous relation identity, and A2-SSV intrinsic geometry. They are not order-invariant main effects. Removed modalities leave the active fusion set, fusion normalizes only over retained modalities, and only the corresponding IP terms are omitted without rescaling retained coefficients.
 
 <a id="p9-formal-training"></a>
 ### P9 Formal Training
@@ -1161,6 +1174,6 @@ This checklist is normative and must be checked after every blueprint or target 
 
 ## 13. Implementation Start and Final Blueprint Verdict
 
-The next single implementation unit is P8 plan-only publication: freeze the 13 hyperparameter configurations and seven comparison templates, validate scoped methodology compatibility, and publish `formal_experiment_plan_acceptance`. It must not execute P9 training or consume evaluation queries.
+The next single implementation unit after the immutable nested-comparison P8 republication is the P9 implementation audit. It must validate all model/data variants and a bounded main production-shaped pilot before any remaining formal run authorization, and it must not consume evaluation queries.
 
-**Blueprint verdict: `READY_FOR_P8_PLAN_ONLY_IMPLEMENTATION`**
+**Blueprint verdict: `READY_FOR_P8_NESTED_COMPARISON_REPUBLICATION`**

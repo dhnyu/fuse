@@ -9,7 +9,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
-from p8_experiment_plan import (CONFIG_IDS, TEMPLATE_IDS, build_comparison_templates,
+from p8_experiment_plan import (CONFIG_IDS, TEMPLATE_IDS, build_a5_generic_relation_contract,
+                                build_comparison_templates, build_ds_raster_contract,
                                 build_hyperparameter_rows, dimension_compatibility,
                                 load_config, materialize_comparison,
                                 validate_comparison_templates, validate_hyperparameter_rows)
@@ -53,11 +54,42 @@ def test_comparison_templates_are_seven_deferred_nonselection_specs():
 
 def test_comparison_transformation_details_are_authoritative():
     rows = {row["template_id"]: row for row in build_comparison_templates(config())}
-    assert "relation_aware_contextualization" in rows["cmp_a4_no_spatial_relations"]["transformation_contract"]["remove"]
-    assert rows["cmp_a5_radius_context"]["transformation_contract"]["replace"].startswith("heterogeneous_relation_graph")
+    a1 = rows["cmp_a1_geometric_core"]["transformation_contract"]
+    assert a1["active_entity_modalities"] == ["relative_position", "intrinsic_geometry"]
+    a2 = rows["cmp_a2_semantic_enriched"]["transformation_contract"]
+    assert a2["extends"] == "cmp_a1_geometric_core" and "building_semantic" in a2["active_entity_modalities"]
+    a3 = rows["cmp_a3_object_context_enriched"]["transformation_contract"]
+    assert a3["extends"] == "cmp_a2_semantic_enriched" and "object_environmental_background" in a3["active_entity_modalities"]
+    a4 = rows["cmp_a4_raster_complete_non_relational"]["transformation_contract"]
+    assert a4["scene_raster_branch"] and "relational_contextualization" in a4["remove"]
+    a5 = rows["cmp_a5_relation_type_agnostic"]["transformation_contract"]
+    assert a5["edge_instances"] == "exact_FM_directed_edge_instances"
+    assert a5["map_relation_labels"] == {name: "GENERIC" for name in ("SN", "CNT", "WIT", "INT", "CON")}
+    assert not a5["radius_graph"] and not a5["edge_support_change"]
     assert rows["cmp_ssv_like"]["transformation_contract"]["retain"] == ["relative_position", "semantic", "scene_contrastive", "ip_relative_position", "ip_semantic"]
+    assert rows["cmp_ssv_like"]["template_hash"] == "c32c80baae23d14a142555e85e2232daf55d58a3a16ca8b26318211043a6a748"
     ds = rows["cmp_ds_like"]["transformation_contract"]
     assert ds["channels"] == "C_cat_plus_4" and ds["lambda_ip"] == 0.0 and not ds["direct_reproduction"]
+
+
+def test_a5_generic_relation_contract_preserves_exact_fm_support():
+    contract = build_a5_generic_relation_contract(config())
+    assert contract["edge_instances"] == "exact_FM_directed_edge_instances"
+    assert contract["preserve_direction"] and contract["preserve_multiplicity"] and contract["preserve_edge_support"]
+    assert contract["source_relation_labels"] == ["SN", "CNT", "WIT", "INT", "CON"]
+    assert "radius_graph_reconstruction" in contract["prohibited"]
+
+
+def test_ds_contract_is_common_grid_and_fail_closed():
+    contract = build_ds_raster_contract(config())
+    assert contract["common_grid"]["height"] == contract["common_grid"]["width"] == 100
+    assert contract["dem"]["source_grid"] == {"height": 17, "width": 17}
+    assert contract["dem"]["target_grid"] == {"height": 100, "width": 100}
+    assert contract["dem"]["interpolation"] == "cell_center_based_bilinear"
+    assert not contract["dem"]["regenerate_perturbation"]
+    assert contract["dem"]["complete_valid_support_required"]
+    assert contract["dem"]["invalid_or_nodata_policy"] == "fail_closed"
+    assert contract["channel_count_formula"] == "C_cat_plus_4" and contract["lambda_ip"] == 0.0
 
 
 def test_comparison_rejects_unknown_and_evaluation_injection():
@@ -66,6 +98,8 @@ def test_comparison_rejects_unknown_and_evaluation_injection():
     with pytest.raises(ValueError): validate_comparison_templates(unknown)
     evaluation = copy.deepcopy(rows); evaluation[0]["evaluation_query_identity"] = "forbidden"
     with pytest.raises(ValueError, match="evaluation"): validate_comparison_templates(evaluation)
+    radius = copy.deepcopy(rows); radius[4]["transformation_contract"]["radius_graph"] = True
+    with pytest.raises(ValueError, match="radius"): validate_comparison_templates(radius)
 
 
 def test_d48_d64_d128_construction_uses_fixed_auxiliary_dimensions():

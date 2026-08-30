@@ -5,6 +5,8 @@ p8_contract_names <- function() {
     "config/p8_formal_experiment_plan.yml",
     "config/schemas/p8_methodology_compatibility.schema.json",
     "config/schemas/p8_hyperparameter_configuration_matrix.schema.json",
+    "config/schemas/p8_a5_generic_relation_mapping_contract.schema.json",
+    "config/schemas/p8_ds_raster_materialization_contract.schema.json",
     "config/schemas/p8_comparison_variant_template_matrix.schema.json",
     "config/schemas/p8_experiment_augmentation_bank_index.schema.json",
     "config/schemas/p8_formal_hyperparameter_experiment_plan.schema.json",
@@ -21,7 +23,8 @@ p8_contract_files <- function(root = ".", dissertation_root = path.expand("~/dhn
   local <- normalizePath(file.path(root, p8_contract_names()), mustWork = TRUE)
   thesis <- normalizePath(file.path(dissertation_root, unlist(cfg$methodology$modules)), mustWork = TRUE)
   parents <- normalizePath(unlist(cfg$parent_artifacts), mustWork = TRUE)
-  c(local, thesis, parents)
+  superseded <- normalizePath(unlist(cfg$superseded_p8[grepl("_path$", names(cfg$superseded_p8))]), mustWork = TRUE)
+  c(local, thesis, parents, superseded)
 }
 
 p8_read_artifact <- function(value, filename) {
@@ -77,6 +80,7 @@ p8_build_bundle <- function(contract_files) {
   acceptance <- jsonlite::read_json(file.path(stage, "formal_experiment_plan_acceptance.json"), simplifyVector = FALSE)
   filenames <- paste0(c(
     "methodology_compatibility", "hyperparameter_configuration_matrix",
+    "a5_generic_relation_mapping_contract", "ds_raster_materialization_contract",
     "comparison_variant_template_matrix", "experiment_augmentation_bank_index",
     "formal_hyperparameter_experiment_plan", "comparison_variant_materialization_template",
     "formal_experiment_plan_acceptance"

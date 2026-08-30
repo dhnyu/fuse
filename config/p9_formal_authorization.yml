@@ -55,9 +55,9 @@ cache:
   requested_workers: 32
   gpu_producers: 2
   gpu_batch_size: 1
-  minimum_free_space_bytes: 536870912000
+  minimum_free_space_bytes: "536870912000"
   memory_safety_fraction: 0.25
-  measured_32_worker_peak_rss_bytes: 255627681792
+  measured_32_worker_peak_rss_bytes: "255627681792"
   expected_geometry_raw_bytes_per_entry: 1425815
   expected_ds_raw_bytes_per_entry: 1040000
   maximum_plan_overrun_fraction: 0.35

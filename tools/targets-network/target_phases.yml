@@ -1,0 +1,200 @@
+schema_version: "1.0.0"
+phases:
+  - {id: Foundation, label: Foundation / Shared, color: "#475569"}
+  - {id: P0, label: P0 Authority, color: "#7C3AED"}
+  - {id: P1, label: P1 Inputs and Scene Index, color: "#0369A1"}
+  - {id: P2, label: P2 Base Spatial Truth, color: "#0F766E"}
+  - {id: P3, label: P3 Original Scene Cache, color: "#4D7C0F"}
+  - {id: P4, label: P4 Augmentation Banks, color: "#B45309"}
+  - {id: P5, label: P5 Fixed Queries, color: "#BE185D"}
+  - {id: P6, label: P6 Model and DataLoader, color: "#4338CA"}
+  - {id: P7, label: P7 Prototype Training, color: "#0E7490"}
+  - {id: P8, label: P8 Experiment Plan, color: "#A21CAF"}
+  - {id: P9, label: P9 Formal Training, color: "#C2410C"}
+  - {id: P10, label: P10 Evaluation, color: "#9F1239"}
+  - {id: P11, label: P11 Downstream, color: "#365314"}
+  - {id: Maintenance, label: Maintenance, color: "#6B7280"}
+
+# Exact ownership is authoritative and takes precedence over regular-expression rules.
+# A newly declared research target must be added here or match one non-future rule.
+exact:
+  Foundation:
+    - prototype_runtime_inputs
+    - research_config_files
+    - research_implementation_files
+    - runtime_mirror_contract_files
+  P0:
+    - augmentation_methodology_contract
+    - base_spatial_methodology_contract
+    - downstream_methodology_contract
+    - evaluation_methodology_contract
+    - methodology_contract
+    - model_methodology_contract
+    - original_cache_methodology_contract
+    - reduced_methodology_authority
+    - reduced_methodology_conflict_gate
+    - reduced_methodology_git_state
+    - reduced_methodology_source_files
+    - reduced_methodology_source_set
+    - scene_methodology_contract
+    - training_methodology_contract
+  P1:
+    - accepted_off_grid_source
+    - p1_scene_index_contract_files
+    - prototype_scene_selection
+    - reduced_scene_index_plan
+    - scene_index_acceptance
+    - spatial_scene_index
+    - study_data_inputs
+    - study_data_inventory
+  P2:
+    - accepted_p1_scene_index_reference
+    - base_raster_observation_shard
+    - base_relation_graph_shard
+    - base_relation_tiered_execution_acceptance
+    - base_source_topology_shard
+    - base_spatial_acceptance
+    - base_spatial_membership_acceptance
+    - base_spatial_membership_plan
+    - base_spatial_membership_shard
+    - base_spatial_observation_plan
+    - base_spatial_prototype_acceptance
+    - base_spatial_prototype_membership_acceptance
+    - base_spatial_prototype_membership_plan
+    - base_spatial_prototype_membership_shard
+    - base_spatial_prototype_observation_plan
+    - base_spatial_prototype_raster_observation_shard
+    - base_spatial_prototype_relation_graph_shard
+    - base_spatial_prototype_source_topology_shard
+    - base_spatial_prototype_vector_observation_shard
+    - base_vector_observation_shard
+    - full_membership_authorization_contract
+    - full_membership_i24_authorization
+    - full_membership_plan
+    - full_membership_plan_contract_files
+    - membership_contract_files
+    - observation_contract_files
+    - p2_base_spatial_contract_files
+    - prototype_membership_acceptance
+    - prototype_membership_plan
+    - prototype_membership_shard
+    - prototype_observation_plan
+    - prototype_raster_observation_shard
+    - prototype_relation_shard
+    - prototype_spatial_acceptance
+    - prototype_vector_observation_shard
+    - raster_observation_contract_files
+    - relation_contract_files
+    - spatial_acceptance_contract_files
+  P3:
+    - accepted_immutable_parent_config
+    - accepted_p2_base_spatial_reference
+    - accepted_p3_dataset_acceptance_reference
+    - accepted_p3_index_reference
+    - accepted_p3_shard_files_reference
+    - accepted_p3_shard_reference
+    - original_scene_cache_contract
+    - original_scene_cache_index
+    - original_scene_cache_manifest
+    - original_scene_dataset_acceptance
+    - original_scene_geometry_roundtrip
+    - original_scene_serialization_plan
+    - original_scene_serialization_shard
+    - original_scene_shard_validation
+    - p3_original_scene_cache_contract_files
+    - prototype_serialization_plan
+    - prototype_serialization_shard
+    - prototype_training_dataset_acceptance
+    - serialization_plan_contract_files
+    - serialization_shard_contract_files
+  P4:
+    - augmentation_bank_acceptance
+    - augmentation_bank_benchmark
+    - augmentation_bank_execution
+    - augmentation_bank_plan
+    - augmentation_bank_shard
+    - augmentation_bank_shard_validation
+    - augmentation_benchmark_contract_files
+    - augmentation_profile_plan
+    - effective_augmentation_bank_index
+    - geometry_consistency_smoke
+    - p4_deterministic_contract_files
+    - prototype_augmentation_benchmark
+    - road_link_absorption_smoke
+  P5:
+    - fixed_evaluation_query_acceptance
+    - fixed_evaluation_query_plan
+    - fixed_query_acceptance
+    - fixed_query_acceptance_bundle
+    - fixed_query_branch_plan
+    - fixed_query_execution
+    - fixed_query_methodology_contract
+    - fixed_query_shard
+    - fixed_query_shard_plan
+    - fixed_query_shard_validation
+    - fixed_validation_query_acceptance
+    - fixed_validation_query_plan
+    - p5_deterministic_contract_files
+  P6:
+    - d64_encoder_cpu_smoke
+    - d64_model_architecture_contract
+    - dataloader_smoke_contract_files
+    - distributed_joint_model_contract_files
+    - encoder_smoke_contract_files
+    - joint_model_smoke_contract_files
+    - model_data_acceptance
+    - p6_dataloader_acceptance
+    - p6_model_dataloader_contract_files
+    - p6_preprocessing_contract
+    - prototype_dataloader_smoke
+    - prototype_distributed_joint_model_smoke
+    - prototype_encoder_smoke
+    - prototype_joint_model_smoke
+    - prototype_model_acceptance
+    - prototype_model_acceptance_contract_files
+    - prototype_model_validation
+    - prototype_model_validation_contract_files
+    - prototype_scientific_geometry_roundtrip
+    - training_dataset_acceptance_contract_files
+  P7:
+    - p7_cold_path_runtime_acceptance
+    - p7_cold_path_runtime_contract
+    - p7_cold_path_runtime_contract_files
+    - p7_cold_path_runtime_verification_reference
+    - p7_ddp_initialization_smoke
+    - p7_ddp_reference_acceptance
+    - p7_deterministic_training_authority
+    - p7_geometry_feature_cache
+    - p7_immutable_parent_reference
+    - p7_p6_parent_reference
+    - p7_resume_equivalence
+    - p7_single_update_smoke
+    - p7_training_contract_files
+    - p7_validation_query_reference
+    - prototype_checkpoint_selection
+    - prototype_training_acceptance
+    - prototype_training_execution_record
+    - prototype_training_plan
+    - prototype_training_run
+    - prototype_validation_retrieval
+    - training_plan_contract_files
+  P8:
+    - a5_generic_relation_mapping_contract
+    - comparison_variant_materialization_template
+    - comparison_variant_template_matrix
+    - ds_raster_materialization_contract
+    - experiment_augmentation_bank_index
+    - formal_experiment_plan_acceptance
+    - formal_hyperparameter_experiment_plan
+    - hyperparameter_configuration_matrix
+    - p8_experiment_plan_bundle
+    - p8_experiment_plan_contract_files
+    - p8_methodology_compatibility
+  P9:
+    - p9_infrastructure_contract_files
+    - p9_infrastructure_readiness
+
+rules:
+  - {phase: P10, pattern: "^p10_", future: true}
+  - {phase: P11, pattern: "^p11_", future: true}
+  - {phase: Maintenance, pattern: "^(maintenance_|seoul_data_preprocess$)", future: true}

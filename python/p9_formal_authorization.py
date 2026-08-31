@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import socket
 import time
 from pathlib import Path
@@ -25,10 +26,16 @@ PREFIXES = {
     "cache_resource_plan": "p9crp_", "cache_shard_plan": "p9csp_",
     "production_cache_build_authority": "p9cba_",
 }
+COMMIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
 
 def digest(value: Any) -> str:
     return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
+
+
+def validate_commit_sha(value: str, field: str) -> None:
+    if not COMMIT_SHA_PATTERN.fullmatch(value):
+        raise ValueError(f"{field} must be a complete 40-character lowercase Git SHA")
 
 
 def sha256_file(path: str | Path) -> str:
@@ -172,6 +179,8 @@ def _artifact(name: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_plan_bundle(config_path: str | Path, source_commit: str, execution_commit: str) -> dict[str, Any]:
+    validate_commit_sha(source_commit, "source_commit")
+    validate_commit_sha(execution_commit, "execution_commit")
     config = load_config(config_path); bundle = validate_lineage(config)
     membership = canonical_membership(config, bundle)
     if source_commit != config["canonical_implementation_commit"]:
@@ -254,6 +263,7 @@ def publish_plan_bundle(config: dict[str, Any], bundle: dict[str, Any]) -> list[
 
 def cache_acceptance_payload(config: dict[str, Any], plan: dict[str, Any], validation: dict[str, Any],
                              execution_commit: str) -> dict[str, Any]:
+    validate_commit_sha(execution_commit, "execution_commit")
     if validation.get("status") != "PASS" or any(int(validation.get(key, -1)) != 0 for key in (
             "missing_identities", "duplicate_identities", "orphan_entries", "shard_checksum_failures",
             "manifest_index_disagreements", "invalid_dem_support", "shape_dtype_schema_failures",
@@ -273,6 +283,7 @@ def cache_acceptance_payload(config: dict[str, Any], plan: dict[str, Any], valid
 
 
 def formal_authority_payload(config: dict[str, Any], cache_acceptance: dict[str, Any], execution_commit: str) -> dict[str, Any]:
+    validate_commit_sha(execution_commit, "execution_commit")
     if cache_acceptance.get("status") != "PASS": raise ValueError("cache acceptance is required")
     p8 = validate_lineage(config); hyper = p8["hyper"]; comparisons = p8["comparisons"]
     scientific = {

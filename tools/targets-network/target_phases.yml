@@ -191,8 +191,22 @@ exact:
     - p8_experiment_plan_contract_files
     - p8_methodology_compatibility
   P9:
+    - p9_cache_identity_contract
+    - p9_cache_resource_plan
+    - p9_cache_reuse_graph
+    - p9_cache_shard_plan
+    - p9_cfg_main_attempt_reservation
+    - p9_formal_accepted_parent_references
+    - p9_formal_authorization_contract_files
+    - p9_formal_publication_bundle
+    - p9_formal_training_authority
     - p9_infrastructure_contract_files
     - p9_infrastructure_readiness
+    - p9_production_cache_acceptance
+    - p9_production_cache_build_authority
+    - p9_production_cache_materialization
+    - p9_production_cache_plan_bundle
+    - p9_production_cache_validation
 
 rules:
   - {phase: P10, pattern: "^p10_", future: true}

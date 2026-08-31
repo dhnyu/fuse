@@ -39,6 +39,8 @@ def test_plan_is_canonical_and_optimizer_free():
     assert authority["formal_validation_authorized"] is False
     with pytest.raises(ValueError, match="publication commit"):
         build_plan_bundle(CONFIG, "1" * 40, "0" * 40)
+    with pytest.raises(ValueError, match="complete 40-character"):
+        build_plan_bundle(CONFIG, config["canonical_implementation_commit"], "8a0dd3f")
 
 
 def test_atomic_duplicate_lock_and_explicit_recovery():

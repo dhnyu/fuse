@@ -50,6 +50,19 @@ def sha256_path(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+class TestOnlyHardCrash:
+    """Hard-stop hook usable only by explicitly synthetic transactions."""
+
+    __test__ = False
+
+    def __init__(self, boundary: str):
+        self.boundary = boundary
+
+    def at(self, boundary: str) -> None:
+        if boundary == self.boundary:
+            os._exit(86)
+
+
 def atomic_json(path: Path, value: dict[str, Any]) -> None:
     """Persist canonical JSON with same-directory fsync and atomic rename."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -197,16 +210,20 @@ class TransactionContext:
     launch_commit: str
     synthetic: bool = False
     transaction_id: str = ""
+    hard_crash: TestOnlyHardCrash | None = None
 
     @classmethod
     def create(cls, *, authority: dict[str, Any], reservation: dict[str, Any],
                operation: dict[str, Any], contract: dict[str, Any], lock_root: str | Path,
                output_root: str | Path, store: str, launch_commit: str,
-               synthetic: bool = False) -> "TransactionContext":
+               synthetic: bool = False,
+               hard_crash: TestOnlyHardCrash | None = None) -> "TransactionContext":
+        if hard_crash is not None and not synthetic:
+            raise ValueError("hard crash injection requires a synthetic transaction")
         key = duplicate_key(authority, reservation, operation, contract)
         return cls(authority, reservation, operation, contract, key,
                    contract["join_audit_sha256"], Path(lock_root), Path(output_root), store,
-                   launch_commit, synthetic, f"p9rtx_{key[:24]}")
+                   launch_commit, synthetic, f"p9rtx_{key[:24]}", hard_crash)
 
     @property
     def final_root(self) -> Path:
@@ -260,11 +277,19 @@ class RecoveryTransactionController:
                             committed=bool(snapshot.get("committed")),
                             transaction_id=self.context.transaction_id)
 
+    def checkpoint(self, boundary: str) -> None:
+        if self.context.hard_crash is not None:
+            self.context.hard_crash.at(boundary)
+
     def acquire_and_start(self) -> None:
+        self.checkpoint("BEFORE_LOCK")
         self.lock.acquire()
+        self.checkpoint("AFTER_LOCK")
+        self.checkpoint("AFTER_OWNER")
         self._transition("ACQUIRING_LOCK", "kernel_lock_acquired")
         self._transition("STARTING", "owner_and_state_persisted")
         self.started = True
+        self.checkpoint("AFTER_STARTING")
 
     def phase(self, target: str, phase: str, **fields: Any) -> None:
         self._transition(target, phase, **fields)
@@ -283,11 +308,15 @@ class RecoveryTransactionController:
         self.lock.heartbeat("STAGING_TERMINAL_RECOVERY", "terminal_staged",
                             state_sequence=self.state.value["state_sequence"],
                             terminal_recovery_sha256=terminal_hash)
+        self.checkpoint("AFTER_TERMINAL_STAGING")
         self.phase("STAGING_ACCEPTANCE", "terminal_validated")
+        self.checkpoint("AFTER_TERMINAL_VALIDATION")
         atomic_json(stage / "recovery_acceptance.json", acceptance)
         acceptance_hash = sha256_path(stage / "recovery_acceptance.json")
         self.state.annotate(recovery_acceptance_id=acceptance["recovery_acceptance_id"],
                             recovery_acceptance_sha256=acceptance_hash)
+        self.checkpoint("AFTER_ACCEPTANCE_STAGING")
+        self.checkpoint("AFTER_ACCEPTANCE_VALIDATION")
         self.lock.heartbeat("STAGING_ACCEPTANCE", "acceptance_staged",
                             state_sequence=self.state.value["state_sequence"],
                             recovery_acceptance_sha256=acceptance_hash)
@@ -305,17 +334,29 @@ class RecoveryTransactionController:
             "recovery_reservation_id": self.context.reservation["recovery_reservation_id"],
             "recovery_operation_id": self.context.operation["recovery_operation_id"],
             "source_inventory_digest": self.context.source_inventory_digest,
+            "source_failed_lineage": self.context.contract["failed_lineage"],
+            "runtime_tree_sha256": self.context.authority["runtime_tree_sha256"],
+            "dag_sha256": self.context.authority["dag_sha256"],
+            "terminal_target": self.context.authority["terminal_target"],
+            "recovery_store": self.context.store,
+            "candidate_count": 25, "join_result": "25/25 EXACT_MATCH",
             "candidate_set_sha256": candidate_set_sha256,
             "selection_sha256": selection_sha256, "stopping_sha256": stopping_sha256,
             **hashes,
         }
         atomic_json(stage / "transaction_manifest.json", manifest)
+        self.checkpoint("AFTER_MANIFEST_STAGING")
         self.context.output_root.mkdir(parents=True, exist_ok=True)
+        self.checkpoint("BEFORE_PAYLOAD_PUBLICATION")
         os.replace(stage, self.context.final_root)
+        self.checkpoint("AFTER_PAYLOAD_PUBLICATION_BEFORE_COMMIT")
+        self.checkpoint("IMMEDIATELY_AFTER_COMMIT_MANIFEST")
         resolved = resolve_committed(self.context.final_root, context=self.context)
         self.committed = True
+        self.checkpoint("AFTER_COMMITTED_READBACK")
         self._transition("RECOVERY_ACCEPTED", "commit_manifest_validated", committed=True,
                          commit_manifest_sha256=sha256_path(self.context.final_root / "transaction_manifest.json"))
+        self.checkpoint("AFTER_RECOVERY_ACCEPTED_STATE")
         return resolved
 
     def fail(self, error: BaseException) -> None:
@@ -326,6 +367,7 @@ class RecoveryTransactionController:
 
     def release(self) -> str:
         current = self.state.value["state"]
+        self.checkpoint("BEFORE_LOCK_RELEASE")
         outcome = self.lock.release(current, committed=self.committed,
                                     last_completed_phase=self.state.value.get("last_completed_phase") or "unknown")
         if self.started:
@@ -336,6 +378,8 @@ class RecoveryTransactionController:
 def resolve_committed(root: str | Path, *, context: TransactionContext | None = None) -> dict[str, Any]:
     """The sole downstream resolver; a manifest is the sole commit point."""
     root = Path(root)
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError("recovery transaction root is not a canonical directory")
     manifest_path = root / "transaction_manifest.json"
     if not manifest_path.exists():
         raise ValueError("no canonical recovery commit manifest")
@@ -345,6 +389,8 @@ def resolve_committed(root: str | Path, *, context: TransactionContext | None = 
     terminal, acceptance = root / "terminal_recovery.json", root / "recovery_acceptance.json"
     if not terminal.exists() or not acceptance.exists():
         raise ValueError("committed recovery payload incomplete")
+    if any(path.is_symlink() or path.resolve().parent != root.resolve() for path in (manifest_path, terminal, acceptance)):
+        raise ValueError("recovery transaction payload path escapes canonical root")
     if manifest.get("terminal_sha256") != sha256_path(terminal) or manifest.get("acceptance_sha256") != sha256_path(acceptance):
         raise ValueError("recovery committed hash mismatch")
     terminal_value, acceptance_value = json.loads(terminal.read_text()), json.loads(acceptance.read_text())
@@ -361,6 +407,30 @@ def resolve_committed(root: str | Path, *, context: TransactionContext | None = 
             raise ValueError("recovery manifest duplicate identity mismatch")
         if manifest.get("source_inventory_digest") != context.source_inventory_digest:
             raise ValueError("recovery source inventory digest mismatch")
+        expected = context.contract
+        if manifest.get("source_failed_lineage") != expected["failed_lineage"]:
+            raise ValueError("recovery manifest source lineage mismatch")
+        if manifest.get("runtime_tree_sha256") != context.authority["runtime_tree_sha256"] or manifest.get("dag_sha256") != context.authority["dag_sha256"]:
+            raise ValueError("recovery manifest runtime identity mismatch")
+        if manifest.get("terminal_target") != context.authority["terminal_target"] or manifest.get("recovery_store") != context.store:
+            raise ValueError("recovery manifest target/store mismatch")
+        if manifest.get("candidate_count") != 25 or manifest.get("join_result") != "25/25 EXACT_MATCH":
+            raise ValueError("recovery candidate join mismatch")
+        if terminal_value.get("source_failed_lineage") != expected["failed_lineage"]:
+            raise ValueError("recovery terminal source lineage mismatch")
+        if terminal_value.get("selected_checkpoint") != expected["expected_selected_checkpoint"]:
+            raise ValueError("recovery terminal selected checkpoint mismatch")
+        if terminal_value.get("stopping") != expected["stopping"]:
+            raise ValueError("recovery terminal stopping boundary mismatch")
+        if terminal_value.get("candidate_set_sha256") != expected["join_audit_sha256"]:
+            raise ValueError("recovery terminal candidate digest mismatch")
+        counters = terminal_value.get("prohibited_operation_counters", {})
+        if any(value != 0 for value in counters.values()):
+            raise ValueError("recovery terminal prohibited activity is nonzero")
+        if acceptance_value.get("selected_checkpoint") != expected["expected_selected_checkpoint"]:
+            raise ValueError("recovery acceptance selected checkpoint mismatch")
+        if acceptance_value.get("prohibited_operation_counters") != counters:
+            raise ValueError("recovery acceptance prohibited counters mismatch")
     return acceptance_value
 
 

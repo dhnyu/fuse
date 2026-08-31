@@ -70,6 +70,23 @@ def _synthetic_context(tmp_path):
     )
 
 
+def _synthetic_payloads(context):
+    selected = context.contract["expected_selected_checkpoint"]
+    terminal = {
+        "terminal_recovery_id": "p9rt_synthetic", "state": "RECOVERY_ACCEPTED",
+        "source_failed_lineage": context.contract["failed_lineage"],
+        "selected_checkpoint": selected, "stopping": context.contract["stopping"],
+        "candidate_set_sha256": context.contract["join_audit_sha256"],
+        "prohibited_operation_counters": {"optimizer_updates": 0},
+    }
+    acceptance = {
+        "recovery_acceptance_id": "p9racc_synthetic", "status": "PASS",
+        "terminal_recovery_id": "p9rt_synthetic", "selected_checkpoint": selected,
+        "prohibited_operation_counters": {"optimizer_updates": 0},
+    }
+    return terminal, acceptance
+
+
 def test_controller_commits_only_after_all_durable_phases(tmp_path):
     context = _synthetic_context(tmp_path)
     controller = RecoveryTransactionController(context)
@@ -78,8 +95,7 @@ def test_controller_commits_only_after_all_durable_phases(tmp_path):
     controller.phase("DERIVING_CANDIDATES", "25_exact_matches", candidate_count=25)
     controller.phase("SELECTING_CHECKPOINT", "epoch_105_selected")
     controller.phase("RECONSTRUCTING_STOPPING_BOUNDARY", "epoch_125_reconstructed")
-    terminal = {"terminal_recovery_id": "p9rt_synthetic", "state": "RECOVERY_ACCEPTED"}
-    acceptance = {"recovery_acceptance_id": "p9racc_synthetic", "status": "PASS", "terminal_recovery_id": "p9rt_synthetic"}
+    terminal, acceptance = _synthetic_payloads(context)
     hashes = controller.stage_pair(terminal, acceptance)
     resolved = controller.commit(hashes, candidate_set_sha256="a" * 64, selection_sha256="b" * 64, stopping_sha256="c" * 64)
     assert resolved["recovery_acceptance_id"] == "p9racc_synthetic"
@@ -104,7 +120,7 @@ def test_controller_precommit_exception_never_becomes_accepted(tmp_path):
     assert state["state"] == "RECOVERY_FAILED_NONMUTATING"
     assert state["original_exception_summary"] == "synthetic source mismatch"
     assert not context.final_root.exists()
-    with pytest.raises(ValueError, match="no canonical"):
+    with pytest.raises(ValueError, match="canonical"):
         resolve_committed(context.final_root, context=context)
 
 
@@ -173,8 +189,7 @@ def test_postcommit_exception_preserves_committed_transaction(tmp_path, monkeypa
     controller.phase("DERIVING_CANDIDATES", "25_exact_matches")
     controller.phase("SELECTING_CHECKPOINT", "epoch_105_selected")
     controller.phase("RECONSTRUCTING_STOPPING_BOUNDARY", "epoch_125_reconstructed")
-    terminal = {"terminal_recovery_id": "p9rt_synthetic", "state": "RECOVERY_ACCEPTED"}
-    acceptance = {"recovery_acceptance_id": "p9racc_synthetic", "status": "PASS", "terminal_recovery_id": "p9rt_synthetic"}
+    terminal, acceptance = _synthetic_payloads(context)
     hashes = controller.stage_pair(terminal, acceptance)
     original_transition = controller._transition
 

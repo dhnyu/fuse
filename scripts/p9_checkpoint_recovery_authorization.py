@@ -8,12 +8,18 @@ import json
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 from p9_checkpoint_recovery import audit_pairs, canonical_json, recovery_terminal_payload, sha256_file
-from p9_recovery_transaction import RecoveryLock, atomic_json as transaction_json, duplicate_key
+from p9_recovery_transaction import (
+    RecoveryTransactionController,
+    TransactionContext,
+    atomic_json as transaction_json,
+    digest as transaction_digest,
+)
 
 RUNTIME_FILES = ["_targets_p9_recovery.R", "R/research_p9_checkpoint_recovery.R", "targets/research_p9_checkpoint_recovery.R", "python/p9_checkpoint_recovery.py", "python/p9_recovery_transaction.py", "scripts/p9_checkpoint_recovery_authorization.py"]
 
@@ -82,32 +88,118 @@ def execute(args: argparse.Namespace) -> None:
         raise PermissionError("exact recovery reservation token required")
     if reservation["status"] != "AUTHORIZED_NOT_STARTED":
         raise ValueError("recovery reservation is not executable")
-    contract = json.loads((directory / "recovery_contract.json").read_text()); authority = json.loads((directory / "recovery_authority.json").read_text()); operation = json.loads((directory / "recovery_operation.json").read_text())
-    key = duplicate_key(authority, reservation, operation, contract)
-    lock = RecoveryLock(args.lock_root, key, {"duplicate_operation_key": key, "recovery_authority_id": authority["recovery_authority_id"], "recovery_reservation_id": reservation["recovery_reservation_id"], "recovery_operation_id": operation["recovery_operation_id"], "source_failed_lineage": contract["failed_lineage"], "launch_commit": os.popen("git rev-parse HEAD").read().strip(), "runtime_tree_sha256": authority["runtime_tree_sha256"], "dag_sha256": authority["dag_sha256"], "terminal_target": authority["terminal_target"], "store": args.store, "pid": os.getpid(), "parent_pid": os.getppid(), "hostname": os.uname().nodename, "acquired_unix": time.time()})
-    lock.acquire()
+    contract = json.loads((directory / "recovery_contract.json").read_text())
+    authority = json.loads((directory / "recovery_authority.json").read_text())
+    operation = json.loads((directory / "recovery_operation.json").read_text())
+    _validate_execution_inputs(authority, reservation, operation, contract, args)
+    context = TransactionContext.create(
+        authority=authority, reservation=reservation, operation=operation, contract=contract,
+        lock_root=args.lock_root, output_root=args.output, store=args.store,
+        launch_commit=os.popen("git rev-parse HEAD").read().strip(), synthetic=args.synthetic,
+    )
+    controller = RecoveryTransactionController(context)
     try:
-        lock.heartbeat("STARTING", "owner_published"); audit = audit_pairs(args.failed_run); lock.heartbeat("DERIVING_CANDIDATES", "join_validated")
-        terminal = recovery_terminal_payload(contract, audit); lock.heartbeat("SELECTING_CHECKPOINT", "selector_validated")
-        terminal.update({"recovery_authority_id": authority["recovery_authority_id"], "recovery_reservation_id": reservation["recovery_reservation_id"], "recovery_operation_id": operation["recovery_operation_id"]}); terminal["terminal_recovery_id"] = "p9rt_" + _digest(terminal)[:24]
-        acceptance = {"schema_version": "1.0.0", "artifact_type": "p9_recovery_acceptance", "status": "PASS", "terminal_recovery_id": terminal["terminal_recovery_id"], "selected_checkpoint": terminal["selected_checkpoint"], "source_failed_lineage": terminal["source_failed_lineage"], "zero_new_training_activity": True}; acceptance["recovery_acceptance_id"] = "p9racc_" + _digest(acceptance)[:24]
-        output = Path(args.output) / terminal["terminal_recovery_id"]
-        if output.exists(): raise FileExistsError("DUPLICATE_OPERATION_COMPLETED")
-        stage = output.with_name("." + output.name + ".staging-" + key[:12]); stage.mkdir(parents=True, exist_ok=False)
-        lock.heartbeat("STAGING_TERMINAL_RECOVERY", "stage_created"); transaction_json(stage / "terminal_recovery.json", terminal)
-        lock.heartbeat("STAGING_ACCEPTANCE", "terminal_staged"); transaction_json(stage / "recovery_acceptance.json", acceptance)
-        transaction_json(stage / "transaction_manifest.json", {"schema_version": "1.0.0", "duplicate_operation_key": key, "terminal_recovery_id": terminal["terminal_recovery_id"], "recovery_acceptance_id": acceptance["recovery_acceptance_id"], "state": "COMMITTED"})
-        lock.heartbeat("COMMITTING", "staged_pair_validated"); os.replace(stage, output); lock.heartbeat("RECOVERY_ACCEPTED", "transaction_committed")
-        print("P9_RECOVERY_TERMINAL_OUTPUT=" + str(output))
-    except BaseException:
-        lock.heartbeat("RECOVERY_FAILED_NONMUTATING", "exception")
+        controller.acquire_and_start()
+        controller.phase("VALIDATING_SOURCE", "authorization_and_source_validation_started")
+        _validate_failed_source(Path(args.failed_run), contract)
+        controller.phase("DERIVING_CANDIDATES", "source_hashes_validated")
+        audit = audit_pairs(args.failed_run)
+        if len(audit["rows"]) != 25 or any(row["classification"] != "EXACT_MATCH" for row in audit["rows"]):
+            raise ValueError("recovery requires 25 EXACT_MATCH checkpoint candidates")
+        controller.state.annotate(candidate_set_sha256=audit["content_sha256"], candidate_count=len(audit["candidates"]))
+        controller.phase("SELECTING_CHECKPOINT", "candidate_join_validated")
+        _require_expected_selection(audit["selected_checkpoint"], contract["expected_selected_checkpoint"])
+        selection_sha256 = transaction_digest(audit["selected_checkpoint"])
+        controller.phase("RECONSTRUCTING_STOPPING_BOUNDARY", "selection_validated", selection_sha256=selection_sha256)
+        _require_stopping_boundary(contract["stopping"])
+        stopping_sha256 = transaction_digest(contract["stopping"])
+        terminal = recovery_terminal_payload(contract, audit)
+        terminal.update({
+            "recovery_authority_id": authority["recovery_authority_id"],
+            "recovery_reservation_id": reservation["recovery_reservation_id"],
+            "recovery_operation_id": operation["recovery_operation_id"],
+            "recovery_transaction_id": context.transaction_id,
+            "recovery_dag_sha256": authority["dag_sha256"],
+        })
+        terminal["terminal_recovery_id"] = "p9rt_" + _digest(terminal)[:24]
+        acceptance = {
+            "schema_version": "1.1.0", "artifact_type": "p9_recovery_acceptance", "status": "PASS",
+            "terminal_recovery_id": terminal["terminal_recovery_id"],
+            "selected_checkpoint": terminal["selected_checkpoint"],
+            "source_failed_lineage": terminal["source_failed_lineage"],
+            "historical_formal_run_state": "FAILED_NONRESUMABLE",
+            "candidate_set_sha256": audit["content_sha256"],
+            "zero_new_training_activity": True,
+            "prohibited_operation_counters": contract["prohibited_operations"],
+        }
+        acceptance["recovery_acceptance_id"] = "p9racc_" + _digest(acceptance)[:24]
+        hashes = controller.stage_pair(terminal, acceptance)
+        resolved = controller.commit(
+            hashes, candidate_set_sha256=audit["content_sha256"],
+            selection_sha256=selection_sha256, stopping_sha256=stopping_sha256,
+        )
+        if resolved["recovery_acceptance_id"] != acceptance["recovery_acceptance_id"]:
+            raise ValueError("canonical recovery resolver selection mismatch")
+        print("P9_RECOVERY_TERMINAL_OUTPUT=" + str(context.final_root))
+    except BaseException as error:
+        if controller.committed:
+            controller.state.annotate(post_commit_integrity_incident={
+                "exception_class": type(error).__name__, "summary": str(error)[:1000],
+            })
+        else:
+            controller.fail(error)
         raise
     finally:
-        lock.release("RECOVERY_ACCEPTED")
+        controller.release()
+
+
+def _validate_execution_inputs(authority: dict, reservation: dict, operation: dict,
+                               contract: dict, args: argparse.Namespace) -> None:
+    if authority.get("recovery_contract_id") != contract.get("recovery_contract_id"):
+        raise ValueError("recovery authority/contract mismatch")
+    if reservation.get("recovery_authority_id") != authority.get("recovery_authority_id"):
+        raise ValueError("recovery reservation/authority mismatch")
+    if reservation.get("recovery_contract_id") != contract.get("recovery_contract_id"):
+        raise ValueError("recovery reservation/contract mismatch")
+    if operation.get("recovery_reservation_id") != reservation.get("recovery_reservation_id"):
+        raise ValueError("recovery operation/reservation mismatch")
+    if authority.get("terminal_target") != "p9_cfg_main_recovery_acceptance":
+        raise ValueError("unexpected recovery terminal target")
+    if not args.store:
+        raise ValueError("recovery store is required")
+
+
+def _validate_failed_source(failed_root: Path, contract: dict) -> None:
+    state = json.loads((failed_root / "attempt_state.json").read_text())
+    expected = contract["failed_lineage"]
+    for source_key, state_key in (("authority_id", "authority_id"), ("reservation_id", "reservation_id"),
+                                  ("attempt_id", "attempt_id"), ("run_id", "run_id"),
+                                  ("runtime_tree_sha256", "runtime_tree_sha256")):
+        if state.get(state_key) != expected.get(source_key):
+            raise ValueError(f"source failed lineage mismatch: {source_key}")
+    terminal = json.loads((failed_root / "terminal_failure.json").read_text())
+    if terminal.get("state") != "FAILED_NONRESUMABLE":
+        raise ValueError("source formal terminal state is not FAILED_NONRESUMABLE")
+    if sha256_file(failed_root / "terminal_failure.json") != contract["failed_terminal_state_sha256"]:
+        raise ValueError("source terminal failure hash mismatch")
+
+
+def _require_expected_selection(actual: dict, expected: dict) -> None:
+    for key in ("checkpoint_id", "epoch", "validation_retrieval_loss", "mean_source_separation_margin",
+                "checkpoint_payload_sha256", "checkpoint_manifest_sha256"):
+        if actual.get(key) != expected.get(key):
+            raise ValueError(f"deterministic recovery selection mismatch: {key}")
+
+
+def _require_stopping_boundary(stopping: dict) -> None:
+    expected = {"reason": "EARLY_STOPPING_PATIENCE_EXHAUSTED", "stopping_epoch": 125,
+                "stopping_update": 9500, "validation_events": 25, "patience": 4}
+    if stopping != expected:
+        raise ValueError("recovery stopping-boundary contract mismatch")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(); parser.add_argument("command", choices=["publish", "execute"]); parser.add_argument("--failed-run", required=True); parser.add_argument("--output", required=True); parser.add_argument("--authorization-dir"); parser.add_argument("--lock-root", default="/mnt/hdd002/dhnyu/fusedata/runtime/p9_recovery_locks"); parser.add_argument("--store", default="")
+    parser = argparse.ArgumentParser(); parser.add_argument("command", choices=["publish", "execute"]); parser.add_argument("--failed-run", required=True); parser.add_argument("--output", required=True); parser.add_argument("--authorization-dir"); parser.add_argument("--lock-root", default="/mnt/hdd002/dhnyu/fusedata/runtime/p9_recovery_locks"); parser.add_argument("--store", default=""); parser.add_argument("--synthetic", action="store_true")
     args = parser.parse_args()
     if args.command == "publish": publish(args)
     else:

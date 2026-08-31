@@ -52,12 +52,12 @@ class ProductionPreparedData:
     def __init__(self, cache_root: str | Path, profile: str, logical_k: int) -> None:
         self.root = Path(cache_root); plan = read_json(self.root / "canonical_cache_plan.json")
         if int(plan["entry_count"]) != 78672: raise ValueError("P9 production cache entry-count mismatch")
-        rows = [row for row in plan["entries"] if row["spec"][0] != "training" or row["profile"] == profile]
+        rows = [row for row in plan["entries"] if row["role"] != "training" or row["profile"] == profile]
         self.index = {}
         for row in rows:
-            spec = tuple(row["spec"]); key = (spec[0], spec[1], spec[2])
+            key = (row["role"], row["scene_id"], row["view"])
             if key in self.index: raise ValueError("duplicate P9 prepared-view identity")
-            self.index[key] = int(row["index"])
+            self.index[key] = int(row["global_index"])
         self.profile, self.logical_k = profile, int(logical_k)
         by_scene: dict[str, list[int]] = {}
         for role, scene, view in self.index:

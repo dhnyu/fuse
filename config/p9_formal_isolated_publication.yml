@@ -1,6 +1,6 @@
 schema_version: "1.0.0"
-implementation_commit: c330e227dfe224a1c654526f62a9ad7165d88a69
-runtime_tree_sha256: b0395143a364d26bb1e121524e69c75cc0f98ce12aa5ecdefacab0f9af58f9f6
+implementation_commit: 45bbd556434f9c610933ba3b54df918f437a2f2e
+runtime_tree_sha256: 1e044fe16378c957592fc408ce5e7af65c7bad697f44c48ab3cd817790254497
 runtime_files:
   - _targets_p9_formal.R
   - config/p6_model_dataloader.yml
@@ -10,6 +10,7 @@ runtime_files:
   - config/schemas/p9_formal_attempt_acceptance.schema.json
   - config/schemas/p9_formal_attempt_reservation_v2.schema.json
   - config/schemas/p9_formal_execution_authority.schema.json
+  - config/schemas/p9_formal_failed_state.schema.json
   - config/schemas/p9_formal_execution_supersession.schema.json
   - config/schemas/p9_formal_resume_checkpoint.schema.json
   - config/schemas/p9_formal_running_state.schema.json
@@ -19,6 +20,7 @@ runtime_files:
   - config/schemas/p9_isolated_execution_authorization_acceptance.schema.json
   - config/schemas/p9_isolated_immutable_root_inventory.schema.json
   - config/schemas/p9_isolated_preassigned_attempt.schema.json
+  - config/schemas/p9_production_startup_gate_evidence.schema.json
   - python/canonical_config.py
   - python/p6_data.py
   - python/p6_model.py
@@ -35,6 +37,11 @@ runtime_files:
   - scripts/p9_formal_isolated_authorization.py
   - scripts/p9_formal_training.py
   - targets/research_p9_formal_execution.R
+
+startup_gate_evidence:
+  path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/startup_gates/p9gen_acb72f05336e09451b4ac458_verified_v2/startup_gate_evidence.json
+  sha256: 7d2a80ac497f91f994a9839f9bcf3d720bfea69cd4fff2d3ec69b9bfc3fa68e3
+  startup_gate_id: p9sg_6bc30ca673e6e09b7699c93d
 
 checkpoint_contract:
   atomic_stage_and_rename: true

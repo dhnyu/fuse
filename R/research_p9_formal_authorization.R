@@ -72,22 +72,39 @@ p9_materialize_production_cache <- function(build_authority, contract_files) {
 }
 
 p9_validate_production_cache <- function(cache_manifest, contract_files) {
+  cfg <- yaml::read_yaml(contract_files[[1L]])
+  manifest <- jsonlite::read_json(cache_manifest, simplifyVector = FALSE)
+  authority_id <- manifest$build_authority_id
+  final <- file.path(cfg$roots$publication, authority_id, "production_cache_validation.json")
+  if (file.exists(final)) {
+    record <- jsonlite::read_json(final, simplifyVector = FALSE)
+    zero_fields <- c(
+      "missing_identities", "duplicate_identities", "orphan_entries",
+      "shard_checksum_failures", "manifest_index_disagreements", "invalid_dem_support",
+      "shape_dtype_schema_failures", "p7_overlap_byte_differences",
+      "k_subset_overlap_byte_differences", "repeat_build_scientific_byte_differences",
+      "rank_dependent_differences"
+    )
+    execution_zero <- c("optimizer_updates", "formal_validation_runs", "checkpoints", "evaluation_queries_consumed")
+    manifest_sha <- digest::digest(file = cache_manifest, algo = "sha256", serialize = FALSE)
+    valid <- identical(record$status, "PASS") &&
+      identical(record$cache$cache_id, manifest$cache_id) &&
+      identical(record$cache$manifest_sha256, manifest_sha) &&
+      identical(as.integer(record$cache$entry_count), as.integer(manifest$entry_count)) &&
+      all(vapply(zero_fields, function(key) identical(as.integer(record[[key]]), 0L), logical(1))) &&
+      all(vapply(execution_zero, function(key) identical(as.integer(record$execution_counts[[key]]), 0L), logical(1)))
+    if (!valid) stop("P9 existing cache validation readback failed", call. = FALSE)
+    return(normalizePath(final, mustWork = TRUE))
+  }
   output <- tempfile("p9-cache-validation-", fileext = ".json")
   status <- system2(research_python_executable(), c(
     "scripts/p9_production_cache.py", "validate", "--config", contract_files[[1L]],
     "--manifest", cache_manifest, "--output", output
   ))
   if (!identical(status, 0L)) stop("P9 production cache validation failed", call. = FALSE)
-  cfg <- yaml::read_yaml(contract_files[[1L]])
-  authority_id <- jsonlite::read_json(cache_manifest, simplifyVector = FALSE)$build_authority_id
-  final <- file.path(cfg$roots$publication, authority_id, "production_cache_validation.json")
   payload <- readBin(output, "raw", n = file.info(output)$size)
-  if (file.exists(final)) {
-    if (!identical(readBin(final, "raw", n = file.info(final)$size), payload)) stop("P9 validation immutable collision", call. = FALSE)
-  } else {
-    dir.create(dirname(final), recursive = TRUE, showWarnings = FALSE)
-    temporary <- paste0(final, ".tmp-", Sys.getpid()); writeBin(payload, temporary); file.rename(temporary, final)
-  }
+  dir.create(dirname(final), recursive = TRUE, showWarnings = FALSE)
+  temporary <- paste0(final, ".tmp-", Sys.getpid()); writeBin(payload, temporary); file.rename(temporary, final)
   normalizePath(final, mustWork = TRUE)
 }
 

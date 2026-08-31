@@ -33,3 +33,14 @@ testthat::test_that("heavy cache target requires explicit authority", {
   Sys.unsetenv("FUSE_P9_CACHE_BUILD_AUTHORITY_ID")
   testthat::expect_error(p9_materialize_production_cache(fake, c(file.path(root, "config/p9_formal_authorization.yml"))), "explicit")
 })
+
+testthat::test_that("immutable cache validation is reused only after fail-closed readback", {
+  root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
+  env <- new.env(parent = baseenv())
+  sys.source(file.path(root, "R/research_p9_formal_authorization.R"), envir = env)
+  body <- paste(deparse(body(env$p9_validate_production_cache)), collapse = "\n")
+  testthat::expect_match(body, "manifest_sha256")
+  testthat::expect_match(body, "zero_fields")
+  testthat::expect_match(body, "execution_zero")
+  testthat::expect_match(body, "existing cache validation readback failed")
+})

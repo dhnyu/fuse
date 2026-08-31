@@ -5,8 +5,8 @@ dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
 
 pipeline:
   script: _targets_p9_formal.R
-  execution_generation_id: p9gen_acb72f05336e09451b4ac458
-  store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal-p9gen_acb72f05336e09451b4ac458
+  execution_generation_id: p9gen_batchuniq_20260831
+  store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal-p9gen_batchuniq_20260831
   preserved_failed_store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal
   main_research_store_prohibited: /mnt/hdd002/dhnyu/fusedata/targets/fuse-research
 
@@ -103,6 +103,10 @@ execution:
   seed_identity: 787e77a3684eb832cdfab0bfd1bded526d5d42b390d7ed84e2663cb1817c2815
   cache_subset_identity: p8abi_34ec95ac92e1d3531f13fb81
 
+sampler_contract:
+  path: config/p9_global_batch_sampler_contract.json
+  sha256: c0c7dba9b9f74cd6c00f5780204ad51eb96da708972a88e24762b55821057297
+
 training_contract:
   runner_class: P9_FORMAL
   maximum_epochs: 200
@@ -129,27 +133,27 @@ validation_contract:
   mrr_hit_selector_use: prohibited
 
 superseded:
-  authority_id: p9a_2c67a3971b785f7049cb3d65
-  reservation_id: p9res_0ab5e0235bc36811d8855050
-  attempt_id: p9attempt_074b247e347f851387606da0
-  run_id: p9run_f592f6b25fb56be8807c16cb
-  authorization_acceptance_id: p9xacc_12d457b5127e3fd242d07b3d
-  launch_commit: f6fd8f470a4b5397dc67965ff46bac2f0fffabc5
-  runtime_digest: b0395143a364d26bb1e121524e69c75cc0f98ce12aa5ecdefacab0f9af58f9f6
+  authority_id: p9a_b0c50c956d84a1c3664d7934
+  reservation_id: p9res_15556054a164595be7829160
+  attempt_id: p9attempt_25b780995291c86ce49b2182
+  run_id: p9run_f62cd1d3b2430cd1f0eccc9d
+  authorization_acceptance_id: p9xacc_04fdacdfa9f195dae078517e
+  launch_commit: 039857c6ccfca136aa575be3a9ea04ca33f11d4b
+  runtime_digest: 1e044fe16378c957592fc408ce5e7af65c7bad697f44c48ab3cd817790254497
   terminal_classification: FAILED_NONRESUMABLE
   formal_attempt_starts: 1
   run_identities: 1
   ddp_ranks_launched: 2
-  optimizer_updates: 0
-  completed_epochs: 0
-  formal_validation_runs: 0
-  validation_queries_consumed: 0
-  checkpoints: 0
+  optimizer_updates: 1140
+  completed_epochs: 15
+  formal_validation_runs: 3
+  validation_queries_consumed: 2400
+  checkpoints: 3
   acceptance_artifacts: 0
   evaluation_queries_consumed: 0
   exact_resume_authorized: false
-  failure_stage: MODEL_CONSTRUCTION
-  failure_class: KeyError
+  failure_stage: CURRENT_BATCH_ID_LOOKUP
+  failure_class: ValueError
   preserved_evidence:
     running_state:
       path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/attempts/p9attempt_074b247e347f851387606da0/running_state.json

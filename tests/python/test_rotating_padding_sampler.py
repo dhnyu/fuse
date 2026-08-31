@@ -17,6 +17,27 @@ class RotatingPaddingSamplerTest(unittest.TestCase):
         self.assertEqual(set(first.permutation), set(scenes))
         self.assertNotEqual(first.padding_scene_ids, rotating_padding_state(scenes, 20260822, 1).padding_scene_ids)
 
+    def test_collision_free_final_collective_over_formal_horizon(self):
+        scenes = [f"scn_{index:04d}" for index in range(2421)]
+        schedules = []
+        for epoch in range(200):
+            state = rotating_padding_state(scenes, 1749989426, epoch)
+            groups = logical_groups(state)
+            self.assertEqual(len(groups), 76)
+            self.assertEqual(len(groups[-1]), 32)
+            self.assertEqual(len(set(groups[-1])), 32)
+            self.assertTrue(set(state.padding_scene_ids).isdisjoint(groups[-1][:-11]))
+            schedules.append(groups)
+        self.assertEqual(schedules, [logical_groups(rotating_padding_state(scenes, 1749989426, epoch))
+                                     for epoch in range(200)])
+
+    def test_rank_major_partition_is_complementary_at_former_boundary(self):
+        scenes = [f"scn_{index:04d}" for index in range(2421)]
+        group = logical_groups(rotating_padding_state(scenes, 1749989426, 19))[75]
+        rank_zero, rank_one = group[:16], group[16:]
+        self.assertEqual(tuple(rank_zero + rank_one), group)
+        self.assertTrue(set(rank_zero).isdisjoint(rank_one))
+
     def test_prototype_has_no_padding(self):
         state = rotating_padding_state([f"scn_{index:03d}" for index in range(256)], 20260822, 0)
         self.assertEqual(state.padding_scene_ids, ())

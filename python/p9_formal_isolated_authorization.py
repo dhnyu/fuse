@@ -152,6 +152,13 @@ def build(runtime_config_path: str | Path, publication_config_path: str | Path,
         "production_cache_id": runtime_config["cache"]["cache_id"],
         "dissertation_commit": runtime_config["dissertation_commit"],
     }
+    sampler_spec = runtime_config["sampler_contract"]
+    sampler_path = Path(sampler_spec["path"])
+    if not sampler_path.is_file() or sha256_file(sampler_path) != sampler_spec["sha256"]:
+        raise ValueError("isolated P9 sampler contract identity mismatch")
+    sampler_contract = read_json(sampler_path)
+    if sampler_contract.get("status") != "PASS":
+        raise ValueError("isolated P9 sampler contract is not accepted")
     execution = {
         "pipeline_script": runtime_config["pipeline"]["script"],
         "isolated_store": runtime_config["pipeline"]["store"],
@@ -169,6 +176,8 @@ def build(runtime_config_path: str | Path, publication_config_path: str | Path,
         "execution_contract": execution,
         "training_contract": _training_contract(runtime_config),
         "validation_contract": runtime_config["validation_contract"],
+        "sampler_contract": {"path": str(sampler_path.resolve()), "sha256": sampler_spec["sha256"],
+                             "contract_id": sampler_contract["contract_id"]},
         "checkpoint_contract": publication["checkpoint_contract"],
         "locking_contract": publication["locking_contract"],
         "startup_gate_contract": {"required_before_formal_start": True,
@@ -225,13 +234,9 @@ def build(runtime_config_path: str | Path, publication_config_path: str | Path,
             raise ValueError("preserved failed-attempt evidence changed")
     supersession = artifact("p9sup_", "p9_formal_execution_supersession", {
         "status": "PASS", "superseded": superseded,
-        "classification": ["preserved", "formally_started", "failed_during_model_construction",
-                           "zero_update", "nonresumable", "durable_evidence",
-                           "ineligible_for_formal_execution"],
-        "reason": "canonical vocabulary interface mismatch in the production formal model bootstrap",
-        "historical_state_inconsistency": {
-            "running_state": "RUNNING", "durable_owner": "FAILED_NONRESUMABLE",
-            "heartbeat": "FAILED_NONRESUMABLE", "historical_files_rewritten": False},
+        "classification": runtime_config["supersession"]["classification"],
+        "reason": runtime_config["supersession"]["reason"],
+        "historical_state_inconsistency": runtime_config["supersession"].get("historical_state_inconsistency", {}),
         "replacement_authority_id": authority["authority_id"],
         "replacement_reservation_id": reservation["reservation_id"],
         "replacement_attempt_id": attempt_id, "optimizer_updates": 0,

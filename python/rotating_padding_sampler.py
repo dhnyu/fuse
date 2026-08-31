@@ -40,8 +40,15 @@ def rotating_padding_state(
     permutation = tuple(np.random.Generator(np.random.PCG64(rng_seed)).permutation(canonical).tolist())
     padding_count = (-len(canonical)) % global_batch
     rotation = _stable_order(canonical, seed, "rotating-padding")
-    start = (epoch * padding_count) % len(rotation) if padding_count else 0
-    padding = tuple(rotation[(start + offset) % len(rotation)] for offset in range(padding_count))
+    # Padding completes the final collective. Excluding its remainder is
+    # required because current-batch positive lookup permits exactly one copy
+    # of each base scene in a global batch.
+    remainder = set(permutation[-(len(canonical) % global_batch):]) if padding_count else set()
+    candidates = tuple(scene_id for scene_id in rotation if scene_id not in remainder)
+    if len(candidates) < padding_count:
+        raise ValueError("insufficient collision-free padding candidates")
+    start = (epoch * padding_count) % len(candidates) if padding_count else 0
+    padding = tuple(candidates[(start + offset) % len(candidates)] for offset in range(padding_count))
     return RotatingPaddingState(epoch, permutation, padding)
 
 

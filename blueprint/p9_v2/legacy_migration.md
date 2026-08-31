@@ -152,17 +152,25 @@ checkpoint naturally from all 25 candidates. Duplicate publication validated
 and returned the existing acceptance. The v1 state remains byte-unchanged
 `FAILED_NONRESUMABLE`; canonical v2 acceptance does not relabel it.
 
-## V1 retirement plan
+## Implemented V1 retirement
 
-V2-I will, without deleting artifacts:
+V2-I completed the following without deleting or rewriting legacy artifacts:
 
-- publish one retirement manifest marking all 9 formal and 3 recovery authorities v1-ineligible;
+- publish one content-addressed retirement manifest marking all 9 formal and 3 recovery authorities v1-ineligible;
 - preserve reports, logs, stores, checkpoints, validation records, locks, and state evidence;
 - make v1 run/recovery entry scripts fail closed with a historical-only message;
 - retain read-only inventory, hash, and diagnostic tools;
 - label three formal and three recovery stores as archived historical generations;
 - make the canonical resolver reject every direct v1 artifact and recovery acceptance;
 - update documentation to call v1 historical evidence, not an active execution path;
-- prohibit downstream checkpoint paths and require a v2 acceptance identity.
+- prohibit downstream checkpoint paths and require a v2 acceptance identity;
+- reduce each main/formal/recovery active P9 target closure to one stable
+  fail-closed retirement target while retaining historical target declarations
+  for source inspection only.
 
-This blueprint does not implement retirement.
+The manifest is external to every v1 authority and store. It binds their ordered
+read-only inventory hashes, the retired and preserved interfaces, implementation
+source hashes, and replacement acceptance
+`p9accv2_d93b01ef13c3f26a22287ce7`. The explicit V2-I work-unit instruction is
+the publication basis; V2-I creates no authority, reservation, attempt,
+operation, or recovery identity. V1 remains `FAILED_NONRESUMABLE`.

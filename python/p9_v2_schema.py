@@ -26,6 +26,7 @@ SCHEMA_FILES = {
     "legacy_import": "p9_v2_legacy_import.schema.json",
     "migration_authority": "p9_v2_migration_authority.schema.json",
     "acceptance_eligibility": "p9_v2_acceptance_eligibility.schema.json",
+    "v1_retirement_manifest": "p9_v1_retirement_manifest.schema.json",
 }
 
 

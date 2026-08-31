@@ -13,6 +13,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
+from p9_v1_retirement import reject_v1_execution, retire_v1_cli
+
+if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_checkpoint_recovery_authorization.py")
+
 from p9_checkpoint_recovery import audit_pairs, canonical_json, recovery_terminal_payload, sha256_file
 from p9_recovery_transaction import (
     RecoveryTransactionController,
@@ -53,6 +58,7 @@ def _runtime_manifest() -> dict:
 
 
 def publish(args: argparse.Namespace) -> None:
+    reject_v1_execution("scripts/p9_checkpoint_recovery_authorization.py:publish")
     failed_root = Path(args.failed_run)
     audit = audit_pairs(failed_root)
     failed = json.loads((failed_root / "attempt_state.json").read_text())
@@ -82,6 +88,7 @@ def publish(args: argparse.Namespace) -> None:
 
 
 def execute(args: argparse.Namespace) -> None:
+    reject_v1_execution("scripts/p9_checkpoint_recovery_authorization.py:execute")
     directory = Path(args.authorization_dir)
     reservation = json.loads((directory / "recovery_reservation.json").read_text())
     if os.environ.get("FUSE_P9_RECOVERY_RESERVATION_ID") != reservation["recovery_reservation_id"]:
@@ -199,6 +206,7 @@ def _require_stopping_boundary(stopping: dict) -> None:
 
 
 if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_checkpoint_recovery_authorization.py")
     parser = argparse.ArgumentParser(); parser.add_argument("command", choices=["publish", "execute"]); parser.add_argument("--failed-run", required=True); parser.add_argument("--output", required=True); parser.add_argument("--authorization-dir"); parser.add_argument("--lock-root", default="/mnt/hdd002/dhnyu/fusedata/runtime/p9_recovery_locks"); parser.add_argument("--store", default=""); parser.add_argument("--synthetic", action="store_true")
     args = parser.parse_args()
     if args.command == "publish": publish(args)

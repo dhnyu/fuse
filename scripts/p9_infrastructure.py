@@ -14,11 +14,17 @@ import jsonschema
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
+from p9_v1_retirement import retire_v1_cli  # noqa: E402
+
+if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_infrastructure.py")
+
 from canonical_config import canonical_json_bytes  # noqa: E402
 from p9_infrastructure import build_readiness, load_contract  # noqa: E402
 
 
 def main() -> int:
+    retire_v1_cli("scripts/p9_infrastructure.py")
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True); parser.add_argument("--schema", required=True)
     parser.add_argument("--source-commit", required=True)

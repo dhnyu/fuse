@@ -39,6 +39,7 @@ research_function_files <- c(
   "R/research_p8_experiment_plan.R",
   "R/research_p9_infrastructure.R",
   "R/research_p9_formal_authorization.R",
+  "R/research_p9_v1_retirement.R",
   "R/research_prototype_model_validation.R",
   "R/research_prototype_model_acceptance.R",
   "R/research_training_plan.R"

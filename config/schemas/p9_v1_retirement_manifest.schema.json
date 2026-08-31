@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v1:retirement-manifest:1.0.0",
+  "title": "P9 v1 immutable retirement manifest",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "retirement_id", "content_sha256", "implementation_version", "status", "authorization_basis", "formal_authorities", "recovery_authorities", "historical_stores", "retired_entry_points", "prohibited_interfaces", "preserved_read_only_interfaces", "replacement", "source_hashes"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "p9_v1_retirement_manifest"},
+    "retirement_id": {"type": "string", "pattern": "^p9ret_[0-9a-f]{24}$"},
+    "content_sha256": {"$ref": "#/$defs/sha256"},
+    "implementation_version": {"const": "p9-v1-retirement-v1"},
+    "status": {"const": "V1_RETIRED_READ_ONLY"},
+    "authorization_basis": {"const": "EXPLICIT_V2_I_USER_WORK_UNIT"},
+    "formal_authorities": {"$ref": "#/$defs/authorities"},
+    "recovery_authorities": {"$ref": "#/$defs/authorities"},
+    "historical_stores": {
+      "type": "array", "minItems": 6, "maxItems": 6,
+      "items": {"$ref": "#/$defs/store"}
+    },
+    "retired_entry_points": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "prohibited_interfaces": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "preserved_read_only_interfaces": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "replacement": {
+      "type": "object",
+      "required": ["acceptance_id", "checkpoint_id", "resolver_contract"],
+      "properties": {
+        "acceptance_id": {"const": "p9accv2_d93b01ef13c3f26a22287ce7"},
+        "checkpoint_id": {"const": "p9ck_42f7957d2ea998ac9e8ff705"},
+        "resolver_contract": {"const": "resolve_accepted_checkpoint(acceptance_identity)"}
+      },
+      "additionalProperties": false
+    },
+    "source_hashes": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["path", "sha256"],
+        "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}},
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "authorities": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["identity", "status", "inventory_sha256", "file_count"],
+        "properties": {
+          "identity": {"type": "string", "minLength": 1},
+          "status": {"const": "RETIRED_INELIGIBLE"},
+          "inventory_sha256": {"$ref": "#/$defs/sha256"},
+          "file_count": {"type": "integer", "minimum": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "store": {
+      "type": "object", "required": ["name", "status", "inventory_sha256", "entry_count"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "status": {"const": "HISTORICAL_READ_ONLY"},
+        "inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "entry_count": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

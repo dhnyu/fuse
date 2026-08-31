@@ -29,6 +29,11 @@ from torch.nn.parallel import DistributedDataParallel
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "python"), str(ROOT / "scripts")]
 
+from p9_v1_retirement import retire_v1_cli  # noqa: E402
+
+if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_formal_training.py")
+
 from canonical_config import load_strict_yaml  # noqa: E402
 from p6_data import build_vocabulary, validate_vocabulary_contract  # noqa: E402
 from p7_geometry_cache import GeometryCacheReader  # noqa: E402
@@ -608,6 +613,7 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    retire_v1_cli("scripts/p9_formal_training.py")
     args = parser().parse_args()
     if args.mode == "validate":
         values = load_values(args); print(json.dumps({"status": "PASS", "formal_attempt": True,

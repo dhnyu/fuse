@@ -1,4 +1,4 @@
-list_p9_formal_execution <- list(
+list_p9_formal_execution_historical <- list(
   # Layer A: immutable accepted file bindings.
   targets::tar_target(p9x_runtime_config, p9x_runtime_config_path(), format = "file"),
   targets::tar_target(p9x_runtime_files, p9x_runtime_file_paths(), format = "file"),
@@ -49,4 +49,11 @@ list_p9_formal_execution <- list(
   targets::tar_target(p9_cfg_main_selected_checkpoint, p9x_run_artifact(p9_cfg_main_formal_run, "selected_checkpoint.json", p9_cfg_main_checkpoint_candidates), format = "file"),
   targets::tar_target(p9_cfg_main_terminal_execution, p9x_run_artifact(p9_cfg_main_formal_run, "terminal_execution_record.json", p9_cfg_main_selected_checkpoint), format = "file"),
   targets::tar_target(p9_cfg_main_attempt_acceptance, p9x_run_artifact(p9_cfg_main_formal_run, "cfg_main_attempt_acceptance.json", p9_cfg_main_terminal_execution), format = "file")
+)
+
+list_p9_formal_execution <- list(
+  targets::tar_target(
+    p9_v1_formal_execution_retired,
+    p9_v1_retired_stop("_targets_p9_formal.R")
+  )
 )

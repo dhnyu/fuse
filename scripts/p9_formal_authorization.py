@@ -14,6 +14,11 @@ import jsonschema
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
+from p9_v1_retirement import retire_v1_cli  # noqa: E402
+
+if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_formal_authorization.py")
+
 from p9_formal_authorization import (build_plan_bundle, cache_acceptance_payload, cfg_main_reservation_payload,
                                      formal_authority_payload, load_config, publish_final_bundle,
                                      publish_plan_bundle, read_json)  # noqa: E402
@@ -24,6 +29,7 @@ def validate(schema: Path, value: dict) -> None:
 
 
 def main() -> int:
+    retire_v1_cli("scripts/p9_formal_authorization.py")
     parser = argparse.ArgumentParser(); sub = parser.add_subparsers(dest="command", required=True)
     plan = sub.add_parser("plan"); plan.add_argument("--config", required=True); plan.add_argument("--schema-dir", required=True)
     plan.add_argument("--scientific-commit", required=True); plan.add_argument("--execution-commit", required=True)

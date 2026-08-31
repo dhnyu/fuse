@@ -102,4 +102,9 @@ The formal runtime manifest also binds `python/canonical_config.py`, `python/p6_
 
 ## Downstream status
 
-P9-B and selected-FM are plan-level contracts in `python/p8_experiment_plan.py` and `python/p9_infrastructure.py`; P10/P11 are blueprint phases. No canonical accepted P9 checkpoint currently exists. Existing target leaves and `resolve_committed()` are path-specific and do not form a repository-wide consumer contract. V2 therefore introduces one resolver and prohibits manual paths or "latest" fallback.
+V2-E migrated P9-B, selected-FM, held-out evaluation, P10, and P11 to the
+single `resolve_accepted_checkpoint(acceptance_identity)` contract. V2-G
+published canonical acceptance `p9accv2_d93b01ef13c3f26a22287ce7`; V2-I
+retired `resolve_committed()` and all manual, latest, v1 identity, store-path,
+bundle-path, and finalization-path entry forms. V1 consumers are historical
+inspection surfaces only and cannot provide downstream checkpoint evidence.

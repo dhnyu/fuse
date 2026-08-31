@@ -14,7 +14,7 @@ Each work unit is independently reviewed, committed, and authorized where stated
 | V2-F Synthetic end to end | V2-A-E | Synthetic controller-to-resolver acceptance | Synthetic fixture roots only | Production cache/run/evaluation | Interruption/resume, training failure, finalization retry, publish retry, bookkeeping failure | `P9_V2_F_SYNTHETIC_E2E_PASS` (implemented in V2-EF) | A-E | Synthetic fixtures only; no authority issued |
 | V2-G Historical import/acceptance | Validated importer, immutable v1 source | Canonical imported bundle, finalization result, v2 acceptance | New v2 content-addressed artifacts only | Source mutation, retraining, validation rerun, evaluation | Pre/post inventory, independent validator/finalizer, idempotent publication, resolver | `P9_V2_G_HISTORICAL_ACCEPTANCE_PASS` (implemented) | A-F | Bounded authority `p9authv2_47f350372bf94162db8f9142` |
 | V2-H Future controller migration | V2-A-F, future scientific config | Production v2 training controller | Source/tests; future authorized run artifacts | Any launch in implementation unit, v1 execution | Production-shaped pilot, lock/process death, exact resume, resource/closure tests | `P9_V2_H_CONTROLLER_PASS` | A-F | Implementation no; future run yes |
-| V2-I V1 retirement | Accepted v2 resolver and migration outcome | Retirement manifest, fail-closed v1 entry points, archived labels | Docs/source markers/new manifest | Deletion/rewrite of legacy evidence | All v1 entry points blocked, read-only tools pass, downstream rejects v1 | `P9_V2_I_V1_RETIRED_PASS` | E and G; H if future training needed | Explicit retirement publication authority |
+| V2-I V1 retirement | Accepted v2 resolver and migration outcome | Retirement manifest, fail-closed v1 entry points, archived labels | Docs/source markers/new manifest | Deletion/rewrite of legacy evidence | All v1 entry points blocked, read-only tools pass, downstream rejects v1 | `P9_V2_I_V1_RETIRED_PASS` (implemented) | E and G | Explicit V2-I work-unit instruction; no new execution authority |
 
 ## Failure and recovery behavior
 
@@ -49,4 +49,5 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 
 ## Exact recommended next work unit
 
+V2-H is optional and is required only before any future new P9 training run:
 `V2-H: production v2 training-controller implementation and production-shaped non-training pilot for future runs.`

@@ -257,9 +257,11 @@ class TransactionContext:
 
 
 class RecoveryTransactionController:
-    """Single controller for canonical recovery publication."""
+    """Preserved v1 controller whose execution boundary is retired."""
 
     def __init__(self, context: TransactionContext):
+        from p9_v1_retirement import reject_v1_execution
+        reject_v1_execution("python/p9_recovery_transaction.py:RecoveryTransactionController")
         self.context = context
         owner = {
             **context.identity(), "launch_commit": context.launch_commit,
@@ -351,7 +353,7 @@ class RecoveryTransactionController:
         os.replace(stage, self.context.final_root)
         self.checkpoint("AFTER_PAYLOAD_PUBLICATION_BEFORE_COMMIT")
         self.checkpoint("IMMEDIATELY_AFTER_COMMIT_MANIFEST")
-        resolved = resolve_committed(self.context.final_root, context=self.context)
+        resolved = inspect_committed_recovery(self.context.final_root, context=self.context)
         self.committed = True
         self.checkpoint("AFTER_COMMITTED_READBACK")
         self._transition("RECOVERY_ACCEPTED", "commit_manifest_validated", committed=True,
@@ -375,8 +377,8 @@ class RecoveryTransactionController:
         return outcome
 
 
-def resolve_committed(root: str | Path, *, context: TransactionContext | None = None) -> dict[str, Any]:
-    """The sole downstream resolver; a manifest is the sole commit point."""
+def inspect_committed_recovery(root: str | Path, *, context: TransactionContext | None = None) -> dict[str, Any]:
+    """Read-only validator for preserved historical recovery evidence."""
     root = Path(root)
     if root.is_symlink() or not root.is_dir():
         raise ValueError("recovery transaction root is not a canonical directory")
@@ -432,6 +434,14 @@ def resolve_committed(root: str | Path, *, context: TransactionContext | None = 
         if acceptance_value.get("prohibited_operation_counters") != counters:
             raise ValueError("recovery acceptance prohibited counters mismatch")
     return acceptance_value
+
+
+def resolve_committed(root: str | Path, *, context: TransactionContext | None = None) -> dict[str, Any]:
+    """Retired v1 resolver; downstream consumers must use a V2 acceptance."""
+
+    del root, context
+    from p9_v1_retirement import reject_v1_execution
+    reject_v1_execution("python/p9_recovery_transaction.py:resolve_committed")
 
 
 def duplicate_key(authority: dict[str, Any], reservation: dict[str, Any], operation: dict[str, Any], contract: dict[str, Any]) -> str:

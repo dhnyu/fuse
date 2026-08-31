@@ -29,6 +29,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "python"), str(ROOT / "scripts")]
 
+from p9_v1_retirement import reject_v1_execution, retire_v1_cli  # noqa: E402
+
+if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_production_cache.py")
+
 from canonical_config import canonical_json_bytes, load_strict_yaml  # noqa: E402
 from p6_data import apply_delta, build_vocabulary  # noqa: E402
 from p7_geometry_cache import GeometryCacheWriter, cache_record, sha256_file, tensor_sha256, validate_payload  # noqa: E402
@@ -239,6 +244,7 @@ def gpu_locks(config: dict[str, Any]):
 
 
 def build(args: argparse.Namespace) -> Path:
+    reject_v1_execution("scripts/p9_production_cache.py:build")
     config = load_config(args.config); authority = read_json(args.authority)
     expected_env = os.environ.get("FUSE_P9_CACHE_BUILD_AUTHORITY_ID")
     if authority.get("artifact_id") != expected_env or authority.get("status") != "CACHE_BUILD_ONLY":
@@ -432,6 +438,7 @@ def validate_cache(args: argparse.Namespace) -> Path:
 
 
 def main() -> int:
+    retire_v1_cli("scripts/p9_production_cache.py")
     parser = argparse.ArgumentParser(); sub = parser.add_subparsers(dest="command", required=True)
     build_parser = sub.add_parser("build"); build_parser.add_argument("--config", required=True); build_parser.add_argument("--authority", required=True)
     gpu = sub.add_parser("gpu-producer"); gpu.add_argument("--config", required=True); gpu.add_argument("--gpu", required=True)

@@ -5,6 +5,10 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.skip(
+    reason="P9 v1 recovery execution is retired; V2-I rejection/read-only coverage supersedes this suite"
+)
+
 from p9_checkpoint_recovery import validation_epoch_from_manifest
 from p9_recovery_transaction import (
     OperationState,

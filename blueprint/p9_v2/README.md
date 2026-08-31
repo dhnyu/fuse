@@ -1,6 +1,6 @@
 # P9 v2 Architecture and Migration Blueprint
 
-Status: `IMPLEMENTED_THROUGH_V2_G_HISTORICAL_ACCEPTANCE`
+Status: `IMPLEMENTED_THROUGH_V2_I_V1_RETIREMENT`
 
 This directory defines the proposed P9 v2 control and artifact contracts. It does not authorize execution, alter dissertation methodology, or form part of any production runtime digest.
 
@@ -14,6 +14,12 @@ V2-G canonically imported that evidence under the bounded authority
 `p9authv2_47f350372bf94162db8f9142` and committed acceptance
 `p9accv2_d93b01ef13c3f26a22287ce7`. This is a v2 acceptance of immutable
 scientific evidence, not a rewrite or success claim for the v1 controller run.
+
+V2-I retires every active v1 target, CLI, recovery controller, and downstream
+resolver boundary with stable error `P9_V1_EXECUTION_RETIRED`. The 12 legacy
+authorities and six target-store generations remain byte-preserved historical
+evidence. Downstream consumption is exclusively through the canonical V2
+acceptance above and `resolve_accepted_checkpoint()`.
 
 ## Authority and methodology
 

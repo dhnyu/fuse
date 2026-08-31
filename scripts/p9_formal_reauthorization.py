@@ -11,10 +11,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
+from p9_v1_retirement import retire_v1_cli  # noqa: E402
+
+if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_formal_reauthorization.py")
+
 from p9_formal_reauthorization import build, publish  # noqa: E402
 
 
 def main() -> None:
+    retire_v1_cli("scripts/p9_formal_reauthorization.py")
     parser = argparse.ArgumentParser(); parser.add_argument("command", choices=("validate", "publish"))
     parser.add_argument("--config", required=True); args = parser.parse_args()
     if args.command == "validate":

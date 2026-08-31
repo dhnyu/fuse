@@ -26,6 +26,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "python"), str(ROOT / "scripts")]
 
+from p9_v1_retirement import reject_v1_execution, retire_v1_cli  # noqa: E402
+
+if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_bounded_main_pilot.py")
+
 from canonical_config import canonical_json_bytes, load_strict_yaml  # noqa: E402
 from p6_data import build_vocabulary  # noqa: E402
 from p7_training import (P7ArtifactCatalog, canonical_digest, collate, empty_queue, selected_view_pair,
@@ -362,6 +367,7 @@ def cache_gpu(args: argparse.Namespace) -> None:
 
 
 def build_cache(root: Path, workers: int=32, limit: int=0) -> Path:
+    reject_v1_execution("scripts/p9_bounded_main_pilot.py:build_cache")
     root.mkdir(parents=True,exist_ok=False)
     values=values_and_authority(); specs=cache_specs(values)
     if limit: specs=specs[:int(limit)]
@@ -452,6 +458,7 @@ def parser() -> argparse.ArgumentParser:
 
 
 if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_bounded_main_pilot.py")
     args=parser().parse_args()
     if args.command=="run": controller(args)
     elif args.command=="trajectory": trajectory_controller(args)

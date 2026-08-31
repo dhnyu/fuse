@@ -1,4 +1,4 @@
-list_research_p9_infrastructure <- list(
+list_research_p9_infrastructure_historical <- list(
   targets::tar_target(
     p9_infrastructure_contract_files,
     c("config/p9_infrastructure.yml", "config/schemas/p9_infrastructure_readiness.schema.json",
@@ -17,3 +17,6 @@ list_research_p9_infrastructure <- list(
     format = "file"
   )
 )
+
+# Accepted readiness remains immutable evidence; no v1 readiness is republished.
+list_research_p9_infrastructure <- list()

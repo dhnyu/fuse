@@ -8,12 +8,19 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "python"))
+
+from p9_v1_retirement import retire_v1_cli  # noqa: E402
+
+if __name__ == "__main__":
+    retire_v1_cli("scripts/p9_formal_isolated_authorization.py")
 
 from p9_formal_isolated_authorization import publish, publish_candidate
 
 
 def main() -> None:
+    retire_v1_cli("scripts/p9_formal_isolated_authorization.py")
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["publish", "candidate"])
     parser.add_argument("--runtime-config", required=True)

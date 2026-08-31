@@ -1,4 +1,4 @@
-list_research_p9_formal_authorization <- list(
+list_research_p9_formal_authorization_historical <- list(
   targets::tar_target(
     p9_formal_authorization_contract_files,
     p9_formal_contract_files(), format = "file", resources = controller_05_resources
@@ -144,5 +144,12 @@ list_research_p9_formal_authorization <- list(
     p9_formal_run_artifact(p9_cfg_main_formal_run, "cfg_main_attempt_acceptance.json",
                            p9_cfg_main_terminal_execution),
     format = "file", resources = controller_05_resources
+  )
+)
+
+list_research_p9_formal_authorization <- list(
+  targets::tar_target(
+    p9_v1_main_execution_retired,
+    p9_v1_retired_stop("_targets.R:P9 v1 formal/cache execution")
   )
 )

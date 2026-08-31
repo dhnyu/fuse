@@ -1,14 +1,11 @@
-testthat::test_that("isolated P9 manifest contains only bindings, authorization, and formal chain", {
+testthat::test_that("isolated P9 manifest contains only the v1 retirement guard", {
   root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
   old <- getwd(); on.exit(setwd(old), add = TRUE); setwd(root)
   manifest <- targets::tar_manifest(script = "_targets_p9_formal.R", fields = c("name", "command"))
-  expected_formal <- c("p9_cfg_main_formal_run", "p9_cfg_main_validation_trace",
-    "p9_cfg_main_checkpoint_candidates", "p9_cfg_main_selected_checkpoint",
-    "p9_cfg_main_terminal_execution", "p9_cfg_main_attempt_acceptance")
-  testthat::expect_true(all(expected_formal %in% manifest$name))
+  testthat::expect_identical(manifest$name, "p9_v1_formal_execution_retired")
+  testthat::expect_match(manifest$command, "p9_v1_retired_stop", fixed = TRUE)
   testthat::expect_false(any(c("p9_production_cache_materialization",
     "p7_cold_path_runtime_acceptance", "hyperparameter_configuration_matrix") %in% manifest$name))
-  testthat::expect_equal(sum(manifest$name %in% expected_formal), 6L)
 })
 
 testthat::test_that("corrected isolated generation preserves the failed store", {

@@ -10,6 +10,7 @@ targets::tar_option_set(
 )
 
 source("R/research_p9_formal_execution_isolated.R")
+source("R/research_p9_v1_retirement.R")
 source("targets/research_p9_formal_execution.R")
 
 list_p9_formal_execution

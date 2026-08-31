@@ -191,6 +191,7 @@ exact:
     - p8_experiment_plan_contract_files
     - p8_methodology_compatibility
   P9:
+    - p9_v1_main_execution_retired
     - p9_cache_identity_contract
     - p9_cache_resource_plan
     - p9_cache_reuse_graph

@@ -92,6 +92,7 @@ record as an explicit conflict.
 - Full Python: 286 passed.
 - Full R/testthat: completed with the documented skips.
 - Python compile and R parse: PASS.
+- Main and isolated `targets::tar_validate()`: PASS without target execution.
 - No formal target was run. Production optimizer updates, formal validations,
   held-out evaluation consumption, production checkpoints, and new formal
   attempts: all 0.

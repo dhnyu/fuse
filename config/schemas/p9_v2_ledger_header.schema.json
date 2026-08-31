@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:ledger-header:2.0.0",
+  "title": "P9 v2 ledger header",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "run_id", "created_at", "canonical_json_contract", "segment_policy"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p9_v2_ledger_header"},
+    "run_id": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
+    "created_at": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"},
+    "canonical_json_contract": {"const": "p9-v2-exact-binary64-decimal-v1"},
+    "segment_policy": {
+      "type": "object",
+      "required": ["events_per_segment", "maximum_event_bytes", "filename_format"],
+      "properties": {
+        "events_per_segment": {"const": 1},
+        "maximum_event_bytes": {"const": 1048576},
+        "filename_format": {"const": "%012d-%012d.jsonl"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

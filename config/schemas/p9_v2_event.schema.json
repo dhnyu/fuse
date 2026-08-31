@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:event:2.0.0",
+  "title": "P9 v2 canonical ledger event",
+  "type": "object",
+  "required": ["schema_version", "event_type", "event_sequence", "event_id", "run_id", "occurred_at", "writer", "legacy_import", "previous_event_hash", "payload", "event_hash"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "event_type": {"enum": ["RUN_AUTHORIZED", "RUN_STARTING", "RUN_STARTED", "EPOCH_STARTED", "PROGRESS_SUMMARY_COMMITTED", "UPDATE_COMMITTED", "VALIDATION_CHECKPOINT_COMMITTED", "EARLY_STOPPING_UPDATED", "TRAINING_COMPLETED", "TRAINING_INTERRUPTED", "TRAINING_FAILED", "FINALIZATION_STARTED", "FINALIZATION_COMPLETED", "FINALIZATION_FAILED", "ACCEPTANCE_PUBLISHED"]},
+    "event_sequence": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "event_id": {"type": "string", "pattern": "^p9evt_[0-9a-f]{24}$"},
+    "run_id": {"$ref": "#/$defs/runId"},
+    "occurred_at": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"},
+    "writer": {
+      "type": "object",
+      "required": ["writer_id", "role"],
+      "properties": {
+        "writer_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "role": {"enum": ["controller", "rank0", "finalizer", "publisher", "legacy_importer"]}
+      },
+      "additionalProperties": false
+    },
+    "legacy_import": {"type": "boolean"},
+    "previous_event_hash": {"oneOf": [{"const": "GENESIS"}, {"$ref": "#/$defs/sha256"}]},
+    "payload": {"type": "object"},
+    "event_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {"if": {"properties": {"event_type": {"const": "RUN_AUTHORIZED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/runAuthorized"}}}},
+    {"if": {"properties": {"event_type": {"const": "RUN_STARTING"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/runStarting"}}}},
+    {"if": {"properties": {"event_type": {"const": "RUN_STARTED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/runStarted"}}}},
+    {"if": {"properties": {"event_type": {"const": "EPOCH_STARTED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/epochStarted"}}}},
+    {"if": {"properties": {"event_type": {"const": "PROGRESS_SUMMARY_COMMITTED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/progressSummary"}}}},
+    {"if": {"properties": {"event_type": {"const": "UPDATE_COMMITTED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/updateCommitted"}}}},
+    {"if": {"properties": {"event_type": {"const": "VALIDATION_CHECKPOINT_COMMITTED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/validationCheckpoint"}}}},
+    {"if": {"properties": {"event_type": {"const": "EARLY_STOPPING_UPDATED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/earlyStopping"}}}},
+    {"if": {"properties": {"event_type": {"const": "TRAINING_COMPLETED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/trainingCompleted"}}}},
+    {"if": {"properties": {"event_type": {"const": "TRAINING_INTERRUPTED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/trainingInterrupted"}}}},
+    {"if": {"properties": {"event_type": {"const": "TRAINING_FAILED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/trainingFailed"}}}},
+    {"if": {"properties": {"event_type": {"const": "FINALIZATION_STARTED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/finalizationStarted"}}}},
+    {"if": {"properties": {"event_type": {"const": "FINALIZATION_COMPLETED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/finalizationCompleted"}}}},
+    {"if": {"properties": {"event_type": {"const": "FINALIZATION_FAILED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/finalizationFailed"}}}},
+    {"if": {"properties": {"event_type": {"const": "ACCEPTANCE_PUBLISHED"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/acceptancePublished"}}}}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "runId": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
+    "checkpointId": {"type": "string", "pattern": "^p9ck_[0-9a-f]{24}$"},
+    "boundary": {
+      "type": "object",
+      "required": ["completed_epoch", "resume_epoch", "optimizer_update"],
+      "properties": {
+        "completed_epoch": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "resume_epoch": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "optimizer_update": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+      },
+      "additionalProperties": false
+    },
+    "runAuthorized": {
+      "type": "object",
+      "required": ["authority_hash", "scientific_configuration_hash", "parent_identities", "duplicate_run_key"],
+      "properties": {
+        "authority_hash": {"$ref": "#/$defs/sha256"},
+        "scientific_configuration_hash": {"$ref": "#/$defs/sha256"},
+        "parent_identities": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
+        "duplicate_run_key": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "runStarting": {
+      "type": "object",
+      "required": ["owner_id", "execution_environment_digest", "training_lock_key"],
+      "properties": {"owner_id": {"type": "string", "minLength": 1}, "execution_environment_digest": {"$ref": "#/$defs/sha256"}, "training_lock_key": {"$ref": "#/$defs/sha256"}},
+      "additionalProperties": false
+    },
+    "runStarted": {
+      "type": "object",
+      "required": ["process_id", "world_size", "runtime_digest"],
+      "properties": {"process_id": {"type": "string", "minLength": 1}, "world_size": {"type": "integer", "minimum": 1, "maximum": 65536}, "runtime_digest": {"$ref": "#/$defs/sha256"}},
+      "additionalProperties": false
+    },
+    "epochStarted": {
+      "type": "object",
+      "required": ["epoch", "starting_optimizer_update", "sampler_cursor"],
+      "properties": {"epoch": {"type": "integer", "minimum": 1}, "starting_optimizer_update": {"type": "integer", "minimum": 0}, "sampler_cursor": {"type": "integer", "minimum": 0}},
+      "additionalProperties": false
+    },
+    "progressSummary": {
+      "type": "object",
+      "required": ["first_update", "last_update", "ending_epoch", "ending_sampler_cursor", "trace_block_sha256", "sampler_state_sha256", "rng_state_sha256", "queue_state_sha256"],
+      "properties": {
+        "first_update": {"type": "integer", "minimum": 1}, "last_update": {"type": "integer", "minimum": 1},
+        "ending_epoch": {"type": "integer", "minimum": 1}, "ending_sampler_cursor": {"type": "integer", "minimum": 0},
+        "trace_block_sha256": {"$ref": "#/$defs/sha256"}, "sampler_state_sha256": {"$ref": "#/$defs/sha256"},
+        "rng_state_sha256": {"$ref": "#/$defs/sha256"}, "queue_state_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "updateCommitted": {
+      "type": "object",
+      "required": ["optimizer_update", "epoch", "sampler_cursor", "durable_boundary"],
+      "properties": {"optimizer_update": {"type": "integer", "minimum": 1}, "epoch": {"type": "integer", "minimum": 1}, "sampler_cursor": {"type": "integer", "minimum": 0}, "durable_boundary": {"const": true}},
+      "additionalProperties": false
+    },
+    "validationCheckpoint": {
+      "type": "object",
+      "required": ["completed_epoch", "resume_epoch", "optimizer_update", "validation_id", "checkpoint_id", "checkpoint_payload_sha256", "checkpoint_manifest_sha256", "validation_retrieval_loss", "mean_source_separation_margin", "selector_state", "queue", "sampler", "state_presence", "atomic_completion_marker", "source_run_id"],
+      "properties": {
+        "completed_epoch": {"type": "integer", "minimum": 1}, "resume_epoch": {"type": "integer", "minimum": 2}, "optimizer_update": {"type": "integer", "minimum": 1},
+        "validation_id": {"type": "string", "pattern": "^p9val_[0-9a-f]{24}$"}, "checkpoint_id": {"$ref": "#/$defs/checkpointId"},
+        "checkpoint_payload_sha256": {"$ref": "#/$defs/sha256"}, "checkpoint_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "validation_retrieval_loss": {"type": "number", "minimum": 0}, "mean_source_separation_margin": {"type": "number"},
+        "selector_state": {
+          "type": "object", "required": ["best_checkpoint_id", "events_without_improvement"],
+          "properties": {"best_checkpoint_id": {"oneOf": [{"$ref": "#/$defs/checkpointId"}, {"type": "null"}]}, "events_without_improvement": {"type": "integer", "minimum": 0}},
+          "additionalProperties": true
+        },
+        "queue": {
+          "type": "object", "required": ["count", "pointer", "enqueue_count", "state_sha256"],
+          "properties": {"count": {"type": "integer", "minimum": 0}, "pointer": {"type": "integer", "minimum": 0}, "enqueue_count": {"type": "integer", "minimum": 0}, "state_sha256": {"$ref": "#/$defs/sha256"}},
+          "additionalProperties": false
+        },
+        "sampler": {
+          "type": "object", "required": ["epoch", "cursor", "state_sha256"],
+          "properties": {"epoch": {"type": "integer", "minimum": 1}, "cursor": {"type": "integer", "minimum": 0}, "state_sha256": {"$ref": "#/$defs/sha256"}},
+          "additionalProperties": false
+        },
+        "state_presence": {
+          "type": "object", "required": ["online_model", "ema_model", "optimizer", "scheduler", "rng_states", "queue", "sampler", "early_stopping", "best_checkpoint", "validation_trace"],
+          "properties": {"online_model": {"const": true}, "ema_model": {"const": true}, "optimizer": {"const": true}, "scheduler": {"const": true}, "rng_states": {"const": true}, "queue": {"const": true}, "sampler": {"const": true}, "early_stopping": {"const": true}, "best_checkpoint": {"const": true}, "validation_trace": {"const": true}},
+          "additionalProperties": false
+        },
+        "atomic_completion_marker": {
+          "type": "object", "required": ["protocol", "status"],
+          "properties": {"protocol": {"enum": ["native_v2_atomic_commit", "legacy_atomic_payload_manifest_pair"]}, "status": {"const": "COMPLETE"}},
+          "additionalProperties": false
+        },
+        "source_run_id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "earlyStopping": {
+      "type": "object", "required": ["selector_state", "best_checkpoint_id", "events_without_improvement", "decision_basis"],
+      "properties": {"selector_state": {"type": "object"}, "best_checkpoint_id": {"oneOf": [{"$ref": "#/$defs/checkpointId"}, {"type": "null"}]}, "events_without_improvement": {"type": "integer", "minimum": 0}, "decision_basis": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    },
+    "trainingCompleted": {
+      "type": "object", "required": ["completed_epoch", "resume_epoch", "optimizer_update", "reason"],
+      "properties": {"completed_epoch": {"type": "integer", "minimum": 1}, "resume_epoch": {"type": "integer", "minimum": 2}, "optimizer_update": {"type": "integer", "minimum": 1}, "reason": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    },
+    "trainingInterrupted": {
+      "type": "object", "required": ["last_durable_boundary", "resumable_checkpoint_committed", "resume_policy", "interruption_reason"],
+      "properties": {"last_durable_boundary": {"$ref": "#/$defs/boundary"}, "resumable_checkpoint_committed": {"type": "boolean"}, "resume_policy": {"enum": ["EXACT_RESUME", "RESTART", "FORBIDDEN"]}, "interruption_reason": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    },
+    "trainingFailed": {
+      "type": "object", "required": ["failure_class", "failure_stage", "last_durable_boundary", "resumable_checkpoint_committed", "resume_policy"],
+      "properties": {"failure_class": {"type": "string", "minLength": 1}, "failure_stage": {"type": "string", "minLength": 1}, "last_durable_boundary": {"oneOf": [{"$ref": "#/$defs/boundary"}, {"type": "null"}]}, "resumable_checkpoint_committed": {"type": "boolean"}, "resume_policy": {"enum": ["EXACT_RESUME", "RESTART", "FORBIDDEN"]}},
+      "additionalProperties": false
+    },
+    "finalizationStarted": {
+      "type": "object", "required": ["run_bundle_hash", "selection_contract_hash"],
+      "properties": {"run_bundle_hash": {"$ref": "#/$defs/sha256"}, "selection_contract_hash": {"$ref": "#/$defs/sha256"}},
+      "additionalProperties": false
+    },
+    "finalizationCompleted": {
+      "type": "object", "required": ["finalization_result_hash", "selected_checkpoint_id"],
+      "properties": {"finalization_result_hash": {"$ref": "#/$defs/sha256"}, "selected_checkpoint_id": {"$ref": "#/$defs/checkpointId"}},
+      "additionalProperties": false
+    },
+    "finalizationFailed": {
+      "type": "object", "required": ["failure_code", "evidence_class"],
+      "properties": {"failure_code": {"type": "string", "minLength": 1}, "evidence_class": {"enum": ["INVALID_SCIENTIFIC_EVIDENCE", "OPERATIONAL_FAILURE"]}},
+      "additionalProperties": false
+    },
+    "acceptancePublished": {
+      "type": "object", "required": ["acceptance_id", "finalization_result_hash", "run_bundle_hash", "acceptance_commit_manifest_hash"],
+      "properties": {"acceptance_id": {"type": "string", "pattern": "^p9accv2_[0-9a-f]{24}$"}, "finalization_result_hash": {"$ref": "#/$defs/sha256"}, "run_bundle_hash": {"$ref": "#/$defs/sha256"}, "acceptance_commit_manifest_hash": {"$ref": "#/$defs/sha256"}},
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

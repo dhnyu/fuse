@@ -16,6 +16,11 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | D10 | Permit read-only legacy import with explicit annotations. | Evidence is complete and retraining would add cost without repairing the original scientific trajectory. | Accepted for blueprint. |
 | D11 | Preserve v1 `FAILED_NONRESUMABLE` unchanged. | Migration interpretation must not rewrite history or claim operational success. | Accepted for blueprint. |
 | D12 | Require every downstream consumer to resolve a v2 acceptance identity. | Prevents manual-path, latest-checkpoint, and uncommitted-artifact use. | Accepted for blueprint. |
+| D13 | Canonicalize finite binary64 numbers as exact exponent-free decimal, normalize both zero signs to `0`, and reject nonfinite or safe-range-exceeding numbers. | Gives an explicit language-independent byte contract without platform float formatting or negative-zero ambiguity. | Implemented in V2-A. |
+| D14 | Require NFC UTF-8 strings and Unicode-scalar key ordering. | Prevents canonically equivalent Unicode spellings and locale/order differences from changing hashes. | Implemented in V2-A. |
+| D15 | Store one event per immutable segment, capped at 1 MiB. | Closes cadence policy with the smallest crash-safe implementation; batching remains inside progress events. | Implemented in V2-A. |
+| D16 | Define segment rename and manifest rename as logical commit points; staging and tail are non-authoritative. | Restart needs only ordinary validation/replay and cannot apply a half-published event. | Implemented in V2-A. |
+| D17 | Accept runtime schema version `2.0.0` only and fail closed on unknown versions. | Compatibility must be an explicit future migration, not permissive interpretation. | Implemented in V2-A. |
 
 ## Retained identity justification
 
@@ -31,7 +36,6 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 
 These do not block the architecture verdict but must be closed in the named unit:
 
-- V2-A: canonical JSON number encoding and segment size/frequency.
 - V2-B: immutable locator backend syntax and whether checkpoint payloads are copied or hash-referenced.
 - V2-C: location and format of the authority eligibility/supersession index.
 - V2-D: hardened legacy PyTorch deserialization strategy.

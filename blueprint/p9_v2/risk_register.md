@@ -4,9 +4,9 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 
 | ID | Risk | Likelihood/impact | Mitigation and acceptance evidence |
 |---|---|---|---|
-| R1 | Filesystem rename or durability assumptions differ across mounts. | Medium/high | Require same-filesystem staging, file and directory `fsync`, crash tests on the production filesystem class. |
-| R2 | Deterministic JSON differs by language/runtime. | Medium/high | One canonicalization specification with cross-language golden vectors; no floats outside agreed serialization. |
-| R3 | Ledger event volume harms training I/O. | Medium/medium | Progress trace blocks and periodic summaries; full event only at durable boundaries. Benchmark before controller authority. |
+| R1 | Filesystem rename or durability assumptions differ across mounts. | Medium/high | V2-A uses same-filesystem staging, file and directory `fsync`, and 11 synthetic fault boundaries. Production-filesystem power-loss testing remains for V2-H. |
+| R2 | Deterministic JSON differs by language/runtime. | Medium/high | V2-A fixes exact binary64 decimal, safe numeric range, NFC UTF-8, and golden Python vectors. Independent-language golden vectors remain required before adding a second writer. |
+| R3 | Ledger event volume harms training I/O. | Medium/medium | V2-A uses one bounded segment per durable event and permits progress batching. Benchmark cadence before controller authority in V2-H. |
 | R4 | A validation metric exists without a durable checkpoint. | Medium/high | Candidate schema requires checkpoint hashes and atomic marker; finalizer ignores all other validation records. |
 | R5 | Legacy checkpoint deserialization executes unsafe code. | Low/high | Import in isolated trusted environment, hash first, no network/GPU, allowlisted types, and record loader version. Investigate conversion in V2-D without rewriting source. |
 | R6 | Content-addressed external locator becomes mutable. | Medium/high | Resolver requires immutable namespace plus hash/size verification; path alone is invalid. |

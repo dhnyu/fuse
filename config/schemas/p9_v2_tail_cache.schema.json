@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:tail-cache:2.0.0",
+  "title": "P9 v2 non-authoritative tail cache",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "non_authoritative", "run_id", "last_sequence", "last_event_hash"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p9_v2_tail_cache"},
+    "non_authoritative": {"const": true},
+    "run_id": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
+    "last_sequence": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "last_event_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

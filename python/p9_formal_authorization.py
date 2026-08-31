@@ -62,6 +62,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
         raise ValueError("P9 cache scientific layout mismatch")
     if value["formal"]["cfg_main_status"] != "AUTHORIZED_NOT_STARTED":
         raise ValueError("P9 configuration must remain unstarted during authorization")
+    validate_commit_sha(value["cache_build_execution_commit"], "cache_build_execution_commit")
     return value
 
 

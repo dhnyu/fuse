@@ -12,6 +12,17 @@ testthat::test_that("P9 formal target lineage is explicit and training-free", {
   testthat::expect_match(body, "p9_formal_artifact\\(p9_formal_publication_bundle, \"p9_formal_training_authority.json\", p9_production_cache_acceptance\\)")
 })
 
+testthat::test_that("cache plan stays bound to the actual immutable build commit", {
+  root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
+  config <- yaml::read_yaml(file.path(root, "config/p9_formal_authorization.yml"))
+  env <- new.env(parent = baseenv())
+  sys.source(file.path(root, "R/research_p9_formal_authorization.R"), envir = env)
+  body <- paste(deparse(body(env$p9_build_cache_plan_bundle)), collapse = "\n")
+  testthat::expect_identical(config$cache_build_execution_commit, "2c5b4904449842dea4d6c479067d6d05f952359f")
+  testthat::expect_match(body, "cfg\\$cache_build_execution_commit")
+  testthat::expect_false(grepl('git", c\\("rev-parse", "HEAD"\\)', body))
+})
+
 testthat::test_that("heavy cache target requires explicit authority", {
   root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
   source(file.path(root, "R/research_p9_formal_authorization.R"), local = TRUE)

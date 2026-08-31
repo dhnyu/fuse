@@ -3,6 +3,7 @@ contract_name: p9-production-cache-and-formal-authorization-v1
 
 canonical_implementation_commit: eb90f6f667d1717684f47ddef30043992b70e788
 readiness_implementation_commit: 9e700754023c548d9940acba854f4559a05888a3
+cache_build_execution_commit: 2c5b4904449842dea4d6c479067d6d05f952359f
 dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
 
 parents:

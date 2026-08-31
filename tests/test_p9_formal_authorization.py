@@ -30,6 +30,7 @@ def test_canonical_lineage_and_cache_union():
 
 def test_plan_is_canonical_and_optimizer_free():
     config = load_config(CONFIG)
+    assert config["cache_build_execution_commit"] == "2c5b4904449842dea4d6c479067d6d05f952359f"
     first = build_plan_bundle(CONFIG, config["canonical_implementation_commit"], "0" * 40)
     second = build_plan_bundle(CONFIG, config["canonical_implementation_commit"], "0" * 40)
     assert canonical_json_bytes(first) == canonical_json_bytes(second)

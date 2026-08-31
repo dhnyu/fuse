@@ -29,8 +29,12 @@ p9_parse_outputs <- function(output, prefix) {
 
 p9_build_cache_plan_bundle <- function(contract_files, parent_files) {
   invisible(parent_files)
-  execution_commit <- system2("git", c("rev-parse", "HEAD"), stdout = TRUE)
   cfg <- yaml::read_yaml("config/p9_formal_authorization.yml")
+  execution_commit <- cfg$cache_build_execution_commit
+  if (!is.character(execution_commit) || length(execution_commit) != 1L ||
+      !grepl("^[0-9a-f]{40}$", execution_commit)) {
+    stop("P9 cache build execution commit must be a complete Git SHA", call. = FALSE)
+  }
   output <- system2(research_python_executable(), c(
     "scripts/p9_formal_authorization.py", "plan", "--config", contract_files[[1L]],
     "--schema-dir", "config/schemas", "--scientific-commit", cfg$canonical_implementation_commit,

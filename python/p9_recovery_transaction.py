@@ -13,6 +13,19 @@ from typing import Any
 from p9_checkpoint_recovery import canonical_json
 
 STATES = {"AUTHORIZED_NOT_STARTED", "ACQUIRING_LOCK", "STARTING", "VALIDATING_SOURCE", "DERIVING_CANDIDATES", "SELECTING_CHECKPOINT", "RECONSTRUCTING_STOPPING_BOUNDARY", "STAGING_TERMINAL_RECOVERY", "STAGING_ACCEPTANCE", "COMMITTING", "RECOVERY_ACCEPTED", "RECOVERY_BLOCKED", "RECOVERY_FAILED_NONMUTATING"}
+TRANSITIONS = {
+    "AUTHORIZED_NOT_STARTED": {"ACQUIRING_LOCK", "RECOVERY_BLOCKED"},
+    "ACQUIRING_LOCK": {"STARTING", "RECOVERY_BLOCKED"},
+    "STARTING": {"VALIDATING_SOURCE", "RECOVERY_FAILED_NONMUTATING"},
+    "VALIDATING_SOURCE": {"DERIVING_CANDIDATES", "RECOVERY_FAILED_NONMUTATING"},
+    "DERIVING_CANDIDATES": {"SELECTING_CHECKPOINT", "RECOVERY_FAILED_NONMUTATING"},
+    "SELECTING_CHECKPOINT": {"RECONSTRUCTING_STOPPING_BOUNDARY", "RECOVERY_FAILED_NONMUTATING"},
+    "RECONSTRUCTING_STOPPING_BOUNDARY": {"STAGING_TERMINAL_RECOVERY", "RECOVERY_FAILED_NONMUTATING"},
+    "STAGING_TERMINAL_RECOVERY": {"STAGING_ACCEPTANCE", "RECOVERY_FAILED_NONMUTATING"},
+    "STAGING_ACCEPTANCE": {"COMMITTING", "RECOVERY_FAILED_NONMUTATING"},
+    "COMMITTING": {"RECOVERY_ACCEPTED", "RECOVERY_FAILED_NONMUTATING"},
+    "RECOVERY_ACCEPTED": set(), "RECOVERY_BLOCKED": set(), "RECOVERY_FAILED_NONMUTATING": set(),
+}
 
 
 def digest(value: dict[str, Any]) -> str:
@@ -25,6 +38,40 @@ def atomic_json(path: Path, value: dict[str, Any]) -> None:
     with temporary.open("wb") as stream:
         stream.write(canonical_json(value)); stream.flush(); os.fsync(stream.fileno())
     os.replace(temporary, path)
+    try:
+        directory = os.open(path.parent, os.O_RDONLY); os.fsync(directory); os.close(directory)
+    except OSError:
+        pass
+
+
+class OperationState:
+    """Canonical mutable state; owner/heartbeat never replace this record."""
+    schema_version = "1.0.0"
+    def __init__(self, path: str | Path, identity: dict[str, Any]):
+        self.path, self.identity = Path(path), identity
+        self.value = {"schema_version": self.schema_version, **identity, "state": "AUTHORIZED_NOT_STARTED", "previous_state": None, "state_sequence": 0, "committed": False, "last_completed_phase": None, "error_classification": None, "original_exception_summary": None, "release_status": "NOT_RELEASED"}
+    def transition(self, state: str, **fields: Any) -> dict[str, Any]:
+        prior = self.value["state"]
+        if state not in STATES or state not in TRANSITIONS[prior]:
+            raise ValueError(f"invalid recovery transition: {prior}->{state}")
+        if state == "RECOVERY_ACCEPTED" and not fields.get("committed", self.value.get("committed")):
+            raise ValueError("recovery acceptance requires canonical commit manifest")
+        self.value.update(fields, state=state, previous_state=prior, state_sequence=int(self.value["state_sequence"]) + 1, transition_unix=time.time())
+        atomic_json(self.path, self.value); return dict(self.value)
+
+
+def resolve_committed(root: str | Path) -> dict[str, Any]:
+    """The only downstream resolver: commit manifest is the sole commit point."""
+    root = Path(root); manifest_path = root / "transaction_manifest.json"
+    if not manifest_path.exists(): raise ValueError("no canonical recovery commit manifest")
+    manifest = json.loads(manifest_path.read_text())
+    if manifest.get("state") != "COMMITTED": raise ValueError("recovery transaction is not committed")
+    terminal, acceptance = root / "terminal_recovery.json", root / "recovery_acceptance.json"
+    if not terminal.exists() or not acceptance.exists(): raise ValueError("committed recovery payload incomplete")
+    if manifest.get("terminal_sha256") != hashlib.sha256(terminal.read_bytes()).hexdigest() or manifest.get("acceptance_sha256") != hashlib.sha256(acceptance.read_bytes()).hexdigest(): raise ValueError("recovery committed hash mismatch")
+    value = json.loads(acceptance.read_text())
+    if value.get("status") != "PASS": raise ValueError("recovery acceptance is not accepted")
+    return value
 
 
 class RecoveryLock:

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from p9_checkpoint_recovery import validation_epoch_from_manifest
-from p9_recovery_transaction import RecoveryLock
+from p9_recovery_transaction import OperationState, RecoveryLock, resolve_committed, atomic_json
 
 
 def test_validation_epoch_is_resume_epoch_minus_one():
@@ -30,3 +30,14 @@ def test_recovery_kernel_lock_rejects_second_owner(tmp_path):
             second.acquire()
     finally:
         first.release("RECOVERY_BLOCKED")
+
+
+def test_state_machine_and_commit_resolver(tmp_path):
+    state = OperationState(tmp_path / "state.json", {"synthetic": True})
+    for step in ("ACQUIRING_LOCK", "STARTING", "VALIDATING_SOURCE", "DERIVING_CANDIDATES", "SELECTING_CHECKPOINT", "RECONSTRUCTING_STOPPING_BOUNDARY", "STAGING_TERMINAL_RECOVERY", "STAGING_ACCEPTANCE", "COMMITTING"):
+        state.transition(step)
+    terminal = {"terminal": "synthetic"}; acceptance = {"status": "PASS"}
+    atomic_json(tmp_path / "terminal_recovery.json", terminal); atomic_json(tmp_path / "recovery_acceptance.json", acceptance)
+    atomic_json(tmp_path / "transaction_manifest.json", {"state": "COMMITTED", "terminal_sha256": hashlib.sha256((tmp_path / "terminal_recovery.json").read_bytes()).hexdigest(), "acceptance_sha256": hashlib.sha256((tmp_path / "recovery_acceptance.json").read_bytes()).hexdigest()})
+    state.transition("RECOVERY_ACCEPTED", committed=True)
+    assert resolve_committed(tmp_path)["status"] == "PASS"

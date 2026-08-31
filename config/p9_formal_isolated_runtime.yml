@@ -1,11 +1,13 @@
 schema_version: "1.0.0"
-contract_name: p9-formal-isolated-runtime-v1
+contract_name: p9-formal-isolated-runtime-v2
 scientific_implementation_commit: eb90f6f667d1717684f47ddef30043992b70e788
 dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
 
 pipeline:
   script: _targets_p9_formal.R
-  store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal
+  execution_generation_id: p9gen_acb72f05336e09451b4ac458
+  store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal-p9gen_acb72f05336e09451b4ac458
+  preserved_failed_store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal
   main_research_store_prohibited: /mnt/hdd002/dhnyu/fusedata/targets/fuse-research
 
 roots:
@@ -127,14 +129,37 @@ validation_contract:
   mrr_hit_selector_use: prohibited
 
 superseded:
-  authority_id: p9a_b295be97717efbd2305dd5a6
-  reservation_id: p9res_51ed9e4731c21bda28d4d7a2
-  attempt_id: p9attempt_f153ff8e7831effbf2f2d68a
-  runtime_digest: d8379196a400bc590575c00b6953d046ae50dc3878cd37bbeb98aa1f6d7dff55
-  formal_attempt_starts: 0
-  run_identities: 0
-  lock_acquisitions: 0
+  authority_id: p9a_2c67a3971b785f7049cb3d65
+  reservation_id: p9res_0ab5e0235bc36811d8855050
+  attempt_id: p9attempt_074b247e347f851387606da0
+  run_id: p9run_f592f6b25fb56be8807c16cb
+  authorization_acceptance_id: p9xacc_12d457b5127e3fd242d07b3d
+  launch_commit: f6fd8f470a4b5397dc67965ff46bac2f0fffabc5
+  runtime_digest: b0395143a364d26bb1e121524e69c75cc0f98ce12aa5ecdefacab0f9af58f9f6
+  terminal_classification: FAILED_NONRESUMABLE
+  formal_attempt_starts: 1
+  run_identities: 1
+  ddp_ranks_launched: 2
   optimizer_updates: 0
+  completed_epochs: 0
   formal_validation_runs: 0
+  validation_queries_consumed: 0
   checkpoints: 0
+  acceptance_artifacts: 0
   evaluation_queries_consumed: 0
+  exact_resume_authorized: false
+  failure_stage: MODEL_CONSTRUCTION
+  failure_class: KeyError
+  preserved_evidence:
+    running_state:
+      path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/attempts/p9attempt_074b247e347f851387606da0/running_state.json
+      sha256: 9f4792351c0e160ef5ab76ec842f55a3eb272e6c65d53cc0ebe84bd8254e0575
+    owner:
+      path: /mnt/hdd002/dhnyu/fusedata/runtime/p9_attempt_locks/3d2f7499705cc9fd89e0a7ea2e4a6aaa4f06c500a0338a4a82b5fb4b00925971.owner.json
+      sha256: 27a4805ec92079ebaf720974b458b6d757c980f69bb0edbc49db425246a0d9cb
+    heartbeat:
+      path: /mnt/hdd002/dhnyu/fusedata/runtime/p9_attempt_locks/3d2f7499705cc9fd89e0a7ea2e4a6aaa4f06c500a0338a4a82b5fb4b00925971.heartbeat.json
+      sha256: 06464658d85b6e0326307799a1e05d99ab2b71882e89bb6d53e6319bf444de05
+    log:
+      path: /mnt/hdd002/dhnyu/fusedata/logs/p9_cfg_main_isolated_formal/20260831_143159_p9_cfg_main_isolated_formal.log
+      sha256: da64c04b18e746ade020e48e16727f4954eff602c02ebc00b4a11fa19f0adbce

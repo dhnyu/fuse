@@ -163,6 +163,43 @@ class ArtifactCatalog:
             self._verified.add(path)
 
 
+VOCABULARY_FIELDS = frozenset({"A9", "A11", "ROAD_RANK", "ROAD_TYPE", *(f"CLASS_L{x}" for x in range(1, 7))})
+
+
+def validate_vocabulary_contract(vocabulary: dict[str, Any]) -> dict[str, int]:
+    """Validate the accepted direct field mapping and return embedding sizes."""
+    if set(vocabulary) != VOCABULARY_FIELDS:
+        missing = sorted(VOCABULARY_FIELDS - set(vocabulary))
+        extra = sorted(set(vocabulary) - VOCABULARY_FIELDS)
+        raise ValueError(f"official category dictionary field mismatch: missing={missing}, extra={extra}")
+    sizes: dict[str, int] = {}
+    for field in sorted(VOCABULARY_FIELDS):
+        contract = vocabulary[field]
+        if not isinstance(contract, dict):
+            raise ValueError(f"invalid vocabulary field contract: {field}")
+        required = {"keys", "mapping", "missing", "mask", "size"}
+        if not required.issubset(contract):
+            raise ValueError(f"incomplete vocabulary field contract: {field}")
+        size = contract["size"]
+        if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
+            raise ValueError(f"invalid vocabulary size: {field}")
+        keys = contract["keys"]
+        if not isinstance(keys, list) or len(keys) + 2 != size:
+            raise ValueError(f"vocabulary reserved-token size mismatch: {field}")
+        if contract["missing"] != len(keys) or contract["mask"] != len(keys) + 1:
+            raise ValueError(f"vocabulary missing/mask index mismatch: {field}")
+        mapping = contract["mapping"]
+        if not isinstance(mapping, dict) or not mapping:
+            raise ValueError(f"invalid vocabulary mapping: {field}")
+        for label, index in mapping.items():
+            if not isinstance(label, str) or isinstance(index, bool) or not isinstance(index, int):
+                raise ValueError(f"non-integer vocabulary mapping index: {field}")
+            if not 0 <= index < size:
+                raise ValueError(f"out-of-range vocabulary mapping index: {field}")
+        sizes[field] = size
+    return sizes
+
+
 def build_vocabulary(category_path: str | Path) -> dict[str, Any]:
     source = json.loads(Path(category_path).read_text())
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -183,11 +220,15 @@ def build_vocabulary(category_path: str | Path) -> dict[str, Any]:
                              "missing": len(keys), "mask": len(keys) + 1, "size": len(keys) + 2}
     for attribute, rows in source["missing_markers"]["poi_by_level"].items():
         result[attribute]["missing_codes"] = sorted({str(row["code"]) for row in rows})
-    required = {"A9", "A11", "ROAD_RANK", "ROAD_TYPE", *(f"CLASS_L{x}" for x in range(1, 7))}
-    if set(result) != required:
+    if set(result) != VOCABULARY_FIELDS:
         raise ValueError("official category dictionary field mismatch")
     # Accepted P2 exact source alias: canonical A10 code 12 is exposed as A11.
     result["A11"]["mapping"]["블록구조"] = result["A11"]["mapping"]["12"]
+    if source.get("oov_policy") != "hard_failure_no_oov_token":
+        raise ValueError("official category dictionary OOV policy mismatch")
+    if source.get("reserved_tokens") != ["MISSING", "MASK"]:
+        raise ValueError("official category dictionary reserved-token mismatch")
+    validate_vocabulary_contract(result)
     return result
 
 

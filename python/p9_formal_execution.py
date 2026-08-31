@@ -39,7 +39,7 @@ REQUIRED_DUPLICATE_FIELDS = (
     "configuration_identity", "seed_identity", "p8_acceptance_id",
     "p7_runtime_acceptance_id", "p9_readiness_id", "production_cache_acceptance_id",
     "p9_formal_authority_id", "authorized_execution_identity",
-    "scientific_implementation_commit", "world_size",
+    "scientific_implementation_commit", "world_size", "isolated_store_generation",
 )
 
 
@@ -112,6 +112,52 @@ def transition(current: str, requested: str) -> str:
     if requested not in TRANSITIONS[current]:
         raise ValueError(f"invalid formal attempt transition: {current} -> {requested}")
     return requested
+
+
+def failed_state_payload(identity: dict[str, Any], *, failure_stage: str,
+                         failure_class: str, failure_message: str,
+                         traceback_sha256: str, rank_exit_codes: dict[str, int],
+                         started_unix: float, failed_unix: float | None = None,
+                         process_group_cleanup: str = "CONFIRMED") -> dict[str, Any]:
+    """Build the single authoritative zero-checkpoint nonresumable state."""
+    message = " ".join(str(failure_message).split())[:512]
+    if not message:
+        message = "formal execution failed without a diagnostic message"
+    if not isinstance(rank_exit_codes, dict) or not rank_exit_codes:
+        raise ValueError("formal failed state requires rank exit evidence")
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in rank_exit_codes.values()):
+        raise ValueError("formal rank exit codes must be integers")
+    value = {
+        "schema_version": "2.0.0", **identity, "state": "FAILED_NONRESUMABLE",
+        "failure_stage": failure_stage, "failure_class": failure_class,
+        "failure_message": message, "traceback_sha256": traceback_sha256,
+        "rank_exit_codes": dict(sorted(rank_exit_codes.items())),
+        "controller_exit_classification": "DDP_CHILD_FAILURE",
+        "last_completed_epoch": 0, "last_completed_update": 0,
+        "optimizer_updates": 0, "validation_events": 0,
+        "validation_queries_consumed": 0, "evaluation_queries_consumed": 0,
+        "checkpoint_count": 0, "resume_eligible": False,
+        "started_unix": float(started_unix), "failed_unix": float(failed_unix or time.time()),
+        "lock_release_status": "PENDING_DURABLE_TERMINAL_RELEASE",
+        "process_group_cleanup_status": process_group_cleanup,
+    }
+    return value
+
+
+def validate_terminal_state_consistency(state: dict[str, Any], owner: dict[str, Any],
+                                        heartbeat: dict[str, Any]) -> None:
+    """Reject disagreements among the attempt state and durable lock records."""
+    if state.get("state") not in TERMINAL_STATES:
+        raise ValueError("attempt state is not terminal")
+    if owner.get("state") != state["state"] or owner.get("terminal_state") != state["state"]:
+        raise ValueError("formal owner/attempt terminal state disagreement")
+    if heartbeat.get("state") != state["state"]:
+        raise ValueError("formal heartbeat/attempt terminal state disagreement")
+    for field in ("duplicate_key", "attempt_id", "run_id", "reservation_id", "authority_id"):
+        if owner.get(field) != state.get(field):
+            raise ValueError(f"formal terminal identity disagreement: {field}")
+    if state.get("lock_release_status") != "RELEASED":
+        raise ValueError("formal terminal state does not confirm lock release")
 
 
 @dataclass

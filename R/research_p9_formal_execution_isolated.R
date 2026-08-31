@@ -18,6 +18,7 @@ p9x_runtime_file_paths <- function() {
     "config/p6_model_dataloader.yml",
     "config/p7_deterministic_training.yml",
     "config/p9_infrastructure.yml",
+    "config/schemas/p9_production_startup_gate_evidence.schema.json",
     list.files("config/schemas", pattern = "^(p9_formal_|p9_isolated_).*\\.schema\\.json$", full.names = TRUE),
     "python/canonical_config.py",
     "python/p6_data.py", "python/p6_model.py",
@@ -43,6 +44,25 @@ p9x_publication_config_path <- function() {
 }
 
 p9x_config <- function(runtime_config) yaml::read_yaml(runtime_config)
+
+p9x_startup_gate_evidence_path <- function(publication_config) {
+  cfg <- yaml::read_yaml(publication_config)
+  spec <- cfg$startup_gate_evidence
+  if (is.null(spec$path) || !file.exists(spec$path)) {
+    stop("production-shaped P9 startup gate evidence is missing", call. = FALSE)
+  }
+  if (!identical(p9x_sha256_file(spec$path), spec$sha256)) {
+    stop("production-shaped P9 startup gate evidence checksum mismatch", call. = FALSE)
+  }
+  value <- jsonlite::read_json(spec$path, simplifyVector = FALSE)
+  if (!identical(value$status, "PASS") ||
+      !identical(value$startup_gate_id, spec$startup_gate_id) ||
+      !identical(as.integer(value$optimizer_updates), 0L) ||
+      !identical(as.integer(value$formal_attempt_starts), 0L)) {
+    stop("production-shaped P9 startup gate evidence contract mismatch", call. = FALSE)
+  }
+  normalizePath(spec$path, mustWork = TRUE)
+}
 
 p9x_validate_root <- function(name, runtime_config) {
   cfg <- p9x_config(runtime_config)
@@ -102,8 +122,8 @@ p9x_parse_outputs <- function(output, prefix) {
 }
 
 p9x_publish_authorization <- function(runtime_files, publication_config, immutable_roots,
-                                      cache_manifests) {
-  invisible(list(runtime_files, immutable_roots, cache_manifests))
+                                      cache_manifests, startup_gate_evidence) {
+  invisible(list(runtime_files, immutable_roots, cache_manifests, startup_gate_evidence))
   output <- system2(Sys.which("python"), c(
     "scripts/p9_formal_isolated_authorization.py", "publish",
     "--runtime-config", "config/p9_formal_isolated_runtime.yml",
@@ -142,6 +162,7 @@ p9x_execute_formal_run <- function(authority, reservation, authorization_accepta
   args <- c(
     "scripts/p9_formal_training.py", "controller", "--authority", authority,
     "--reservation", reservation, "--matrix", matrix,
+    "--authorization-acceptance", authorization_acceptance,
     "--cache-acceptance", cache_acceptance, "--cache-root", cfg$cache$root,
     "--categories", categories, "--output-root", output_root,
     "--configuration-id", cfg$execution$configuration_id,

@@ -913,7 +913,10 @@ run or acceptance schema.
 
 Formal execution is structurally isolated from the historical scientific production
 DAG. `_targets_p9_formal.R` owns the execution-only pipeline and
-`/mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal` owns its metadata. Accepted P7,
+each execution generation owns a distinct content-bound store. The failed first
+generation remains preserved at `/mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal`;
+corrected generations use a sibling store whose name contains the execution-generation
+identity. Accepted P7,
 P8, readiness, category, and production-cache artifacts enter this pipeline through
 explicit path, size, SHA-256, schema, identity, and lineage bindings. Their historical
 producer targets are not ancestors of the formal run and are never rebuilt to establish
@@ -927,6 +930,17 @@ may use `shortcut = TRUE`. A missing or changed immutable input is outdated by n
 "never")`, copy scientific payloads into its store, or import the complete main target
 list. Historical producer currentness therefore does not control whether an already
 accepted immutable artifact is eligible for formal execution.
+
+Before authority acceptance, an optimizer-free two-rank startup gate must load the
+accepted categories and production training cache through the exact formal routing
+path, derive embedding sizes from the canonical direct vocabulary mapping, construct
+online/EMA models, optimizer, scheduler and queue, and complete a deterministic finite
+forward objective. It performs no optimizer, EMA, scheduler, validation, evaluation,
+checkpoint, formal-run, or production-lock action. A formal controller rejects an
+authorization acceptance that does not bind this gate. Nonresumable failures atomically
+publish one terminal attempt state before lock release, then confirm release; the owner,
+heartbeat and attempt state must agree. Every initialized DDP process group is destroyed
+in a worker `finally` path.
 
 <a id="p10-evaluation"></a>
 ### P10 Evaluation

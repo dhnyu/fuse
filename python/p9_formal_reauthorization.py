@@ -89,7 +89,7 @@ def build(config_path: str | Path, repository_root: str | Path) -> dict[str, dic
         "p9_formal_authority_id": authority["authority_id"],
         "authorized_execution_identity": runtime["runtime_tree_sha256"],
         "scientific_implementation_commit": config["scientific_implementation_commit"],
-        "world_size": 2,
+        "world_size": 2, "isolated_store_generation": "legacy_main_pipeline",
     }
     key = duplicate_key(duplicate_fields)
     attempt_id = "p9attempt_" + digest({"duplicate_key": key, "configuration_id": "cfg_main"})[:24]

@@ -96,8 +96,34 @@ def _training_contract(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _validate_startup_gate(publication: dict[str, Any], runtime_sha256: str,
+                           authority_id: str, reservation_id: str) -> dict[str, Any]:
+    spec = publication.get("startup_gate_evidence")
+    if not isinstance(spec, dict):
+        raise ValueError("production-shaped startup gate evidence is not configured")
+    path = Path(spec["path"])
+    if not path.is_file() or sha256_file(path) != spec["sha256"]:
+        raise ValueError("production-shaped startup gate evidence checksum mismatch")
+    value = read_json(path)
+    required = {
+        "status": "PASS", "formal_attempt": False, "authority_id": authority_id,
+        "reservation_id": reservation_id, "runtime_tree_sha256": runtime_sha256,
+        "optimizer_updates": 0, "formal_attempt_starts": 0,
+        "formal_validation_queries": 0, "evaluation_queries_consumed": 0,
+        "checkpoint_publications": 0,
+    }
+    if any(value.get(key) != expected for key, expected in required.items()):
+        raise ValueError("production-shaped startup gate evidence contract mismatch")
+    if value.get("startup_gate_id") != spec["startup_gate_id"]:
+        raise ValueError("production-shaped startup gate identity mismatch")
+    return {"status": "PASS", "startup_gate_id": value["startup_gate_id"],
+            "sha256": spec["sha256"], "path": str(path.resolve()),
+            "optimizer_updates": 0, "formal_attempt_starts": 0,
+            "gpu_executions": int(value["gpu_executions"])}
+
+
 def build(runtime_config_path: str | Path, publication_config_path: str | Path,
-          repository_root: str | Path) -> dict[str, dict[str, Any]]:
+          repository_root: str | Path, *, require_startup_gate: bool = True) -> dict[str, dict[str, Any]]:
     runtime_config = yaml.safe_load(Path(runtime_config_path).read_text())
     publication = yaml.safe_load(Path(publication_config_path).read_text())
     repository = Path(repository_root)
@@ -145,6 +171,10 @@ def build(runtime_config_path: str | Path, publication_config_path: str | Path,
         "validation_contract": runtime_config["validation_contract"],
         "checkpoint_contract": publication["checkpoint_contract"],
         "locking_contract": publication["locking_contract"],
+        "startup_gate_contract": {"required_before_formal_start": True,
+            "production_cache_samples": True, "world_size": 2,
+            "optimizer_updates": 0, "formal_validation_queries": 0,
+            "evaluation_queries_consumed": 0},
         "formal_attempts_started": 0, "optimizer_updates": 0,
         "evaluation_queries_consumed": 0,
     }, "authority_id")
@@ -160,6 +190,7 @@ def build(runtime_config_path: str | Path, publication_config_path: str | Path,
         "authorized_execution_identity": runtime["runtime_tree_sha256"],
         "scientific_implementation_commit": runtime_config["scientific_implementation_commit"],
         "world_size": int(runtime_config["training_contract"]["world_size"]),
+        "isolated_store_generation": runtime_config["pipeline"]["execution_generation_id"],
     }
     key = duplicate_key(fields)
     attempt_id = "p9attempt_" + digest({"duplicate_key": key, "configuration_id": "cfg_main"})[:24]
@@ -189,11 +220,18 @@ def build(runtime_config_path: str | Path, publication_config_path: str | Path,
         "formal_validation_runs": 0, "checkpoints": 0, "evaluation_queries_consumed": 0,
     }, "preassignment_id")
     superseded = runtime_config["superseded"]
+    for evidence in superseded["preserved_evidence"].values():
+        if sha256_file(evidence["path"]) != evidence["sha256"]:
+            raise ValueError("preserved failed-attempt evidence changed")
     supersession = artifact("p9sup_", "p9_formal_execution_supersession", {
         "status": "PASS", "superseded": superseded,
-        "classification": ["preserved", "scientifically_valid_but_operationally_unexecutable",
-                           "unstarted", "superseded", "ineligible_for_formal_execution"],
-        "reason": "unsafe first-bootstrap closure traversed historical scientific producers",
+        "classification": ["preserved", "formally_started", "failed_during_model_construction",
+                           "zero_update", "nonresumable", "durable_evidence",
+                           "ineligible_for_formal_execution"],
+        "reason": "canonical vocabulary interface mismatch in the production formal model bootstrap",
+        "historical_state_inconsistency": {
+            "running_state": "RUNNING", "durable_owner": "FAILED_NONRESUMABLE",
+            "heartbeat": "FAILED_NONRESUMABLE", "historical_files_rewritten": False},
         "replacement_authority_id": authority["authority_id"],
         "replacement_reservation_id": reservation["reservation_id"],
         "replacement_attempt_id": attempt_id, "optimizer_updates": 0,
@@ -206,6 +244,10 @@ def build(runtime_config_path: str | Path, publication_config_path: str | Path,
         "cache_inventory_file_count": int(runtime_config["cache"]["inventory_file_count"]),
         "cache_physical_bytes": int(runtime_config["cache"]["physical_bytes"]),
     }, "inventory_id")
+    startup_gate = (_validate_startup_gate(publication, runtime["runtime_tree_sha256"],
+                                           authority["authority_id"], reservation["reservation_id"])
+                    if require_startup_gate else {"status": "PENDING_NONPUBLISHABLE",
+                        "optimizer_updates": 0, "formal_attempt_starts": 0, "gpu_executions": 0})
     acceptance = artifact("p9xacc_", "p9_isolated_execution_authorization_acceptance", {
         "status": "PASS", "authority_id": authority["authority_id"],
         "reservation_id": reservation["reservation_id"], "attempt_id": attempt_id,
@@ -215,6 +257,8 @@ def build(runtime_config_path: str | Path, publication_config_path: str | Path,
         "runtime_tree_sha256": runtime["runtime_tree_sha256"],
         "pipeline_script": runtime_config["pipeline"]["script"],
         "isolated_store": runtime_config["pipeline"]["store"],
+        "execution_generation_id": runtime_config["pipeline"]["execution_generation_id"],
+        "startup_gate": startup_gate,
         "formal_attempts_started": 0, "optimizer_updates": 0,
         "formal_validation_runs": 0, "checkpoints": 0,
         "evaluation_queries_consumed": 0, "gpu_executions": 0,
@@ -251,3 +295,12 @@ def publish(runtime_config_path: str | Path, publication_config_path: str | Path
     config = yaml.safe_load(Path(runtime_config_path).read_text())
     root = Path(config["execution"]["publication_root"]) / values["formal_training_authority"]["authority_id"]
     return atomic_publish(root, values)
+
+
+def publish_candidate(runtime_config_path: str | Path, publication_config_path: str | Path,
+                      repository_root: str | Path, output_root: str | Path) -> list[Path]:
+    """Write non-authorizing candidate identities for the mandatory startup gate."""
+    values = build(runtime_config_path, publication_config_path, repository_root,
+                   require_startup_gate=False)
+    subset = {name: values[name] for name in ("formal_training_authority", "cfg_main_attempt_reservation")}
+    return atomic_publish(Path(output_root), subset)

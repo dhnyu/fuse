@@ -14,6 +14,7 @@ list_p9_formal_execution <- list(
 
   # Layer B: isolated execution authorization publication.
   targets::tar_target(p9x_publication_config, p9x_publication_config_path(), format = "file"),
+  targets::tar_target(p9x_production_startup_gate_evidence, p9x_startup_gate_evidence_path(p9x_publication_config), format = "file"),
   targets::tar_target(
     p9x_authorization_bundle,
     p9x_publish_authorization(
@@ -21,7 +22,7 @@ list_p9_formal_execution <- list(
       c(p9x_p7_acceptance, p9x_p7_runtime_acceptance, p9x_p8_acceptance,
         p9x_p8_hyperparameter_matrix, p9x_p8_bank_index, p9x_p9_readiness,
         p9x_production_cache_acceptance, p9x_categories),
-      p9x_production_cache_manifests
+      p9x_production_cache_manifests, p9x_production_startup_gate_evidence
     ),
     format = "file"
   ),

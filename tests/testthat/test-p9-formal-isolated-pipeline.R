@@ -11,6 +11,27 @@ testthat::test_that("isolated P9 manifest contains only bindings, authorization,
   testthat::expect_equal(sum(manifest$name %in% expected_formal), 6L)
 })
 
+testthat::test_that("corrected isolated generation preserves the failed store", {
+  root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
+  cfg <- yaml::read_yaml(file.path(root, "config/p9_formal_isolated_runtime.yml"))
+  testthat::expect_identical(cfg$pipeline$execution_generation_id, "p9gen_acb72f05336e09451b4ac458")
+  testthat::expect_match(cfg$pipeline$store, "fuse-p9-formal-p9gen_acb72f05336e09451b4ac458", fixed = TRUE)
+  testthat::expect_identical(cfg$pipeline$preserved_failed_store,
+    "/mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal")
+  testthat::expect_identical(cfg$superseded$terminal_classification, "FAILED_NONRESUMABLE")
+  testthat::expect_identical(cfg$superseded$formal_attempt_starts, 1L)
+  testthat::expect_false(cfg$superseded$exact_resume_authorized)
+})
+
+testthat::test_that("startup evidence is an explicit Layer B dependency", {
+  root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
+  source <- paste(readLines(file.path(root, "targets/research_p9_formal_execution.R")), collapse = "\n")
+  helper <- paste(readLines(file.path(root, "R/research_p9_formal_execution_isolated.R")), collapse = "\n")
+  testthat::expect_match(source, "p9x_production_startup_gate_evidence", fixed = TRUE)
+  testthat::expect_match(helper, "optimizer_updates", fixed = TRUE)
+  testthat::expect_match(helper, "--authorization-acceptance", fixed = TRUE)
+})
+
 testthat::test_that("empty-store synthetic bootstrap is bounded and repeats as a no-op", {
   testthat::skip_if_not_installed("targets")
   root <- tempfile("p9-isolated-synthetic-"); dir.create(root)

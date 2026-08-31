@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from p6_model import RasterCNN, ReducedSceneEncoder, RelationAwareLayer, projected_block
-from p7_training import DECODER_PREFIXES, deterministic_relation_layer
+from p7_training import DECODER_PREFIXES, P7Model, deterministic_relation_layer
 from prototype_encoder import geometry_fourier_features, relation_set_embedding, sinusoidal_position_features
 
 FAMILY_NAMES = ("FM", "A1", "A2", "A3", "A4", "A5", "SSV", "DS")
@@ -232,12 +232,36 @@ class P9MomentumModel(nn.Module):
             target.copy_(online_buffers[name])
 
 
+class P9FM64Encoder(ReducedSceneEncoder):
+    """Expose P7's byte-identical FM encoder through the common P9 call contract."""
+
+    def __init__(self, config: dict[str, Any], vocabulary_sizes: dict[str, int]) -> None:
+        super().__init__(config, vocabulary_sizes)
+        self.contract = family_contract("FM")
+
+    def forward(self, batch: dict[str, Any], geometry: tuple[torch.Tensor, torch.Tensor] | None = None,
+                ds_raster: torch.Tensor | None = None, assignments: torch.Tensor | None = None) -> dict[str, torch.Tensor]:
+        if geometry is None or ds_raster is not None:
+            raise ValueError("P9 FM d64 requires geometry and prohibits a DS raster")
+        modalities = P7Model._modalities(self, batch, geometry)
+        stacked = torch.stack(tuple(modalities[name] for name in ("relative", "geometry", "semantic", "environmental")), 1)
+        if assignments is not None:
+            assignments = assignments.to(stacked.device)
+            if assignments.shape != (stacked.shape[0],):
+                raise ValueError("P9 FM d64 modality assignment shape mismatch")
+            for index in range(4):
+                selected = assignments == index
+                if selected.any():
+                    stacked[selected, index] = self.mask_embeddings[index]
+        return {**P7Model._finish(self, batch, stacked), "modalities": modalities}
+
+
 def build_scene_encoder(config: dict[str, Any], vocabulary_sizes: dict[str, int], family: str) -> nn.Module:
     """Keep cfg_main byte-compatible with P7 while generalizing dimensions and families."""
     contract = family_contract(family)
     d, _, _ = _dimension_contract(config)
     if contract.name == "FM" and d == 64:
-        return ReducedSceneEncoder(config, vocabulary_sizes)
+        return P9FM64Encoder(config, vocabulary_sizes)
     return P9SceneEncoder(config, vocabulary_sizes, family)
 
 

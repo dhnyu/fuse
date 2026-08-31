@@ -68,5 +68,81 @@ list_research_p9_formal_authorization <- list(
     p9_cfg_main_attempt_reservation,
     p9_formal_artifact(p9_formal_publication_bundle, "cfg_main_attempt_reservation.json", p9_formal_training_authority),
     format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_formal_execution_contract_files,
+    p9_formal_execution_files(), format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_formal_execution_parent_references,
+    p9_formal_execution_parent_paths(p9_formal_execution_contract_files[[1L]]),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_corrected_formal_publication_bundle,
+    p9_publish_corrected_execution_bundle(
+      p9_formal_execution_contract_files, p9_formal_execution_parent_references,
+      p9_production_cache_acceptance, p9_formal_training_authority,
+      p9_cfg_main_attempt_reservation
+    ),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_formal_execution_supersession,
+    p9_corrected_execution_artifact(p9_corrected_formal_publication_bundle,
+                                    "formal_execution_supersession.json"),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_corrected_formal_training_authority,
+    p9_corrected_execution_artifact(p9_corrected_formal_publication_bundle,
+                                    "corrected_formal_authority.json",
+                                    p9_formal_execution_supersession),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_corrected_cfg_main_attempt_reservation,
+    p9_corrected_execution_artifact(p9_corrected_formal_publication_bundle,
+                                    "corrected_cfg_main_reservation.json",
+                                    p9_corrected_formal_training_authority),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_cfg_main_formal_run,
+    p9_execute_reserved_formal_run(
+      p9_corrected_formal_training_authority, p9_corrected_cfg_main_attempt_reservation,
+      p9_production_cache_acceptance, hyperparameter_configuration_matrix,
+      p9_infrastructure_readiness, p7_cold_path_runtime_acceptance
+    ),
+    format = "file", resources = controller_gpu_02_resources
+  ),
+  targets::tar_target(
+    p9_cfg_main_validation_trace,
+    p9_formal_run_artifact(p9_cfg_main_formal_run, "validation_trace.json"),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_cfg_main_checkpoint_candidates,
+    p9_formal_run_artifact(p9_cfg_main_formal_run, "checkpoint_candidate_index.json",
+                           p9_cfg_main_validation_trace),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_cfg_main_selected_checkpoint,
+    p9_formal_run_artifact(p9_cfg_main_formal_run, "selected_checkpoint.json",
+                           p9_cfg_main_checkpoint_candidates),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_cfg_main_terminal_execution,
+    p9_formal_run_artifact(p9_cfg_main_formal_run, "terminal_execution_record.json",
+                           p9_cfg_main_selected_checkpoint),
+    format = "file", resources = controller_05_resources
+  ),
+  targets::tar_target(
+    p9_cfg_main_attempt_acceptance,
+    p9_formal_run_artifact(p9_cfg_main_formal_run, "cfg_main_attempt_acceptance.json",
+                           p9_cfg_main_terminal_execution),
+    format = "file", resources = controller_05_resources
   )
 )

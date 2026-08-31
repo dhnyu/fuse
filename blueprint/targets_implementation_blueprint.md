@@ -890,6 +890,27 @@ updates; no training target is reachable from it. P9-B remains unmaterialized un
 stable validation-selected FM identity exists, and evaluation query identity remains
 absent throughout P9.
 
+#### P9 formal-execution boundary
+
+Formal execution uses a dedicated authority-gated runner, not the bounded-pilot
+entry point and not a direct invocation of the P7 trainer. The authority binds an
+immutable implementation commit and a canonical digest of the exact runtime file
+set. A later publication-only descendant may launch the run only when that runtime
+digest remains byte-identical; the actual launch commit is recorded in the run and
+duplicate ledger.
+
+The target sequence is corrected authority -> reservation -> formal run -> fixed
+validation trace and checkpoint candidates -> selected checkpoint -> terminal
+execution -> attempt acceptance. The formal run requires explicit target selection,
+the exact reservation token, the accepted production-cache identity, and one
+controller-owned lock covering both DDP ranks. Checkpoints atomically preserve model,
+EMA, optimizer, scheduler, sampler cursor, all rank RNG states, queue, selector,
+validation history, lineage, runtime-tree identity, and world-size contract. The
+states `AUTHORIZED_NOT_STARTED`, `STARTING`, `RUNNING`, `INTERRUPTED_RESUMABLE`,
+`FAILED_NONRESUMABLE`, `COMPLETED_PENDING_VALIDATION`, `ACCEPTED`, and `REJECTED`
+have explicit fail-closed transitions. A bounded-pilot output cannot satisfy a formal
+run or acceptance schema.
+
 <a id="p10-evaluation"></a>
 ### P10 Evaluation
 

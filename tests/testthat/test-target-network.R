@@ -141,8 +141,8 @@ test_that("current graph Phase and outdated counts independently agree", {
   independent <- suppressMessages(targets::tar_outdated(
     store = store, script = file.path(fuse_test_root, "_targets.R"), callr_function = NULL
   ))
-  expect_equal(stats$node_count, 178L)
-  expect_equal(stats$edge_count, 551L)
+  expect_equal(stats$node_count, 190L)
+  expect_equal(stats$edge_count, 577L)
   expect_equal(unname(stats$status_counts[["outdated"]]), length(intersect(independent, snapshot$manifest$name)))
   expect_equal(length(assignments), length(unique(snapshot$manifest$name)))
   expect_true(all(c("P8", "P9") %in% assignments))

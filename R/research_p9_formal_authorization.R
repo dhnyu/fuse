@@ -127,3 +127,69 @@ p9_formal_artifact <- function(bundle, filename, dependency = NULL) {
   if (length(path) != 1L) stop("P9 formal artifact lookup mismatch: ", filename, call. = FALSE)
   normalizePath(path, mustWork = TRUE)
 }
+
+p9_formal_execution_files <- function() {
+  c(
+    "config/p9_formal_reauthorization.yml",
+    list.files("config/schemas", pattern = "^p9_formal_(execution|attempt|running|resume|validation|terminal).*\\.schema\\.json$", full.names = TRUE),
+    "python/p9_formal_execution.py", "python/p9_formal_reauthorization.py",
+    "scripts/p9_formal_reauthorization.py", "scripts/p9_formal_training.py",
+    "R/research_p9_formal_authorization.R", "targets/research_p9_formal_authorization.R"
+  )
+}
+
+p9_formal_execution_parent_paths <- function(config_path) {
+  cfg <- yaml::read_yaml(config_path)
+  unlist(cfg$artifacts[c("p7_runtime_acceptance", "p8_acceptance", "p8_hyperparameter_matrix",
+                         "p9_readiness", "production_cache_acceptance")], use.names = TRUE)
+}
+
+p9_publish_corrected_execution_bundle <- function(contract_files, parents, cache_acceptance,
+                                                   old_authority, old_reservation) {
+  invisible(list(parents, cache_acceptance, old_authority, old_reservation))
+  output <- system2(research_python_executable(), c(
+    "scripts/p9_formal_reauthorization.py", "publish", "--config", contract_files[[1L]]
+  ), stdout = TRUE, stderr = TRUE)
+  status <- attr(output, "status")
+  if (!is.null(status) && status != 0L) stop(paste(output, collapse = "\n"), call. = FALSE)
+  normalizePath(p9_parse_outputs(output, "P9_OUTPUTS="), mustWork = TRUE)
+}
+
+p9_corrected_execution_artifact <- function(bundle, filename, dependency = NULL) {
+  invisible(dependency)
+  p9_formal_artifact(bundle, filename)
+}
+
+p9_execute_reserved_formal_run <- function(authority, reservation, cache_acceptance, matrix,
+                                           readiness, runtime_parent) {
+  invisible(list(readiness, runtime_parent))
+  value <- jsonlite::read_json(reservation, simplifyVector = FALSE)
+  token <- Sys.getenv("FUSE_P9_FORMAL_RESERVATION_ID", unset = "")
+  if (!nzchar(token) || !identical(token, value$reservation_id)) {
+    stop("P9 formal run requires explicit FUSE_P9_FORMAL_RESERVATION_ID=", value$reservation_id,
+         call. = FALSE)
+  }
+  cfg <- yaml::read_yaml("config/p9_formal_reauthorization.yml")
+  output_root <- file.path(cfg$roots$formal_attempts, value$attempt_id)
+  if (dir.exists(output_root)) stop("P9 formal attempt output already exists", call. = FALSE)
+  args <- c(
+    "scripts/p9_formal_training.py", "controller", "--authority", authority,
+    "--reservation", reservation, "--matrix", matrix, "--cache-acceptance", cache_acceptance,
+    "--cache-root", cfg$roots$production_cache, "--categories", cfg$artifacts$categories,
+    "--output-root", output_root, "--configuration-id", value$configuration_id,
+    "--lock-root", cfg$roots$attempt_locks
+  )
+  status <- system2(research_python_executable(), args)
+  if (!identical(status, 0L)) stop("P9 formal runner failed", call. = FALSE)
+  files <- file.path(output_root, c("formal_run.json", "validation_trace.json",
+    "checkpoint_candidate_index.json", "selected_checkpoint.json",
+    "terminal_execution_record.json", "cfg_main_attempt_acceptance.json"))
+  normalizePath(files, mustWork = TRUE)
+}
+
+p9_formal_run_artifact <- function(bundle, filename, dependency = NULL) {
+  invisible(dependency)
+  path <- bundle[basename(bundle) == filename]
+  if (length(path) != 1L) stop("P9 formal run artifact lookup mismatch: ", filename, call. = FALSE)
+  normalizePath(path, mustWork = TRUE)
+}

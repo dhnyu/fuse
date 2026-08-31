@@ -196,6 +196,18 @@ exact:
     - p9_cache_reuse_graph
     - p9_cache_shard_plan
     - p9_cfg_main_attempt_reservation
+    - p9_cfg_main_attempt_acceptance
+    - p9_cfg_main_checkpoint_candidates
+    - p9_cfg_main_formal_run
+    - p9_cfg_main_selected_checkpoint
+    - p9_cfg_main_terminal_execution
+    - p9_cfg_main_validation_trace
+    - p9_corrected_cfg_main_attempt_reservation
+    - p9_corrected_formal_publication_bundle
+    - p9_corrected_formal_training_authority
+    - p9_formal_execution_contract_files
+    - p9_formal_execution_parent_references
+    - p9_formal_execution_supersession
     - p9_formal_accepted_parent_references
     - p9_formal_authorization_contract_files
     - p9_formal_publication_bundle

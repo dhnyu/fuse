@@ -112,3 +112,20 @@ def audit_pairs(run_root: str | Path) -> dict[str, Any]:
             "attempt_id": attempt["attempt_id"], "rows": rows, "candidates": candidates,
             "selected_checkpoint": best,
             "content_sha256": hashlib.sha256(canonical_json({"rows": rows, "selected_checkpoint": best})).hexdigest()}
+
+
+def recovery_terminal_payload(contract: dict[str, Any], audit: dict[str, Any]) -> dict[str, Any]:
+    """Build a non-mutating terminal recovery record from revalidated inputs."""
+    if audit["content_sha256"] != contract["join_audit_sha256"]:
+        raise ValueError("recovery source artifact inventory changed")
+    if audit["selected_checkpoint"] != contract["expected_selected_checkpoint"]:
+        raise ValueError("recovery selector result changed")
+    return {
+        "schema_version": "1.0.0", "artifact_type": "p9_terminal_recovery",
+        "state": "RECOVERY_ACCEPTED", "recovery_contract_id": contract["recovery_contract_id"],
+        "source_failed_lineage": contract["failed_lineage"],
+        "candidate_set_sha256": audit["content_sha256"],
+        "selected_checkpoint": audit["selected_checkpoint"], "stopping": contract["stopping"],
+        "prohibited_operation_counters": contract["prohibited_operations"],
+        "historical_terminal_state_preserved": "FAILED_NONRESUMABLE",
+    }

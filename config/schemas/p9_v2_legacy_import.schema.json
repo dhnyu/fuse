@@ -1,15 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:fuse:p9-v2:legacy-import-annotation:2.0.0",
-  "title": "P9 v2 noncanonical legacy import annotation",
+  "title": "P9 v2 legacy import annotation",
   "type": "object",
   "required": ["schema_version", "artifact_type", "status", "canonical_publication_eligible", "acceptance_eligible", "importer_version", "imported_run_id", "source_inventory_digest", "source", "event_mapping", "atomic_completion", "field_classifications", "classification_counts"],
   "properties": {
     "schema_version": {"const": "2.0.0"},
     "artifact_type": {"const": "p9_v2_legacy_import_annotation"},
-    "status": {"const": "NONCANONICAL_DRY_RUN"},
-    "canonical_publication_eligible": {"const": false},
-    "acceptance_eligible": {"const": false},
+    "status": {"enum": ["NONCANONICAL_DRY_RUN", "CANONICAL_MIGRATION"]},
+    "canonical_publication_eligible": {"type": "boolean"},
+    "acceptance_eligible": {"type": "boolean"},
+    "migration_authority_id": {"type": "string", "pattern": "^p9authv2_[0-9a-f]{24}$"},
+    "migration_authority_hash": {"$ref": "#/$defs/sha256"},
+    "dry_run_annotation_sha256": {"$ref": "#/$defs/sha256"},
     "importer_version": {"const": "p9-v2-legacy-importer-v1"},
     "imported_run_id": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
     "source_inventory_digest": {"$ref": "#/$defs/sha256"},
@@ -74,6 +77,28 @@
       "additionalProperties": false
     }
   },
+  "oneOf": [
+    {
+      "properties": {
+        "status": {"const": "NONCANONICAL_DRY_RUN"},
+        "canonical_publication_eligible": {"const": false},
+        "acceptance_eligible": {"const": false}
+      },
+      "not": {"anyOf": [
+        {"required": ["migration_authority_id"]},
+        {"required": ["migration_authority_hash"]},
+        {"required": ["dry_run_annotation_sha256"]}
+      ]}
+    },
+    {
+      "required": ["migration_authority_id", "migration_authority_hash", "dry_run_annotation_sha256"],
+      "properties": {
+        "status": {"const": "CANONICAL_MIGRATION"},
+        "canonical_publication_eligible": {"const": true},
+        "acceptance_eligible": {"const": true}
+      }
+    }
+  ],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "classification": {"enum": ["DIRECTLY_AVAILABLE", "DETERMINISTICALLY_DERIVABLE", "AVAILABLE_WITH_LEGACY_ANNOTATION", "NOT_APPLICABLE", "MISSING_BLOCKING"]}

@@ -1,6 +1,6 @@
 # Historical Import and Legacy Retirement
 
-Status: `V2_D_DRY_RUN_IMPLEMENTED_NONCANONICAL_NON_AUTHORIZING`
+Status: `V2_G_CANONICAL_HISTORICAL_ACCEPTANCE_IMPLEMENTED`
 
 ## Read-only audit verdict
 
@@ -128,7 +128,29 @@ All must pass before historical v2 acceptance:
 - no scientific inconsistency;
 - independent bundle validator and pure finalizer agree on selection and stopping.
 
-The present read-only audit satisfies these evidence criteria. Retraining is not required. Actual import and acceptance remain prohibited until V2-A through V2-F pass and V2-G is separately authorized.
+The V2-D read-only audit satisfied these evidence criteria and established that
+retraining was not required. At that stage, actual import and acceptance remained
+prohibited pending V2-A through V2-F and separate V2-G authorization.
+
+## Canonical V2-G publication
+
+V2-G revalidated the same 58-entry source inventory with digest
+`282e8eb48ac5ae9efeabb5d535707e1e9273d3bfd803ec3b8c03f9b74063065c`
+and all 25 validation-checkpoint pairs before any canonical write. It then
+published only new content-addressed v2 artifacts below
+`/mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical`:
+
+- migration/publication authority `p9authv2_47f350372bf94162db8f9142`;
+- imported run `p9runv2_d6ffbd951bc813f78defeacc`;
+- bundle `p9rb_78322173dfd691baf67a44a0`;
+- finalization `p9fin_2383ccda2e5391ecf75c6010`;
+- acceptance `p9accv2_d93b01ef13c3f26a22287ce7`;
+- eligibility snapshot `p9elig_335f0baafea2a7e381f3634e`.
+
+The V2-C finalizer using `p9-selection-v2.1.0` selected the historical epoch-105
+checkpoint naturally from all 25 candidates. Duplicate publication validated
+and returned the existing acceptance. The v1 state remains byte-unchanged
+`FAILED_NONRESUMABLE`; canonical v2 acceptance does not relabel it.
 
 ## V1 retirement plan
 

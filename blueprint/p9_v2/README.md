@@ -1,6 +1,6 @@
 # P9 v2 Architecture and Migration Blueprint
 
-Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
+Status: `IMPLEMENTED_THROUGH_V2_G_HISTORICAL_ACCEPTANCE`
 
 This directory defines the proposed P9 v2 control and artifact contracts. It does not authorize execution, alter dissertation methodology, or form part of any production runtime digest.
 
@@ -9,6 +9,11 @@ This directory defines the proposed P9 v2 control and artifact contracts. It doe
 `P9_V2_ARCHITECTURE_AND_MIGRATION_BLUEPRINT_PASS`
 
 The historical run `p9run_6887930091dd2f2bfedc3c96` is `MIGRATION_ELIGIBLE_WITHOUT_RETRAINING`. Its immutable v1 state remains `FAILED_NONRESUMABLE`; v2 represents the imported evidence independently as scientific `COMPLETE`, operational `FINALIZATION_FAILED`, and resumability `NOT_APPLICABLE_SCIENTIFICALLY_COMPLETE`.
+
+V2-G canonically imported that evidence under the bounded authority
+`p9authv2_47f350372bf94162db8f9142` and committed acceptance
+`p9accv2_d93b01ef13c3f26a22287ce7`. This is a v2 acceptance of immutable
+scientific evidence, not a rewrite or success claim for the v1 controller run.
 
 ## Authority and methodology
 

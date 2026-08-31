@@ -715,10 +715,17 @@ def map_legacy_run_to_v2(inspection: LegacyInspection, ledger_root: str | Path) 
         "parent_identities": docs["source_parents"]["content"]["identities"],
         "duplicate_run_key": inspection.terminal_state["duplicate_key"],
     })
+    canonical_migration = inspection.legacy_annotation["status"] == "CANONICAL_MIGRATION"
     append("RUN_STARTING", {
-        "owner_id": f"noncanonical-dry-run:{inspection.sources.attempt_id}",
+        "owner_id": (
+            f"canonical-migration:{inspection.sources.attempt_id}"
+            if canonical_migration else f"noncanonical-dry-run:{inspection.sources.attempt_id}"
+        ),
         "execution_environment_digest": docs["runtime"]["content_sha256"],
-        "training_lock_key": canonical_sha256({"noncanonical": True, "v1_run_id": inspection.sources.run_id}),
+        "training_lock_key": canonical_sha256(
+            {"canonical_migration": True, "v1_run_id": inspection.sources.run_id}
+            if canonical_migration else {"noncanonical": True, "v1_run_id": inspection.sources.run_id}
+        ),
     })
     append("RUN_STARTED", {
         "process_id": f"legacy-evidence:{inspection.sources.attempt_id}",

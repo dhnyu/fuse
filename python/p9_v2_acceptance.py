@@ -88,6 +88,21 @@ def _read_canonical(path: Path) -> Any:
         _fail("MALFORMED_CANONICAL_JSON", f"cannot read {path.name}: {error}")
 
 
+def _require_legacy_acceptance_eligibility(manifest: Mapping[str, Any]) -> None:
+    legacy = manifest.get("legacy_import", {})
+    if not legacy.get("is_legacy_import"):
+        return
+    annotation = legacy.get("annotation")
+    if not isinstance(annotation, Mapping) or (
+        annotation.get("status") != "CANONICAL_MIGRATION"
+        or annotation.get("canonical_publication_eligible") is not True
+        or annotation.get("acceptance_eligible") is not True
+        or annotation.get("migration_authority_id") != manifest["bindings"]["authority_id"]
+        or annotation.get("migration_authority_hash") != manifest["bindings"]["authority_hash"]
+    ):
+        _fail("LEGACY_IMPORT_INELIGIBLE", "legacy bundle lacks canonical migration authority")
+
+
 def _acceptance_preimage(record: Mapping[str, Any]) -> dict[str, Any]:
     return {
         key: value for key, value in record.items()
@@ -212,6 +227,7 @@ def validate_acceptance(
         if any(record[key] != value for key, value in selected_bindings.items()):
             _fail("SELECTED_CHECKPOINT_MISMATCH", "acceptance checkpoint binding differs")
         bundle_manifest = _read_canonical(bundle_path / BUNDLE_COMMIT_PATH)
+        _require_legacy_acceptance_eligibility(bundle_manifest)
         if record["authority_id"] != bundle_manifest["bindings"]["authority_id"] or record["authority_hash"] != bundle_manifest["bindings"]["authority_hash"]:
             _fail("AUTHORITY_MISMATCH", "acceptance authority differs from bundle")
         return AcceptanceValidationResult(True, acceptance_id)
@@ -243,6 +259,7 @@ def publish_acceptance(
     if not valid_result:
         _fail(reason or "FINALIZATION_RESULT_INVALID", "cannot accept invalid finalization")
     manifest = _read_canonical(bundle_path / BUNDLE_COMMIT_PATH)
+    _require_legacy_acceptance_eligibility(manifest)
     record = _make_acceptance(finalization_result, manifest, authority_id, authority_hash)
     acceptance_id = record["acceptance_id"]
     publication_root = Path(acceptance_root)

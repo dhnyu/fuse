@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:migration-publication-authority:2.0.0",
+  "title": "P9 v2 historical migration and publication authority",
+  "type": "object",
+  "required": ["schema_version", "identity", "content_sha256", "content"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "identity": {"type": "string", "pattern": "^p9authv2_[0-9a-f]{24}$"},
+    "content_sha256": {"$ref": "#/$defs/sha256"},
+    "content": {
+      "type": "object",
+      "required": ["authority_kind", "status", "run_id", "source_v1_run_id", "source_inventory_digest", "scientific_configuration_id", "scientific_configuration_hash", "source_parents_id", "source_parents_hash", "cache_acceptance_id", "cache_acceptance_hash", "sampler_contract_id", "sampler_contract_hash", "selection_contract_id", "selection_contract_hash", "permitted_actions", "prohibited_actions"],
+      "properties": {
+        "authority_kind": {"const": "HISTORICAL_MIGRATION_PUBLICATION"},
+        "status": {"const": "AUTHORIZED"},
+        "run_id": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
+        "source_v1_run_id": {"type": "string", "pattern": "^p9run_[0-9a-f]{24}$"},
+        "source_inventory_digest": {"$ref": "#/$defs/sha256"},
+        "scientific_configuration_id": {"type": "string", "minLength": 1},
+        "scientific_configuration_hash": {"$ref": "#/$defs/sha256"},
+        "source_parents_id": {"type": "string", "minLength": 1},
+        "source_parents_hash": {"$ref": "#/$defs/sha256"},
+        "cache_acceptance_id": {"type": "string", "minLength": 1},
+        "cache_acceptance_hash": {"$ref": "#/$defs/sha256"},
+        "sampler_contract_id": {"type": "string", "minLength": 1},
+        "sampler_contract_hash": {"$ref": "#/$defs/sha256"},
+        "selection_contract_id": {"type": "string", "minLength": 1},
+        "selection_contract_hash": {"$ref": "#/$defs/sha256"},
+        "permitted_actions": {
+          "const": ["canonical_bundle_publication", "canonical_historical_import", "eligibility_snapshot_publication", "pure_finalization", "resolver_verification", "acceptance_publication"]
+        },
+        "prohibited_actions": {
+          "const": ["cache_modification", "checkpoint_modification", "downstream_scientific_execution", "evaluation", "recovery", "resume", "training", "validation"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+  "additionalProperties": false
+}

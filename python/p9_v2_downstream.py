@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -12,7 +14,8 @@ from p9_v2_acceptance import (
     AcceptanceError,
     resolve_accepted_checkpoint as resolve_acceptance_chain,
 )
-from p9_v2_canonical import canonical_sha256
+from p9_v2_canonical import canonical_json_bytes, canonical_sha256, parse_canonical_json
+from p9_v2_ledger import fsync_directory, write_all
 from p9_v2_schema import P9V2SchemaError, SCHEMA_VERSION, validate_instance
 
 
@@ -78,6 +81,66 @@ def validate_acceptance_eligibility(value: Mapping[str, Any]) -> None:
     identities = [entry["acceptance_id"] for entry in value["entries"]]
     if identities != sorted(identities) or len(identities) != len(set(identities)):
         _fail("AMBIGUOUS_ACCEPTANCE_ELIGIBILITY", "entries are duplicated or unordered")
+
+
+def publish_acceptance_eligibility(
+    value: Mapping[str, Any], publication_root: str | Path
+) -> Path:
+    """Atomically publish or validate one immutable eligibility snapshot."""
+
+    validate_acceptance_eligibility(value)
+    root = Path(publication_root)
+    root.mkdir(parents=True, exist_ok=True)
+    staging = root / ".staging"
+    staging.mkdir(exist_ok=True)
+    final = root / f"{value['eligibility_id']}.json"
+    raw = canonical_json_bytes(dict(value))
+    if final.exists():
+        try:
+            existing = parse_canonical_json(final.read_bytes())
+        except Exception as error:
+            _fail("INCONSISTENT_EXISTING_ELIGIBILITY", str(error))
+        if existing != dict(value):
+            _fail("INCONSISTENT_EXISTING_ELIGIBILITY", "existing snapshot differs")
+        validate_acceptance_eligibility(existing)
+        return final
+    descriptor, stage_name = tempfile.mkstemp(prefix=f".{value['eligibility_id']}.", dir=staging)
+    stage = Path(stage_name)
+    try:
+        write_all(descriptor, raw)
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    try:
+        if parse_canonical_json(stage.read_bytes()) != dict(value):
+            _fail("ELIGIBILITY_STAGING_INVALID", "staged snapshot differs")
+        try:
+            os.link(stage, final)
+            stage.unlink()
+        except FileExistsError:
+            existing = parse_canonical_json(final.read_bytes())
+            if existing != dict(value):
+                _fail("INCONSISTENT_EXISTING_ELIGIBILITY", "concurrent snapshot differs")
+            stage.unlink(missing_ok=True)
+        fsync_directory(root)
+    finally:
+        stage.unlink(missing_ok=True)
+    loaded = parse_canonical_json(final.read_bytes())
+    validate_acceptance_eligibility(loaded)
+    if loaded != dict(value):
+        _fail("ELIGIBILITY_PUBLICATION_INVALID", "published snapshot differs")
+    return final
+
+
+def load_acceptance_eligibility(path: str | Path) -> dict[str, Any]:
+    try:
+        value = parse_canonical_json(Path(path).read_bytes())
+    except Exception as error:
+        _fail("INVALID_ACCEPTANCE_ELIGIBILITY", str(error))
+    if not isinstance(value, dict):
+        _fail("INVALID_ACCEPTANCE_ELIGIBILITY", "snapshot root is not an object")
+    validate_acceptance_eligibility(value)
+    return value
 
 
 @dataclass(frozen=True)

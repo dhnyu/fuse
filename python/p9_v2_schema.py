@@ -24,6 +24,7 @@ SCHEMA_FILES = {
     "finalization_result": "p9_v2_finalization_result.schema.json",
     "acceptance": "p9_v2_acceptance.schema.json",
     "legacy_import": "p9_v2_legacy_import.schema.json",
+    "migration_authority": "p9_v2_migration_authority.schema.json",
     "acceptance_eligibility": "p9_v2_acceptance_eligibility.schema.json",
 }
 

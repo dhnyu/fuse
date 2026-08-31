@@ -372,7 +372,8 @@ def _document_bindings(documents: Mapping[str, dict[str, Any]], ledger_manifest_
 
 
 def _verify_document_linkage(
-    documents: Mapping[str, dict[str, Any]], events: Sequence[dict[str, Any]], run_id: str
+    documents: Mapping[str, dict[str, Any]], events: Sequence[dict[str, Any]], run_id: str,
+    legacy_import: Mapping[str, Any] | None = None,
 ) -> None:
     authorization = events[0]
     if authorization["event_type"] != "RUN_AUTHORIZED":
@@ -402,8 +403,23 @@ def _verify_document_linkage(
         "selection_contract_id": documents["selection_contract"]["identity"],
         "selection_contract_hash": documents["selection_contract"]["content_sha256"],
     }
-    if authority != expected:
+    if any(authority.get(key) != value for key, value in expected.items()):
         _fail("AUTHORITY_MISMATCH", "authority bindings differ from bundle evidence")
+    extras = set(authority) - set(expected)
+    if extras:
+        if legacy_import is None or legacy_import.get("status") != "CANONICAL_MIGRATION":
+            _fail("AUTHORITY_MISMATCH", "unexpected authority scope fields")
+        try:
+            validate_instance("migration_authority", documents["authority"])
+        except P9V2SchemaError as error:
+            _fail("AUTHORITY_MISMATCH", f"migration authority is invalid: {error}")
+        if (
+            legacy_import.get("migration_authority_id") != documents["authority"]["identity"]
+            or legacy_import.get("migration_authority_hash") != documents["authority"]["content_sha256"]
+            or authority.get("source_inventory_digest") != legacy_import.get("source_inventory_digest")
+            or authority.get("source_v1_run_id") != legacy_import.get("source", {}).get("v1_run_id")
+        ):
+            _fail("AUTHORITY_MISMATCH", "migration authority differs from legacy annotation")
 
 
 def _inventory_entry(path: str, raw: bytes) -> dict[str, Any]:
@@ -492,7 +508,7 @@ def build_run_bundle(
     replay = replay_events(committed.events)
     if replay.run_id != committed.header["run_id"]:
         _fail("INVALID_LEDGER_BINDING", "ledger replay run identity differs")
-    _verify_document_linkage(documents, committed.events, replay.run_id)
+    _verify_document_linkage(documents, committed.events, replay.run_id, legacy_import)
     checkpoints, external = _checkpoint_records(
         committed.events, inputs.checkpoint_locators, locator_roots
     )
@@ -754,7 +770,11 @@ def _validate_bundle(root: Path, locator_roots: Mapping[str, str | Path], *, req
     }
     if manifest["ledger"] != expected_ledger:
         _fail("INVALID_LEDGER_BINDING", "bundle ledger summary differs")
-    _verify_document_linkage(documents, committed.events, replay.run_id)
+    legacy_annotation = (
+        manifest.get("legacy_import", {}).get("annotation")
+        if manifest.get("legacy_import", {}).get("is_legacy_import") else None
+    )
+    _verify_document_linkage(documents, committed.events, replay.run_id, legacy_annotation)
     expected_bindings = _document_bindings(documents, sha256_bytes(ledger_manifest_raw))
     if manifest["bindings"] != expected_bindings:
         _fail("CONTRACT_MISMATCH", "manifest evidence bindings differ")

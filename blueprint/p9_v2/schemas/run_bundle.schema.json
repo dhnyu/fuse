@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:draft:run-bundle",
+  "title": "DRAFT_NON_RUNTIME_NON_AUTHORIZING P9 v2 run bundle manifest",
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_type", "bundle_id", "bundle_content_sha256", "run_id",
+    "scientific_state", "operational_state", "resumability", "evaluation_consumption_count",
+    "ledger_tail_hash", "source_inventory_digest", "artifacts", "external_objects", "status"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0.0-draft"},
+    "artifact_type": {"const": "p9_v2_run_bundle"},
+    "bundle_id": {"type": "string", "pattern": "^p9rb_[0-9a-f]{24}$"},
+    "bundle_content_sha256": {"$ref": "#/$defs/sha256"},
+    "run_id": {"type": "string", "minLength": 1},
+    "scientific_state": {"enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETE", "INCOMPLETE"]},
+    "operational_state": {"enum": ["AUTHORIZED", "STARTING", "RUNNING", "FINALIZING", "ACCEPTED", "INTERRUPTED_RESUMABLE", "TRAINING_FAILED", "FINALIZATION_FAILED", "BLOCKED"]},
+    "resumability": {"enum": ["NOT_APPLICABLE", "EXACT_RESUME_ALLOWED", "RESTART_REQUIRED", "NOT_APPLICABLE_SCIENTIFICALLY_COMPLETE", "FORBIDDEN_POLICY", "EVIDENCE_INVALID"]},
+    "evaluation_consumption_count": {"const": 0},
+    "ledger_tail_hash": {"$ref": "#/$defs/sha256"},
+    "source_inventory_digest": {"$ref": "#/$defs/sha256"},
+    "artifacts": {
+      "type": "array", "minItems": 13,
+      "items": {"$ref": "#/$defs/inventoryItem"}
+    },
+    "external_objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["identity", "immutable_locator", "sha256", "size_bytes"],
+        "properties": {
+          "identity": {"type": "string", "minLength": 1},
+          "immutable_locator": {"type": "string", "minLength": 1},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "size_bytes": {"type": "integer", "minimum": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "legacy_import": {"type": "boolean"},
+    "status": {"const": "COMPLETE"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "inventoryItem": {
+      "type": "object",
+      "required": ["path", "required", "media_type", "size_bytes", "sha256", "provenance_role"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "required": {"type": "boolean"},
+        "media_type": {"type": "string", "minLength": 1},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "provenance_role": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

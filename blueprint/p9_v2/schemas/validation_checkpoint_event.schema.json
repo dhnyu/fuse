@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:draft:validation-checkpoint-event",
+  "title": "DRAFT_NON_RUNTIME_NON_AUTHORIZING P9 v2 validation-checkpoint event",
+  "type": "object",
+  "required": [
+    "schema_version", "event_type", "event_sequence", "event_id", "run_id",
+    "occurred_at", "writer", "legacy_import", "previous_event_hash", "payload", "event_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0.0-draft"},
+    "event_type": {"const": "VALIDATION_CHECKPOINT_COMMITTED"},
+    "event_sequence": {"type": "integer", "minimum": 1},
+    "event_id": {"type": "string", "pattern": "^p9evt_[0-9a-f]{24}$"},
+    "run_id": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "writer": {
+      "type": "object",
+      "required": ["writer_id", "role"],
+      "properties": {
+        "writer_id": {"type": "string", "minLength": 1},
+        "role": {"enum": ["rank0", "legacy_importer"]}
+      },
+      "additionalProperties": false
+    },
+    "legacy_import": {"type": "boolean"},
+    "previous_event_hash": {"oneOf": [{"const": "GENESIS"}, {"$ref": "#/$defs/sha256"}]},
+    "payload": {
+      "type": "object",
+      "required": [
+        "completed_epoch", "resume_epoch", "optimizer_update", "validation_id", "checkpoint_id",
+        "checkpoint_payload_sha256", "checkpoint_manifest_sha256", "validation_retrieval_loss",
+        "mean_source_separation_margin", "selector_state", "queue", "sampler", "state_presence",
+        "atomic_completion_marker", "source_run_id"
+      ],
+      "properties": {
+        "completed_epoch": {"type": "integer", "minimum": 1},
+        "resume_epoch": {"type": "integer", "minimum": 2},
+        "optimizer_update": {"type": "integer", "minimum": 1},
+        "validation_id": {"type": "string", "minLength": 1},
+        "checkpoint_id": {"type": "string", "pattern": "^p9ck_[0-9a-f]{24}$"},
+        "checkpoint_payload_sha256": {"$ref": "#/$defs/sha256"},
+        "checkpoint_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "validation_retrieval_loss": {"type": "number", "minimum": 0},
+        "mean_source_separation_margin": {"type": "number"},
+        "selector_state": {"type": "object"},
+        "queue": {
+          "type": "object",
+          "required": ["count", "pointer", "enqueue_count", "state_sha256"],
+          "properties": {
+            "count": {"type": "integer", "minimum": 0},
+            "pointer": {"type": "integer", "minimum": 0},
+            "enqueue_count": {"type": "integer", "minimum": 0},
+            "state_sha256": {"$ref": "#/$defs/sha256"}
+          },
+          "additionalProperties": false
+        },
+        "sampler": {
+          "type": "object",
+          "required": ["epoch", "cursor", "state_sha256"],
+          "properties": {
+            "epoch": {"type": "integer", "minimum": 1},
+            "cursor": {"type": "integer", "minimum": 0},
+            "state_sha256": {"$ref": "#/$defs/sha256"}
+          },
+          "additionalProperties": false
+        },
+        "state_presence": {
+          "type": "object",
+          "required": ["online_model", "ema_model", "optimizer", "scheduler", "rng_states", "queue", "sampler", "early_stopping", "best_checkpoint", "validation_trace"],
+          "properties": {
+            "online_model": {"const": true}, "ema_model": {"const": true},
+            "optimizer": {"const": true}, "scheduler": {"const": true},
+            "rng_states": {"const": true}, "queue": {"const": true},
+            "sampler": {"const": true}, "early_stopping": {"const": true},
+            "best_checkpoint": {"const": true}, "validation_trace": {"const": true}
+          },
+          "additionalProperties": false
+        },
+        "atomic_completion_marker": {
+          "type": "object",
+          "required": ["protocol", "status"],
+          "properties": {
+            "protocol": {"enum": ["native_v2_atomic_commit", "legacy_atomic_payload_manifest_pair"]},
+            "status": {"const": "COMPLETE"}
+          },
+          "additionalProperties": false
+        },
+        "source_run_id": {"type": "string", "minLength": 1},
+        "legacy_derivation": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "event_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

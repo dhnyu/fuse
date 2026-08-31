@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:draft:finalization-result",
+  "title": "DRAFT_NON_RUNTIME_NON_AUTHORIZING P9 v2 finalization result",
+  "type": "object",
+  "required": [
+    "schema_version", "artifact_type", "finalization_id", "status", "failure_code", "evidence_class",
+    "run_bundle_id", "run_bundle_hash", "selection_contract_hash", "finalizer_implementation_hash",
+    "candidate_set_hash", "evaluation_consumption_count", "provenance_chain", "finalization_result_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0.0-draft"},
+    "artifact_type": {"const": "p9_v2_finalization_result"},
+    "finalization_id": {"type": "string", "pattern": "^p9fin_[0-9a-f]{24}$"},
+    "status": {"enum": ["PASS", "FAIL"]},
+    "failure_code": {"type": ["string", "null"]},
+    "evidence_class": {"enum": ["VALID_SCIENTIFIC_EVIDENCE", "INVALID_SCIENTIFIC_EVIDENCE", "OPERATIONAL_FAILURE"]},
+    "run_bundle_id": {"type": "string", "pattern": "^p9rb_[0-9a-f]{24}$"},
+    "run_bundle_hash": {"$ref": "#/$defs/sha256"},
+    "selection_contract_hash": {"$ref": "#/$defs/sha256"},
+    "finalizer_implementation_hash": {"$ref": "#/$defs/sha256"},
+    "candidate_set_hash": {"$ref": "#/$defs/sha256"},
+    "selected_checkpoint": {"type": "object"},
+    "selected_validation_metrics": {"type": "object"},
+    "recomputed_selector_state": {"type": "object"},
+    "stopping_summary": {"type": "object"},
+    "evaluation_consumption_count": {"const": 0},
+    "provenance_chain": {"type": "array", "items": {"type": "object"}},
+    "finalization_result_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "PASS"}}},
+      "then": {
+        "properties": {"failure_code": {"const": null}, "evidence_class": {"const": "VALID_SCIENTIFIC_EVIDENCE"}},
+        "required": ["selected_checkpoint", "selected_validation_metrics", "recomputed_selector_state", "stopping_summary"]
+      }
+    }
+  ],
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+  "additionalProperties": false
+}

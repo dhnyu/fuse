@@ -115,6 +115,39 @@ def test_runtime_tree_is_order_independent_and_byte_sensitive(tmp_path):
     assert runtime_tree_manifest(tmp_path, ["a", "b"])["runtime_tree_sha256"] != left["runtime_tree_sha256"]
 
 
+def test_nonformal_four_plus_two_resume_two_fixture_is_exact(tmp_path):
+    """Eight total CPU updates: four uninterrupted plus two+resume+two."""
+    def create():
+        torch.manual_seed(91); model = torch.nn.Linear(3, 2)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=0.01)
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step: 1.0 - step / 10.0)
+        return model, optimizer, scheduler
+
+    x = torch.arange(12, dtype=torch.float32).reshape(4, 3) / 10
+    y = torch.arange(8, dtype=torch.float32).reshape(4, 2) / 7
+
+    def update(model, optimizer, scheduler):
+        optimizer.zero_grad(set_to_none=True); loss = ((model(x) - y) ** 2).mean()
+        loss.backward(); optimizer.step(); scheduler.step()
+
+    direct, direct_optimizer, direct_scheduler = create()
+    for _ in range(4): update(direct, direct_optimizer, direct_scheduler)
+
+    split, split_optimizer, split_scheduler = create()
+    for _ in range(2): update(split, split_optimizer, split_scheduler)
+    state = checkpoint_state(); state["online_model"] = split.state_dict()
+    state["ema_model"] = copy.deepcopy(split.state_dict()); state["optimizer"] = split_optimizer.state_dict()
+    state["scheduler"] = split_scheduler.state_dict(); state["progress"]["global_update"] = 2
+    state["queue"] = {"values": torch.arange(8).reshape(4, 2), "pointer": 2, "valid_count": 4}
+    save_checkpoint_atomic(tmp_path, state); restored = load_checkpoint(tmp_path, state["lineage"])
+    resumed, resumed_optimizer, resumed_scheduler = create(); resumed.load_state_dict(restored["online_model"])
+    resumed_optimizer.load_state_dict(restored["optimizer"]); resumed_scheduler.load_state_dict(restored["scheduler"])
+    for _ in range(2): update(resumed, resumed_optimizer, resumed_scheduler)
+    assert all(torch.equal(left, right) for left, right in zip(direct.state_dict().values(), resumed.state_dict().values()))
+    assert direct_optimizer.state_dict()["state"].keys() == resumed_optimizer.state_dict()["state"].keys()
+    assert direct_scheduler.state_dict() == resumed_scheduler.state_dict()
+
+
 def test_formal_runner_is_not_the_bounded_runner():
     source = (ROOT / "scripts/p9_formal_training.py").read_text()
     assert "from p9_bounded_main_pilot" not in source

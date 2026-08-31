@@ -1,0 +1,129 @@
+schema_version: "1.0.0"
+contract_name: p9-formal-execution-reauthorization-v1
+scientific_implementation_commit: eb90f6f667d1717684f47ddef30043992b70e788
+
+execution_contract:
+  implementation_commit: c40c1adb302698195d111f48376644fcbef08e31
+  runtime_tree_sha256: d8379196a400bc590575c00b6953d046ae50dc3878cd37bbeb98aa1f6d7dff55
+  runtime_files:
+    - R/research_p9_formal_authorization.R
+    - config/p6_model_dataloader.yml
+    - config/p7_deterministic_training.yml
+    - config/p9_infrastructure.yml
+    - config/schemas/p9_formal_attempt_acceptance.schema.json
+    - config/schemas/p9_formal_attempt_reservation_v2.schema.json
+    - config/schemas/p9_formal_execution_authority.schema.json
+    - config/schemas/p9_formal_resume_checkpoint.schema.json
+    - config/schemas/p9_formal_running_state.schema.json
+    - config/schemas/p9_formal_terminal_execution.schema.json
+    - config/schemas/p9_formal_validation_event.schema.json
+    - python/canonical_config.py
+    - python/p6_data.py
+    - python/p6_model.py
+    - python/p7_geometry_cache.py
+    - python/p7_training.py
+    - python/p9_formal_execution.py
+    - python/p9_infrastructure.py
+    - python/p9_model_families.py
+    - python/prototype_encoder.py
+    - python/rotating_padding_sampler.py
+    - scripts/p7_prototype_training.py
+    - scripts/p9_formal_training.py
+    - targets/research_p9_formal_authorization.R
+
+parents:
+  p9_readiness_id: p9ready_521c12a65d9b2984fac2cf11
+  p8_acceptance_id: p8acc_c9f16a07275aadfae928d329
+  p8_hyperparameter_matrix_id: p8hm_f34f1666b62255babab0ae08
+  p8_bank_index_id: p8bi_2e492527089bf5ce9d00a933
+  p7_runtime_acceptance_id: p7rta_c780441a553abe26772827d0
+  p7_acceptance_id: p7acc_3c78cc0e85b93aec6a0cc02c
+  production_cache_acceptance_id: p9ca_99725ef4c56f8b11b4d71935
+  production_cache_id: p9cache_f8b16c49f2c63216609b013b
+  dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
+
+artifacts:
+  p9_readiness: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/infrastructure/p9ready_521c12a65d9b2984fac2cf11/p9_infrastructure_readiness.json
+  p8_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_3cb1c49084529987f0244a93/p8acc_c9f16a07275aadfae928d329/formal_experiment_plan_acceptance.json
+  p8_hyperparameter_matrix: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_3cb1c49084529987f0244a93/p8acc_c9f16a07275aadfae928d329/hyperparameter_configuration_matrix.json
+  p7_runtime_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype/runtime/acceptance/p7rta_c780441a553abe26772827d0/cold_path_runtime_acceptance.json
+  production_cache_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization/p9a_c16721ffbce259df3f723cdd/production_cache_acceptance.json
+  categories: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_cd00016f6b5bfd960b0a6842/production/acceptance/bsa_e617ee0280a6edfa722994d3/spatial_categories.json
+
+roots:
+  production_cache: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/production_cache/p9cba_5c472951ac896e82a0a0f555
+  formal_attempts: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/attempts
+  attempt_locks: /mnt/hdd002/dhnyu/fusedata/runtime/p9_attempt_locks
+
+publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization
+
+training_contract:
+  runner_class: P9_FORMAL
+  bounded_pilot_output_accepted: false
+  trajectory:
+    maximum_epochs: 200
+    updates_per_epoch: 76
+    maximum_updates: 15200
+  world_size: 2
+  global_batch_size: 32
+  per_rank_batch_size: 16
+  precision: float32
+  amp: false
+  tf32: false
+  allowed_operational_overrides: [log_verbosity]
+  scientific_cli_overrides: prohibited
+
+validation_contract:
+  interval_epochs: 5
+  query_count: 800
+  gallery_count: 400
+  primary: validation_retrieval_loss_lower
+  tie_threshold: 0.0001
+  tie_breaker: mean_source_separation_margin_larger_then_earlier_epoch
+  patience_events: 4
+  evaluation_queries: prohibited
+  mrr_hit_selector_use: prohibited
+
+checkpoint_contract:
+  atomic_stage_and_rename: true
+  exact_same_attempt_resume_only: true
+  required_state:
+    - online_model
+    - ema_model
+    - optimizer
+    - scheduler
+    - epoch_and_global_update
+    - within_epoch_sampler_cursor
+    - sampler_state
+    - all_rank_rng_states
+    - queue_payload_and_pointers
+    - early_stopping_state
+    - best_checkpoint_state
+    - validation_trace
+    - complete_lineage
+    - runtime_tree_identity
+    - world_size_contract
+
+locking_contract:
+  controller_owners_lock: true
+  ddp_rank_lock_count: 0
+  kernel_flock: true
+  durable_owner_record: true
+  heartbeat: true
+  automatic_stale_lock_deletion: false
+  stale_recovery_requires_authority: true
+  exact_resume_recognition: true
+
+cfg_main:
+  seed: 1749989426
+  seed_identity: 787e77a3684eb832cdfab0bfd1bded526d5d42b390d7ed84e2663cb1817c2815
+  cache_subset_identity: p8abi_34ec95ac92e1d3531f13fb81
+
+superseded:
+  authority_id: p9a_c16721ffbce259df3f723cdd
+  authority_path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization/p9a_c16721ffbce259df3f723cdd/p9_formal_training_authority.json
+  reservation_id: p9res_c0f73b80e4f90ed3cc8a3346
+  reservation_path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization/p9a_c16721ffbce259df3f723cdd/cfg_main_attempt_reservation.json
+  prepublication_validation_authority_id: p9a_6a4cbc93682d3110e3cd93b6
+  prepublication_validation_reservation_id: p9res_b6a28fb1da823ce897fe6e34
+  prepublication_validation_status: UNEXECUTED_SUPERSEDED_BEFORE_ACCEPTANCE

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:run-bundle-manifest:2.0.0",
+  "title": "P9 v2 committed immutable run bundle manifest",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "bundle_id", "bundle_content_sha256", "run_id", "bindings", "scientific_state", "operational_state", "resumability_state", "bundle_status", "evaluation_consumption_count", "ledger", "inventory", "external_objects", "validation_checkpoint_count", "stopping_boundary", "source_inventory_digest", "legacy_import"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p9_v2_run_bundle_manifest"},
+    "bundle_id": {"type": "string", "pattern": "^p9rb_[0-9a-f]{24}$"},
+    "bundle_content_sha256": {"$ref": "#/$defs/sha256"},
+    "run_id": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
+    "bindings": {
+      "type": "object",
+      "required": ["authority_id", "authority_hash", "scientific_configuration_id", "scientific_configuration_hash", "runtime_id", "runtime_digest", "source_parents_id", "source_parents_hash", "cache_acceptance_id", "cache_acceptance_hash", "sampler_contract_id", "sampler_contract_hash", "selection_contract_id", "selection_contract_hash", "ledger_manifest_id", "ledger_manifest_sha256"],
+      "properties": {
+        "authority_id": {"type": "string", "minLength": 1}, "authority_hash": {"$ref": "#/$defs/sha256"},
+        "scientific_configuration_id": {"type": "string", "minLength": 1}, "scientific_configuration_hash": {"$ref": "#/$defs/sha256"},
+        "runtime_id": {"type": "string", "minLength": 1}, "runtime_digest": {"$ref": "#/$defs/sha256"},
+        "source_parents_id": {"type": "string", "minLength": 1}, "source_parents_hash": {"$ref": "#/$defs/sha256"},
+        "cache_acceptance_id": {"type": "string", "minLength": 1}, "cache_acceptance_hash": {"$ref": "#/$defs/sha256"},
+        "sampler_contract_id": {"type": "string", "minLength": 1}, "sampler_contract_hash": {"$ref": "#/$defs/sha256"},
+        "selection_contract_id": {"type": "string", "minLength": 1}, "selection_contract_hash": {"$ref": "#/$defs/sha256"},
+        "ledger_manifest_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "ledger_manifest_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "scientific_state": {"enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETE", "INCOMPLETE"]},
+    "operational_state": {"enum": ["AUTHORIZED", "STARTING", "RUNNING", "FINALIZING", "ACCEPTED", "INTERRUPTED_RESUMABLE", "TRAINING_FAILED", "FINALIZATION_FAILED", "BLOCKED"]},
+    "resumability_state": {"enum": ["NOT_APPLICABLE", "EXACT_RESUME_ALLOWED", "RESTART_REQUIRED", "NOT_APPLICABLE_SCIENTIFICALLY_COMPLETE", "FORBIDDEN_POLICY", "EVIDENCE_INVALID"]},
+    "bundle_status": {"enum": ["SCIENTIFICALLY_COMPLETE", "SCIENTIFICALLY_INCOMPLETE"]},
+    "evaluation_consumption_count": {"const": 0},
+    "ledger": {
+      "type": "object",
+      "required": ["manifest_path", "event_count", "last_sequence", "tail_event_hash"],
+      "properties": {
+        "manifest_path": {"const": "ledger/commit/ledger_manifest.json"},
+        "event_count": {"type": "integer", "minimum": 1},
+        "last_sequence": {"type": "integer", "minimum": 1},
+        "tail_event_hash": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "inventory": {
+      "type": "object",
+      "required": ["path", "sha256", "size_bytes"],
+      "properties": {"path": {"const": "inventory.json"}, "sha256": {"$ref": "#/$defs/sha256"}, "size_bytes": {"type": "integer", "minimum": 1}},
+      "additionalProperties": false
+    },
+    "external_objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["immutable_object_id", "role", "content_sha256", "byte_size", "locator_digest"],
+        "properties": {
+          "immutable_object_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "role": {"enum": ["checkpoint_payload", "checkpoint_manifest"]},
+          "content_sha256": {"$ref": "#/$defs/sha256"},
+          "byte_size": {"type": "integer", "minimum": 1},
+          "locator_digest": {"$ref": "#/$defs/sha256"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "validation_checkpoint_count": {"type": "integer", "minimum": 0},
+    "stopping_boundary": {"oneOf": [{"type": "object"}, {"type": "null"}]},
+    "source_inventory_digest": {"$ref": "#/$defs/sha256"},
+    "legacy_import": {
+      "type": "object",
+      "required": ["is_legacy_import", "annotation"],
+      "properties": {"is_legacy_import": {"type": "boolean"}, "annotation": {"oneOf": [{"type": "object"}, {"type": "null"}]}},
+      "additionalProperties": false
+    }
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+  "additionalProperties": false
+}

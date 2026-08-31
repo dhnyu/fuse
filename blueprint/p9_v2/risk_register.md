@@ -9,7 +9,7 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | R3 | Ledger event volume harms training I/O. | Medium/medium | V2-A uses one bounded segment per durable event and permits progress batching. Benchmark cadence before controller authority in V2-H. |
 | R4 | A validation metric exists without a durable checkpoint. | Medium/high | Candidate schema requires checkpoint hashes and atomic marker; finalizer ignores all other validation records. |
 | R5 | Legacy checkpoint deserialization executes unsafe code. | Low/high | Import in isolated trusted environment, hash first, no network/GPU, allowlisted types, and record loader version. Investigate conversion in V2-D without rewriting source. |
-| R6 | Content-addressed external locator becomes mutable. | Medium/high | Resolver requires immutable namespace plus hash/size verification; path alone is invalid. |
+| R6 | Content-addressed external locator becomes mutable. | Medium/high | V2-B separates namespace/key from physical root and verifies object identity, size, payload hash, and associated manifest hash on every validation. Path alone is invalid. |
 | R7 | Two publishers race. | Medium/medium | Acceptance-scoped kernel lock plus atomic create-or-validate and collision failure. |
 | R8 | Finalizer implementation changes output for same contract. | Medium/high | Bind implementation hash/version in finalization identity and golden tests; migration acceptance pins version. |
 | R9 | Authority revocation/supersession semantics are underspecified. | Medium/high | Define a small immutable eligibility index before V2-E; resolver fails closed on ambiguity. |

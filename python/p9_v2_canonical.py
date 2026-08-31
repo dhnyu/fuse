@@ -9,6 +9,7 @@ but the byte contract is language-independent and straightforward to port.
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import unicodedata
 from decimal import Decimal
@@ -20,6 +21,10 @@ MAX_SAFE_INTEGER = (1 << 53) - 1
 
 class CanonicalJSONError(ValueError):
     """Raised when a value is outside the P9 v2 canonical JSON domain."""
+
+
+def _reject_nonfinite_token(value: str) -> None:
+    raise CanonicalJSONError(f"nonfinite JSON token is prohibited: {value}")
 
 
 def _canonical_string(value: str) -> bytes:
@@ -102,6 +107,22 @@ def canonical_json_line(value: Any) -> bytes:
     """Return one canonical JSONL record with exactly one trailing newline."""
 
     return canonical_json_bytes(value) + b"\n"
+
+
+def parse_canonical_json(raw: bytes, *, json_line: bool = False) -> Any:
+    """Parse bytes only when they are the unique canonical encoding of the value."""
+
+    expected = raw[:-1] if json_line and raw.endswith(b"\n") else raw
+    if json_line and (not raw.endswith(b"\n") or raw.count(b"\n") != 1):
+        raise CanonicalJSONError("JSONL input must contain one record and one trailing newline")
+    try:
+        value = json.loads(expected.decode("utf-8"), parse_constant=_reject_nonfinite_token)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise CanonicalJSONError("invalid UTF-8 JSON") from error
+    canonical = canonical_json_line(value) if json_line else canonical_json_bytes(value)
+    if canonical != raw:
+        raise CanonicalJSONError("JSON bytes are not canonical")
+    return value
 
 
 def sha256_bytes(value: bytes) -> str:

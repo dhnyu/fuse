@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:bundle-inventory:2.0.0",
+  "title": "P9 v2 canonical internal bundle inventory",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "entries"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p9_v2_bundle_inventory"},
+    "entries": {
+      "type": "array",
+      "minItems": 16,
+      "items": {
+        "type": "object",
+        "required": ["path", "required", "media_type", "size_bytes", "sha256", "provenance_role"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"},
+          "required": {"const": true},
+          "media_type": {"enum": ["application/json", "application/x-ndjson"]},
+          "size_bytes": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "provenance_role": {"type": "string", "minLength": 1, "maxLength": 128}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

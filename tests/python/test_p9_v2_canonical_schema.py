@@ -93,8 +93,9 @@ def test_repeated_serialization_and_mapping_order_are_identical():
 
 
 def test_runtime_schemas_parse_and_pass_draft_2020_12():
-    assert len(SCHEMA_FILES) == 4
-    for name in SCHEMA_FILES:
+    v2_a_schemas = {"event", "ledger_header", "ledger_manifest", "tail_cache"}
+    assert v2_a_schemas <= set(SCHEMA_FILES)
+    for name in v2_a_schemas:
         schema = load_schema(name)
         jsonschema.Draft202012Validator.check_schema(schema)
         assert schema["$id"].endswith("2.0.0")

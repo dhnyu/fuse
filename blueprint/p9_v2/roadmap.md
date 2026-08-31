@@ -49,6 +49,6 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 
 ## Exact recommended next work unit
 
-`V2-A: schemas, canonical append-only ledger, independent state replay model, and synthetic crash-safety tests.`
+`V2-C: pure deterministic finalizer, idempotent acceptance publisher, and accepted-checkpoint resolver core using synthetic validated V2-B bundles.`
 
-It must not issue authority, create production artifacts, import the historical run, train, validate, finalize production evidence, publish acceptance, or alter v1.
+It must use only synthetic validated V2-B bundles and must not issue production authority, import the historical run, train, execute validation/evaluation, publish production acceptance, or alter v1.

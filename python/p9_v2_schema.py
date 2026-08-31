@@ -17,6 +17,9 @@ SCHEMA_FILES = {
     "ledger_header": "p9_v2_ledger_header.schema.json",
     "ledger_manifest": "p9_v2_ledger_manifest.schema.json",
     "tail_cache": "p9_v2_tail_cache.schema.json",
+    "immutable_locator": "p9_v2_immutable_locator.schema.json",
+    "bundle_inventory": "p9_v2_bundle_inventory.schema.json",
+    "run_bundle_manifest": "p9_v2_run_bundle_manifest.schema.json",
 }
 
 

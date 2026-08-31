@@ -1,12 +1,13 @@
 # Immutable P9 v2 Run Bundle
 
-Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
+Status: `V2_B_IMPLEMENTED`; this specification is descriptive and non-authorizing.
 
 ## Layout
 
 ```text
 p9rb_<24 hex>/
-  bundle_manifest.json
+  inventory.json
+  commit/run_bundle_manifest.json
   authority/authority_manifest.json
   config/scientific_configuration.json
   runtime/runtime_digest.json
@@ -14,7 +15,8 @@ p9rb_<24 hex>/
   parents/cache_acceptance.json
   contracts/sampler_contract.json
   contracts/selection_contract.json
-  ledger/ledger_manifest.json
+  ledger/header.json
+  ledger/commit/ledger_manifest.json
   ledger/segments/*.jsonl
   summary/training_summary.json
   summary/final_selector_state.json
@@ -23,28 +25,46 @@ p9rb_<24 hex>/
   checkpoints/checkpoint_inventory.json
   diagnostics/incidents.json
   provenance/source_inventory.json
-  migration/legacy_import.json              # optional
 ```
 
-Checkpoint payloads may remain in an immutable external object root. The inventory must record a canonical immutable locator, payload and manifest hashes, size, identity, source run, and atomic-completion evidence. A local relative payload is also allowed. Absolute mutable paths alone are invalid.
+Native V2-B bundles carry `legacy_import = {is_legacy_import: false, annotation: null}` in the commit manifest and do not create a migration file. V2-D may add a canonical legacy annotation under the future importer contract.
+
+Checkpoint payloads and checkpoint manifests remain in immutable external object roots; they are not copied. Their structured locator is:
+
+```json
+{
+  "backend": "filesystem",
+  "location": {"namespace": "checkpoint-store", "relative_path": "objects/<id>/checkpoint.pt"},
+  "immutable_object_id": "sha256:<content_sha256>",
+  "content_sha256": "<64 hex>",
+  "associated_manifest_sha256": "<64 hex>",
+  "byte_size": 123,
+  "role": "checkpoint_payload",
+  "media_type": "application/x-pytorch"
+}
+```
+
+The namespace and normalized POSIX relative key are canonical logical location. A validator receives the namespace-to-physical-root mapping separately. Absolute paths, `..`, backslashes, unknown backends, content-free object identities, and raw manual path strings are invalid. Moving identical bytes to a new physical root for the same namespace/key does not change bundle identity. Changing the logical key does. Location never substitutes for content verification.
 
 ## Required and optional artifacts
 
-All listed files except `migration/legacy_import.json` are required. `diagnostics/incidents.json` is required but may contain an empty array. `legacy_import.json` is required for imported v1 evidence and prohibited for native v2 runs.
+All listed native files are required. `diagnostics/incidents.json` is required but may contain an empty array. Ledger segments are copied because they are compact canonical evidence. Large checkpoint payloads and their manifests are hash-referenced. No `targets` metadata, mtime, inode, process identity beyond committed ledger evidence, temporary root, or physical namespace root enters the inventory.
 
-`bundle_manifest.json` records every file or referenced object in canonical relative-path order with size and SHA-256, schema version, required/optional classification, media type, and provenance role. It also records `evaluation_consumption_count`, which must be zero before P9 acceptance.
+`inventory.json` records every internal evidence file except itself and the commit manifest in ascending canonical relative-path order with size, SHA-256, media type, required flag, and provenance role. Duplicate, reordered, missing, or unexpected entries fail closed. The commit manifest binds the exact canonical inventory bytes by size and SHA-256 and binds an ordered external-object summary by object identity, role, content hash, size, and locator digest. `evaluation_consumption_count` must be exactly zero; held-out identities, paths, samples, metrics, and results are prohibited.
 
 ## Identity and publication
 
-1. Build the complete directory in a same-filesystem staging root.
+1. Build the complete canonical byte set in memory, then write it into a unique same-filesystem `.staging/<bundle-id>.*.incomplete` directory.
 2. Validate every required artifact, closed ledger, event chain, external object hash, scientific completion rule, source parent, and evaluation count.
-3. Construct a canonical source inventory and manifest excluding only `bundle_id` and `bundle_content_sha256` fields from the preimage.
-4. `bundle_content_sha256 = SHA256(canonical bundle manifest preimage)`.
+3. Construct the ordered internal inventory and ordered external-object summary. The commit-manifest preimage includes every manifest field except only `bundle_id` and `bundle_content_sha256`.
+4. `bundle_content_sha256 = SHA256(V2-A canonical JSON(commit manifest preimage))`.
 5. `bundle_id = "p9rb_" + bundle_content_sha256[0:24]`.
-6. Insert identity fields, validate again, `fsync` files and directories, and atomically rename staging to the identity path.
+6. Insert identity fields, validate again, `fsync` every file and staging directory, and atomically rename the complete staging directory to the identity path. That directory rename is the single logical bundle commit point; the publication root is then `fsync`ed.
 7. If the identity path exists, validate exact byte/hash equivalence and return it; never overwrite.
 
-The bundle identity covers the ordered content inventory and immutable external references, not directory mtimes, `targets` metadata, host paths, or publication time.
+The bundle identity covers schema/run identity, authority, scientific configuration, runtime, parents, cache acceptance, sampler/selection contracts, closed ledger manifest identity (`sha256:<hash>`), manifest hash and events, summaries, validation-checkpoint/checkpoint inventories, selector/stopping evidence, incidents, evaluation count, source inventory, native/legacy annotation, ordered internal inventory, and immutable external references. It excludes directory mtimes, `targets` metadata, host roots, and publication time.
+
+If a canonical path already exists, publication validates it and returns the existing object only when its content hash is identical. Concurrent identical publication produces one creator and one validated reuse. Corrupt or inconsistent destinations fail closed and are never overwritten. Staging debris has no commit path and is non-authoritative; no bundle recovery state machine or bundle lock class exists.
 
 ## Completeness rules
 
@@ -63,8 +83,10 @@ A bundle is scientifically complete only when:
 
 Operational incidents do not invalidate a scientifically complete bundle unless they undermine scientific evidence. An incident such as an epoch-field join exception is recorded without changing the scientific result.
 
+V2-B permits publication of structurally valid, scientifically incomplete evidence bundles and labels them `SCIENTIFICALLY_INCOMPLETE`; V2-C finalization must reject them. A complete bundle requires at least one committed validation-checkpoint candidate and exact equality between the final candidate and `TRAINING_COMPLETED` for `completed_epoch`, `resume_epoch`, and `optimizer_update`. `COMPLETE / FINALIZATION_FAILED / NOT_APPLICABLE_SCIENTIFICALLY_COMPLETE` is valid because operational finalization failure does not downgrade science.
+
 ## Validation
 
-The validator returns a deterministic report containing bundle identity, validation status, scientific state, evidence errors, operational warnings, replay tail hash, candidate count, stopping boundary, source inventory digest, and validation implementation version. It reads no target store and writes no bundle content.
+The standalone validator returns a deterministic structured result containing validity, completeness, bundle identity/hash, all three replay dimensions, evidence errors, replay tail hash, candidate count, source inventory digest, and validation implementation version. It reuses V2-A canonical parsing, schema validation, closed-ledger reading, hash-chain validation, and replay. It verifies every external file's existence, byte size, and SHA-256 on every validation; changing a referenced object invalidates the bundle until the original bytes are restored.
 
-The draft schema is [schemas/run_bundle.schema.json](schemas/run_bundle.schema.json).
+The architecture draft remains [schemas/run_bundle.schema.json](schemas/run_bundle.schema.json). Authoritative runtime schemas are `config/schemas/p9_v2_run_bundle_manifest.schema.json`, `p9_v2_bundle_inventory.schema.json`, and `p9_v2_immutable_locator.schema.json`.

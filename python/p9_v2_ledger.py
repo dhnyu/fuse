@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import time
@@ -16,6 +15,7 @@ from p9_v2_canonical import (
     canonical_json_line,
     canonical_sha256,
     deterministic_id,
+    parse_canonical_json,
     sha256_bytes,
 )
 from p9_v2_schema import SCHEMA_VERSION, P9V2SchemaError, validate_instance
@@ -86,28 +86,14 @@ def _no_fault(_: str) -> None:
     return None
 
 
-def _reject_constant(value: str) -> None:
-    raise LedgerCorruptionError(f"nonfinite JSON token is prohibited: {value}")
-
-
 def _parse_canonical_json(raw: bytes, *, line: bool) -> Any:
-    expected = raw[:-1] if line and raw.endswith(b"\n") else raw
-    if line and (not raw.endswith(b"\n") or raw.count(b"\n") != 1):
-        raise LedgerCorruptionError("JSONL segment must contain one record and one trailing newline")
     try:
-        value = json.loads(expected.decode("utf-8"), parse_constant=_reject_constant)
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise LedgerCorruptionError("invalid UTF-8 canonical JSON") from error
-    try:
-        canonical = canonical_json_line(value) if line else canonical_json_bytes(value)
+        return parse_canonical_json(raw, json_line=line)
     except CanonicalJSONError as error:
         raise LedgerCorruptionError("JSON value is outside the canonical contract") from error
-    if canonical != raw:
-        raise LedgerCorruptionError("JSON bytes are not canonical")
-    return value
 
 
-def _fsync_directory(path: Path) -> None:
+def fsync_directory(path: Path) -> None:
     descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
     try:
         os.fsync(descriptor)
@@ -115,7 +101,7 @@ def _fsync_directory(path: Path) -> None:
         os.close(descriptor)
 
 
-def _write_all(descriptor: int, payload: bytes) -> None:
+def write_all(descriptor: int, payload: bytes) -> None:
     offset = 0
     while offset < len(payload):
         written = os.write(descriptor, payload[offset:])
@@ -349,12 +335,12 @@ class LedgerWriter:
             stage = root / ".staging" / "header.json.incomplete"
             descriptor = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o640)
             try:
-                _write_all(descriptor, canonical_json_bytes(header))
+                write_all(descriptor, canonical_json_bytes(header))
                 os.fsync(descriptor)
             finally:
                 os.close(descriptor)
             os.replace(stage, path)
-            _fsync_directory(root)
+            fsync_directory(root)
         return cls(root)
 
     @classmethod
@@ -381,8 +367,8 @@ class LedgerWriter:
             os.replace(source, destination)
             moved.append(destination)
         if moved:
-            _fsync_directory(staging)
-            _fsync_directory(debris)
+            fsync_directory(staging)
+            fsync_directory(debris)
         return tuple(moved)
 
     def append(
@@ -425,9 +411,9 @@ class LedgerWriter:
         try:
             fault("after_staging_creation_before_write")
             midpoint = max(1, len(raw) // 2)
-            _write_all(descriptor, raw[:midpoint])
+            write_all(descriptor, raw[:midpoint])
             fault("during_stage_write")
-            _write_all(descriptor, raw[midpoint:])
+            write_all(descriptor, raw[midpoint:])
             fault("after_write_before_file_fsync")
             os.fsync(descriptor)
             fault("after_file_fsync_before_verification")
@@ -448,7 +434,7 @@ class LedgerWriter:
             raise LedgerCorruptionError("committed segment collision")
         os.replace(stage, final)
         fault("after_rename_before_directory_fsync")
-        _fsync_directory(final.parent)
+        fsync_directory(final.parent)
         fault("after_directory_fsync_before_tail_cache")
         self._update_tail(event, fault=fault)
         return event
@@ -466,13 +452,13 @@ class LedgerWriter:
         stage = self.root / ".staging" / f"tail.{os.getpid()}.{time.time_ns()}.incomplete"
         descriptor = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o640)
         try:
-            _write_all(descriptor, canonical_json_bytes(value))
+            write_all(descriptor, canonical_json_bytes(value))
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
         fault("during_tail_cache_replacement")
         os.replace(stage, self.root / "tail.json")
-        _fsync_directory(self.root)
+        fsync_directory(self.root)
 
     def close(self, *, fault: FaultHook = _no_fault) -> Path:
         current = read_ledger(self.root, verify_manifest=False)
@@ -491,9 +477,9 @@ class LedgerWriter:
         descriptor = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o640)
         try:
             midpoint = max(1, len(raw) // 2)
-            _write_all(descriptor, raw[:midpoint])
+            write_all(descriptor, raw[:midpoint])
             fault("during_closed_manifest_publication")
-            _write_all(descriptor, raw[midpoint:])
+            write_all(descriptor, raw[midpoint:])
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
@@ -501,6 +487,6 @@ class LedgerWriter:
             raise LedgerCorruptionError("staged ledger manifest differs")
         os.replace(stage, final)
         fault("after_manifest_rename_before_directory_fsync")
-        _fsync_directory(final.parent)
+        fsync_directory(final.parent)
         read_ledger(self.root)
         return final

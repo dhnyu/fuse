@@ -21,6 +21,14 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | D15 | Store one event per immutable segment, capped at 1 MiB. | Closes cadence policy with the smallest crash-safe implementation; batching remains inside progress events. | Implemented in V2-A. |
 | D16 | Define segment rename and manifest rename as logical commit points; staging and tail are non-authoritative. | Restart needs only ordinary validation/replay and cannot apply a half-published event. | Implemented in V2-A. |
 | D17 | Accept runtime schema version `2.0.0` only and fail closed on unknown versions. | Compatibility must be an explicit future migration, not permissive interpretation. | Implemented in V2-A. |
+| D18 | Use structured filesystem locators with namespace, normalized relative key, content-derived object identity, hash, size, role, and media type. | Separates physical root resolution from immutable logical evidence and rejects raw paths. | Implemented in V2-B. |
+| D19 | Copy canonical ledger/metadata evidence but hash-reference large checkpoint payloads and manifests. | Preserves independent verification without multi-GB duplication or historical rewriting. | Implemented in V2-B. |
+| D20 | Order internal inventory by relative path, validation checkpoints by epoch/identity, external objects by role/object/digest, and sources by logical path. | Makes identity independent of enumeration and caller insertion order. | Implemented in V2-B. |
+| D21 | Derive `bundle_content_sha256` from the canonical commit-manifest preimage excluding only identity/hash, then derive `p9rb_` plus its first 24 hex. | Binds all scientific evidence while avoiding recursive identity fields. | Implemented in V2-B. |
+| D22 | Publish a fully validated staging directory by atomic rename; the directory rename is the sole bundle commit point. | Partial staging remains non-authoritative and no recovery manager or third lock is needed. | Implemented in V2-B. |
+| D23 | Existing identity paths use validate-and-return for exact content and fail closed otherwise. | Provides sequential/concurrent idempotency without overwriting collisions. | Implemented in V2-B. |
+| D24 | Permit valid incomplete evidence bundles but label them `SCIENTIFICALLY_INCOMPLETE`; later finalization must reject them. | Preserves interrupted/failed evidence without confusing it with finalizable science. | Implemented in V2-B. |
+| D25 | Exclude all `targets` metadata and physical root paths; verify external size/hash on every validation. | Makes bundles portable and detects mutation instead of trusting location. | Implemented in V2-B. |
 
 ## Retained identity justification
 
@@ -36,7 +44,6 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 
 These do not block the architecture verdict but must be closed in the named unit:
 
-- V2-B: immutable locator backend syntax and whether checkpoint payloads are copied or hash-referenced.
 - V2-C: location and format of the authority eligibility/supersession index.
 - V2-D: hardened legacy PyTorch deserialization strategy.
 - V2-H: precise heartbeat interval, interruption policy, and configurable progress-summary cadence after I/O pilot.

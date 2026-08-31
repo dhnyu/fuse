@@ -58,6 +58,12 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | D52 | Record retirement in one external content-addressed manifest that hashes 9 formal authorities, 3 recovery authorities, six stores, and implementation sources without modifying those sources of evidence. | Ineligibility must be explicit and independently auditable while historical bytes remain unchanged. | Implemented in V2-I. |
 | D53 | Treat the explicit V2-I work-unit instruction as the retirement publication basis and create no new authority identity. | Retirement authorizes no science; another authority/reservation/attempt hierarchy would repeat already bound evidence. | Implemented in V2-I. |
 | D54 | Keep only one fail-closed P9 target in each active main/formal/recovery v1 graph; retain old target lists under historical-only names. | `tar_make()` cannot traverse a legacy execution closure, while source-level audit remains possible. | Implemented in V2-I. |
+| D55 | Use one content-addressed training authority and one deterministic run identity; do not add reservation, attempt, operation, or recovery identities. | The authority binds config/parents/seed and the run identity survives exact resume without recreating v1 governance. | Implemented in V2-H. |
+| D56 | Keep the controller PyTorch-free and make it the only ledger writer; science workers emit canonical proposals and opaque checkpoint payloads. | Structurally separates parameter mutation from authority, state replay, and publication. | Implemented in V2-H. |
+| D57 | Use one execution-scoped kernel `flock`; owner bytes are non-authoritative and no separate ledger/checkpoint recovery lock exists. | Duplicate starts fail deterministically while process death releases ownership and replay remains truth. | Implemented in V2-H. |
+| D58 | Make checkpoint directory publication precede ledger candidate linkage; only `VALIDATION_CHECKPOINT_COMMITTED` creates an eligible candidate. | Crash retry is ordinary create-or-validate plus ledger replay, with no recovery transaction. | Implemented in V2-H. |
+| D59 | Use one isolated eight-target graph whose authority is an explicit external file and whose controller closure contains only one configuration. | Target metadata is orchestration only and cannot bootstrap or widen a formal run. | Implemented in V2-H. |
+| D60 | Validate `cfg_d48` with one actual two-GPU production-cache batch and forward-only loss, with all scientific mutation counters fixed at zero. | Exercises production-shaped construction without creating an authority, run, checkpoint, or scientific result. | Implemented in V2-H. |
 
 ## Retained identity justification
 
@@ -69,8 +75,6 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | Finalization identity | Selection interpretation drift | Pure finalizer | Result create-or-validate | Bundle, selection contract, finalizer version | Publisher, audit |
 | Acceptance identity | Duplicate or ambiguous downstream commit | Publisher | Acceptance manifest atomic rename | Authority, bundle, finalization result | Resolver and all downstream consumers |
 
-## Unresolved implementation decisions
+## Remaining operational tuning
 
-These do not block the architecture verdict but must be closed in the named unit:
-
-- V2-H: precise heartbeat interval, interruption policy, and configurable progress-summary cadence after I/O pilot.
+Progress summaries default to epoch/validation durability boundaries. Any future change to a finer cadence requires an authorized I/O pilot but does not change scientific identity. The kernel lock owner record is diagnostic; no heartbeat is required for correctness because kernel ownership ends on process death.

@@ -27,6 +27,9 @@ SCHEMA_FILES = {
     "migration_authority": "p9_v2_migration_authority.schema.json",
     "acceptance_eligibility": "p9_v2_acceptance_eligibility.schema.json",
     "v1_retirement_manifest": "p9_v1_retirement_manifest.schema.json",
+    "training_authority": "p9_v2_training_authority.schema.json",
+    "checkpoint_commit": "p9_v2_checkpoint_commit.schema.json",
+    "training_pilot": "p9_v2_training_pilot.schema.json",
 }
 
 

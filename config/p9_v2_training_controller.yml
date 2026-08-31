@@ -1,0 +1,48 @@
+schema_version: "2.0.0"
+contract_name: p9-v2-production-training-controller-v1
+source:
+  required_branch: reduced
+  dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
+parents:
+  p8_acceptance_id: p8acc_c9f16a07275aadfae928d329
+  p8_hyperparameter_matrix_id: p8hm_f34f1666b62255babab0ae08
+  p8_comparison_matrix_id: p8cm_cd7d0f45dd41a7c351ea4d78
+  p7_runtime_acceptance_id: p7rta_c780441a553abe26772827d0
+  p7_acceptance_id: p7acc_3c78cc0e85b93aec6a0cc02c
+  p6_acceptance_id: mda_b07032bd970d101ec1da7a4b
+  p5_validation_acceptance_id: fqsa_27565de68d9432e47fe7b99d
+  p4_bank_id: augbank_252ce67e6d74679b02871e57
+  p4_bank_acceptance_id: aba_39de6c260a8e427767bc01d6
+  p3_cache_acceptance_id: osca_a55d2c02c3737c5f5557092a
+  production_cache_id: p9cache_f8b16c49f2c63216609b013b
+  production_cache_acceptance_id: p9ca_99725ef4c56f8b11b4d71935
+  v1_retirement_id: p9ret_7921290e923f5d879e6d84c1
+roots:
+  p8_bundle: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_3cb1c49084529987f0244a93/p8acc_c9f16a07275aadfae928d329
+  production_cache: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/production_cache/p9cba_5c472951ac896e82a0a0f555
+  production_cache_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization/p9a_c16721ffbce259df3f723cdd/production_cache_acceptance.json
+  immutable_publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2
+  eligibility_snapshot: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical/eligibility/p9elig_335f0baafea2a7e381f3634e.json
+  writable_runs: /mnt/hdd002/dhnyu/fusedata/runtime/p9_v2_training_runs
+  execution_locks: /mnt/hdd002/dhnyu/fusedata/runtime/p9_v2_training_locks
+selection_contract_id: p9-selection-v2.1.0
+production_cache_manifest_sha256: 5e512bec42f6112340fd5f2a0d5aa0f4232d5372e324d698493b374b576ce28a
+execution:
+  world_size: 2
+  backend: nccl
+  precision: float32
+  optimizer_updates_per_epoch: 76
+  validation_interval_epochs: 5
+  early_stopping_patience_events: 4
+  exact_resume: committed_checkpoint_only
+  scientific_divergence_code: SCIENTIFIC_DIVERGENCE
+non_training_pilot:
+  configuration_id: cfg_d48
+  production_batches: 1
+  backward_passes: 0
+  optimizer_updates: 0
+  ema_updates: 0
+  queue_mutations: 0
+  checkpoint_publications: 0
+  validation_executions: 0
+  evaluation_executions: 0

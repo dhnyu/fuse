@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p9_v2_training_pilot.schema.json",
+  "title": "P9 v2 non-training pilot evidence",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "status", "configuration_id", "world_size", "production_batch_loaded", "finite_forward_loss", "construction", "mutation_counts", "evaluation_counts"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"}, "artifact_type": {"const": "p9_v2_non_training_pilot"},
+    "status": {"const": "PASS"}, "configuration_id": {"type": "string", "not": {"const": "cfg_main"}},
+    "world_size": {"const": 2}, "production_batch_loaded": {"const": true}, "finite_forward_loss": {"const": true},
+    "construction": {"type": "object", "additionalProperties": {"type": "boolean"}},
+    "mutation_counts": {"type": "object", "additionalProperties": {"const": 0}},
+    "evaluation_counts": {"type": "object", "additionalProperties": {"const": 0}}
+  },
+  "additionalProperties": false
+}

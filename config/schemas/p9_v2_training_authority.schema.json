@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p9_v2_training_authority.schema.json",
+  "title": "P9 v2 training authority bound evidence",
+  "type": "object",
+  "required": ["schema_version", "identity", "content_sha256", "content"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "identity": {"type": "string", "pattern": "^p9authv2_[0-9a-f]{24}$"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "content": {
+      "type": "object",
+      "required": ["authority_kind", "scope", "scientific_run_key", "scientific", "parents", "execution_policy"],
+      "properties": {
+        "authority_kind": {"const": "FUTURE_FORMAL_TRAINING"},
+        "scope": {"const": "ONE_NEW_FORMAL_CONFIGURATION"},
+        "scientific_run_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "scientific": {
+          "type": "object",
+          "required": ["configuration_id", "configuration_hash", "scientific_implementation_hash", "selection_contract_id", "root_seed", "evaluation_ancestry"],
+          "properties": {
+            "configuration_id": {"type": "string", "pattern": "^(cfg|cmp)_[a-z0-9_]+$"},
+            "configuration_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "scientific_implementation_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "selection_contract_id": {"const": "p9-selection-v2.1.0"},
+            "root_seed": {"type": "integer", "minimum": 0},
+            "evaluation_ancestry": {"const": false}
+          },
+          "additionalProperties": false
+        },
+        "parents": {
+          "type": "object",
+          "required": ["methodology_commit", "p8_acceptance_id", "p7_runtime_acceptance_id", "p7_acceptance_id", "p6_acceptance_id", "p5_validation_acceptance_id", "p4_bank_id", "p4_bank_acceptance_id", "p3_cache_acceptance_id", "production_cache_id", "production_cache_acceptance_id", "v1_retirement_id"],
+          "properties": {
+            "methodology_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "p8_acceptance_id": {"type": "string", "minLength": 1}, "p7_runtime_acceptance_id": {"type": "string", "minLength": 1},
+            "p7_acceptance_id": {"type": "string", "minLength": 1}, "p6_acceptance_id": {"type": "string", "minLength": 1},
+            "p5_validation_acceptance_id": {"type": "string", "minLength": 1}, "p4_bank_id": {"type": "string", "minLength": 1},
+            "p4_bank_acceptance_id": {"type": "string", "minLength": 1}, "p3_cache_acceptance_id": {"type": "string", "minLength": 1},
+            "production_cache_id": {"type": "string", "minLength": 1}, "production_cache_acceptance_id": {"type": "string", "minLength": 1},
+            "v1_retirement_id": {"type": "string", "pattern": "^p9ret_[0-9a-f]{24}$"}
+          },
+          "additionalProperties": false
+        },
+        "execution_policy": {
+          "type": "object",
+          "required": ["world_size", "backend", "training_allowed", "resume_policy", "validation_only_selection", "canonical_acceptance_handoff"],
+          "properties": {
+            "world_size": {"const": 2}, "backend": {"const": "nccl"}, "training_allowed": {"const": true},
+            "resume_policy": {"const": "EXACT_COMMITTED_CHECKPOINT_ONLY"}, "validation_only_selection": {"const": true},
+            "canonical_acceptance_handoff": {"const": "V2_B_V2_C_EXISTING_APIS"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

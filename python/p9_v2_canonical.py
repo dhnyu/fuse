@@ -13,6 +13,7 @@ import json
 import math
 import unicodedata
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 
@@ -127,6 +128,12 @@ def parse_canonical_json(raw: bytes, *, json_line: bool = False) -> Any:
 
 def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def sha256_file(path: str | Path) -> str:
+    """Hash exact file bytes without making filesystem metadata part of identity."""
+    with Path(path).open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def canonical_sha256(value: Any) -> str:

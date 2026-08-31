@@ -164,3 +164,7 @@ held-out evaluation, P10, and P11 all call the same configured resolver and
 receive the same `AcceptedCheckpoint`. Their public APIs accept an acceptance
 identity, never a checkpoint, bundle, finalization, recovery, or filesystem
 path. There is no `latest` or manual fallback.
+
+## V2-H handoff boundary
+
+The training controller does not finalize, publish acceptance/eligibility, or resolve downstream checkpoints. A scientifically complete closed ledger is handed to the existing V2-B builder and the existing pure V2-C finalizer using `p9-selection-v2.1.0`; acceptance uses the existing short acceptance lock. Training interruption resumes before this handoff, while finalization or acceptance failure retries after it without training or a recovery DAG.

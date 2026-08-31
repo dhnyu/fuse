@@ -123,3 +123,9 @@ source_run_id
 The invariant is explicit: `completed_epoch = N`, `resume_epoch = N + 1`, and `optimizer_update = N * updates_per_epoch` for this contract. The finalizer compares `completed_epoch` only with selection metrics and never infers it from a directory name or `resume_epoch`. A validation with no committed checkpoint event is diagnostic only and is never a candidate.
 
 The architecture draft remains [schemas/validation_checkpoint_event.schema.json](schemas/validation_checkpoint_event.schema.json). The authoritative V2-A runtime envelope and payload constraints are in `config/schemas/p9_v2_event.schema.json`.
+
+## V2-H writer protocol
+
+There remains one canonical writer per run: the controller. Rank 0 submits canonical proposals for scientific events; the controller validates writer permission and appends through V2-A. The production cadence is one event per epoch start, bounded progress-summary block, validation-checkpoint commit, early-stopping decision, and terminal transition. Individual update events remain optional durable diagnostics and are not the default cadence.
+
+`commit_validation_checkpoint()` first validates and publishes opaque worker checkpoint bytes plus `checkpoint_manifest.json`, then appends `VALIDATION_CHECKPOINT_COMMITTED` with exact payload and manifest byte hashes. The ledger-event rename remains candidate eligibility. A crash before it leaves no candidate; a crash after it replays exactly one candidate. Tail/owner/heartbeat-like files remain non-authoritative.

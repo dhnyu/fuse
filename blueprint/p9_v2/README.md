@@ -75,16 +75,15 @@ The scientific plane may consume data and cache, update model state, validate, c
 
 ## Minimal `targets` boundary
 
-The proposed isolated script is `_targets_p9_v2.R` with a generation-specific external store. This is conceptual only and is not implemented here. It contains eight targets and seven internal edges:
+The implemented isolated script is `_targets_p9_v2_training.R` with an authority-explicit external store. It contains eight targets and seven target-to-target edges:
 
 ```text
-p9v2_immutable_inputs
-  -> p9v2_execution_authority
-  -> p9v2_run_controller
+p9v2_training_contract + p9v2_training_authority
+  -> p9v2_closed_ledger
   -> p9v2_run_bundle
-  -> p9v2_bundle_validation
   -> p9v2_finalization_result
-  -> p9v2_acceptance
+  -> p9v2_acceptance_commit
+  -> p9v2_eligibility_snapshot
   -> p9v2_accepted_checkpoint
 ```
 
@@ -111,3 +110,9 @@ The controller target is coarse grained. Mutable controller transitions are ledg
 3. Acceptance must not mutate the bundle or finalization result.
 4. Downstream consumers must not accept a manual checkpoint path, a v1 recovery artifact, an uncommitted result, or "latest checkpoint" fallback.
 5. Evaluation identities and evaluation data must not enter the run ledger, bundle selection evidence, finalizer, or acceptance publication except for the audited scalar `evaluation_consumption_count = 0`.
+
+## V2-H production controller implementation
+
+V2-H implements the future-run control boundary in `python/p9_v2_training_controller.py` and keeps the science-plane construction/pilot in `python/p9_v2_training_pilot.py`. The controller imports no PyTorch code. It consumes exactly one immutable `p9authv2_` authority, derives one `p9runv2_` identity, owns the V2-A ledger writer, and holds one duplicate-run `flock`. Science workers submit canonical event proposals; they cannot publish acceptance or eligibility.
+
+The active isolated graph is `_targets_p9_v2_training.R`: eight coarse targets and seven target-to-target edges from explicit authority input through the existing V2-B/V2-C handoff and accepted resolver output. It is inert without `P9_V2_TRAINING_AUTHORITY`; v1 graphs remain retired. The V2-H pilot used actual `cfg_d48`, two GPUs, one global production batch, model/EMA/optimizer/scheduler/queue/sampler construction, and a finite forward-only loss with zero scientific mutation. No formal run or authority was created.

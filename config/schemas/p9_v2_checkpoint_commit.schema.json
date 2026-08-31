@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p9_v2_checkpoint_commit.schema.json",
+  "title": "P9 v2 checkpoint commit manifest",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "checkpoint_id", "run_id", "completed_epoch", "resume_epoch", "optimizer_update", "payload", "state_presence", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p9_v2_checkpoint_commit"},
+    "checkpoint_id": {"type": "string", "pattern": "^p9ck_[0-9a-f]{24}$"},
+    "run_id": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
+    "completed_epoch": {"type": "integer", "minimum": 1},
+    "resume_epoch": {"type": "integer", "minimum": 2},
+    "optimizer_update": {"type": "integer", "minimum": 1},
+    "payload": {
+      "type": "object",
+      "required": ["relative_path", "sha256", "byte_size"],
+      "properties": {
+        "relative_path": {"const": "checkpoint.pt"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "byte_size": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "state_presence": {
+      "type": "object",
+      "required": ["online_model", "ema_model", "optimizer", "scheduler", "queue", "sampler", "rng_states", "validation_trace", "training_trace", "early_stopping"],
+      "properties": {
+        "online_model": {"const": true}, "ema_model": {"const": true}, "optimizer": {"const": true},
+        "scheduler": {"const": true}, "queue": {"const": true}, "sampler": {"const": true},
+        "rng_states": {"const": true}, "validation_trace": {"const": true}, "training_trace": {"const": true},
+        "early_stopping": {"const": true}, "amp_scaler": {"type": ["boolean", "null"]},
+        "best_checkpoint": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

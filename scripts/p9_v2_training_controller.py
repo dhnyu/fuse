@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Authority-gated P9 v2 controller and single canonical ledger writer."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "python"))
+
+from p9_v2_canonical import parse_canonical_json  # noqa: E402
+from p9_v2_training_controller import (  # noqa: E402
+    StartupInputs, TrainingController, TrainingControllerError, TrainingRunLock,
+    accepted_scientific_configurations, validate_startup, validate_training_authority,
+)
+
+
+def now() -> str:
+    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+def load(path: str) -> dict:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def visible_gpu_count() -> int:
+    output = subprocess.check_output(
+        ["nvidia-smi", "--query-gpu=index", "--format=csv,noheader"], text=True)
+    return len([line for line in output.splitlines() if line.strip()])
+
+
+def startup_inputs(contract: dict) -> StartupInputs:
+    p8 = Path(contract["roots"]["p8_bundle"])
+    parents = dict(contract["parents"])
+    parents["methodology_commit"] = contract["source"]["dissertation_commit"]
+    return StartupInputs(
+        fuse_root=ROOT, dissertation_root=Path.home() / "dhnyu-masters-dissertation",
+        retirement_manifest=Path(contract["roots"]["immutable_publication"]) / "canonical/retirement" /
+            contract["parents"]["v1_retirement_id"] / "retirement_manifest.json",
+        p8_acceptance=p8 / "formal_experiment_plan_acceptance.json",
+        p8_matrix=p8 / "hyperparameter_configuration_matrix.json",
+        production_cache_root=Path(contract["roots"]["production_cache"]),
+        production_cache_acceptance=Path(contract["roots"]["production_cache_acceptance"]),
+        writable_root=Path(contract["roots"]["writable_runs"]),
+        immutable_root=Path(contract["roots"]["immutable_publication"]),
+        expected_dissertation_commit=contract["source"]["dissertation_commit"],
+        expected_retirement_id=contract["parents"]["v1_retirement_id"],
+        expected_p8_acceptance_id=contract["parents"]["p8_acceptance_id"],
+        expected_cache_id=contract["parents"]["production_cache_id"],
+        expected_cache_acceptance_id=contract["parents"]["production_cache_acceptance_id"],
+        expected_cache_manifest_sha256=contract["production_cache_manifest_sha256"],
+        expected_parents={key: parents[key] for key in (
+            "methodology_commit", "p8_acceptance_id", "p7_runtime_acceptance_id", "p7_acceptance_id",
+            "p6_acceptance_id", "p5_validation_acceptance_id", "p4_bank_id", "p4_bank_acceptance_id",
+            "p3_cache_acceptance_id", "production_cache_id", "production_cache_acceptance_id", "v1_retirement_id")},
+    )
+
+
+def run(args: argparse.Namespace) -> dict:
+    authority = load(args.authority); validate_training_authority(authority)
+    content = authority["content"]
+    contract = yaml.safe_load(Path(args.contract).read_text(encoding="utf-8"))
+    accepted_ids, accepted_hashes = accepted_scientific_configurations(
+        Path(contract["roots"]["immutable_publication"]) / "canonical", contract["roots"]["eligibility_snapshot"])
+    validate_startup(authority, startup_inputs(contract), accepted_hashes=accepted_hashes,
+                     accepted_configuration_ids=accepted_ids, cuda_devices=visible_gpu_count())
+    run_root = Path(args.output) / content["scientific_run_key"]
+    with TrainingRunLock(contract["roots"]["execution_locks"], content["scientific_run_key"]):
+        controller = TrainingController(authority, run_root / "ledger", created_at=now())
+        if controller.replay().last_committed_sequence == 0:
+            controller.append("RUN_AUTHORIZED", {
+                "authority_hash": authority["content_sha256"],
+                "scientific_configuration_hash": content["scientific"]["configuration_hash"],
+                "parent_identities": content["parents"], "duplicate_run_key": content["scientific_run_key"],
+            }, occurred_at=now())
+        state = controller.replay()
+        if state.operational_state == "INTERRUPTED_RESUMABLE" and not controller.resume_allowed():
+            raise TrainingControllerError("EXACT_RESUME_EVIDENCE_REQUIRED")
+        controller.append("RUN_STARTING", {
+            "owner_id": "p9-v2-controller", "execution_environment_digest": authority["content_sha256"],
+            "training_lock_key": content["scientific_run_key"],
+        }, occurred_at=now())
+        command = shlex.split(args.science_worker_command)
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        controller.append("RUN_STARTED", {"process_id": str(process.pid), "world_size": 2,
+                                           "runtime_digest": authority["content_sha256"]}, occurred_at=now())
+        assert process.stdout is not None
+        for raw in process.stdout:
+            proposal = parse_canonical_json(raw, json_line=True)
+            if set(proposal) != {"event_type", "occurred_at", "payload", "writer_id", "writer_role"}:
+                process.kill(); raise TrainingControllerError("SCIENCE_WORKER_PROTOCOL_INVALID")
+            controller.append(proposal["event_type"], proposal["payload"], occurred_at=proposal["occurred_at"],
+                              writer_id=proposal["writer_id"], writer_role=proposal["writer_role"])
+        stderr = process.stderr.read().decode("utf-8", errors="replace") if process.stderr else ""
+        code = process.wait(); state = controller.replay()
+        if code != 0:
+            boundary = state.last_durable_scientific_boundary
+            exact = bool(boundary and state.best_checkpoint_state)
+            if boundary is None: boundary = {"completed_epoch": 0, "resume_epoch": 1, "optimizer_update": 0}
+            controller.append("TRAINING_INTERRUPTED", {
+                "last_durable_boundary": {key: boundary[key] for key in ("completed_epoch", "resume_epoch", "optimizer_update")},
+                "resumable_checkpoint_committed": exact, "resume_policy": "EXACT_RESUME" if exact else "RESTART",
+                "interruption_reason": f"SCIENCE_WORKER_EXIT_{code}",
+            }, occurred_at=now())
+            controller.close()
+            raise TrainingControllerError(f"SCIENCE_WORKER_INTERRUPTED: {stderr[-1000:]}")
+        if controller.replay().scientific_state != "COMPLETE":
+            raise TrainingControllerError("SCIENCE_WORKER_EXITED_WITHOUT_TRAINING_COMPLETED")
+        manifest = controller.close()
+        return {"status": "COMPLETE", "run_id": controller.run_id, "ledger_manifest": str(manifest)}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(); parser.add_argument("mode", choices=("validate", "run"))
+    parser.add_argument("--authority", required=True); parser.add_argument("--contract", required=True)
+    parser.add_argument("--output", default=""); parser.add_argument("--science-worker-command", default="")
+    args = parser.parse_args()
+    if args.mode == "validate":
+        authority = load(args.authority); validate_training_authority(authority)
+        print(json.dumps({"status": "PASS", "authority_id": authority["identity"]}, sort_keys=True))
+    else:
+        if not args.output or not args.science_worker_command: parser.error("run requires output and science worker command")
+        print(json.dumps(run(args), sort_keys=True))
+
+
+if __name__ == "__main__": main()

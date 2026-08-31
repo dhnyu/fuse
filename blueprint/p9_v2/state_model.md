@@ -81,3 +81,9 @@ The historical import creates legacy-marked events whose derivation metadata poi
 | `ACCEPTANCE_PUBLISHED` | completed finalization | `COMPLETE` | `ACCEPTED` | scientifically complete |
 
 Illegal transitions fail closed. Strict replay raises an error; diagnostic replay returns `INCOMPLETE/BLOCKED/EVIDENCE_INVALID` with validation reasons. Identical committed bytes produce identical replay output. V2-A does not implement finalization or publication business logic; their events exist only to make the independent state model complete.
+
+## V2-H controller interpretation
+
+The production controller continues an existing run identity only from `INTERRUPTED_RESUMABLE/EXACT_RESUME_ALLOWED` whose boundary exactly matches the latest committed validation-checkpoint event. Process death with no such event is `RESTART_REQUIRED`; corruption, parent/config drift, nonfinite science, or a deterministic contract violation is nonresumable evidence and never reclassified as infrastructure retry. In particular `cfg_lr_10` may terminate with failure class `SCIENTIFIC_DIVERGENCE`; it cannot become an accepted winner and requires a new authority for any policy-approved restart.
+
+Controller bookkeeping after a committed ledger segment cannot downgrade or duplicate that event. Checkpoint payload/manifest commit without the ledger linkage is immutable but ineligible debris; retry validates or reuses it and appends the linkage exactly once.

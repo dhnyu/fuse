@@ -90,3 +90,9 @@ V2-B permits publication of structurally valid, scientifically incomplete eviden
 The standalone validator returns a deterministic structured result containing validity, completeness, bundle identity/hash, all three replay dimensions, evidence errors, replay tail hash, candidate count, source inventory digest, and validation implementation version. It reuses V2-A canonical parsing, schema validation, closed-ledger reading, hash-chain validation, and replay. It verifies every external file's existence, byte size, and SHA-256 on every validation; changing a referenced object invalidates the bundle until the original bytes are restored.
 
 The architecture draft remains [schemas/run_bundle.schema.json](schemas/run_bundle.schema.json). Authoritative runtime schemas are `config/schemas/p9_v2_run_bundle_manifest.schema.json`, `p9_v2_bundle_inventory.schema.json`, and `p9_v2_immutable_locator.schema.json`.
+
+## V2-H handoff
+
+A native controller closes the same V2-A ledger consumed by the existing V2-B builder. The checkpoint commit manifest requires online model, EMA, optimizer, scheduler, queue, sampler, all-rank RNG, validation trace, training trace, and early-stopping evidence; AMP scaler is explicitly null when disabled. The bundle/finalizer still treats the ledger candidate sequence as selection authority and never trusts a checkpoint-internal `best` convenience field.
+
+The controller adds no bundle format or mutable bundle state. Its terminal handoff is only the closed ledger plus content-addressed artifacts and immutable parent/config evidence already required by V2-B.

@@ -15,7 +15,8 @@ script_path <- function() {
 
 parse_network_args <- function(args) {
   output <- list(output_dir = "artifacts/targets-network", focus = character(), degree = 1L,
-                 store = NULL, phases = "tools/targets-network/target_phases.yml")
+                 store = NULL, script = targets::tar_config_get("script"),
+                 phases = "tools/targets-network/target_phases.yml")
   for (arg in args) {
     if (grepl("^--output-dir=", arg)) output$output_dir <- sub("^--output-dir=", "", arg)
     else if (grepl("^--focus=", arg)) {
@@ -23,6 +24,7 @@ parse_network_args <- function(args) {
       output$focus <- unique(Filter(nzchar, trimws(strsplit(value, ",", fixed = TRUE)[[1L]])))
     } else if (grepl("^--degree=", arg)) output$degree <- suppressWarnings(as.integer(sub("^--degree=", "", arg)))
     else if (grepl("^--store=", arg)) output$store <- sub("^--store=", "", arg)
+    else if (grepl("^--script=", arg)) output$script <- sub("^--script=", "", arg)
     else if (grepl("^--phases=", arg)) output$phases <- sub("^--phases=", "", arg)
     else stop("Unknown argument: ", arg, call. = FALSE)
   }
@@ -329,8 +331,9 @@ write_if_changed_atomic <- function(content, output_file) {
 }
 
 render_targets_network <- function(output_dir, focus = character(), degree = 1L, store = targets::tar_config_get("store"),
-                                   phase_file = "tools/targets-network/target_phases.yml") {
-  snapshot <- extract_network_snapshot(store)
+                                   phase_file = "tools/targets-network/target_phases.yml",
+                                   script = targets::tar_config_get("script")) {
+  snapshot <- extract_network_snapshot(store, script)
   phase_config <- read_phase_config(phase_file)
   assignments <- assign_target_phases(snapshot$manifest$name, phase_config)
   nodes <- build_nodes(snapshot, assignments, phase_config)
@@ -359,7 +362,7 @@ main <- function() {
   setwd(project_root)
   options <- parse_network_args(commandArgs(trailingOnly = TRUE))
   if (is.null(options$store)) options$store <- yaml::read_yaml("config/research_paths.yml")$targets$research_store
-  outputs <- render_targets_network(options$output_dir, options$focus, options$degree, options$store, options$phases)
+  outputs <- render_targets_network(options$output_dir, options$focus, options$degree, options$store, options$phases, options$script)
   statistics <- attr(outputs, "statistics")
   message("Created dependency HTML:\n", paste0("- ", outputs, collapse = "\n"),
           "\nSnapshot: ", statistics$node_count, " targets, ", statistics$edge_count, " edges, ",

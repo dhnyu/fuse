@@ -23,6 +23,7 @@ SCHEMA_FILES = {
     "selection_contract": "p9_v2_selection_contract.schema.json",
     "finalization_result": "p9_v2_finalization_result.schema.json",
     "acceptance": "p9_v2_acceptance.schema.json",
+    "legacy_import": "p9_v2_legacy_import.schema.json",
 }
 
 

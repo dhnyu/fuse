@@ -91,7 +91,7 @@ The controller target is coarse grained. Mutable controller transitions are ledg
 - [roadmap.md](roadmap.md): bounded V2-A through V2-I work units and complexity targets.
 - [risk_register.md](risk_register.md): risks and mitigations.
 - [decision_log.md](decision_log.md): architecture decisions and unresolved choices.
-- `schemas/`: non-runtime architecture drafts. V2-A through V2-C runtime schemas are versioned under `config/schemas/p9_v2_*.schema.json`.
+- `schemas/`: non-runtime architecture drafts. V2-A through V2-D runtime schemas are versioned under `config/schemas/p9_v2_*.schema.json`.
 
 ## Prohibited dependencies
 

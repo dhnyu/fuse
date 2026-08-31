@@ -1,6 +1,6 @@
 # Historical Import and Legacy Retirement
 
-Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
+Status: `V2_D_DRY_RUN_IMPLEMENTED_NONCANONICAL_NON_AUTHORIZING`
 
 ## Read-only audit verdict
 
@@ -64,17 +64,52 @@ Accepted parents are intact and hash-bound by immutable root inventory `p9root_4
 
 `MISSING_BLOCKING`: none.
 
-## Importer rules
+## V2-D importer rules
 
-The importer is a future read-only tool. It receives explicit source run/attempt/authority identities and an expected source-inventory digest. It must:
+V2-D implements a read-only adapter in `python/p9_v2_legacy_import.py`. It receives
+explicit source run/attempt/authority identities and constructs a full ordered
+source-inventory digest. It:
 
 1. Open all source artifacts read-only and reject symlinks, mutable aliases, unexpected files, hash changes, or incomplete pairs.
 2. Revalidate 25 validation records and 25 manifests/payloads without executing model code, validation, or evaluation.
-3. Emit canonical legacy events ordered by source validation epoch and control evidence order. Every event has `legacy_import: true`, source path/hash, derivation rule ID, importer implementation hash, and `observed_source_timestamp`; it never claims an event occurred at import time.
+3. Emits V2-A events ordered by completed validation epoch. Every event has
+   `legacy_import: true`; deterministic event occurrence values are derived from
+   the immutable source start time plus event sequence and are explicitly
+   described by annotation rule `p9-v1-formal-to-v2-events-v1`, not represented
+   as contemporaneous v2 writes.
 4. Normalize `completed_epoch=N` and `resume_epoch=N+1` explicitly. It never changes source manifests.
 5. Derive IDs, selector state, completion, stopping boundary, and source inventory only through documented pure rules. It does not recompute metrics or model outputs.
-6. Publish a new content-addressed v2 bundle atomically. It does not publish acceptance in the same work unit.
-7. Preserve `FAILED_NONRESUMABLE` in `migration/legacy_import.json` and record the v2 interpretation separately.
+6. Publishes only below
+   `v2_d_noncanonical_dry_run/ineligible_for_acceptance/`; the annotation schema
+   requires both canonical-publication and acceptance eligibility to be false.
+7. Preserves `FAILED_NONRESUMABLE` in source provenance and records the replayed
+   v2 interpretation separately. It never writes a finalization result or
+   acceptance; the pure V2-C result is used in memory as an audit.
+
+## Implemented dry-run result
+
+- Imported run ID: `p9runv2_d6ffbd951bc813f78defeacc`.
+- V2-A ledger: 106 committed events; replay is scientific `COMPLETE`, operational
+  `FINALIZATION_FAILED`, resumability
+  `NOT_APPLICABLE_SCIENTIFICALLY_COMPLETE`.
+- Noncanonical bundle: `p9rb_3c86e72ef17ebd7045ae36fb`, content SHA-256
+  `3c86e72ef17ebd7045ae36fb55e7d391330b1f860bbf88e4be42599110ceb995`.
+- V2-B result: valid and `SCIENTIFICALLY_COMPLETE`.
+- Pure in-memory V2-C result: selected
+  `p9ck_42f7957d2ea998ac9e8ff705` at completed epoch 105 from all 25 candidates.
+- Field classifications: 21 directly available, 6 deterministically derivable,
+  2 available with legacy annotation, 2 not applicable, and 0 missing/blocking.
+
+Historical payloads are hash-gated before restricted PyTorch inspection. The
+loader uses `weights_only=True`, CPU mapping, and a function-local allowlist for
+the five NumPy reconstruction types present in these known payloads. It never
+falls back to unrestricted pickle loading or changes global safe globals.
+
+The active dissertation says a margin-only tie-break selects a checkpoint but
+does not reset patience. V2-C currently resets patience for every selected best.
+No margin-only best replacement occurs in the historical 25 candidates, so both
+rules produce epoch 105 and the epoch-125 stopping boundary. The general V2-C
+contract discrepancy must be resolved before canonical V2-G publication.
 
 ## Migration acceptance criteria
 

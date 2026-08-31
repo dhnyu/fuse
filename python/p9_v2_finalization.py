@@ -144,9 +144,10 @@ def _binary64_decimal(value: float) -> Decimal:
     return Decimal.from_float(value)
 
 
-def _candidate_decision(
+def evaluate_selection_candidate(
     candidate: Mapping[str, Any], best: Mapping[str, Any] | None, tolerance: float
 ) -> tuple[bool, str]:
+    """Apply the canonical V2-C candidate ordering for replay/import adapters."""
     if best is None:
         return True, "retrieval_loss_improved"
     loss = _binary64_decimal(candidate["validation_retrieval_loss"])
@@ -235,7 +236,7 @@ def _replay_selector(
             raise FinalizationEvidenceError("SELECTOR_REPLAY_MISMATCH", "candidate violates validation interval")
         if index and candidate["completed_epoch"] - candidates[index - 1]["completed_epoch"] != interval:
             raise FinalizationEvidenceError("SELECTOR_REPLAY_MISMATCH", "validation cadence is not exactly five epochs")
-        selected, basis = _candidate_decision(candidate, best, tolerance)
+        selected, basis = evaluate_selection_candidate(candidate, best, tolerance)
         if selected:
             best = candidate
             non_improvements = 0

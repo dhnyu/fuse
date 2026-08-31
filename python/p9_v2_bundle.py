@@ -467,8 +467,16 @@ def build_run_bundle(
 
     if inputs.evaluation_consumption_count != 0:
         _fail("PROHIBITED_EVIDENCE", "evaluation consumption must be zero")
-    if inputs.legacy_import is not None:
-        _fail("CONTRACT_MISMATCH", "native V2-B bundles cannot carry legacy import annotations")
+    legacy_import = inputs.legacy_import
+    if legacy_import is not None:
+        try:
+            validate_instance("legacy_import", legacy_import)
+        except P9V2SchemaError as error:
+            _fail("CONTRACT_MISMATCH", f"legacy import annotation is invalid: {error}")
+        if legacy_import["source_inventory_digest"] != canonical_sha256(
+            sorted(inputs.source_inventory, key=lambda item: item["logical_path"])
+        ):
+            _fail("SOURCE_INVENTORY_MISMATCH", "legacy annotation source inventory digest differs")
     documents = {
         "authority": _validate_bound_document(inputs.authority, "authority"),
         "scientific_configuration": _validate_bound_document(inputs.scientific_configuration, "scientific configuration"),
@@ -585,7 +593,10 @@ def build_run_bundle(
         "validation_checkpoint_count": len(validation_events),
         "stopping_boundary": stopping_boundary,
         "source_inventory_digest": source_inventory["inventory_digest"],
-        "legacy_import": {"is_legacy_import": False, "annotation": None},
+        "legacy_import": {
+            "is_legacy_import": legacy_import is not None,
+            "annotation": legacy_import,
+        },
     }
     content_hash = canonical_sha256(_manifest_preimage(manifest))
     manifest["bundle_content_sha256"] = content_hash
@@ -802,6 +813,18 @@ def _validate_bundle(root: Path, locator_roots: Mapping[str, str | Path], *, req
         _fail("SCIENTIFIC_COMPLETENESS_MISMATCH", "stopping boundary differs from replay")
     if manifest["evaluation_consumption_count"] != 0:
         _fail("PROHIBITED_EVIDENCE", "evaluation consumption is nonzero")
+    legacy = manifest["legacy_import"]
+    if legacy["is_legacy_import"]:
+        try:
+            validate_instance("legacy_import", legacy["annotation"])
+        except P9V2SchemaError as error:
+            _fail("CONTRACT_MISMATCH", f"legacy import annotation is invalid: {error}")
+        if legacy["annotation"]["imported_run_id"] != manifest["run_id"]:
+            _fail("RUN_ID_MISMATCH", "legacy annotation imported run identity differs")
+        if legacy["annotation"]["source_inventory_digest"] != source_inventory["inventory_digest"]:
+            _fail("SOURCE_INVENTORY_MISMATCH", "legacy annotation source inventory digest differs")
+    elif legacy["annotation"] is not None:
+        _fail("CONTRACT_MISMATCH", "native bundle cannot carry a legacy annotation")
     return BundleValidationResult(
         valid=True,
         validation_status="VALID",

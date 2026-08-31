@@ -38,6 +38,13 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | D32 | Use one blocking, short, acceptance-identity `flock` with no heartbeat and validate-or-return on duplicates. | Concurrent identical publishers converge without a recovery transaction or third lock class. | Implemented in V2-C. |
 | D33 | Resolve only canonical acceptance identities and validate acceptance, finalization, bundle, checkpoint inventory, and external bytes on every resolution. | Raw paths, `latest`, legacy recovery artifacts, and mutable payload substitution fail closed. | Implemented in V2-C. |
 | D34 | Defer authority eligibility and supersession/revocation indexing to V2-E and fail closed where that policy is required. | V2-C core must not invent a mutable authority subsystem outside its bounded scope. | Accepted for V2-E. |
+| D35 | Inspect v1 PyTorch payloads only after manifest/source SHA-256 gates, with `weights_only=True`, CPU mapping, and a function-local five-type NumPy allowlist. | The installed PyTorch restricted loader can read all 25 immutable payloads without unrestricted pickle execution or global safety changes. | Implemented in V2-D. |
+| D36 | Derive imported run/event identities from importer version, v1 run identity, ordered source-inventory digest, canonical event envelope, and deterministic source-time mapping. | Repeated and reversed-discovery imports produce byte-identical ledger and bundle identities without random or import-time values. | Implemented in V2-D. |
+| D37 | Treat v1 authority, reservation, and attempt identities only as legacy provenance; use one nonauthorizing dry-run authority document to satisfy bundle binding. | Legacy governance identities must not become active V2 authority types or authorize execution. | Implemented in V2-D. |
+| D38 | Represent v1 payload/manifest atomic publication as `AVAILABLE_WITH_LEGACY_ANNOTATION`, never as a native contemporaneous V2 commit. | This preserves equivalent durable evidence without rewriting history. | Implemented in V2-D. |
+| D39 | Publish V2-D output only below `v2_d_noncanonical_dry_run/ineligible_for_acceptance`, with schema-required canonical and acceptance eligibility false. | Dry-run evidence cannot be mistaken for V2-G canonical publication. | Implemented in V2-D. |
+| D40 | Fail closed on missing, duplicate, ambiguous, hash-inconsistent, state-incomplete, evaluation-contaminated, or unsupported legacy evidence; `MISSING_BLOCKING` means no unique lossless value is available from immutable sources. | Import must not repair, guess, use mtime/latest, or recompute science. | Implemented in V2-D. |
+| D41 | Record the dissertation/V2-C patience-reset discrepancy without changing V2-C in V2-D. | The historical trace has no margin-only selected replacement, so the dry-run result is invariant; the general contract must be corrected before V2-G. | Open before V2-G. |
 
 ## Retained identity justification
 
@@ -54,5 +61,5 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 These do not block the architecture verdict but must be closed in the named unit:
 
 - V2-E: location and format of the authority eligibility/supersession index.
-- V2-D: hardened legacy PyTorch deserialization strategy.
 - V2-H: precise heartbeat interval, interruption policy, and configurable progress-summary cadence after I/O pilot.
+- Before V2-G: align V2-C patience reset with the dissertation rule that margin-only tie-break improvement does not reset patience.

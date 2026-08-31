@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:legacy-import-annotation:2.0.0",
+  "title": "P9 v2 noncanonical legacy import annotation",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "status", "canonical_publication_eligible", "acceptance_eligible", "importer_version", "imported_run_id", "source_inventory_digest", "source", "event_mapping", "atomic_completion", "field_classifications", "classification_counts"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p9_v2_legacy_import_annotation"},
+    "status": {"const": "NONCANONICAL_DRY_RUN"},
+    "canonical_publication_eligible": {"const": false},
+    "acceptance_eligible": {"const": false},
+    "importer_version": {"const": "p9-v2-legacy-importer-v1"},
+    "imported_run_id": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
+    "source_inventory_digest": {"$ref": "#/$defs/sha256"},
+    "source": {
+      "type": "object",
+      "required": ["v1_run_id", "v1_authority_id", "v1_reservation_id", "v1_attempt_id", "v1_terminal_state", "join_audit_sha256"],
+      "properties": {
+        "v1_run_id": {"type": "string", "pattern": "^p9run_[0-9a-f]{24}$"},
+        "v1_authority_id": {"type": "string", "pattern": "^p9a_[0-9a-f]{24}$"},
+        "v1_reservation_id": {"type": "string", "pattern": "^p9res_[0-9a-f]{24}$"},
+        "v1_attempt_id": {"type": "string", "pattern": "^p9attempt_[0-9a-f]{24}$"},
+        "v1_terminal_state": {"const": "FAILED_NONRESUMABLE"},
+        "join_audit_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "event_mapping": {
+      "type": "object",
+      "required": ["rule_id", "source_order", "timestamp_rule", "legacy_import"],
+      "properties": {
+        "rule_id": {"const": "p9-v1-formal-to-v2-events-v1"},
+        "source_order": {"const": "completed_epoch_ascending"},
+        "timestamp_rule": {"const": "source_started_unix_plus_event_sequence_microseconds"},
+        "legacy_import": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "atomic_completion": {
+      "type": "object",
+      "required": ["classification", "protocol", "evidence"],
+      "properties": {
+        "classification": {"const": "AVAILABLE_WITH_LEGACY_ANNOTATION"},
+        "protocol": {"const": "legacy_atomic_payload_manifest_pair"},
+        "evidence": {"const": "hash_verified_payload_then_manifest_pairs"}
+      },
+      "additionalProperties": false
+    },
+    "field_classifications": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["field", "classification", "source_or_rule"],
+        "properties": {
+          "field": {"type": "string", "minLength": 1},
+          "classification": {"$ref": "#/$defs/classification"},
+          "source_or_rule": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "classification_counts": {
+      "type": "object",
+      "required": ["DIRECTLY_AVAILABLE", "DETERMINISTICALLY_DERIVABLE", "AVAILABLE_WITH_LEGACY_ANNOTATION", "NOT_APPLICABLE", "MISSING_BLOCKING"],
+      "properties": {
+        "DIRECTLY_AVAILABLE": {"type": "integer", "minimum": 0},
+        "DETERMINISTICALLY_DERIVABLE": {"type": "integer", "minimum": 0},
+        "AVAILABLE_WITH_LEGACY_ANNOTATION": {"type": "integer", "minimum": 0},
+        "NOT_APPLICABLE": {"type": "integer", "minimum": 0},
+        "MISSING_BLOCKING": {"const": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "classification": {"enum": ["DIRECTLY_AVAILABLE", "DETERMINISTICALLY_DERIVABLE", "AVAILABLE_WITH_LEGACY_ANNOTATION", "NOT_APPLICABLE", "MISSING_BLOCKING"]}
+  },
+  "additionalProperties": false
+}

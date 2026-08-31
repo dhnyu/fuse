@@ -38,8 +38,9 @@ from p7_training import (collate, empty_queue, enqueue, local_infonce_sum, modal
 from p9_formal_execution import (FormalAttemptLock, SelectionState, atomic_json, digest, failed_state_payload,
                                  load_checkpoint, save_checkpoint_atomic, transition,
                                  terminal_acceptance_payload, validate_terminal_state_consistency,
-                                 validate_validation_event,
+                                 validate_validation_event, resolve_durable_progress,
                                  verify_execution_tree)  # noqa: E402
+from p9_identity_diagnostics import assemble_rank_manifest  # noqa: E402
 from p9_infrastructure import P9ExactScheduler, materialize_hyperparameter_configuration  # noqa: E402
 from p9_model_families import P9MomentumModel, ds_raster_from_batch, family_contract, p9_reconstruction_terms  # noqa: E402
 from rotating_padding_sampler import logical_groups, rotating_padding_state  # noqa: E402
@@ -186,11 +187,23 @@ def formal_update(ddp: DistributedDataParallel, model: P9MomentumModel, optimize
     local_keys = torch.stack((targets[0]["contrastive_embedding"], targets[1]["contrastive_embedding"]), 1)
     gathered = all_gather_tensor(local_keys); centers = all_gather_tensor(batches[0]["scene_center_5186"])
     identifiers = all_gather_tensor(batches[0]["scene_numeric_ids"])
+    diagnostic = dict(values.get("identity_diagnostic_context", {}))
+    diagnostic.update({
+        "epoch": epoch, "batch_index": batch_index,
+        "intended_global_update": int(scheduler.completed_updates) + 1,
+        "sampler": {"epoch": epoch - 1, "cursor": batch_index,
+                    "root_seed": int(values["config"]["training"]["root_seed"]),
+                    "global_batch_size": 32, "rank_local_indices": list(range(rank * 16, rank * 16 + 16)),
+                    "padding_mode": "rotating_padding"},
+        "local_scene_ids": scenes,
+        "identity_domains": {"local_ids": "base_scene_sha256_63bit_legacy", "global_ids": "base_scene_sha256_63bit_legacy",
+                             "queue_ids": "base_scene_sha256_63bit_legacy", "cache_entry": "physical_cache_entry"},
+    })
     scene_sum, scene_count = local_infonce_sum(outputs[0]["contrastive_embedding"], outputs[1]["contrastive_embedding"],
         gathered[:, 0], gathered[:, 1], batches[0]["scene_center_5186"], centers,
         batches[0]["scene_numeric_ids"], identifiers, queue,
         float(values["config"]["objective"]["contrastive_temperature"]),
-        float(values["config"]["objective"]["negative_exclusion_distance_m"]))
+        float(values["config"]["objective"]["negative_exclusion_distance_m"]), diagnostic)
     count = torch.tensor(scene_count, dtype=torch.int64, device=device); dist.all_reduce(count)
     scene_objective = scene_sum * dist.get_world_size() / int(count)
     reconstruction = [p9_reconstruction_terms(ddp.module, batch, geom, output.get("modalities", {}),
@@ -277,6 +290,14 @@ def _training_body(args: argparse.Namespace, values: dict[str, Any], rank: int,
                "reservation_id": values["reservation"]["reservation_id"],
                "cache_acceptance_id": values["authority"]["parents"]["production_cache_acceptance_id"],
                "runtime_tree_sha256": values["tree"]["runtime_tree_sha256"]}
+    values["identity_diagnostic_context"] = {
+        "diagnostic_root": str(Path(args.output_root) / "identity_diagnostics"), "rank": rank,
+        "local_rank": rank, "world_size": 2, "hostname": os.uname().nodename,
+        "authority_id": lineage["authority_id"], "reservation_id": lineage["reservation_id"],
+        "attempt_id": values["reservation"]["attempt_id"],
+        "run_id": "p9run_" + digest({"attempt": values["reservation"]["attempt_id"], "launch": values["tree"]["actual_launch_commit"]})[:24],
+        "runtime_tree_sha256": lineage["runtime_tree_sha256"], "actual_launch_commit": values["tree"]["actual_launch_commit"],
+    }
     if args.resume:
         state = load_checkpoint(args.resume, lineage); model.online.load_state_dict(state["online_model"])
         model.target.load_state_dict(state["ema_model"]); optimizer.load_state_dict(state["optimizer"])
@@ -291,6 +312,14 @@ def _training_body(args: argparse.Namespace, values: dict[str, Any], rank: int,
     for epoch in range(start_epoch, int(values["config"]["training"]["maximum_epochs"]) + 1):
         for batch_index in range(start_batch if epoch == start_epoch else 0, 76):
             trace.append(formal_update(ddp, model, optimizer, scheduler, queue, values, epoch, batch_index, rank, device))
+            if rank == 0:
+                atomic_json(Path(args.output_root) / "worker_progress.json", {
+                    "last_completed_epoch": epoch - 1 if batch_index < 75 else epoch,
+                    "last_completed_update": int(scheduler.completed_updates), "optimizer_updates": int(scheduler.completed_updates),
+                    "validation_events": len(validations), "checkpoint_count": len(manifests),
+                    "queue_count": int(queue["valid_count"]), "queue_pointer": int(queue["pointer"]),
+                    "last_durable_trace_position": trace[-1],
+                })
         if epoch % int(values["authority"]["validation_contract"]["interval_epochs"]) == 0:
             event = validation(model, values, device, rank, epoch); decision = selector.update(event); validations.append(event)
             rank_state = {"rank": rank, "python": random.getstate(), "numpy": np.random.get_state(),
@@ -500,9 +529,16 @@ def controller(args: argparse.Namespace) -> None:
     except BaseException as error:
         launcher = result.returncode if "result" in locals() else 1
         codes, stage, failure_class, message = _rank_failures(output, launcher)
+        diagnostic_root = output / "identity_diagnostics"
+        if diagnostic_root.is_dir():
+            try:
+                assemble_rank_manifest(diagnostic_root, 2)
+            except BaseException:
+                pass
         terminal = failed_state_payload(identity, failure_stage=stage, failure_class=failure_class,
             failure_message=message or str(error), traceback_sha256=digest(traceback.format_exc()),
             rank_exit_codes=codes, started_unix=started,
+            progress=resolve_durable_progress(output),
             process_group_cleanup="CONFIRMED" if not list(output.glob("rank_failure_*.json")) or all(
                 read_json(path).get("process_group_cleanup_status") == "CONFIRMED"
                 for path in output.glob("rank_failure_*.json")) else "FAILED")

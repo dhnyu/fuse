@@ -118,8 +118,9 @@ def failed_state_payload(identity: dict[str, Any], *, failure_stage: str,
                          failure_class: str, failure_message: str,
                          traceback_sha256: str, rank_exit_codes: dict[str, int],
                          started_unix: float, failed_unix: float | None = None,
-                         process_group_cleanup: str = "CONFIRMED") -> dict[str, Any]:
-    """Build the single authoritative zero-checkpoint nonresumable state."""
+                         process_group_cleanup: str = "CONFIRMED",
+                         progress: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Build a terminal failure state from validated durable progress evidence."""
     message = " ".join(str(failure_message).split())[:512]
     if not message:
         message = "formal execution failed without a diagnostic message"
@@ -127,21 +128,66 @@ def failed_state_payload(identity: dict[str, Any], *, failure_stage: str,
         raise ValueError("formal failed state requires rank exit evidence")
     if any(isinstance(value, bool) or not isinstance(value, int) for value in rank_exit_codes.values()):
         raise ValueError("formal rank exit codes must be integers")
+    progress = dict(progress or {})
     value = {
         "schema_version": "2.0.0", **identity, "state": "FAILED_NONRESUMABLE",
         "failure_stage": failure_stage, "failure_class": failure_class,
         "failure_message": message, "traceback_sha256": traceback_sha256,
         "rank_exit_codes": dict(sorted(rank_exit_codes.items())),
         "controller_exit_classification": "DDP_CHILD_FAILURE",
-        "last_completed_epoch": 0, "last_completed_update": 0,
-        "optimizer_updates": 0, "validation_events": 0,
+        "last_completed_epoch": int(progress.get("last_completed_epoch", 0)),
+        "last_completed_update": int(progress.get("last_completed_update", 0)),
+        "optimizer_updates": int(progress.get("optimizer_updates", 0)),
+        "validation_events": int(progress.get("validation_events", 0)),
         "validation_queries_consumed": 0, "evaluation_queries_consumed": 0,
-        "checkpoint_count": 0, "resume_eligible": False,
+        "checkpoint_count": int(progress.get("checkpoint_count", 0)),
+        "latest_checkpoint_id": progress.get("latest_checkpoint_id"),
+        "best_observed_checkpoint": progress.get("best_observed_checkpoint"),
+        "queue_count": progress.get("queue_count"), "queue_pointer": progress.get("queue_pointer"),
+        "last_durable_trace_position": progress.get("last_durable_trace_position"),
+        "accounting_sources": progress.get("accounting_sources", []),
+        "accounting_conflict": progress.get("accounting_conflict"), "resume_eligible": False,
         "started_unix": float(started_unix), "failed_unix": float(failed_unix or time.time()),
         "lock_release_status": "PENDING_DURABLE_TERMINAL_RELEASE",
         "process_group_cleanup_status": process_group_cleanup,
     }
     return value
+
+
+def resolve_durable_progress(output_root: str | Path) -> dict[str, Any]:
+    """Resolve progress with atomic checkpoint state taking precedence."""
+    root = Path(output_root)
+    candidates: list[tuple[str, dict[str, Any]]] = []
+    manifests = sorted(root.glob("checkpoints/epoch-*/checkpoint_manifest.json"))
+    if manifests:
+        rows = [(path, json.loads(path.read_text())) for path in manifests]
+        manifest_path, newest = max(rows, key=lambda item: int(item[1]["global_update"]))
+        checkpoint = torch.load(manifest_path.parent / newest["payload"]["filename"], map_location="cpu", weights_only=False)
+        candidates.append(("atomic_checkpoint", {
+            "last_completed_epoch": int(checkpoint["progress"]["epoch"]) - 1,
+            "last_completed_update": int(checkpoint["progress"]["global_update"]),
+            "optimizer_updates": int(checkpoint["progress"]["global_update"]),
+            "validation_events": len(checkpoint.get("validation_trace", [])),
+            "checkpoint_count": len(manifests), "latest_checkpoint_id": newest["checkpoint_id"],
+            "best_observed_checkpoint": checkpoint.get("best_checkpoint"),
+            "queue_count": int(checkpoint["queue"]["valid_count"]),
+            "queue_pointer": int(checkpoint["queue"]["pointer"]),
+            "last_durable_trace_position": checkpoint.get("training_trace", [])[-1] if checkpoint.get("training_trace") else None,
+        }))
+    progress_path = root / "worker_progress.json"
+    if progress_path.is_file():
+        candidates.append(("worker_progress", json.loads(progress_path.read_text())))
+    if not candidates:
+        return {"accounting_sources": [], "accounting_conflict": None}
+    source, selected = candidates[0]
+    conflicts = []
+    for name, candidate in candidates[1:]:
+        difference = {field: [selected.get(field), candidate.get(field)]
+                      for field in ("optimizer_updates", "last_completed_epoch", "validation_events", "checkpoint_count")
+                      if selected.get(field) != candidate.get(field)}
+        if difference: conflicts.append({"source": name, "difference": difference})
+    return {**selected, "selected_source": source, "accounting_sources": [name for name, _ in candidates],
+            "accounting_conflict": conflicts or None}
 
 
 def validate_terminal_state_consistency(state: dict[str, Any], owner: dict[str, Any],

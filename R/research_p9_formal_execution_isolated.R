@@ -23,6 +23,7 @@ p9x_runtime_file_paths <- function() {
     "python/canonical_config.py",
     "python/p6_data.py", "python/p6_model.py",
     "python/p7_geometry_cache.py", "python/p7_training.py",
+    "python/p9_identity_diagnostics.py",
     "python/p9_formal_execution.py", "python/p9_formal_isolated_authorization.py",
     "python/p9_infrastructure.py", "python/p9_model_families.py",
     "python/prototype_encoder.py", "python/rotating_padding_sampler.py",

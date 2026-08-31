@@ -26,6 +26,7 @@ from p6_data import (apply_delta, build_vocabulary, ragged_collate,
                      read_fixed_query, read_original_scene,
                      sha256_file, tensorize_scene)
 from p6_model import ReducedSceneEncoder, geometry_fourier_features
+from p9_identity_diagnostics import validate_current_batch_lookup
 from prototype_encoder import relation_set_embedding, sinusoidal_position_features
 
 
@@ -630,7 +631,11 @@ def reconstruction_terms(model: ReducedSceneEncoder, batch: dict[str, Any], geom
 def local_infonce_sum(q1: torch.Tensor, q2: torch.Tensor, global_k1: torch.Tensor, global_k2: torch.Tensor,
                       local_centers: torch.Tensor, global_centers: torch.Tensor, local_ids: torch.Tensor,
                       global_ids: torch.Tensor, queue: dict[str, Any], temperature: float,
-                      exclusion_m: float) -> tuple[torch.Tensor, int]:
+                      exclusion_m: float, identity_diagnostic_context: dict[str, Any] | None = None) -> tuple[torch.Tensor, int]:
+    validate_current_batch_lookup(
+        local_ids, global_ids, global_embedding_rows=global_k1.shape[0], queue=queue,
+        context=identity_diagnostic_context,
+    )
     keys = torch.cat((global_k1, global_k2), 0)
     key_centers = torch.cat((global_centers, global_centers), 0)
     key_ids = torch.cat((global_ids, global_ids), 0)
@@ -640,8 +645,6 @@ def local_infonce_sum(q1: torch.Tensor, q2: torch.Tensor, global_k1: torch.Tenso
             query = queries[local_index]
             scene_id = local_ids[local_index]
             global_index = torch.nonzero(global_ids == scene_id).flatten()
-            if global_index.numel() != 1:
-                raise ValueError("global scene identity lookup mismatch")
             positive = positives[int(global_index[0])]
             distance = torch.linalg.vector_norm(key_centers - local_centers[local_index], dim=1)
             valid = (key_ids != scene_id) & (distance >= exclusion_m)

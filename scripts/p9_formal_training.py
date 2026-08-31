@@ -501,7 +501,13 @@ def controller(args: argparse.Namespace) -> None:
         if not worker_result.get("validation_trace") or not worker_result.get("best"):
             raise RuntimeError("P9 formal worker produced no selectable validation evidence")
         selected_epoch = int(worker_result["best"]["epoch"]); candidates = worker_result["checkpoint_manifests"]
-        selected = next((row for row in candidates if int(row["epoch"]) == selected_epoch), None)
+        # A checkpoint is written after validation and records the *next* epoch
+        # as its resume cursor.  Match the canonical validation event rather
+        # than conflating that cursor with the validation epoch.
+        matches = [row for row in candidates if int(row["epoch"]) - 1 == selected_epoch]
+        if len(matches) > 1:
+            raise RuntimeError("P9 best validation maps to multiple checkpoint candidates")
+        selected = matches[0] if matches else None
         if selected is None: raise RuntimeError("P9 best validation has no checkpoint candidate")
         run = {"schema_version": "1.0.0", "formal_attempt": True, "runner_class": "P9_FORMAL",
                "run_id": identity["run_id"], "attempt_id": identity["attempt_id"],

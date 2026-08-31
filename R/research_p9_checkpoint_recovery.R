@@ -53,7 +53,7 @@ p9r_execute_terminal <- function(bundle, selected, stopping) {
   token <- Sys.getenv("FUSE_P9_RECOVERY_RESERVATION_ID", unset = "")
   if (!identical(token, jsonlite::read_json(reservation)$recovery_reservation_id)) stop("exact recovery token required", call. = FALSE)
   output <- "/mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/recovery_operations"
-  result <- system2(Sys.which("python"), c("scripts/p9_checkpoint_recovery_authorization.py", "execute", "--failed-run", "/mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/attempts/p9attempt_a754afd14ac87287afb04029", "--authorization-dir", bundle, "--output", output), stdout = TRUE, stderr = TRUE)
+  result <- system2(Sys.which("python"), c("scripts/p9_checkpoint_recovery_authorization.py", "execute", "--failed-run", "/mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/attempts/p9attempt_a754afd14ac87287afb04029", "--authorization-dir", bundle, "--output", output, "--lock-root", "/mnt/hdd002/dhnyu/fusedata/runtime/p9_recovery_locks", "--store", "/mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-recovery-lockstate-20260831"), stdout = TRUE, stderr = TRUE)
   if (!is.null(attr(result, "status")) && attr(result, "status") != 0L) stop(paste(result, collapse = "\n"), call. = FALSE)
   normalizePath(sub("^P9_RECOVERY_TERMINAL_OUTPUT=", "", result[startsWith(result, "P9_RECOVERY_TERMINAL_OUTPUT=")]), mustWork = TRUE)
 }

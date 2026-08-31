@@ -17,6 +17,7 @@ from p9_v2_bundle import (  # noqa: E402
     make_filesystem_locator,
 )
 from p9_v2_canonical import canonical_json_bytes, canonical_sha256, sha256_bytes  # noqa: E402
+from p9_v2_finalization import make_selection_contract, selection_contract_content  # noqa: E402
 from p9_v2_test_support import (  # noqa: E402
     HASH_A,
     HASH_B,
@@ -66,10 +67,13 @@ def _documents(config_variant: str = "base", selection_variant: str = "base") ->
         "p9sampler_" + "5" * 24,
         {"global_batch": 32, "per_rank_batch": 16, "world_size": 2, "uniqueness": "strict"},
     )
-    selection = make_bound_document(
-        "p9select_" + "6" * 24,
-        {"primary": "validation_retrieval_loss", "epsilon": 0.0001, "patience": 4, "variant": selection_variant},
-    )
+    if selection_variant == "base":
+        selection = make_selection_contract()
+    else:
+        selection_content = selection_contract_content()
+        selection_content["early_stopping_patience"] = 5
+        selection_hash = canonical_sha256(selection_content)
+        selection = make_bound_document(f"p9selc_{selection_hash[:24]}", selection_content)
     authority_content = {
         "run_id": RUN_ID,
         "scientific_configuration_id": configuration["identity"],

@@ -1,13 +1,16 @@
 # Finalization, Acceptance, Locking, and Resolution
 
-Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
+Status: `V2_C_IMPLEMENTED_REFERENCE_NON_AUTHORIZING`
+
+Runtime implementations are `python/p9_v2_finalization.py` and
+`python/p9_v2_acceptance.py`. Runtime schemas are under `config/schemas/`.
 
 ## Pure deterministic finalizer
 
 Conceptual API:
 
 ```text
-finalize(run_bundle_hash, selection_contract_hash) -> finalization_result
+finalize_run_bundle(bundle_locator, locator_roots, selection_contract_hash) -> finalization_result
 ```
 
 Inputs are content hashes, resolved through immutable content-addressed storage:
@@ -16,22 +19,28 @@ Inputs are content hashes, resolved through immutable content-addressed storage:
 {
   "run_bundle_hash": "<64 hex>",
   "selection_contract_hash": "<64 hex>",
-  "finalizer_schema_version": "2.0.0-draft",
+  "finalizer_schema_version": "2.0.0",
   "finalizer_implementation_hash": "<64 hex>"
 }
 ```
 
-The selection contract contains validation interval, primary metric/direction, `0.0001` equivalence threshold, margin tie breaker, earlier-epoch final tie break, early-stopping reset rule, patience four, and candidate eligibility rule.
+The selection contract is `p9-selection-v2.0.0`: validate every five epochs;
+minimize validation retrieval loss; treat the absolute loss difference as
+equivalent only when it is strictly less than the binary64 value of `0.0001`;
+then maximize mean source-separation margin; then retain the earlier completed
+epoch. Only selection as the new best resets the patience counter, and patience
+is four. Comparison promotes the canonical binary64 operands losslessly with
+`Decimal.from_float()` before arithmetic. MRR is not an input.
 
 The finalizer validates the bundle, takes candidates only from committed `VALIDATION_CHECKPOINT_COMMITTED` events, replays selector and early stopping, proves the stopping boundary, and emits:
 
 ```json
 {
-  "schema_version": "2.0.0-draft",
+  "schema_version": "2.0.0",
   "finalization_id": "p9fin_<24 hex>",
-  "status": "PASS|FAIL",
+  "status": "SUCCEEDED|FAILED",
   "failure_code": null,
-  "evidence_class": "VALID_SCIENTIFIC_EVIDENCE|INVALID_SCIENTIFIC_EVIDENCE|OPERATIONAL_FAILURE",
+  "evidence_class": "VALID_SCIENTIFIC_EVIDENCE|INVALID_SCIENTIFIC_EVIDENCE",
   "run_bundle_id": "p9rb_<24 hex>",
   "run_bundle_hash": "<64 hex>",
   "selection_contract_hash": "<64 hex>",
@@ -48,11 +57,18 @@ The finalizer validates the bundle, takes candidates only from committed `VALIDA
 
 `finalization_id` and result hash are derived from canonical inputs and output excluding the identity/hash fields. The finalizer has no clock field in hashed output. Diagnostics may carry a separate non-authoritative invocation record.
 
-Stable failure codes include `BUNDLE_NOT_FOUND`, `BUNDLE_HASH_MISMATCH`, `SCIENTIFICALLY_INCOMPLETE`, `LEDGER_INVALID`, `CANDIDATE_SET_EMPTY`, `CHECKPOINT_INTEGRITY_INVALID`, `SELECTOR_REPLAY_MISMATCH`, `STOPPING_BOUNDARY_MISMATCH`, `EVALUATION_ALREADY_CONSUMED`, and `SCHEMA_UNSUPPORTED`. Invalid scientific evidence is distinguished from an ordinary read/IO/process failure.
+Stable evidence failure codes are `BUNDLE_INVALID`, `BUNDLE_NOT_FOUND`,
+`SCIENTIFICALLY_INCOMPLETE`, `SELECTION_CONTRACT_MISMATCH`,
+`NO_ELIGIBLE_CANDIDATE`, `SELECTOR_REPLAY_MISMATCH`,
+`STOPPING_SUMMARY_MISMATCH`, `CHECKPOINT_INVENTORY_MISMATCH`,
+`SOURCE_PROVENANCE_MISMATCH`, and `UNSUPPORTED_SCHEMA_VERSION`. Publication or
+filesystem exceptions are operational failures outside the deterministic
+scientific result taxonomy and do not become training failures.
 
 The finalizer imports no GPU library, trainer, validation/evaluation loader, optimizer, or checkpoint writer. It performs no training, validation, checkpoint write, evaluation access, authority mutation, or bundle mutation. It requires no training lock. The same inputs and implementation version produce byte-identical output. A cached result uses atomic create-or-validate by finalization identity.
 
-The draft schema is [schemas/finalization_result.schema.json](schemas/finalization_result.schema.json).
+The runtime schema is
+[`config/schemas/p9_v2_finalization_result.schema.json`](../../config/schemas/p9_v2_finalization_result.schema.json).
 
 ## Acceptance publisher
 
@@ -66,14 +82,26 @@ Publication steps:
 
 1. Validate all three immutable inputs and require a `PASS` finalization result with zero evaluation consumption.
 2. Compute the acceptance preimage and `acceptance_id = "p9accv2_" + SHA256(preimage)[0:24]`.
-3. Acquire a nonblocking kernel `flock` scoped to that acceptance identity.
+3. Acquire a bounded kernel `flock` scoped to that acceptance identity.
 4. If a canonical directory exists, validate its manifest and exact input bindings and return it.
-5. Otherwise write `acceptance.json` and `acceptance_commit_manifest.json` to a same-filesystem staging directory, flush, verify, atomically rename to the identity directory, and `fsync` its parent.
+5. Otherwise write `acceptance.json`, an exact canonical copy of
+   `finalization_result.json`, and
+   `commit/acceptance_commit_manifest.json` to a same-filesystem staging
+   directory, flush, reread, verify, atomically rename the directory to the
+   identity path, and `fsync` its parent.
 6. Release the lock. A collision with different bytes fails closed.
 
-The atomic rename exposing `acceptance_commit_manifest.json` at the canonical identity path is the acceptance commit point. There is one canonical acceptance per identity. No heartbeat is used because publication is bounded and short. Acceptance does not modify the run bundle or finalization result and does not read target metadata.
+The atomic directory rename exposing `acceptance_commit_manifest.json` at the
+canonical identity path is the acceptance commit point. Before rename, staging
+is ignorable non-authoritative debris. After rename, the acceptance is immutable.
+The protocol establishes the implemented POSIX file/directory `fsync` sequence;
+power-loss behavior still depends on the mounted filesystem honoring those
+operations. There is one canonical acceptance per identity. No heartbeat is
+used because publication is bounded and short. Acceptance does not modify the
+run bundle or finalization result and does not read target metadata.
 
-The draft schema is [schemas/acceptance.schema.json](schemas/acceptance.schema.json).
+The runtime union schema is
+[`config/schemas/p9_v2_acceptance.schema.json`](../../config/schemas/p9_v2_acceptance.schema.json).
 
 ## Lock classes
 
@@ -94,14 +122,19 @@ V1 recovery combined source validation, candidate linkage, selection, recovery a
 resolve_accepted_checkpoint(acceptance_identity)
 ```
 
-The resolver validates the canonical acceptance directory and commit manifest, acceptance status, authority eligibility, finalization result hash, bundle hash and completeness, checkpoint inventory linkage, payload/manifest hashes, and supersession/revocation index. It returns:
+The V2-C resolver core validates the canonical acceptance directory and commit
+manifest, authority binding, finalization result hash, bundle hash and
+scientific completeness, checkpoint inventory linkage, and current external
+payload/manifest bytes. Authority eligibility and supersession/revocation index
+policy remain a fail-closed integration decision for V2-E; V2-C does not invent
+a mutable eligibility subsystem. It returns an immutable result record:
 
 ```json
 {
   "acceptance_identity": "p9accv2_<24 hex>",
   "run_bundle_identity": "p9rb_<24 hex>",
   "selected_checkpoint_identity": "p9ck_<24 hex>",
-  "payload_locator": "immutable://...",
+  "payload_locator": {"backend": "filesystem", "location": {}},
   "payload_sha256": "<64 hex>",
   "manifest_sha256": "<64 hex>",
   "selected_validation_metrics": {
@@ -115,4 +148,9 @@ The resolver validates the canonical acceptance directory and commit manifest, a
 }
 ```
 
-It rejects missing/uncommitted manifests, non-PASS results, incomplete bundles, superseded or revoked acceptance, hash mismatch, path-only input, and mutable locator. P9-B, selected-FM, held-out evaluation, P10, and P11 must call this resolver. Their public APIs must accept an acceptance identity, never a checkpoint path.
+It rejects missing/uncommitted manifests, unsuccessful results, incomplete
+bundles, every hash/binding mismatch, unresolved locator namespaces, modified
+external artifacts, path-only input, `latest`, and legacy recovery identities.
+P9-B, selected-FM, held-out evaluation, P10, and P11 must call this resolver
+after V2-E migrates their interfaces. Their public APIs must accept an acceptance
+identity, never a checkpoint path.

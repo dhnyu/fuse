@@ -49,6 +49,8 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 
 ## Exact recommended next work unit
 
-`V2-C: pure deterministic finalizer, idempotent acceptance publisher, and accepted-checkpoint resolver core using synthetic validated V2-B bundles.`
+`V2-D: read-only historical importer dry run producing a noncanonical synthetic/dry-run V2 bundle from immutable v1 evidence, without historical mutation, metric recomputation, validation rerun, finalization publication, or acceptance.`
 
-It must use only synthetic validated V2-B bundles and must not issue production authority, import the historical run, train, execute validation/evaluation, publish production acceptance, or alter v1.
+It must read immutable v1 evidence only and must not mutate history, recompute a
+metric, rerun validation, publish a canonical historical bundle or finalization,
+issue acceptance, consume evaluation, train, resume, or execute recovery.

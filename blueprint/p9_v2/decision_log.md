@@ -29,6 +29,15 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | D23 | Existing identity paths use validate-and-return for exact content and fail closed otherwise. | Provides sequential/concurrent idempotency without overwriting collisions. | Implemented in V2-B. |
 | D24 | Permit valid incomplete evidence bundles but label them `SCIENTIFICALLY_INCOMPLETE`; later finalization must reject them. | Preserves interrupted/failed evidence without confusing it with finalizable science. | Implemented in V2-B. |
 | D25 | Exclude all `targets` metadata and physical root paths; verify external size/hash on every validation. | Makes bundles portable and detects mutation instead of trusting location. | Implemented in V2-B. |
+| D26 | Encode the selection contract as `p9-selection-v2.0.0`, with strict binary64 absolute loss difference `< 0.0001`, margin then earlier-epoch tie breaks, and patience four reset only by a newly selected best. | Closes boundary and numeric semantics without adding MRR or trusting stored selector state. | Implemented in V2-C. |
+| D27 | Replay candidates in committed ledger sequence and require exactly one matching early-stopping update for every validation-checkpoint event. | The ledger, not a stored best-checkpoint summary, remains selection authority. | Implemented in V2-C. |
+| D28 | Derive `finalization_result_hash` from the complete canonical result preimage excluding identity/hash and bind the finalizer implementation version/hash; derive `p9fin_` from the first 24 hash hex. | Same interpretation is byte-identical while implementation or contract drift changes identity. | Implemented in V2-C. |
+| D29 | Keep deterministic finalization failures in a stable invalid-evidence taxonomy; keep publication/IO failures outside scientific and training state. | Operational retry must not relabel completed science. | Implemented in V2-C. |
+| D30 | Derive `p9accv2_` from authority, bundle, finalization, selected checkpoint hashes, schema, and zero evaluation consumption. | Publication metadata, clocks, hosts, and physical roots cannot alter scientific acceptance identity. | Implemented in V2-C. |
+| D31 | Store `acceptance.json`, exact finalization bytes, and a commit manifest in staging; atomic directory rename exposing the manifest is the acceptance commit point. | A crash exposes either no canonical acceptance or one complete immutable acceptance. | Implemented in V2-C. |
+| D32 | Use one blocking, short, acceptance-identity `flock` with no heartbeat and validate-or-return on duplicates. | Concurrent identical publishers converge without a recovery transaction or third lock class. | Implemented in V2-C. |
+| D33 | Resolve only canonical acceptance identities and validate acceptance, finalization, bundle, checkpoint inventory, and external bytes on every resolution. | Raw paths, `latest`, legacy recovery artifacts, and mutable payload substitution fail closed. | Implemented in V2-C. |
+| D34 | Defer authority eligibility and supersession/revocation indexing to V2-E and fail closed where that policy is required. | V2-C core must not invent a mutable authority subsystem outside its bounded scope. | Accepted for V2-E. |
 
 ## Retained identity justification
 
@@ -44,6 +53,6 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 
 These do not block the architecture verdict but must be closed in the named unit:
 
-- V2-C: location and format of the authority eligibility/supersession index.
+- V2-E: location and format of the authority eligibility/supersession index.
 - V2-D: hardened legacy PyTorch deserialization strategy.
 - V2-H: precise heartbeat interval, interruption policy, and configurable progress-summary cadence after I/O pilot.

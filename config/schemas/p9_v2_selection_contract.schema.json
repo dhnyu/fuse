@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:selection-contract:2.0.0",
+  "title": "P9 v2 immutable checkpoint selection contract",
+  "type": "object",
+  "required": ["schema_version", "identity", "content_sha256", "content"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "identity": {"type": "string", "pattern": "^p9selc_[0-9a-f]{24}$"},
+    "content_sha256": {"$ref": "#/$defs/sha256"},
+    "content": {
+      "type": "object",
+      "required": ["contract_version", "validation_interval_epochs", "primary_metric", "primary_direction", "equivalence_tolerance", "equivalence_comparison", "margin_metric", "margin_direction", "final_tiebreaker", "early_stopping_patience", "patience_reset", "candidate_eligibility"],
+      "properties": {
+        "contract_version": {"const": "p9-selection-v2.0.0"},
+        "validation_interval_epochs": {"const": 5},
+        "primary_metric": {"const": "validation_retrieval_loss"},
+        "primary_direction": {"const": "minimize"},
+        "equivalence_tolerance": {"const": 0.0001},
+        "equivalence_comparison": {"const": "absolute_difference_strictly_less_than_tolerance"},
+        "margin_metric": {"const": "mean_source_separation_margin"},
+        "margin_direction": {"const": "maximize"},
+        "final_tiebreaker": {"const": "earlier_completed_epoch"},
+        "early_stopping_patience": {"const": 4},
+        "patience_reset": {"const": "selected_best_event_only"},
+        "candidate_eligibility": {"const": "VALIDATION_CHECKPOINT_COMMITTED_ONLY"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+  "additionalProperties": false
+}

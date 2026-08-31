@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:acceptance:2.0.0",
+  "title": "P9 v2 acceptance record or atomic commit manifest",
+  "type": "object",
+  "properties": {
+    "schema_version": {}, "artifact_type": {}, "acceptance_id": {},
+    "acceptance_content_sha256": {}, "authority_id": {}, "authority_hash": {},
+    "run_bundle_id": {}, "run_bundle_hash": {}, "finalization_id": {},
+    "finalization_result_hash": {}, "checkpoint_id": {}, "payload_sha256": {},
+    "manifest_sha256": {}, "evaluation_consumption_count": {}, "status": {},
+    "acceptance_path": {}, "acceptance_sha256": {}, "acceptance_size_bytes": {},
+    "finalization_result_path": {}, "finalization_result_sha256": {},
+    "finalization_result_size_bytes": {}
+  },
+  "additionalProperties": false,
+  "oneOf": [
+    {"$ref": "#/$defs/record"},
+    {"$ref": "#/$defs/commit"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "record": {
+      "type": "object",
+      "required": ["schema_version", "artifact_type", "acceptance_id", "acceptance_content_sha256", "authority_id", "authority_hash", "run_bundle_id", "run_bundle_hash", "finalization_id", "finalization_result_hash", "checkpoint_id", "payload_sha256", "manifest_sha256", "evaluation_consumption_count"],
+      "properties": {
+        "schema_version": {"const": "2.0.0"},
+        "artifact_type": {"const": "p9_v2_acceptance"},
+        "acceptance_id": {"type": "string", "pattern": "^p9accv2_[0-9a-f]{24}$"},
+        "acceptance_content_sha256": {"$ref": "#/$defs/sha256"},
+        "authority_id": {"type": "string", "minLength": 1},
+        "authority_hash": {"$ref": "#/$defs/sha256"},
+        "run_bundle_id": {"type": "string", "pattern": "^p9rb_[0-9a-f]{24}$"},
+        "run_bundle_hash": {"$ref": "#/$defs/sha256"},
+        "finalization_id": {"type": "string", "pattern": "^p9fin_[0-9a-f]{24}$"},
+        "finalization_result_hash": {"$ref": "#/$defs/sha256"},
+        "checkpoint_id": {"type": "string", "pattern": "^p9ck_[0-9a-f]{24}$"},
+        "payload_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "evaluation_consumption_count": {"const": 0}
+      },
+      "additionalProperties": false
+    },
+    "commit": {
+      "type": "object",
+      "required": ["schema_version", "artifact_type", "acceptance_id", "status", "acceptance_path", "acceptance_sha256", "acceptance_size_bytes", "finalization_result_path", "finalization_result_sha256", "finalization_result_size_bytes"],
+      "properties": {
+        "schema_version": {"const": "2.0.0"},
+        "artifact_type": {"const": "p9_v2_acceptance_commit_manifest"},
+        "acceptance_id": {"type": "string", "pattern": "^p9accv2_[0-9a-f]{24}$"},
+        "status": {"const": "COMMITTED"},
+        "acceptance_path": {"const": "acceptance.json"},
+        "acceptance_sha256": {"$ref": "#/$defs/sha256"},
+        "acceptance_size_bytes": {"type": "integer", "minimum": 1},
+        "finalization_result_path": {"const": "finalization_result.json"},
+        "finalization_result_sha256": {"$ref": "#/$defs/sha256"},
+        "finalization_result_size_bytes": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -20,6 +20,9 @@ SCHEMA_FILES = {
     "immutable_locator": "p9_v2_immutable_locator.schema.json",
     "bundle_inventory": "p9_v2_bundle_inventory.schema.json",
     "run_bundle_manifest": "p9_v2_run_bundle_manifest.schema.json",
+    "selection_contract": "p9_v2_selection_contract.schema.json",
+    "finalization_result": "p9_v2_finalization_result.schema.json",
+    "acceptance": "p9_v2_acceptance.schema.json",
 }
 
 

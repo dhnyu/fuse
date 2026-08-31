@@ -10,12 +10,12 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | R4 | A validation metric exists without a durable checkpoint. | Medium/high | Candidate schema requires checkpoint hashes and atomic marker; finalizer ignores all other validation records. |
 | R5 | Legacy checkpoint deserialization executes unsafe code. | Low/high | Import in isolated trusted environment, hash first, no network/GPU, allowlisted types, and record loader version. Investigate conversion in V2-D without rewriting source. |
 | R6 | Content-addressed external locator becomes mutable. | Medium/high | V2-B separates namespace/key from physical root and verifies object identity, size, payload hash, and associated manifest hash on every validation. Path alone is invalid. |
-| R7 | Two publishers race. | Medium/medium | Acceptance-scoped kernel lock plus atomic create-or-validate and collision failure. |
-| R8 | Finalizer implementation changes output for same contract. | Medium/high | Bind implementation hash/version in finalization identity and golden tests; migration acceptance pins version. |
+| R7 | Two publishers race. | Medium/medium | V2-C acceptance-scoped kernel lock, atomic directory publication, validate-or-return, collision rejection, and concurrent synthetic tests. |
+| R8 | Finalizer implementation changes output for same contract. | Medium/high | V2-C binds implementation hash/version in finalization identity and tests deterministic and changed-version identities; migration acceptance must pin the version. |
 | R9 | Authority revocation/supersession semantics are underspecified. | Medium/high | Define a small immutable eligibility index before V2-E; resolver fails closed on ambiguity. |
 | R10 | Historical source evidence changes before import. | Low/high | V2-D and V2-G recompute full ordered source inventory; exact pre-approved hashes required. |
 | R11 | “Scientific complete” is mistaken for historical run success. | Medium/high | Preserve v1 state verbatim and display both dimensions with legacy annotation in every imported result. |
-| R12 | Evaluation data leaks into migration/finalization. | Low/critical | No evaluation loader imports; require consumption zero in event, bundle, finalizer, acceptance and resolver tests. |
+| R12 | Evaluation data leaks into migration/finalization. | Low/critical | V2-C imports no evaluation/training stack, accepts only V2-B evidence with consumption zero, binds zero in finalization/acceptance, and rejects additional evaluation fields. |
 | R13 | Downstream code retains manual checkpoint fallback. | High/high | V2-E removes path parameters and adds rejection tests for all five consumers. |
 | R14 | V1 remains executable after v2 adoption. | Medium/high | V2-I fail-closed entry points and retirement manifest; preserve inspection tools only. |
 | R15 | Scientific/controller plane imports regress. | Medium/high | Static dependency tests and package/module boundaries; control cannot import parameter-mutating functions and science cannot import acceptance/targets APIs. |

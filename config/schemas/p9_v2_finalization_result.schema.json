@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:finalization-result:2.0.0",
+  "title": "P9 v2 deterministic finalization result",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "finalization_id", "finalization_result_hash", "status", "failure_code", "evidence_class", "run_bundle_id", "run_bundle_hash", "selection_contract_id", "selection_contract_hash", "finalizer_implementation_version", "finalizer_implementation_hash", "candidate_set_hash", "selected_checkpoint", "selector_replay_summary", "stopping_summary", "scientific_state", "provenance", "evaluation_consumption_count"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p9_v2_finalization_result"},
+    "finalization_id": {"type": "string", "pattern": "^p9fin_[0-9a-f]{24}$"},
+    "finalization_result_hash": {"$ref": "#/$defs/sha256"},
+    "status": {"enum": ["SUCCEEDED", "FAILED"]},
+    "failure_code": {"oneOf": [{"type": "null"}, {"enum": ["BUNDLE_INVALID", "BUNDLE_NOT_FOUND", "SCIENTIFICALLY_INCOMPLETE", "SELECTION_CONTRACT_MISMATCH", "NO_ELIGIBLE_CANDIDATE", "SELECTOR_REPLAY_MISMATCH", "STOPPING_SUMMARY_MISMATCH", "CHECKPOINT_INVENTORY_MISMATCH", "SOURCE_PROVENANCE_MISMATCH", "UNSUPPORTED_SCHEMA_VERSION"]}]},
+    "evidence_class": {"enum": ["VALID_SCIENTIFIC_EVIDENCE", "INVALID_SCIENTIFIC_EVIDENCE"]},
+    "run_bundle_id": {"$ref": "#/$defs/nullable_id"},
+    "run_bundle_hash": {"$ref": "#/$defs/nullable_hash"},
+    "selection_contract_id": {"$ref": "#/$defs/nullable_id"},
+    "selection_contract_hash": {"$ref": "#/$defs/nullable_hash"},
+    "finalizer_implementation_version": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$"},
+    "finalizer_implementation_hash": {"$ref": "#/$defs/sha256"},
+    "candidate_set_hash": {"$ref": "#/$defs/nullable_hash"},
+    "selected_checkpoint": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "required": ["checkpoint_id", "validation_id", "completed_epoch", "resume_epoch", "optimizer_update", "validation_retrieval_loss", "mean_source_separation_margin", "payload_sha256", "manifest_sha256", "payload_locator"],
+          "properties": {
+            "checkpoint_id": {"type": "string", "pattern": "^p9ck_[0-9a-f]{24}$"},
+            "validation_id": {"type": "string", "pattern": "^p9val_[0-9a-f]{24}$"},
+            "completed_epoch": {"type": "integer", "minimum": 1},
+            "resume_epoch": {"type": "integer", "minimum": 2},
+            "optimizer_update": {"type": "integer", "minimum": 1},
+            "validation_retrieval_loss": {"type": "number"},
+            "mean_source_separation_margin": {"type": "number"},
+            "payload_sha256": {"$ref": "#/$defs/sha256"},
+            "manifest_sha256": {"$ref": "#/$defs/sha256"},
+            "payload_locator": {"type": "object"}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "selector_replay_summary": {"oneOf": [{"type": "null"}, {"type": "object"}]},
+    "stopping_summary": {"oneOf": [{"type": "null"}, {"type": "object"}]},
+    "scientific_state": {"oneOf": [{"type": "null"}, {"enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETE", "INCOMPLETE"]}]},
+    "provenance": {"oneOf": [{"type": "null"}, {"type": "object"}]},
+    "evaluation_consumption_count": {"const": 0}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_hash": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]},
+    "nullable_id": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1}]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "SUCCEEDED"}}},
+      "then": {
+        "properties": {
+          "failure_code": {"type": "null"},
+          "evidence_class": {"const": "VALID_SCIENTIFIC_EVIDENCE"},
+          "run_bundle_id": {"type": "string"},
+          "run_bundle_hash": {"$ref": "#/$defs/sha256"},
+          "selection_contract_id": {"type": "string"},
+          "selection_contract_hash": {"$ref": "#/$defs/sha256"},
+          "candidate_set_hash": {"$ref": "#/$defs/sha256"},
+          "selected_checkpoint": {"type": "object"},
+          "selector_replay_summary": {"type": "object"},
+          "stopping_summary": {"type": "object"},
+          "scientific_state": {"const": "COMPLETE"},
+          "provenance": {"type": "object"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "FAILED"}}},
+      "then": {
+        "properties": {
+          "failure_code": {"type": "string"},
+          "evidence_class": {"const": "INVALID_SCIENTIFIC_EVIDENCE"},
+          "selected_checkpoint": {"type": "null"}
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

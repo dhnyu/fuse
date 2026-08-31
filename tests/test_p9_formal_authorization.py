@@ -12,6 +12,8 @@ sys.path.insert(0, str(ROOT / "python"))
 from canonical_config import canonical_json_bytes  # noqa: E402
 from p9_formal_authorization import (FormalAttemptLock, build_plan_bundle, canonical_membership,
                                      cfg_main_reservation_payload, load_config, validate_lineage)  # noqa: E402
+sys.path.insert(0, str(ROOT / "scripts"))
+import p9_production_cache as production_cache  # noqa: E402
 
 CONFIG = ROOT / "config/p9_formal_authorization.yml"
 
@@ -73,3 +75,19 @@ def test_reservation_is_unstarted_and_complete_duplicate_key():
     assert reservation["attempt_started"] is False
     assert reservation["optimizer_updates_executed"] == 0
     assert len(reservation["duplicate_attempt_key"]) == 64
+
+
+def test_memory_thresholds_are_canonical_json_serializable(monkeypatch):
+    config = load_config(CONFIG)
+    original = Path.read_text
+
+    def read_text(path, *args, **kwargs):
+        if str(path) == "/proc/meminfo":
+            return "MemAvailable: 999999999 kB\n"
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    tier, resources = production_cache.memory_worker_tier(config)
+    assert tier == 32
+    assert set(resources["thresholds"]) == {"32", "24", "16"}
+    canonical_json_bytes(resources)

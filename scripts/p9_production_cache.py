@@ -210,10 +210,10 @@ def memory_worker_tier(config: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     for line in Path("/proc/meminfo").read_text().splitlines():
         key, value = line.split(":", 1); info[key] = int(value.strip().split()[0]) * 1024
     available = info["MemAvailable"]; measured = int(config["cache"]["measured_32_worker_peak_rss_bytes"])
-    thresholds = {tier: int(measured * tier / 32 / (1.0 - float(config["cache"]["memory_safety_fraction"])))
+    thresholds = {str(tier): int(measured * tier / 32 / (1.0 - float(config["cache"]["memory_safety_fraction"])))
                   for tier in (32, 24, 16)}
     for tier in (32, 24, 16):
-        if available >= thresholds[tier]: return tier, {"mem_available_bytes": available, "thresholds": thresholds}
+        if available >= thresholds[str(tier)]: return tier, {"mem_available_bytes": available, "thresholds": thresholds}
     raise MemoryError("P9 cache build lacks memory for the minimum 16-worker tier")
 
 

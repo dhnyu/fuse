@@ -48,6 +48,9 @@ terminal accounting. The optimizer-free two-rank startup gate passed with zero
 optimizer, EMA, scheduler, checkpoint, validation, and evaluation activity.
 Layer A/B first publication completed; replay skipped with no builds.
 
+Focused sampler/identity tests passed, full Python passed (288), and the full
+R/testthat suite completed with its documented skips.
+
 ## Non-execution and Preservation
 
 No formal attempt/run identity was created, no production optimizer update,

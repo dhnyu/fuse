@@ -1,0 +1,67 @@
+schema_version: "1.0.0"
+implementation_commit: c330e227dfe224a1c654526f62a9ad7165d88a69
+runtime_tree_sha256: b0395143a364d26bb1e121524e69c75cc0f98ce12aa5ecdefacab0f9af58f9f6
+runtime_files:
+  - _targets_p9_formal.R
+  - config/p6_model_dataloader.yml
+  - config/p7_deterministic_training.yml
+  - config/p9_formal_isolated_runtime.yml
+  - config/p9_infrastructure.yml
+  - config/schemas/p9_formal_attempt_acceptance.schema.json
+  - config/schemas/p9_formal_attempt_reservation_v2.schema.json
+  - config/schemas/p9_formal_execution_authority.schema.json
+  - config/schemas/p9_formal_execution_supersession.schema.json
+  - config/schemas/p9_formal_resume_checkpoint.schema.json
+  - config/schemas/p9_formal_running_state.schema.json
+  - config/schemas/p9_formal_terminal_execution.schema.json
+  - config/schemas/p9_formal_training_authority.schema.json
+  - config/schemas/p9_formal_validation_event.schema.json
+  - config/schemas/p9_isolated_execution_authorization_acceptance.schema.json
+  - config/schemas/p9_isolated_immutable_root_inventory.schema.json
+  - config/schemas/p9_isolated_preassigned_attempt.schema.json
+  - python/canonical_config.py
+  - python/p6_data.py
+  - python/p6_model.py
+  - python/p7_geometry_cache.py
+  - python/p7_training.py
+  - python/p9_formal_execution.py
+  - python/p9_formal_isolated_authorization.py
+  - python/p9_infrastructure.py
+  - python/p9_model_families.py
+  - python/prototype_encoder.py
+  - python/rotating_padding_sampler.py
+  - R/research_p9_formal_execution_isolated.R
+  - scripts/p7_prototype_training.py
+  - scripts/p9_formal_isolated_authorization.py
+  - scripts/p9_formal_training.py
+  - targets/research_p9_formal_execution.R
+
+checkpoint_contract:
+  atomic_stage_and_rename: true
+  exact_same_attempt_resume_only: true
+  required_state:
+    - online_model
+    - ema_model
+    - optimizer
+    - scheduler
+    - epoch_and_global_update
+    - within_epoch_sampler_cursor
+    - sampler_state
+    - all_rank_rng_states
+    - queue_payload_and_pointers
+    - early_stopping_state
+    - best_checkpoint_state
+    - validation_trace
+    - complete_lineage
+    - runtime_tree_identity
+    - world_size_contract
+
+locking_contract:
+  controller_owns_lock: true
+  ddp_rank_lock_count: 0
+  kernel_flock: true
+  durable_owner_record: true
+  heartbeat: true
+  automatic_stale_lock_deletion: false
+  stale_recovery_requires_authority: true
+  exact_resume_recognition: true

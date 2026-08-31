@@ -106,10 +106,12 @@ the five NumPy reconstruction types present in these known payloads. It never
 falls back to unrestricted pickle loading or changes global safe globals.
 
 The active dissertation says a margin-only tie-break selects a checkpoint but
-does not reset patience. V2-C currently resets patience for every selected best.
-No margin-only best replacement occurs in the historical 25 candidates, so both
-rules produce epoch 105 and the epoch-125 stopping boundary. The general V2-C
-contract discrepancy must be resolved before canonical V2-G publication.
+does not reset patience. V2-EF corrected this with selection contract
+`p9-selection-v2.1.0`. No margin-only best replacement occurs in the historical
+25 candidates, and the post-correction regression still produces epoch 105 and
+the epoch-125 stopping boundary. Under the corrected contract the noncanonical
+dry-run bundle is `p9rb_65fc954ba2b95475aaf38ad7`; this does not rewrite the
+original V2-D report or any historical artifact.
 
 ## Migration acceptance criteria
 

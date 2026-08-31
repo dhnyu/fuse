@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import math
 import shutil
 import subprocess
 import sys
@@ -54,6 +55,37 @@ def test_early_stopping_patience_four(tmp_path):
     assert result["stopping_summary"]["patience_reached"] is True
     assert result["stopping_summary"]["completed_epoch"] == 25
     assert result["selector_replay_summary"]["final_events_without_improvement"] == 4
+
+
+def test_margin_tiebreak_selects_checkpoint_without_resetting_patience(tmp_path):
+    specs = (
+        CandidateSpec(5, 380, 0.5, 0.1),
+        CandidateSpec(10, 760, 0.50005, 0.2),
+        CandidateSpec(15, 1140, 0.6, 0.3),
+        CandidateSpec(20, 1520, 0.6, 0.3),
+        CandidateSpec(25, 1900, 0.6, 0.3),
+    )
+    case = make_published_case(tmp_path, specs)
+    result = finalize_run_bundle(case.bundle_path, case.fixture.locator_roots)
+    assert result["status"] == "SUCCEEDED"
+    assert result["selected_checkpoint"]["completed_epoch"] == 10
+    assert result["selector_replay_summary"]["steps"][1]["selected_as_best"] is True
+    assert result["selector_replay_summary"]["steps"][1]["patience_reset"] is False
+    assert result["selector_replay_summary"]["final_events_without_improvement"] == 4
+    assert result["stopping_summary"]["completed_epoch"] == 25
+
+
+def test_loss_improvement_crossing_tolerance_resets_patience(tmp_path):
+    specs = (
+        CandidateSpec(5, 380, 0.5, 0.1),
+        CandidateSpec(10, 760, math.nextafter(0.5 - 0.0001, -math.inf), 0.0),
+    )
+    case = make_published_case(tmp_path, specs)
+    result = finalize_run_bundle(case.bundle_path, case.fixture.locator_roots)
+    assert result["status"] == "SUCCEEDED"
+    assert result["selector_replay_summary"]["steps"][1]["selected_as_best"] is True
+    assert result["selector_replay_summary"]["steps"][1]["patience_reset"] is True
+    assert result["selector_replay_summary"]["final_events_without_improvement"] == 0
 
 
 def test_exactly_before_patience_is_complete_without_early_stop(tmp_path):

@@ -14,6 +14,7 @@ import torch
 
 from canonical_config import canonical_json_bytes
 from rotating_padding_sampler import logical_groups, rotating_padding_state
+from p9_v2_downstream import AcceptedCheckpointResolver, resolve_p9_b_checkpoint
 
 SCHEMA_VERSION = "1.0.0"
 FAMILIES = ("FM", "A1", "A2", "A3", "A4", "A5", "SSV", "DS")
@@ -93,22 +94,29 @@ def validate_p8_bundle(root: str | Path, contract: dict[str, Any]) -> dict[str, 
             "bank": bank, "a5": a5, "ds": ds}
 
 
-def materialize_comparison(template: dict[str, Any], selected: dict[str, Any] | None,
-                           evaluation_identity: str | None = None) -> dict[str, Any]:
+def materialize_comparison(
+    template: dict[str, Any],
+    acceptance_identity: str | None,
+    resolver: AcceptedCheckpointResolver | None = None,
+    evaluation_identity: str | None = None,
+) -> dict[str, Any]:
     if evaluation_identity is not None:
         raise ValueError("evaluation identity is prohibited in P9")
-    if selected is None or selected.get("status") != "PASS" or not selected.get("selected_configuration_identity"):
-        raise ValueError("stable selected FM identity is required before P9-B materialization")
-    if selected.get("terminal_outcome") != "STABLE_ACCEPTED_RUN":
-        raise ValueError("P9-B selected FM must be a stable accepted run")
+    if not isinstance(acceptance_identity, str):
+        raise ValueError("stable selected FM acceptance identity is required before P9-B materialization")
+    if resolver is None:
+        raise ValueError("canonical accepted-checkpoint resolver is required")
+    selected = resolve_p9_b_checkpoint(acceptance_identity, resolver)
     if template.get("template_id") not in {
             "cmp_a1_geometric_core", "cmp_a2_semantic_enriched",
             "cmp_a3_object_context_enriched", "cmp_a4_raster_complete_non_relational",
             "cmp_a5_relation_type_agnostic", "cmp_ssv_like", "cmp_ds_like"}:
         raise ValueError("unknown comparison template")
-    payload = {"selected_configuration_identity": selected["selected_configuration_identity"],
+    scientific = selected.scientific_configuration["content"]
+    payload = {"selected_configuration_identity": selected.acceptance_id,
                "template_id": template["template_id"], "template_hash": template["template_hash"],
-               "scientific": selected["scientific"], "evaluation_ancestry": False}
+               "scientific": scientific, "checkpoint_id": selected.checkpoint_id,
+               "evaluation_ancestry": False}
     return {**payload, "scientific_hash": digest(payload)}
 
 

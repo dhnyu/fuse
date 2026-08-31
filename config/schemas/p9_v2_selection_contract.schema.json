@@ -12,7 +12,7 @@
       "type": "object",
       "required": ["contract_version", "validation_interval_epochs", "primary_metric", "primary_direction", "equivalence_tolerance", "equivalence_comparison", "margin_metric", "margin_direction", "final_tiebreaker", "early_stopping_patience", "patience_reset", "candidate_eligibility"],
       "properties": {
-        "contract_version": {"const": "p9-selection-v2.0.0"},
+        "contract_version": {"const": "p9-selection-v2.1.0"},
         "validation_interval_epochs": {"const": 5},
         "primary_metric": {"const": "validation_retrieval_loss"},
         "primary_direction": {"const": "minimize"},
@@ -22,7 +22,7 @@
         "margin_direction": {"const": "maximize"},
         "final_tiebreaker": {"const": "earlier_completed_epoch"},
         "early_stopping_patience": {"const": 4},
-        "patience_reset": {"const": "selected_best_event_only"},
+        "patience_reset": {"const": "retrieval_loss_decrease_at_least_tolerance_only"},
         "candidate_eligibility": {"const": "VALIDATION_CHECKPOINT_COMMITTED_ONLY"}
       },
       "additionalProperties": false

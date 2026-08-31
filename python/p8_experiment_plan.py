@@ -286,13 +286,21 @@ def validate_comparison_templates(rows: list[dict[str, Any]]) -> None:
         raise ValueError("DS channel/objective contract mismatch")
 
 
-def materialize_comparison(template: dict[str, Any], selected: dict[str, Any] | None) -> dict[str, Any]:
-    if selected is None or selected.get("status") != "STABLE_ACCEPTED" or not selected.get("selected_configuration_identity"):
-        raise ValueError("stable selected FM identity is required before P9-B materialization")
+def materialize_comparison(template: dict[str, Any], acceptance_identity: str | None, resolver=None) -> dict[str, Any]:
+    if not isinstance(acceptance_identity, str):
+        raise ValueError("stable selected FM acceptance identity is required before P9-B materialization")
+    if resolver is None:
+        raise ValueError("canonical accepted-checkpoint resolver is required")
+    from p9_v2_downstream import resolve_p9_b_checkpoint
+
+    selected = resolve_p9_b_checkpoint(acceptance_identity, resolver)
     if template["template_id"] not in TEMPLATE_IDS:
         raise ValueError("unrecognized comparison template")
-    payload = {"selected_fm": selected["selected_configuration_identity"], "template_hash": template["template_hash"], "transformation": template["transformation_contract"]}
-    return {**template, "selected_fm_dependency": selected["selected_configuration_identity"], "final_config_hash_status": "RESOLVED", "final_scientific_hash": digest(payload)}
+    payload = {"selected_fm": selected.acceptance_id, "checkpoint_id": selected.checkpoint_id,
+               "template_hash": template["template_hash"], "transformation": template["transformation_contract"]}
+    return {**template, "selected_fm_dependency": selected.acceptance_id,
+            "selected_checkpoint_id": selected.checkpoint_id,
+            "final_config_hash_status": "RESOLVED", "final_scientific_hash": digest(payload)}
 
 
 class DimensionCompatibilityModel(nn.Module):

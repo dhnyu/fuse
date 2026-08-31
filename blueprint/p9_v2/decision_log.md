@@ -29,7 +29,7 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | D23 | Existing identity paths use validate-and-return for exact content and fail closed otherwise. | Provides sequential/concurrent idempotency without overwriting collisions. | Implemented in V2-B. |
 | D24 | Permit valid incomplete evidence bundles but label them `SCIENTIFICALLY_INCOMPLETE`; later finalization must reject them. | Preserves interrupted/failed evidence without confusing it with finalizable science. | Implemented in V2-B. |
 | D25 | Exclude all `targets` metadata and physical root paths; verify external size/hash on every validation. | Makes bundles portable and detects mutation instead of trusting location. | Implemented in V2-B. |
-| D26 | Encode the selection contract as `p9-selection-v2.0.0`, with strict binary64 absolute loss difference `< 0.0001`, margin then earlier-epoch tie breaks, and patience four reset only by a newly selected best. | Closes boundary and numeric semantics without adding MRR or trusting stored selector state. | Implemented in V2-C. |
+| D26 | Encode the selection contract as `p9-selection-v2.0.0`, with strict binary64 absolute loss difference `< 0.0001`, margin then earlier-epoch tie breaks, and patience reset by a newly selected best. | This selected checkpoints correctly but incorrectly coupled margin selection to patience reset. | Superseded by D42 in V2-EF. |
 | D27 | Replay candidates in committed ledger sequence and require exactly one matching early-stopping update for every validation-checkpoint event. | The ledger, not a stored best-checkpoint summary, remains selection authority. | Implemented in V2-C. |
 | D28 | Derive `finalization_result_hash` from the complete canonical result preimage excluding identity/hash and bind the finalizer implementation version/hash; derive `p9fin_` from the first 24 hash hex. | Same interpretation is byte-identical while implementation or contract drift changes identity. | Implemented in V2-C. |
 | D29 | Keep deterministic finalization failures in a stable invalid-evidence taxonomy; keep publication/IO failures outside scientific and training state. | Operational retry must not relabel completed science. | Implemented in V2-C. |
@@ -44,7 +44,11 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | D38 | Represent v1 payload/manifest atomic publication as `AVAILABLE_WITH_LEGACY_ANNOTATION`, never as a native contemporaneous V2 commit. | This preserves equivalent durable evidence without rewriting history. | Implemented in V2-D. |
 | D39 | Publish V2-D output only below `v2_d_noncanonical_dry_run/ineligible_for_acceptance`, with schema-required canonical and acceptance eligibility false. | Dry-run evidence cannot be mistaken for V2-G canonical publication. | Implemented in V2-D. |
 | D40 | Fail closed on missing, duplicate, ambiguous, hash-inconsistent, state-incomplete, evaluation-contaminated, or unsupported legacy evidence; `MISSING_BLOCKING` means no unique lossless value is available from immutable sources. | Import must not repair, guess, use mtime/latest, or recompute science. | Implemented in V2-D. |
-| D41 | Record the dissertation/V2-C patience-reset discrepancy without changing V2-C in V2-D. | The historical trace has no margin-only selected replacement, so the dry-run result is invariant; the general contract must be corrected before V2-G. | Open before V2-G. |
+| D41 | Record the dissertation/V2-C patience-reset discrepancy without changing V2-C in V2-D. | The historical trace has no margin-only selected replacement, so the dry-run result is invariant; the general contract required correction before V2-G. | Closed by D42 in V2-EF. |
+| D42 | Use `p9-selection-v2.1.0`: selection still uses loss-equivalence/margin/earlier epoch, but patience resets only for retrieval-loss decrease at least `1e-4`. | This exactly implements the dissertation and keeps checkpoint choice separate from early-stopping improvement. | Implemented in V2-EF; closes D41. |
+| D43 | Configure one resolver with roots and an immutable content-addressed eligibility snapshot; consumer calls take only an acceptance identity. | Five consumers share full chain validation without path parameters, mutable registry state, or duplicated checks. | Implemented in V2-E. |
+| D44 | Represent eligibility as a sorted immutable snapshot with `ELIGIBLE`, `SUPERSEDED`, or `REVOKED` entries bound to authority identity/hash. | Missing, ambiguous, or ineligible acceptance fails closed without inventing a new authority or publication state machine. | Implemented in V2-E. |
+| D45 | Validate V2-A through consumer binding using temporary synthetic artifacts only. | Exercises interruption, failure, finalization retry, publication retry, bookkeeping failure, corruption, and fallback rejection without downstream science. | Implemented in V2-F. |
 
 ## Retained identity justification
 
@@ -60,6 +64,4 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 
 These do not block the architecture verdict but must be closed in the named unit:
 
-- V2-E: location and format of the authority eligibility/supersession index.
 - V2-H: precise heartbeat interval, interruption policy, and configurable progress-summary cadence after I/O pilot.
-- Before V2-G: align V2-C patience reset with the dissertation rule that margin-only tie-break improvement does not reset patience.

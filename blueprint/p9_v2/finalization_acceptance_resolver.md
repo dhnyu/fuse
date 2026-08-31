@@ -1,9 +1,10 @@
 # Finalization, Acceptance, Locking, and Resolution
 
-Status: `V2_C_IMPLEMENTED_REFERENCE_NON_AUTHORIZING`
+Status: `V2_EF_IMPLEMENTED_REFERENCE_NON_AUTHORIZING`
 
-Runtime implementations are `python/p9_v2_finalization.py` and
-`python/p9_v2_acceptance.py`. Runtime schemas are under `config/schemas/`.
+Runtime implementations are `python/p9_v2_finalization.py`,
+`python/p9_v2_acceptance.py`, and `python/p9_v2_downstream.py`. Runtime schemas
+are under `config/schemas/`.
 
 ## Pure deterministic finalizer
 
@@ -24,12 +25,14 @@ Inputs are content hashes, resolved through immutable content-addressed storage:
 }
 ```
 
-The selection contract is `p9-selection-v2.0.0`: validate every five epochs;
+The selection contract is `p9-selection-v2.1.0`: validate every five epochs;
 minimize validation retrieval loss; treat the absolute loss difference as
 equivalent only when it is strictly less than the binary64 value of `0.0001`;
 then maximize mean source-separation margin; then retain the earlier completed
-epoch. Only selection as the new best resets the patience counter, and patience
-is four. Comparison promotes the canonical binary64 operands losslessly with
+epoch. Checkpoint selection and patience are separate decisions: a margin-only
+tie-break may replace the selected checkpoint, while patience resets only when
+retrieval loss decreases by at least the binary64 tolerance. Patience is four.
+Comparison promotes the canonical binary64 operands losslessly with
 `Decimal.from_float()` before arithmetic. MRR is not an input.
 
 The finalizer validates the bundle, takes candidates only from committed `VALIDATION_CHECKPOINT_COMMITTED` events, replays selector and early stopping, proves the stopping boundary, and emits:
@@ -125,9 +128,14 @@ resolve_accepted_checkpoint(acceptance_identity)
 The V2-C resolver core validates the canonical acceptance directory and commit
 manifest, authority binding, finalization result hash, bundle hash and
 scientific completeness, checkpoint inventory linkage, and current external
-payload/manifest bytes. Authority eligibility and supersession/revocation index
-policy remain a fail-closed integration decision for V2-E; V2-C does not invent
-a mutable eligibility subsystem. It returns an immutable result record:
+payload/manifest bytes. V2-E configures this core with one immutable,
+content-addressed eligibility snapshot. The snapshot is canonical JSON, has
+sorted unique acceptance entries, and records each as `ELIGIBLE`, `SUPERSEDED`,
+or `REVOKED` with exact authority identity/hash. Missing or ambiguous entries
+fail as unresolved. It is evidence, not a new authority type or mutable registry,
+and V2-E adds no publisher for it. The configured resolver exposes
+`resolve_accepted_checkpoint(acceptance_identity)` with no path argument and
+returns an immutable result record:
 
 ```json
 {
@@ -151,6 +159,8 @@ a mutable eligibility subsystem. It returns an immutable result record:
 It rejects missing/uncommitted manifests, unsuccessful results, incomplete
 bundles, every hash/binding mismatch, unresolved locator namespaces, modified
 external artifacts, path-only input, `latest`, and legacy recovery identities.
-P9-B, selected-FM, held-out evaluation, P10, and P11 must call this resolver
-after V2-E migrates their interfaces. Their public APIs must accept an acceptance
-identity, never a checkpoint path.
+`python/p9_v2_downstream.py` is the sole consumer adapter. P9-B, selected-FM,
+held-out evaluation, P10, and P11 all call the same configured resolver and
+receive the same `AcceptedCheckpoint`. Their public APIs accept an acceptance
+identity, never a checkpoint, bundle, finalization, recovery, or filesystem
+path. There is no `latest` or manual fallback.

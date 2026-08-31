@@ -24,6 +24,7 @@ from p9_v2_finalization import (
     evaluate_selection_candidate,
     finalize_run_bundle,
     make_selection_contract,
+    qualifies_patience_reset,
 )
 from p9_v2_ledger import LedgerWriter, read_ledger
 from p9_v2_replay import ReplayResult, replay_events
@@ -624,12 +625,15 @@ def validate_legacy_import(inspection: LegacyInspection) -> LegacyImportValidati
             "mean_source_separation_margin": validation.get("mean_source_separation_margin"),
         }
         try:
-            selected, _ = evaluate_selection_candidate(candidate, best, 0.0001)
+            previous_best = best
+            selected, _ = evaluate_selection_candidate(candidate, previous_best, 0.0001)
+            resets_patience = qualifies_patience_reset(candidate, previous_best, 0.0001)
         except (KeyError, TypeError, ValueError):
             errors.append("SELECTOR_TRACE_MISMATCH")
             continue
         if selected:
             best = candidate
+        if resets_patience:
             count = 0
         else:
             count += 1
@@ -732,9 +736,12 @@ def map_legacy_run_to_v2(inspection: LegacyInspection, ledger_root: str | Path) 
             "validation_retrieval_loss": pair["validation"]["validation_retrieval_loss"],
             "mean_source_separation_margin": pair["validation"]["mean_source_separation_margin"],
         }
-        selected, basis = evaluate_selection_candidate(candidate, best, 0.0001)
+        previous_best = best
+        selected, basis = evaluate_selection_candidate(candidate, previous_best, 0.0001)
+        resets_patience = qualifies_patience_reset(candidate, previous_best, 0.0001)
         if selected:
             best = candidate
+        if resets_patience:
             non_improvements = 0
         else:
             non_improvements += 1

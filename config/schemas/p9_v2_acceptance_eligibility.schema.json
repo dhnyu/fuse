@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fuse:p9-v2:acceptance-eligibility:2.0.0",
+  "title": "P9 v2 immutable acceptance eligibility snapshot",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "eligibility_id", "content_sha256", "namespace", "status", "entries"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p9_v2_acceptance_eligibility"},
+    "eligibility_id": {"type": "string", "pattern": "^p9elig_[0-9a-f]{24}$"},
+    "content_sha256": {"$ref": "#/$defs/sha256"},
+    "namespace": {"type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+    "status": {"const": "COMMITTED"},
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["acceptance_id", "eligibility", "authority_id", "authority_hash"],
+        "properties": {
+          "acceptance_id": {"type": "string", "pattern": "^p9accv2_[0-9a-f]{24}$"},
+          "eligibility": {"enum": ["ELIGIBLE", "SUPERSEDED", "REVOKED"]},
+          "authority_id": {"type": "string", "minLength": 1},
+          "authority_hash": {"$ref": "#/$defs/sha256"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+  "additionalProperties": false
+}

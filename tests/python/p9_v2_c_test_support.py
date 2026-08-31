@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +16,10 @@ from p9_v2_bundle import (  # noqa: E402
 )
 from p9_v2_bundle_test_support import BundleFixture, NAMESPACE, _documents  # noqa: E402
 from p9_v2_canonical import canonical_json_bytes, sha256_bytes  # noqa: E402
+from p9_v2_finalization import (  # noqa: E402
+    evaluate_selection_candidate,
+    qualifies_patience_reset,
+)
 from p9_v2_test_support import HASH_C, append_event, initialized_writer, payload  # noqa: E402
 
 
@@ -74,22 +77,12 @@ def _checkpoint(
     }, (payload_path, manifest_path)
 
 
-def _decision(candidate: CandidateSpec, best: CandidateSpec | None) -> tuple[bool, str]:
-    if best is None:
-        return True, "retrieval_loss_improved"
-    loss = Decimal.from_float(candidate.loss)
-    best_loss = Decimal.from_float(best.loss)
-    equivalent = abs(loss - best_loss) < Decimal.from_float(0.0001)
-    if not equivalent:
-        return loss < best_loss, "retrieval_loss_improved" if loss < best_loss else "retrieval_loss_not_improved"
-    margin = Decimal.from_float(candidate.margin)
-    best_margin = Decimal.from_float(best.margin)
-    if margin > best_margin:
-        return True, "equivalent_loss_margin_improved"
-    if margin < best_margin:
-        return False, "equivalent_loss_margin_not_improved"
-    earlier = candidate.epoch < best.epoch
-    return earlier, "equivalent_loss_earlier_epoch_improved" if earlier else "equivalent_loss_earlier_epoch_retained"
+def _candidate(spec: CandidateSpec) -> dict[str, Any]:
+    return {
+        "completed_epoch": spec.epoch,
+        "validation_retrieval_loss": spec.loss,
+        "mean_source_separation_margin": spec.margin,
+    }
 
 
 def make_published_case(
@@ -129,10 +122,14 @@ def make_published_case(
     previous_update = 0
     for index, spec in enumerate(specs):
         checkpoint_id, validation_id = _ids(index)
-        selected, basis = _decision(spec, best_spec)
+        candidate = _candidate(spec)
+        previous_best = None if best_spec is None else _candidate(best_spec)
+        selected, basis = evaluate_selection_candidate(candidate, previous_best, 0.0001)
+        resets_patience = qualifies_patience_reset(candidate, previous_best, 0.0001)
         if selected:
             best_spec = spec
             best_id = checkpoint_id
+        if resets_patience:
             non_improvements = 0
         else:
             non_improvements += 1

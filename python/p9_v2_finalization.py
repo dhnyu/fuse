@@ -16,8 +16,8 @@ from p9_v2_ledger import LedgerError, read_ledger
 from p9_v2_schema import P9V2SchemaError, SCHEMA_VERSION, validate_instance
 
 
-FINALIZER_IMPLEMENTATION_VERSION = "p9-v2-finalizer-v1"
-SELECTION_CONTRACT_VERSION = "p9-selection-v2.0.0"
+FINALIZER_IMPLEMENTATION_VERSION = "p9-v2-finalizer-v2"
+SELECTION_CONTRACT_VERSION = "p9-selection-v2.1.0"
 FINALIZATION_FAILURE_CODES = frozenset({
     "BUNDLE_INVALID",
     "BUNDLE_NOT_FOUND",
@@ -55,7 +55,7 @@ def selection_contract_content() -> dict[str, Any]:
         "margin_direction": "maximize",
         "final_tiebreaker": "earlier_completed_epoch",
         "early_stopping_patience": 4,
-        "patience_reset": "selected_best_event_only",
+        "patience_reset": "retrieval_loss_decrease_at_least_tolerance_only",
         "candidate_eligibility": "VALIDATION_CHECKPOINT_COMMITTED_ONLY",
     }
 
@@ -168,6 +168,20 @@ def evaluate_selection_candidate(
     )
 
 
+def qualifies_patience_reset(
+    candidate: Mapping[str, Any], previous_best: Mapping[str, Any] | None, tolerance: float
+) -> bool:
+    """Return whether the dissertation's primary-loss patience rule resets."""
+
+    if previous_best is None:
+        return True
+    improvement = (
+        _binary64_decimal(previous_best["validation_retrieval_loss"])
+        - _binary64_decimal(candidate["validation_retrieval_loss"])
+    )
+    return improvement >= _binary64_decimal(tolerance)
+
+
 def _early_updates(events: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     updates: dict[str, dict[str, Any]] = {}
     pending: str | None = None
@@ -236,9 +250,12 @@ def _replay_selector(
             raise FinalizationEvidenceError("SELECTOR_REPLAY_MISMATCH", "candidate violates validation interval")
         if index and candidate["completed_epoch"] - candidates[index - 1]["completed_epoch"] != interval:
             raise FinalizationEvidenceError("SELECTOR_REPLAY_MISMATCH", "validation cadence is not exactly five epochs")
-        selected, basis = evaluate_selection_candidate(candidate, best, tolerance)
+        previous_best = best
+        selected, basis = evaluate_selection_candidate(candidate, previous_best, tolerance)
+        resets_patience = qualifies_patience_reset(candidate, previous_best, tolerance)
         if selected:
             best = candidate
+        if resets_patience:
             non_improvements = 0
         else:
             non_improvements += 1
@@ -258,6 +275,7 @@ def _replay_selector(
             "checkpoint_id": checkpoint_id,
             "completed_epoch": candidate["completed_epoch"],
             "selected_as_best": selected,
+            "patience_reset": resets_patience,
             "decision_basis": basis,
             "best_checkpoint_id": expected_best,
             "events_without_improvement": non_improvements,

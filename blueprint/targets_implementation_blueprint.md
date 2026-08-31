@@ -860,7 +860,7 @@ The primary interpretations are conditional on this declared nesting: A2-A1 meas
 | `selected_checkpoint_identity` | accepted selector and checkpoint bytes | Publish immutable selected checkpoint for each config. |
 | `hyperparameter_selection` | accepted validation histories, configuration matrix, selected per-config checkpoints | Apply the approved validation-only configuration decision; evaluation artifacts are forbidden inputs. |
 | `selected_configuration_identity` | accepted hyperparameter selection | Publish the frozen configuration/checkpoint identity entering primary held-out evaluation. |
-| `comparison_training_configuration_plan` | selected FM identity, seven accepted templates | Materialize exactly seven final P9-B configurations. |
+| `comparison_training_configuration_plan` | V2 accepted-checkpoint identity resolved through the canonical resolver, seven accepted templates | Materialize exactly seven final P9-B configurations; paths, `latest`, v1 recovery and direct bundle/finalization inputs are invalid. |
 | `comparison_training_acceptance` | comparison runs, validation histories, selectors | Publish seven frozen comparison checkpoints without entering hyperparameter selection. |
 
 Scientific configuration includes model/loss/optimizer/schedule/bank and run seed. Execution configuration contains worker count, threads, device mapping, runtime path and controller. Numeric modes such as precision or DDP that change results belong to training-run identity; pure host/path placement remains execution-only.
@@ -948,7 +948,7 @@ in a worker `finally` path.
 | Field | Contract |
 |---|---|
 | Purpose | Evaluate the frozen selected FM and accepted comparison checkpoints; no training or checkpoint creation occurs in P10. |
-| Authoritative inputs | P9 selected checkpoints and frozen selected configuration, P5 fixed validation/evaluation query/gallery acceptances, evaluation contract. |
+| Authoritative inputs | P9 V2 acceptance identities resolved through the canonical accepted-checkpoint resolver, P5 fixed validation/evaluation query/gallery acceptances, evaluation contract. |
 | Output artifact | Embeddings, metrics/rankings, qualitative retrieval, UMAP/HDBSCAN, representation analysis, baselines/ablations, model comparison and acceptance. |
 | Schema requirements | Checkpoint/query/gallery IDs, embedding dimension/hash, full ranks, retrieval loss/margin/MRR/HIT, analysis seeds/parameters, baseline config, result provenance. |
 | Scientific fingerprint | Selected checkpoint + fixed query/gallery identity + evaluation/analysis implementation/config. |
@@ -965,7 +965,7 @@ in a worker `finally` path.
 | `validation_embedding_plan` | selected checkpoints, fixed validation acceptance | Cost-balanced selected-model x validation scene/query specs. |
 | `validation_embedding_shard` | mapped validation plan | Produce frozen original/query embeddings. |
 | `validation_embeddings_and_metrics` | all validation embeddings | Publish final validation metrics for reporting, not re-selection. |
-| `held_out_evaluation_embedding_plan` | selected configuration identity, required comparison checkpoints, fixed evaluation acceptance | First active edge from evaluation query artifacts. |
+| `held_out_evaluation_embedding_plan` | canonical resolver outputs for selected FM/comparison acceptance identities, fixed evaluation acceptance | First active edge from evaluation query artifacts; direct checkpoint paths are prohibited. |
 | `held_out_evaluation_embedding_shard` | mapped held-out plan | Produce frozen evaluation original/query embeddings. |
 | `augmented_scene_retrieval` | held-out embeddings, evaluation query/gallery identity | Full 3,200-query rankings and supplementary metrics. |
 | `qualitative_spatial_scene_retrieval` | accepted rankings | Deterministic qualitative cases with source IDs and selection rules. |
@@ -985,7 +985,7 @@ in a worker `finally` path.
 | Field | Contract |
 |---|---|
 | Purpose | Evaluate frozen scene representations with leakage-controlled spatial ridge-regression probes. |
-| Authoritative inputs | P10 accepted evaluation, selected frozen encoder/checkpoint, downstream source contract. |
+| Authoritative inputs | P10 accepted evaluation, the same canonical V2 accepted-checkpoint resolver output, downstream source contract. |
 | Output artifact | Prepared downstream targets, frozen embeddings, spatial folds, ridge predictions/metrics and acceptance. |
 | Schema requirements | Scene/source IDs, target transforms, coverage flags, fold IDs, feature/checkpoint hash, alpha selection, OOF predictions/metrics. |
 | Scientific fingerprint | Downstream source/transform + frozen checkpoint/embedding + fold/leakage/coverage + ridge contract. |
@@ -1002,7 +1002,7 @@ in a worker `finally` path.
 | `downstream_data_preparation_plan` | P10 evaluation acceptance, P1 scene index, downstream source inputs/contract | Define source-family x spatial shard preparation. |
 | `downstream_data_preparation_shard` | mapped preparation plan | Aggregate/transform downstream labels without model features. |
 | `downstream_dataset_acceptance` | all prepared shards | Publish coverage and source-provenance gate. |
-| `frozen_scene_embedding_plan` | P10 accepted checkpoint/encoder, eligible scenes | Define immutable embedding shards. |
+| `frozen_scene_embedding_plan` | canonical resolver output referenced by P10 acceptance, eligible scenes | Define immutable embedding shards without manual/latest/v1 fallback. |
 | `frozen_scene_embedding_shard` | mapped embedding plan | Produce read-only frozen scene embeddings. |
 | `spatial_fold_construction` | accepted downstream dataset, scene index | Build deterministic spatially disjoint folds. |
 | `downstream_leakage_check` | folds, prepared targets, embedding identities | Reject source/scene/spatial/fit-transform leakage. |

@@ -37,11 +37,9 @@ def test_p9_b_materialization_is_fail_closed():
     with pytest.raises(ValueError, match="selected FM"):
         materialize_comparison(template, None)
     with pytest.raises(ValueError, match="evaluation identity"):
-        materialize_comparison(template, {"status": "PASS"}, "evaluation")
-    selected = {"status": "PASS", "terminal_outcome": "STABLE_ACCEPTED_RUN",
-                "selected_configuration_identity": "p9sel_test", "scientific": {"d": 64}}
-    result = materialize_comparison(template, selected)
-    assert result["evaluation_ancestry"] is False
+        materialize_comparison(template, "p9accv2_" + "a" * 24, evaluation_identity="evaluation")
+    with pytest.raises(ValueError, match="resolver"):
+        materialize_comparison(template, "p9accv2_" + "a" * 24)
 
 
 def test_p9_full_schedule_boundaries():

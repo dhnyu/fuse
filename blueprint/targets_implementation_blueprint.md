@@ -911,6 +911,23 @@ states `AUTHORIZED_NOT_STARTED`, `STARTING`, `RUNNING`, `INTERRUPTED_RESUMABLE`,
 have explicit fail-closed transitions. A bounded-pilot output cannot satisfy a formal
 run or acceptance schema.
 
+Formal execution is structurally isolated from the historical scientific production
+DAG. `_targets_p9_formal.R` owns the execution-only pipeline and
+`/mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal` owns its metadata. Accepted P7,
+P8, readiness, category, and production-cache artifacts enter this pipeline through
+explicit path, size, SHA-256, schema, identity, and lineage bindings. Their historical
+producer targets are not ancestors of the formal run and are never rebuilt to establish
+execution validity.
+
+The isolated graph has three layers: immutable file bindings, content-addressed
+authorization, and the six-target formal run/validation/checkpoint/acceptance chain.
+First bootstrap uses `shortcut = FALSE` against the isolated store; later no-op replay
+may use `shortcut = TRUE`. A missing or changed immutable input is outdated by normal
+`targets` file semantics and fails validation. The pipeline does not use `tar_cue(mode =
+"never")`, copy scientific payloads into its store, or import the complete main target
+list. Historical producer currentness therefore does not control whether an already
+accepted immutable artifact is eligible for formal execution.
+
 <a id="p10-evaluation"></a>
 ### P10 Evaluation
 

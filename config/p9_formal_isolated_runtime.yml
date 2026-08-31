@@ -1,0 +1,140 @@
+schema_version: "1.0.0"
+contract_name: p9-formal-isolated-runtime-v1
+scientific_implementation_commit: eb90f6f667d1717684f47ddef30043992b70e788
+dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
+
+pipeline:
+  script: _targets_p9_formal.R
+  store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal
+  main_research_store_prohibited: /mnt/hdd002/dhnyu/fusedata/targets/fuse-research
+
+roots:
+  p7_acceptance:
+    path: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype/acceptance/p7acc_3c78cc0e85b93aec6a0cc02c/prototype_training_acceptance.json
+    artifact_type: p7_training_acceptance
+    identity_field: acceptance_id
+    expected_identity: p7acc_3c78cc0e85b93aec6a0cc02c
+    expected_size: 5106
+    sha256: 5b29bd0791e1652dd72afb7f4b6d6c0146343f75fe34c0a351048fb5136a494b
+  p7_runtime_acceptance:
+    path: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype/runtime/acceptance/p7rta_c780441a553abe26772827d0/cold_path_runtime_acceptance.json
+    artifact_type: p7_runtime_acceptance
+    identity_field: acceptance_id
+    expected_identity: p7rta_c780441a553abe26772827d0
+    expected_size: 3367
+    sha256: ba7ee1f477aa481909268cea472cc0dc09984a1c18b4a81cc3327354abfaa744
+  p8_acceptance:
+    path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_3cb1c49084529987f0244a93/p8acc_c9f16a07275aadfae928d329/formal_experiment_plan_acceptance.json
+    artifact_type: p8_formal_experiment_plan_acceptance
+    identity_field: acceptance_id
+    expected_identity: p8acc_c9f16a07275aadfae928d329
+    expected_size: 4098
+    sha256: 9e63729631e08ad4c6abd0bff57f3657294b27dfbbfdbfb8737b34c625466e4e
+  p8_hyperparameter_matrix:
+    path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_3cb1c49084529987f0244a93/p8acc_c9f16a07275aadfae928d329/hyperparameter_configuration_matrix.json
+    artifact_type: p8_hyperparameter_configuration_matrix
+    identity_field: matrix_id
+    expected_identity: p8hm_f34f1666b62255babab0ae08
+    expected_size: 16913
+    sha256: 3d769843aa807630eb8e108554f57adab8ee3932cdf2feb37012b6e3abc63d6e
+  p8_bank_index:
+    path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_3cb1c49084529987f0244a93/p8acc_c9f16a07275aadfae928d329/experiment_augmentation_bank_index.json
+    artifact_type: p8_experiment_augmentation_bank_index
+    identity_field: index_id
+    expected_identity: p8bi_2e492527089bf5ce9d00a933
+    expected_size: 365
+    sha256: 93facdae8cd93ab07df8ca64d2b7b49548d7758a56f1a9cb637295754e0a3903
+  p9_readiness:
+    path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/infrastructure/p9ready_521c12a65d9b2984fac2cf11/p9_infrastructure_readiness.json
+    artifact_type: p9_infrastructure_readiness
+    identity_field: readiness_id
+    expected_identity: p9ready_521c12a65d9b2984fac2cf11
+    expected_size: 2525
+    sha256: 40c7af3ab9943ad0a4e67498d24dcaa0552ef10fc4e2316bf9edd43f3f1732e9
+  production_cache_acceptance:
+    path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization/p9a_c16721ffbce259df3f723cdd/production_cache_acceptance.json
+    artifact_type: p9_production_cache_acceptance
+    identity_field: acceptance_id
+    expected_identity: p9ca_99725ef4c56f8b11b4d71935
+    expected_size: 3951
+    sha256: d3139185b00ad34d31b2cc8d744aa458bce9bd02aebcb16916fa0fb390d651e0
+  categories:
+    path: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_cd00016f6b5bfd960b0a6842/production/acceptance/bsa_e617ee0280a6edfa722994d3/spatial_categories.json
+    artifact_type: spatial_category_vocabulary
+    identity_field: null
+    expected_identity: null
+    expected_size: 804225
+    sha256: 654e4488e3e6d7e15adc8f3799c37aa99e5f0372abcdf38e3e944295a7c2a4a2
+
+cache:
+  cache_id: p9cache_f8b16c49f2c63216609b013b
+  entry_count: 78672
+  inventory_file_count: 314695
+  physical_bytes: "391466804516"
+  root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/production_cache/p9cba_5c472951ac896e82a0a0f555
+  manifests:
+    - path: production_cache_manifest.json
+      expected_size: 481850
+      sha256: 5e512bec42f6112340fd5f2a0d5aa0f4232d5372e324d698493b374b576ce28a
+    - path: canonical_cache_plan.json
+      expected_size: 13141434
+      sha256: 5aa419def82356a8e69867de3bb7439a224fac553c210be0cae0c6e33fd1a528
+    - path: gpu-0.json
+      expected_size: 54216818
+      sha256: b6595bb517496c7d8ad7b071ed37a7a4d8658bef12f6774bd0848faa9bc389eb
+    - path: gpu-1.json
+      expected_size: 54216818
+      sha256: 1dcafb8e4b7b594b04a24b50db65513c4287551f17dcdabdc2bea7a64f7a7f24
+    - path: ds/ds_cache_manifest.json
+      expected_size: 57610178
+      sha256: 8880399f947c512500b69391ca6a6eb8a64db040393e7ed09b16e2be1fad873a
+    - path: geometry/geometry_cache_manifest.json
+      expected_size: 147172854
+      sha256: c2d910934279f4c0166637930d70cb5fd96efcba2b61fcdd0b214851a1e3df17
+
+execution:
+  formal_attempt_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/attempts
+  lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/p9_attempt_locks
+  publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization
+  configuration_id: cfg_main
+  seed: 1749989426
+  seed_identity: 787e77a3684eb832cdfab0bfd1bded526d5d42b390d7ed84e2663cb1817c2815
+  cache_subset_identity: p8abi_34ec95ac92e1d3531f13fb81
+
+training_contract:
+  runner_class: P9_FORMAL
+  maximum_epochs: 200
+  updates_per_epoch: 76
+  maximum_updates: 15200
+  world_size: 2
+  global_batch_size: 32
+  per_rank_batch_size: 16
+  precision: float32
+  amp: false
+  tf32: false
+  allowed_operational_overrides: [log_verbosity]
+  scientific_cli_overrides: prohibited
+
+validation_contract:
+  interval_epochs: 5
+  query_count: 800
+  gallery_count: 400
+  primary: validation_retrieval_loss_lower
+  tie_threshold: 0.0001
+  tie_breaker: mean_source_separation_margin_larger_then_earlier_epoch
+  patience_events: 4
+  evaluation_queries: prohibited
+  mrr_hit_selector_use: prohibited
+
+superseded:
+  authority_id: p9a_b295be97717efbd2305dd5a6
+  reservation_id: p9res_51ed9e4731c21bda28d4d7a2
+  attempt_id: p9attempt_f153ff8e7831effbf2f2d68a
+  runtime_digest: d8379196a400bc590575c00b6953d046ae50dc3878cd37bbeb98aa1f6d7dff55
+  formal_attempt_starts: 0
+  run_identities: 0
+  lock_acquisitions: 0
+  optimizer_updates: 0
+  formal_validation_runs: 0
+  checkpoints: 0
+  evaluation_queries_consumed: 0

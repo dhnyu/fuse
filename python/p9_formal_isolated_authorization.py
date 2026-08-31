@@ -232,11 +232,12 @@ def build(runtime_config_path: str | Path, publication_config_path: str | Path,
     for evidence in superseded["preserved_evidence"].values():
         if sha256_file(evidence["path"]) != evidence["sha256"]:
             raise ValueError("preserved failed-attempt evidence changed")
+    supersession_policy = runtime_config.get("supersession", {})
     supersession = artifact("p9sup_", "p9_formal_execution_supersession", {
         "status": "PASS", "superseded": superseded,
-        "classification": runtime_config["supersession"]["classification"],
-        "reason": runtime_config["supersession"]["reason"],
-        "historical_state_inconsistency": runtime_config["supersession"].get("historical_state_inconsistency", {}),
+        "classification": supersession_policy.get("classification", ["preserved", "formally_started", "nonresumable", "durable_evidence", "ineligible_for_formal_execution"]),
+        "reason": supersession_policy.get("reason", "corrected global-batch uniqueness runtime contract"),
+        "historical_state_inconsistency": supersession_policy.get("historical_state_inconsistency", {}),
         "replacement_authority_id": authority["authority_id"],
         "replacement_reservation_id": reservation["reservation_id"],
         "replacement_attempt_id": attempt_id, "optimizer_updates": 0,

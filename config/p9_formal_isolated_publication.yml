@@ -1,11 +1,12 @@
 schema_version: "1.0.0"
-implementation_commit: 45bbd556434f9c610933ba3b54df918f437a2f2e
-runtime_tree_sha256: 1e044fe16378c957592fc408ce5e7af65c7bad697f44c48ab3cd817790254497
+implementation_commit: b1df836cf38ddf8ab61ab5879422c29f44b90a9d
+runtime_tree_sha256: 219e8007b9d07e222c481eb28fe09ade5d58607db5a6351a9383be158941b2df
 runtime_files:
   - _targets_p9_formal.R
   - config/p6_model_dataloader.yml
   - config/p7_deterministic_training.yml
   - config/p9_formal_isolated_runtime.yml
+  - config/p9_global_batch_sampler_contract.json
   - config/p9_infrastructure.yml
   - config/schemas/p9_formal_attempt_acceptance.schema.json
   - config/schemas/p9_formal_attempt_reservation_v2.schema.json
@@ -40,9 +41,9 @@ runtime_files:
   - targets/research_p9_formal_execution.R
 
 startup_gate_evidence:
-  path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/startup_gates/p9gen_acb72f05336e09451b4ac458_verified_v2/startup_gate_evidence.json
-  sha256: 7d2a80ac497f91f994a9839f9bcf3d720bfea69cd4fff2d3ec69b9bfc3fa68e3
-  startup_gate_id: p9sg_6bc30ca673e6e09b7699c93d
+  path: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/startup_gates/p9_batchuniq_20260831/startup_gate_evidence.json
+  sha256: 10bc6d90fc1ae4421c1a7508fa38b465ecdb8239efed898487acb5daac310683
+  startup_gate_id: p9sg_c6cb0f8646dd25f1bfb5cf2b
 
 checkpoint_contract:
   atomic_stage_and_rename: true

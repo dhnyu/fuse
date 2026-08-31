@@ -15,6 +15,7 @@ p9x_runtime_file_paths <- function() {
     "R/research_p9_formal_execution_isolated.R",
     "targets/research_p9_formal_execution.R",
     "config/p9_formal_isolated_runtime.yml",
+    "config/p9_global_batch_sampler_contract.json",
     "config/p6_model_dataloader.yml",
     "config/p7_deterministic_training.yml",
     "config/p9_infrastructure.yml",

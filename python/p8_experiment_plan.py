@@ -21,11 +21,24 @@ CONFIG_IDS = (
     "cfg_intensity_05", "cfg_intensity_20", "cfg_ema_990", "cfg_ip_0",
     "cfg_lr_2", "cfg_lr_3", "cfg_lr_10",
 )
+REPORTING_CONFIGURATION_ALIASES = {"cfg_main": "cfg_d64"}
 TEMPLATE_IDS = (
     "cmp_a1_geometric_core", "cmp_a2_semantic_enriched", "cmp_a3_object_context_enriched",
     "cmp_a4_raster_complete_non_relational", "cmp_a5_relation_type_agnostic",
     "cmp_ssv_like", "cmp_ds_like",
 )
+
+
+def reporting_configuration_id(configuration_id: str) -> str:
+    """Return the human-facing OFAT label without changing historical identity."""
+    return REPORTING_CONFIGURATION_ALIASES.get(configuration_id, configuration_id)
+
+
+def historical_configuration_id(configuration_id: str) -> str:
+    """Map a reporting alias back to the immutable P8 configuration identity."""
+    if configuration_id == "cfg_d64":
+        return "cfg_main"
+    return configuration_id
 
 
 def canonical_bytes(value: Any) -> bytes:

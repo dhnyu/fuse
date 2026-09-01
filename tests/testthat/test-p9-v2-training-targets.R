@@ -25,3 +25,12 @@ test_that("P9 v2 training graph is isolated and contains executable lifecycle ta
   Sys.unsetenv("P9_V2_TRAINING_AUTHORITY")
   expect_error(p9v2_training_authority_path(), "P9_V2_TRAINING_AUTHORITY_REQUIRED")
 })
+
+test_that("P9 v2 campaign can supply an explicit external contract", {
+  root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
+  source(file.path(root, "R", "research_p9_v2_training.R"), local = TRUE)
+  path <- tempfile(fileext = ".yml")
+  writeLines("schema_version: '2.0.0'", path)
+  withr::local_envvar(P9_V2_TRAINING_CONTRACT = path)
+  expect_identical(p9v2_training_contract_path(), normalizePath(path, mustWork = TRUE))
+})

@@ -49,14 +49,19 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 
 ## Current execution status and exact next work unit
 
-- `cfg_main` canonical V2 acceptance: complete; duplicate training prohibited.
+- `cfg_main` canonical V2 acceptance: complete; reported as `cfg_d64`; duplicate training prohibited.
 - `cfg_d48` native formal V2 acceptance: complete; selected epoch 130 and duplicate training prohibited.
 - V1 execution retirement: complete.
 - V2-H controller foundation: complete.
 - V2-H production-worker remediation: complete; update/checkpoint/resume and V2-B/C/E closure validated in temporary evidence.
 - New formal variant architecture: executable; one non-main formal trajectory has completed.
-- Remaining P9-A configurations: 11.
+- Remaining P9-A configurations: 11, authorized only as the declared fail-stop sequential campaign.
 - Remaining P9-B comparisons: 7, after selected-FM resolution.
 - Held-out evaluation: not started.
 
-The next work unit is: `P9-A post-cfg_d48 production audit -- compare the first native V2 formal trajectory with cfg_main, verify controller/runtime scaling and determine whether the remaining 11 P9-A configurations may be safely authorized as a bounded sequential execution campaign.` No additional configuration is authorized by this status update.
+The post-cfg_d48 audit found no lifecycle or runtime-scaling blocker. The exact
+eleven remaining P8 rows may run sequentially; no concurrent or extra row is
+authorized. After the campaign terminates, the next decision unit is validation-
+only P9-A factor selection, selected-FM reuse or one confirmation run, and P9-B
+template materialization against that selected full model. Held-out evaluation
+remains prohibited.

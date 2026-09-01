@@ -1,4 +1,15 @@
 # P9 v2 production controller orchestration. Scientific state remains in the ledger.
+p9v2_training_contract_path <- function() {
+  path <- Sys.getenv(
+    "P9_V2_TRAINING_CONTRACT",
+    unset = "config/p9_v2_training_controller.yml"
+  )
+  if (!nzchar(path) || !file.exists(path)) {
+    stop("P9_V2_TRAINING_CONTRACT_REQUIRED", call. = FALSE)
+  }
+  normalizePath(path, mustWork = TRUE)
+}
+
 p9v2_training_authority_path <- function() {
   path <- Sys.getenv("P9_V2_TRAINING_AUTHORITY", unset = "")
   if (!nzchar(path) || !file.exists(path)) {

@@ -1273,3 +1273,16 @@ p9v2_training_contract + p9v2_training_authority
 `P9_V2_TRAINING_AUTHORITY` must name one immutable non-main configuration authority. The controller constructs the repository-owned production worker command; bundle, finalization, acceptance, eligibility, and resolver targets invoke existing V2 APIs from prior results and do not read pre-created artifact environment variables. The graph contains no other P9-A configuration, P9-B, evaluation, P10, P11, maintenance, v1, or recovery target. `targets` metadata and store paths are execution provenance only. The dependency snapshot is `artifacts/targets-network-p9-v2-training/targets-network.html` (9 targets, 20 edges, one component); it was generated from an empty non-executing metadata store, so all nodes correctly appear outdated and no target ran.
 
 Current status: controller foundation and production-worker remediation complete; cfg_main accepted; 12 P9-A variants and 7 P9-B comparisons remain; held-out evaluation has not started. The next formal unit must retry only cfg_d48 and authorize no other configuration.
+
+### P9 v2 sequential campaign contract
+
+The isolated P9 v2 training graph still represents exactly one configuration.
+`P9_V2_TRAINING_AUTHORITY` supplies its immutable authority and
+`P9_V2_TRAINING_CONTRACT` may supply an external per-run contract whose only
+campaign-varying field is the explicit prior eligibility snapshot. The default
+remains `config/p9_v2_training_controller.yml`. The campaign runner invokes the
+same nine-target graph in separate stores, waits for resolver completion, then
+advances the eligibility pointer before authorizing the next predeclared row.
+It does not add a multi-configuration target closure or make target metadata a
+scientific input. The historical `cfg_main` identity is reported as `cfg_d64`
+without changing any canonical artifact.

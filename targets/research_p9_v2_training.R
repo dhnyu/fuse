@@ -1,7 +1,7 @@
 list_p9_v2_training <- list(
   targets::tar_target(
     p9v2_training_contract,
-    "config/p9_v2_training_controller.yml",
+    p9v2_training_contract_path(),
     format = "file"
   ),
   targets::tar_target(

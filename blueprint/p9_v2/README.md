@@ -121,3 +121,11 @@ The V2-H controller foundation pilot used actual `cfg_d48`, two GPUs, one global
 The active isolated graph is `_targets_p9_v2_training.R`: nine coarse targets from explicit authority and full startup preflight through training, V2-B bundle construction, V2-C finalization/acceptance, immutable eligibility, and resolver verification. No bundle/finalization/acceptance path is injected from the environment. It remains inert without `P9_V2_TRAINING_AUTHORITY`; v1 graphs remain retired. A noncanonical two-GPU pilot executed four bounded updates both uninterrupted and as two updates plus fresh-process exact resume, then validated the complete temporary V2-B/C/E chain. No formal authority or canonical cfg_d48 artifact was created.
 
 The first native formal execution, `cfg_d48`, completed at epoch 150/update 11,400 under early stopping. Pure finalization selected epoch 130 checkpoint `p9ck_3704be6c57323160fd0365e9`; canonical acceptance `p9accv2_15d9fb568e794b7efd0cfa8c` is `ELIGIBLE`. The production contract now points to the immutable eligibility snapshot containing both independent `cfg_main` and `cfg_d48` results.
+
+For experiment reporting, the immutable historical P8 identifier `cfg_main` has
+the human-facing alias `cfg_d64`. This is an alias only: every historical byte,
+identity, hash, and provenance field remains `cfg_main`. The remaining eleven
+predeclared P9-A rows are executed by `scripts/p9_a_campaign.py`, which wraps
+the same single-configuration graph sequentially, carries forward the explicit
+immutable eligibility snapshot, and stops before launching another row after
+any failed target lifecycle.

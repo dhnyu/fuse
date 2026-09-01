@@ -10,6 +10,8 @@ import datetime as dt
 import json
 import os
 import random
+import resource
+import statistics
 import sys
 import time
 from dataclasses import dataclass
@@ -300,11 +302,28 @@ def full_validation(state: WorkerState, values: dict[str, Any], device: torch.de
     loss = torch.nn.functional.cross_entropy(similarities / float(values["config"]["objective"]["contrastive_temperature"]), positive)
     positive_values = similarities[torch.arange(800), positive]; masked = similarities.clone()
     masked[torch.arange(800), positive] = -torch.inf
+    diagnostics = retrieval_rank_diagnostics(similarities, positive)
     result = {"completed_epoch": epoch, "validation_retrieval_loss": float(loss),
               "mean_source_separation_margin": float((positive_values - masked.max(1).values).mean()),
+              **diagnostics,
               "query_count": 800, "gallery_count": 400, "evaluation_consumption_count": 0}
     shared = [result if rank == 0 else None]; dist.broadcast_object_list(shared, src=0)
     state.model.online.train(); return shared[0]
+
+
+def retrieval_rank_diagnostics(similarities: torch.Tensor, positive: torch.Tensor) -> dict[str, float]:
+    """Compute dissertation supplementary ranks without affecting selection."""
+    order = torch.argsort(similarities, dim=1, descending=True, stable=True)
+    ranks = torch.nonzero(order == positive[:, None], as_tuple=False)[:, 1] + 1
+    if ranks.numel() != similarities.shape[0]:
+        raise ScienceWorkerError("VALIDATION_RANK_COVERAGE_MISMATCH")
+    rank_values = ranks.float()
+    return {
+        "MRR": float((1.0 / rank_values).mean()),
+        "HIT@1": float((ranks <= 1).float().mean()),
+        "HIT@5": float((ranks <= 5).float().mean()),
+        "HIT@10": float((ranks <= 10).float().mean()),
+    }
 
 
 def bounded_validation(state: WorkerState, epoch: int) -> dict[str, Any]:
@@ -444,11 +463,17 @@ def run_worker(spec: Mapping[str, str], authority: Mapping[str, Any], *, mode: s
                    "starting_optimizer_update": worker.scheduler.completed_updates, "sampler_cursor": 0})
             torch.cuda.reset_peak_memory_stats(device)
             first_update = worker.scheduler.completed_updates + 1; started = time.monotonic()
+            update_walls: list[float] = []
             for batch_index in range(updates):
+                update_started = time.monotonic()
                 worker.training_trace.append(training_update(ddp, worker, values, epoch, batch_index, rank, device))
+                torch.cuda.synchronize(device)
+                update_walls.append(time.monotonic() - update_started)
             update_wall = time.monotonic() - started
             local_performance = {"rank": rank, "update_wall_seconds": update_wall,
-                                 "peak_vram_bytes": int(torch.cuda.max_memory_allocated(device))}
+                                 "update_wall_samples": update_walls,
+                                 "peak_vram_bytes": int(torch.cuda.max_memory_allocated(device)),
+                                 "peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss) * 1024}
             rank_performance = [None, None] if rank == 0 else None
             dist.gather_object(local_performance, rank_performance, dst=0)
             _event(rank, client, "PROGRESS_SUMMARY_COMMITTED", {
@@ -462,7 +487,10 @@ def run_worker(spec: Mapping[str, str], authority: Mapping[str, Any], *, mode: s
             validation_due = mode != "formal" or epoch % int(selection["validation_interval_epochs"]) == 0
             if not validation_due:
                 continue
+            validation_started = time.monotonic()
             metric = full_validation(worker, values, device, rank, epoch) if mode == "formal" else bounded_validation(worker, epoch)
+            torch.cuda.synchronize(device)
+            validation_wall = time.monotonic() - validation_started
             previous = worker.best
             selected, basis = evaluate_selection_candidate(metric, previous, float(selection["equivalence_tolerance"]))
             reset = qualifies_patience_reset(metric, previous, float(selection["equivalence_tolerance"]))
@@ -508,11 +536,16 @@ def run_worker(spec: Mapping[str, str], authority: Mapping[str, Any], *, mode: s
             if rank == 0:
                 assert rank_performance is not None
                 walls = [item["update_wall_seconds"] for item in rank_performance]
+                update_samples = [value for item in rank_performance for value in item["update_wall_samples"]]
                 diagnostic = {"schedule_index": schedule_index, "epoch": epoch, "optimizer_update": worker.scheduler.completed_updates,
-                              "update_wall_seconds": max(walls), "median_update_wall_seconds": max(walls) / updates,
+                              "update_wall_seconds": max(walls),
+                              "median_update_wall_seconds": statistics.median(update_samples),
+                              "p95_update_wall_seconds": sorted(update_samples)[max(0, int(0.95 * len(update_samples)) - 1)],
                               "throughput_scenes_per_second": 32 * updates / max(walls),
                               "rank_wall_skew_seconds": max(walls) - min(walls),
                               "peak_vram_bytes": max(item["peak_vram_bytes"] for item in rank_performance),
+                              "peak_rank_rss_bytes": max(item["peak_rss_bytes"] for item in rank_performance),
+                              "validation_wall_seconds": validation_wall,
                               "checkpoint_commit_wall_seconds": checkpoint_wall,
                               "scientific_state_digest": final_digest,
                               "checkpoint_id": ack["checkpoint_id"], "evaluation_consumption_count": 0}

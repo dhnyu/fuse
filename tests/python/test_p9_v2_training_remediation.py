@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import torch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "python"))
@@ -18,6 +19,7 @@ from p9_v2_training_controller import (  # noqa: E402
 from p9_v2_training_lifecycle import (  # noqa: E402
     publish_native_lifecycle, scientific_configuration_content,
 )
+from p9_v2_training_worker import retrieval_rank_diagnostics  # noqa: E402
 
 
 PARENTS = {
@@ -28,6 +30,13 @@ PARENTS = {
     "p3_cache_acceptance_id": "osca_fixture", "production_cache_id": "p9cache_fixture",
     "production_cache_acceptance_id": "p9ca_fixture", "v1_retirement_id": "p9ret_" + "b" * 24,
 }
+
+
+def test_retrieval_rank_diagnostics_are_supplementary_and_stable() -> None:
+    similarities = torch.tensor([[0.9, 0.2, 0.1], [0.8, 0.9, 0.7], [0.1, 0.2, 0.3]])
+    observed = retrieval_rank_diagnostics(similarities, torch.tensor([0, 0, 0]))
+    assert observed == pytest.approx({"MRR": (1 + 0.5 + 1 / 3) / 3,
+                                      "HIT@1": 1 / 3, "HIT@5": 1.0, "HIT@10": 1.0})
 
 
 def stamp(index: int) -> str: return f"2026-09-01T08:00:{index:02d}Z"

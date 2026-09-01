@@ -50,12 +50,13 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 ## Current execution status and exact next work unit
 
 - `cfg_main` canonical V2 acceptance: complete; duplicate training prohibited.
+- `cfg_d48` native formal V2 acceptance: complete; selected epoch 130 and duplicate training prohibited.
 - V1 execution retirement: complete.
 - V2-H controller foundation: complete.
 - V2-H production-worker remediation: complete; update/checkpoint/resume and V2-B/C/E closure validated in temporary evidence.
-- New formal variant architecture: executable and ready, but no new formal authority or run is authorized or executed.
-- Remaining P9-A configurations: 12.
+- New formal variant architecture: executable; one non-main formal trajectory has completed.
+- Remaining P9-A configurations: 11.
 - Remaining P9-B comparisons: 7, after selected-FM resolution.
 - Held-out evaluation: not started.
 
-The next work unit is: `P9-A cfg_d48 formal variant execution -- retry the same single variant using the now-complete V2 production lifecycle.` It must not authorize another configuration or batch all 12.
+The next work unit is: `P9-A post-cfg_d48 production audit -- compare the first native V2 formal trajectory with cfg_main, verify controller/runtime scaling and determine whether the remaining 11 P9-A configurations may be safely authorized as a bounded sequential execution campaign.` No additional configuration is authorized by this status update.

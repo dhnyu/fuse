@@ -23,7 +23,7 @@ roots:
   production_cache_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization/p9a_c16721ffbce259df3f723cdd/production_cache_acceptance.json
   immutable_publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2
   canonical_publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical
-  eligibility_snapshot: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical/eligibility/p9elig_335f0baafea2a7e381f3634e.json
+  eligibility_snapshot: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical/eligibility/p9elig_ff80795511cc8cd146417f2d.json
   writable_runs: /mnt/hdd002/dhnyu/fusedata/runtime/p9_v2_training_runs
   execution_locks: /mnt/hdd002/dhnyu/fusedata/runtime/p9_v2_training_locks
   lifecycle_records: /mnt/hdd002/dhnyu/fusedata/runtime/p9_v2_training_lifecycle

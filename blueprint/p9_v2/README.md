@@ -75,10 +75,11 @@ The scientific plane may consume data and cache, update model state, validate, c
 
 ## Minimal `targets` boundary
 
-The implemented isolated script is `_targets_p9_v2_training.R` with an authority-explicit external store. It contains eight targets and seven target-to-target edges:
+The implemented isolated script is `_targets_p9_v2_training.R` with an authority-explicit external store. It contains nine targets and 20 target-to-target edges:
 
 ```text
 p9v2_training_contract + p9v2_training_authority
+  -> p9v2_startup_preflight
   -> p9v2_closed_ledger
   -> p9v2_run_bundle
   -> p9v2_finalization_result
@@ -118,3 +119,5 @@ V2-H implements the future-run control boundary in `python/p9_v2_training_contro
 The V2-H controller foundation pilot used actual `cfg_d48`, two GPUs, one global production batch, and zero scientific mutation. The subsequent production-worker remediation adds `python/p9_v2_training_worker.py`, a blocking canonical request/ACK protocol, controller-owned checkpoint publication, full exact restore, and `python/p9_v2_training_lifecycle.py`. The worker contains the production DDP update and validation trajectory but cannot write the ledger, canonical checkpoint namespace, bundle, acceptance, or eligibility.
 
 The active isolated graph is `_targets_p9_v2_training.R`: nine coarse targets from explicit authority and full startup preflight through training, V2-B bundle construction, V2-C finalization/acceptance, immutable eligibility, and resolver verification. No bundle/finalization/acceptance path is injected from the environment. It remains inert without `P9_V2_TRAINING_AUTHORITY`; v1 graphs remain retired. A noncanonical two-GPU pilot executed four bounded updates both uninterrupted and as two updates plus fresh-process exact resume, then validated the complete temporary V2-B/C/E chain. No formal authority or canonical cfg_d48 artifact was created.
+
+The first native formal execution, `cfg_d48`, completed at epoch 150/update 11,400 under early stopping. Pure finalization selected epoch 130 checkpoint `p9ck_3704be6c57323160fd0365e9`; canonical acceptance `p9accv2_15d9fb568e794b7efd0cfa8c` is `ELIGIBLE`. The production contract now points to the immutable eligibility snapshot containing both independent `cfg_main` and `cfg_d48` results.

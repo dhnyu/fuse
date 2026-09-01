@@ -125,11 +125,11 @@ def test_real_read_only_startup_inputs_pass_for_cfg_d48_without_creating_a_run(t
     assert result["status"] == "PASS" and not (tmp_path / "writable" / value["content"]["scientific_run_key"]).exists()
 
 
-def test_explicit_eligibility_snapshot_blocks_accepted_cfg_main_without_latest_lookup():
+def test_explicit_eligibility_snapshot_blocks_cfg_main_and_cfg_d48_without_latest_lookup():
     contract = yaml.safe_load((ROOT / "config/p9_v2_training_controller.yml").read_text())
     ids, hashes = accepted_scientific_configurations(
         Path(contract["roots"]["immutable_publication"]) / "canonical", contract["roots"]["eligibility_snapshot"])
-    assert ids == {"cfg_main"} and len(hashes) == 1
+    assert ids == {"cfg_main", "cfg_d48"} and len(hashes) == 2
 
 
 def test_controller_replays_normal_start_and_clean_shutdown(tmp_path):

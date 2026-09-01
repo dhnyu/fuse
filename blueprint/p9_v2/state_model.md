@@ -73,7 +73,7 @@ The historical import creates legacy-marked events whose derivation metadata poi
 | `TRAINING_INTERRUPTED` with matching latest committed checkpoint and exact policy | active training | `IN_PROGRESS` | `INTERRUPTED_RESUMABLE` | `EXACT_RESUME_ALLOWED` |
 | `TRAINING_INTERRUPTED` with matching checkpoint but prohibited policy | active training | `IN_PROGRESS` | `BLOCKED` | `FORBIDDEN_POLICY` |
 | `TRAINING_INTERRUPTED` without one | active training | `INCOMPLETE` | `BLOCKED` | `RESTART_REQUIRED` |
-| `TRAINING_FAILED` | active training | `INCOMPLETE` | `TRAINING_FAILED` | exact resume only for matching committed checkpoint; otherwise restart |
+| `TRAINING_FAILED` | active training | `INCOMPLETE` | `TRAINING_FAILED` | exact resume only for matching committed checkpoint; `FORBIDDEN_POLICY` for scientific divergence/invalid science even without a checkpoint; otherwise restart |
 | `FINALIZATION_STARTED` | complete science | `COMPLETE` | `FINALIZING` | scientifically complete |
 | `FINALIZATION_COMPLETED` | finalizing and selected committed checkpoint exists | `COMPLETE` | `FINALIZING` | scientifically complete |
 | ordinary `FINALIZATION_FAILED` | finalizing | `COMPLETE` | `FINALIZATION_FAILED` | scientifically complete |
@@ -87,3 +87,5 @@ Illegal transitions fail closed. Strict replay raises an error; diagnostic repla
 The production controller continues an existing run identity only from `INTERRUPTED_RESUMABLE/EXACT_RESUME_ALLOWED` whose boundary exactly matches the latest committed validation-checkpoint event. Process death with no such event is `RESTART_REQUIRED`; corruption, parent/config drift, nonfinite science, or a deterministic contract violation is nonresumable evidence and never reclassified as infrastructure retry. In particular `cfg_lr_10` may terminate with failure class `SCIENTIFIC_DIVERGENCE`; it cannot become an accepted winner and requires a new authority for any policy-approved restart.
 
 Controller bookkeeping after a committed ledger segment cannot downgrade or duplicate that event. Checkpoint payload/manifest commit without the ledger linkage is immutable but ineligible debris; retry validates or reuses it and appends the linkage exactly once.
+
+The production worker restores online/EMA model, optimizer, scheduler, queue, sampler boundary, both-rank Python/NumPy/CPU/CUDA RNG, training/validation traces, patience, and best-state convenience evidence only from the latest committed checkpoint. An ACK loss does not create a new state: controller replay returns the already committed request result, and a fresh worker resumes after that boundary. The remediation pilot proved equality of the complete canonical scientific-state digest after four uninterrupted updates versus two updates, committed interruption, fresh DDP initialization, restore, and two more updates.

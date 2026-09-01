@@ -1255,12 +1255,13 @@ The next single implementation unit after the immutable nested-comparison P8 rep
 
 **Blueprint verdict: `READY_FOR_P8_NESTED_COMPARISON_REPUBLICATION`**
 
-## 14. P9 V2-H Isolated Formal Controller
+## 14. P9 V2-H Isolated Formal Lifecycle
 
-The future formal entry point is `_targets_p9_v2_training.R`, not any v1 main/formal/recovery script. It declares eight coarse file targets and seven target-to-target edges:
+The future formal entry point is `_targets_p9_v2_training.R`, not any v1 main/formal/recovery script. It declares nine coarse file targets:
 
 ```text
 p9v2_training_contract + p9v2_training_authority
+  -> p9v2_startup_preflight
   -> p9v2_closed_ledger
   -> p9v2_run_bundle
   -> p9v2_finalization_result
@@ -1269,6 +1270,6 @@ p9v2_training_contract + p9v2_training_authority
   -> p9v2_accepted_checkpoint
 ```
 
-`P9_V2_TRAINING_AUTHORITY` must name one immutable non-main configuration authority. The graph contains no other P9-A configuration, P9-B, evaluation, P10, P11, maintenance, v1, or recovery target. `targets` metadata and store paths are execution provenance only. The dependency snapshot is `artifacts/targets-network-p9-v2-training/targets-network.html` (8 targets, 7 edges, one component); it was generated from an empty non-executing metadata store, so all nodes correctly appear outdated and no target ran.
+`P9_V2_TRAINING_AUTHORITY` must name one immutable non-main configuration authority. The controller constructs the repository-owned production worker command; bundle, finalization, acceptance, eligibility, and resolver targets invoke existing V2 APIs from prior results and do not read pre-created artifact environment variables. The graph contains no other P9-A configuration, P9-B, evaluation, P10, P11, maintenance, v1, or recovery target. `targets` metadata and store paths are execution provenance only. The dependency snapshot is `artifacts/targets-network-p9-v2-training/targets-network.html` (9 targets, 20 edges, one component); it was generated from an empty non-executing metadata store, so all nodes correctly appear outdated and no target ran.
 
-Current status: cfg_main accepted; 12 P9-A variants and 7 P9-B comparisons remain; held-out evaluation has not started. The next formal unit must authorize exactly one non-main P9-A configuration.
+Current status: controller foundation and production-worker remediation complete; cfg_main accepted; 12 P9-A variants and 7 P9-B comparisons remain; held-out evaluation has not started. The next formal unit must retry only cfg_d48 and authorize no other configuration.

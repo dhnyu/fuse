@@ -10,17 +10,18 @@
     "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "content": {
       "type": "object",
-      "required": ["authority_kind", "scope", "scientific_run_key", "scientific", "parents", "execution_policy"],
+      "required": ["authority_kind", "scope", "scientific_run_key", "scientific", "parents", "parent_hashes", "execution_policy"],
       "properties": {
         "authority_kind": {"const": "FUTURE_FORMAL_TRAINING"},
         "scope": {"const": "ONE_NEW_FORMAL_CONFIGURATION"},
         "scientific_run_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "scientific": {
           "type": "object",
-          "required": ["configuration_id", "configuration_hash", "scientific_implementation_hash", "selection_contract_id", "root_seed", "evaluation_ancestry"],
+          "required": ["configuration_id", "configuration_hash", "p8_configuration_hash", "scientific_implementation_hash", "selection_contract_id", "root_seed", "evaluation_ancestry"],
           "properties": {
             "configuration_id": {"type": "string", "pattern": "^(cfg|cmp)_[a-z0-9_]+$"},
             "configuration_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "p8_configuration_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
             "scientific_implementation_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
             "selection_contract_id": {"const": "p9-selection-v2.1.0"},
             "root_seed": {"type": "integer", "minimum": 0},
@@ -41,6 +42,11 @@
             "v1_retirement_id": {"type": "string", "pattern": "^p9ret_[0-9a-f]{24}$"}
           },
           "additionalProperties": false
+        },
+        "parent_hashes": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
         },
         "execution_policy": {
           "type": "object",

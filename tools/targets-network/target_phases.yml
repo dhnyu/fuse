@@ -222,6 +222,7 @@ exact:
     - p9_production_cache_validation
     - p9v2_training_contract
     - p9v2_training_authority
+    - p9v2_startup_preflight
     - p9v2_closed_ledger
     - p9v2_run_bundle
     - p9v2_finalization_result

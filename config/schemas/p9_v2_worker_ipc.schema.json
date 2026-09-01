@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p9_v2_worker_ipc.schema.json",
+  "title": "P9 v2 controller and rank-zero worker IPC",
+  "type": "object",
+  "required": ["schema_version", "message_type", "request_id", "body"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "message_type": {"enum": ["EVENT_PROPOSAL", "CHECKPOINT_COMMIT_REQUEST", "FAILURE_REPORT", "ACK", "NACK"]},
+    "request_id": {"type": "string", "pattern": "^p9req_[0-9a-f]{24}$"},
+    "body": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"message_type": {"const": "EVENT_PROPOSAL"}}},
+      "then": {"properties": {"body": {
+        "type": "object",
+        "required": ["event_type", "occurred_at", "payload", "writer_id", "writer_role"],
+        "properties": {
+          "event_type": {"type": "string", "minLength": 1},
+          "occurred_at": {"type": "string", "format": "date-time"},
+          "payload": {"type": "object"},
+          "writer_id": {"const": "science-rank0"},
+          "writer_role": {"const": "rank0"}
+        },
+        "additionalProperties": false
+      }}}
+    },
+    {
+      "if": {"properties": {"message_type": {"const": "FAILURE_REPORT"}}},
+      "then": {"properties": {"body": {
+        "type": "object",
+        "required": ["failure_class", "failure_stage", "resumable_checkpoint_committed", "resume_policy", "last_durable_boundary", "occurred_at"],
+        "properties": {
+          "failure_class": {"type": "string", "minLength": 1},
+          "failure_stage": {"type": "string", "minLength": 1},
+          "resumable_checkpoint_committed": {"type": "boolean"},
+          "resume_policy": {"enum": ["EXACT_RESUME", "RESTART", "FORBIDDEN"]},
+          "last_durable_boundary": {"oneOf": [{"type": "null"}, {"type": "object"}]},
+          "occurred_at": {"type": "string", "format": "date-time"}
+        },
+        "additionalProperties": false
+      }}}
+    },
+    {
+      "if": {"properties": {"message_type": {"const": "CHECKPOINT_COMMIT_REQUEST"}}},
+      "then": {"properties": {"body": {
+        "type": "object",
+        "required": ["staged_payload", "completed_epoch", "resume_epoch", "optimizer_update", "validation_id", "validation_retrieval_loss", "mean_source_separation_margin", "selector_state", "current_candidate_selected", "queue", "sampler", "state_presence", "source_run_id", "occurred_at"],
+        "properties": {
+          "staged_payload": {"type": "string", "pattern": "^requests/p9stage_[0-9a-f]{24}/checkpoint\\.pt$"},
+          "completed_epoch": {"type": "integer", "minimum": 1},
+          "resume_epoch": {"type": "integer", "minimum": 2},
+          "optimizer_update": {"type": "integer", "minimum": 1},
+          "validation_id": {"type": "string", "pattern": "^p9val_[0-9a-f]{24}$"},
+          "validation_retrieval_loss": {"type": "number", "minimum": 0},
+          "mean_source_separation_margin": {"type": "number"},
+          "selector_state": {
+            "type": "object",
+            "required": ["best_checkpoint_id", "events_without_improvement"],
+            "properties": {
+              "best_checkpoint_id": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^p9ck_[0-9a-f]{24}$"}]},
+              "events_without_improvement": {"type": "integer", "minimum": 0}
+            },
+            "additionalProperties": true
+          },
+          "current_candidate_selected": {"type": "boolean"},
+          "queue": {"type": "object"},
+          "sampler": {"type": "object"},
+          "state_presence": {"type": "object"},
+          "source_run_id": {"type": "string", "pattern": "^p9runv2_[0-9a-f]{24}$"},
+          "occurred_at": {"type": "string", "format": "date-time"}
+        },
+        "additionalProperties": false
+      }}}
+    },
+    {
+      "if": {"properties": {"message_type": {"enum": ["ACK", "NACK"]}}},
+      "then": {"properties": {"body": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {"status": {"enum": ["COMMITTED", "REJECTED"]}},
+        "additionalProperties": true
+      }}}
+    }
+  ],
+  "additionalProperties": false
+}

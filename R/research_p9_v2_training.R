@@ -7,45 +7,80 @@ p9v2_training_authority_path <- function() {
   normalizePath(path, mustWork = TRUE)
 }
 
-p9v2_controller_run <- function(authority, contract) {
-  output <- Sys.getenv("P9_V2_TRAINING_OUTPUT", unset = "")
-  worker <- Sys.getenv("P9_V2_SCIENCE_WORKER_COMMAND", unset = "")
-  if (!nzchar(output) || !nzchar(worker)) {
-    stop("P9_V2_EXPLICIT_OUTPUT_AND_SCIENCE_WORKER_REQUIRED", call. = FALSE)
-  }
+p9v2_run_cli <- function(arguments) {
   status <- system2(
     Sys.which("python"),
-    c("scripts/p9_v2_training_controller.py", "run", "--authority", authority,
-      "--contract", contract, "--output", output, "--science-worker-command", worker),
+    arguments,
     stdout = TRUE, stderr = TRUE
   )
   if (!identical(attr(status, "status"), NULL)) stop(paste(status, collapse = "\n"), call. = FALSE)
   result <- jsonlite::fromJSON(tail(status, 1), simplifyVector = FALSE)
-  if (!identical(result$status, "COMPLETE")) stop("P9_V2_CONTROLLER_DID_NOT_COMPLETE", call. = FALSE)
-  normalizePath(result$ledger_manifest, mustWork = TRUE)
+  if (!identical(result$status, "PASS") && !identical(result$status, "COMPLETE")) {
+    stop("P9_V2_COMMAND_DID_NOT_COMPLETE", call. = FALSE)
+  }
+  result
 }
 
-p9v2_declared_artifact <- function(environment_name, dependency) {
-  path <- Sys.getenv(environment_name, unset = "")
-  if (!nzchar(path) || !file.exists(path)) {
-    stop(paste0(environment_name, "_REQUIRED_AFTER_CONTROLLER"), call. = FALSE)
-  }
-  normalizePath(path, mustWork = TRUE)
+p9v2_controller_preflight <- function(authority, contract) {
+  result <- p9v2_run_cli(c("scripts/p9_v2_training_controller.py", "preflight",
+    "--authority", authority, "--contract", contract))
+  authority
 }
 
-p9v2_resolve_accepted_checkpoint <- function(eligibility_snapshot) {
-  identity <- Sys.getenv("P9_V2_ACCEPTANCE_ID", unset = "")
-  roots <- Sys.getenv("P9_V2_LOCATOR_ROOTS_JSON", unset = "")
-  output <- Sys.getenv("P9_V2_RESOLUTION_RECORD", unset = "")
-  if (!grepl("^p9accv2_[0-9a-f]{24}$", identity) || !file.exists(roots) || !nzchar(output)) {
-    stop("P9_V2_CANONICAL_ACCEPTANCE_RESOLVER_INPUT_REQUIRED", call. = FALSE)
-  }
-  status <- system2(
-    Sys.which("python"),
-    c("scripts/p9_v2_resolve_checkpoint.py", "--acceptance-id", identity,
-      "--eligibility", eligibility_snapshot, "--locator-roots", roots,
-      "--output", output), stdout = TRUE, stderr = TRUE
-  )
-  if (!identical(attr(status, "status"), NULL)) stop(paste(status, collapse = "\n"), call. = FALSE)
-  normalizePath(output, mustWork = TRUE)
+p9v2_controller_run <- function(authority, contract, preflight) {
+  cfg <- yaml::read_yaml(contract)
+  auth <- jsonlite::read_json(authority, simplifyVector = FALSE)
+  configuration <- auth$content$scientific$configuration_id
+  matrix <- file.path(cfg$roots$p8_bundle, "hyperparameter_configuration_matrix.json")
+  worker <- paste(shQuote(Sys.which("python")), "-m torch.distributed.run --standalone --nproc_per_node=2",
+    "scripts/p9_v2_training_worker.py", "--authority", shQuote(authority), "--matrix", shQuote(matrix),
+    "--configuration-id", shQuote(configuration), "--cache-root", shQuote(cfg$roots$production_cache),
+    "--categories", shQuote(cfg$roots$categories), "--training-config config/p7_deterministic_training.yml",
+    "--model-config config/p6_model_dataloader.yml --mode formal")
+  result <- p9v2_run_cli(c("scripts/p9_v2_training_controller.py", "run", "--authority", authority,
+    "--contract", contract, "--output", cfg$roots$writable_runs, "--science-worker-command", shQuote(worker)))
+  normalizePath(result$training_execution, mustWork = TRUE)
+}
+
+p9v2_record_path <- function(contract, authority, stage) {
+  cfg <- yaml::read_yaml(contract); auth <- jsonlite::read_json(authority, simplifyVector = FALSE)
+  path <- file.path(cfg$roots$lifecycle_records, auth$identity, paste0(stage, ".json"))
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  path
+}
+
+p9v2_bundle <- function(execution, authority, contract) {
+  output <- p9v2_record_path(contract, authority, "bundle")
+  result <- p9v2_run_cli(c("scripts/p9_v2_training_lifecycle.py", "bundle", "--execution", execution,
+    "--authority", authority, "--contract", contract, "--result", output))
+  normalizePath(result$result, mustWork = TRUE)
+}
+
+p9v2_finalize <- function(bundle, authority, contract) {
+  cfg <- yaml::read_yaml(contract); output <- p9v2_record_path(contract, authority, "finalization")
+  result <- p9v2_run_cli(c("scripts/p9_v2_training_lifecycle.py", "finalize", "--bundle-record", bundle,
+    "--publication-root", cfg$roots$canonical_publication, "--result", output))
+  normalizePath(result$result, mustWork = TRUE)
+}
+
+p9v2_accept <- function(finalization, authority, contract) {
+  cfg <- yaml::read_yaml(contract); output <- p9v2_record_path(contract, authority, "acceptance")
+  result <- p9v2_run_cli(c("scripts/p9_v2_training_lifecycle.py", "accept", "--finalization-record", finalization,
+    "--authority", authority, "--publication-root", cfg$roots$canonical_publication, "--result", output))
+  normalizePath(result$result, mustWork = TRUE)
+}
+
+p9v2_eligibility <- function(acceptance, authority, contract) {
+  cfg <- yaml::read_yaml(contract); output <- p9v2_record_path(contract, authority, "eligibility")
+  result <- p9v2_run_cli(c("scripts/p9_v2_training_lifecycle.py", "eligibility", "--acceptance-record", acceptance,
+    "--authority", authority, "--existing-eligibility", cfg$roots$eligibility_snapshot,
+    "--publication-root", cfg$roots$canonical_publication, "--result", output))
+  normalizePath(result$result, mustWork = TRUE)
+}
+
+p9v2_resolve_accepted_checkpoint <- function(eligibility, authority, contract) {
+  cfg <- yaml::read_yaml(contract); output <- p9v2_record_path(contract, authority, "resolution")
+  result <- p9v2_run_cli(c("scripts/p9_v2_training_lifecycle.py", "resolve", "--eligibility-record", eligibility,
+    "--publication-root", cfg$roots$canonical_publication, "--result", output))
+  normalizePath(result$result, mustWork = TRUE)
 }

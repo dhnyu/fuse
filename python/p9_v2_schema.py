@@ -30,6 +30,7 @@ SCHEMA_FILES = {
     "training_authority": "p9_v2_training_authority.schema.json",
     "checkpoint_commit": "p9_v2_checkpoint_commit.schema.json",
     "training_pilot": "p9_v2_training_pilot.schema.json",
+    "worker_ipc": "p9_v2_worker_ipc.schema.json",
 }
 
 

@@ -136,8 +136,8 @@ def _semantic_event_validation(event: dict[str, Any]) -> None:
     if event_type in {"TRAINING_INTERRUPTED", "TRAINING_FAILED"}:
         has_checkpoint = payload["resumable_checkpoint_committed"]
         policy = payload["resume_policy"]
-        if policy in {"EXACT_RESUME", "FORBIDDEN"} and not has_checkpoint:
-            raise LedgerTransitionError("exact or forbidden resume policy requires a committed checkpoint")
+        if policy == "EXACT_RESUME" and not has_checkpoint:
+            raise LedgerTransitionError("exact resume policy requires a committed checkpoint")
         if policy == "RESTART" and has_checkpoint:
             raise LedgerTransitionError("restart policy cannot mark a checkpoint resumable")
 

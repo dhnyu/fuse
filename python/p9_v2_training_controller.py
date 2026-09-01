@@ -29,27 +29,62 @@ def _without(value: dict[str, Any], *keys: str) -> dict[str, Any]:
     return {key: item for key, item in value.items() if key not in keys}
 
 
+def make_worker_request(message_type: str, body: dict[str, Any]) -> dict[str, Any]:
+    """Create one deterministic rank-zero request for the sole controller."""
+    if message_type not in {"EVENT_PROPOSAL", "CHECKPOINT_COMMIT_REQUEST", "FAILURE_REPORT"}:
+        raise TrainingControllerError("WORKER_IPC_MESSAGE_TYPE_INVALID")
+    request_id = deterministic_id("p9req_", {"message_type": message_type, "body": body})
+    value = {"schema_version": SCHEMA_VERSION, "message_type": message_type,
+             "request_id": request_id, "body": body}
+    validate_instance("worker_ipc", value)
+    return value
+
+
+def validate_worker_message(value: dict[str, Any]) -> None:
+    validate_instance("worker_ipc", value)
+    if value["message_type"] in {"EVENT_PROPOSAL", "CHECKPOINT_COMMIT_REQUEST", "FAILURE_REPORT"}:
+        expected = deterministic_id("p9req_", {"message_type": value["message_type"], "body": value["body"]})
+        if value["request_id"] != expected:
+            raise TrainingControllerError("WORKER_IPC_REQUEST_ID_MISMATCH")
+
+
+def worker_response(request_id: str, *, status: str, **body: Any) -> dict[str, Any]:
+    value = {"schema_version": SCHEMA_VERSION, "message_type": "ACK" if status == "COMMITTED" else "NACK",
+             "request_id": request_id, "body": {"status": status, **body}}
+    validate_instance("worker_ipc", value)
+    return value
+
+
 def build_training_authority(*, configuration_id: str, configuration_hash: str,
                              scientific_implementation_hash: str, root_seed: int,
-                             parents: dict[str, str]) -> dict[str, Any]:
+                             parents: dict[str, str],
+                             parent_hashes: dict[str, str] | None = None,
+                             p8_configuration_hash: str | None = None) -> dict[str, Any]:
     """Build, but do not publish, one content-addressed formal-run authority."""
     if configuration_id == "cfg_main":
         raise TrainingControllerError("CFG_MAIN_ALREADY_CANONICALLY_ACCEPTED")
     scientific = {
         "configuration_id": configuration_id,
         "configuration_hash": configuration_hash,
+        "p8_configuration_hash": p8_configuration_hash or configuration_hash,
         "scientific_implementation_hash": scientific_implementation_hash,
         "selection_contract_id": "p9-selection-v2.1.0",
         "root_seed": int(root_seed),
         "evaluation_ancestry": False,
     }
-    run_key = canonical_sha256({"scientific": scientific, "parents": parents})
+    hashes = dict(sorted((parent_hashes or {
+        key: canonical_sha256({"identity": value}) for key, value in parents.items()
+    }).items()))
+    if set(hashes) != set(parents):
+        raise TrainingControllerError("PARENT_HASH_KEYS_MISMATCH")
+    run_key = canonical_sha256({"scientific": scientific, "parents": parents, "parent_hashes": hashes})
     content = {
         "authority_kind": "FUTURE_FORMAL_TRAINING",
         "scope": "ONE_NEW_FORMAL_CONFIGURATION",
         "scientific_run_key": run_key,
         "scientific": scientific,
         "parents": dict(sorted(parents.items())),
+        "parent_hashes": hashes,
         "execution_policy": {
             "world_size": 2,
             "backend": "nccl",
@@ -130,7 +165,7 @@ def validate_startup(authority: dict[str, Any], inputs: StartupInputs, *, accept
     content = authority["content"]
     row = next((item for item in matrix.get("rows", [])
                 if item.get("configuration_id") == content["scientific"]["configuration_id"]), None)
-    if row is None or row.get("scientific_hash") != content["scientific"]["configuration_hash"] or row.get("evaluation_ancestry") is not False:
+    if row is None or row.get("scientific_hash") != content["scientific"]["p8_configuration_hash"] or row.get("evaluation_ancestry") is not False:
         failures.append("P8_CONFIGURATION_INVALID")
     if content["parents"] != inputs.expected_parents: failures.append("SCIENTIFIC_PARENT_MISMATCH")
     if content["scientific"]["configuration_hash"] in accepted_hashes: failures.append("SCIENTIFIC_CONFIGURATION_ALREADY_ACCEPTED")
@@ -269,6 +304,61 @@ class TrainingController:
                             writer_role="rank0", writer_id="science-rank0")
         fault("after_checkpoint_ledger_event_commit")
         return event
+
+    def handle_worker_request(
+        self, request: dict[str, Any], *, staging_root: str | Path,
+        checkpoint_root: str | Path,
+    ) -> dict[str, Any]:
+        """Validate one request, durably apply it once, and return its ACK."""
+        validate_worker_message(request)
+        body = request["body"]
+        if request["message_type"] == "EVENT_PROPOSAL":
+            event = self.append(body["event_type"], body["payload"], occurred_at=body["occurred_at"],
+                                writer_role=body["writer_role"], writer_id=body["writer_id"])
+            return worker_response(request["request_id"], status="COMMITTED",
+                                   event_id=event["event_id"], event_hash=event["event_hash"],
+                                   event_sequence=event["event_sequence"])
+        if request["message_type"] == "FAILURE_REPORT":
+            failure = dict(body); occurred_at = failure.pop("occurred_at")
+            event = self.append("TRAINING_FAILED", failure, occurred_at=occurred_at,
+                                writer_role="controller", writer_id="p9-v2-controller")
+            return worker_response(request["request_id"], status="COMMITTED",
+                                   event_id=event["event_id"], event_hash=event["event_hash"],
+                                   event_sequence=event["event_sequence"])
+        if body["source_run_id"] != self.run_id:
+            raise TrainingControllerError("CHECKPOINT_SOURCE_RUN_MISMATCH")
+        if body["resume_epoch"] != body["completed_epoch"] + 1:
+            raise TrainingControllerError("CHECKPOINT_RESUME_EPOCH_MISMATCH")
+        stage_root = Path(staging_root).resolve()
+        staged = (stage_root / body["staged_payload"]).resolve()
+        if staged.parent.parent != (stage_root / "requests").resolve() or not staged.parent.name.startswith("p9stage_") or staged.name != "checkpoint.pt":
+            raise TrainingControllerError("CHECKPOINT_STAGING_PATH_INVALID")
+        if staged.is_symlink() or not staged.is_file():
+            raise TrainingControllerError("CHECKPOINT_STAGING_PAYLOAD_INVALID")
+        provisional = checkpoint_manifest(
+            run_id=self.run_id, completed_epoch=body["completed_epoch"],
+            optimizer_update=body["optimizer_update"], payload_sha256=sha256_file(staged),
+            byte_size=staged.stat().st_size, state_presence=body["state_presence"])
+        selector = dict(body["selector_state"])
+        if body["current_candidate_selected"]:
+            selector["best_checkpoint_id"] = provisional["checkpoint_id"]
+        elif selector.get("best_checkpoint_id") is None:
+            raise TrainingControllerError("CHECKPOINT_SELECTOR_BEST_MISSING")
+        event = self.commit_validation_checkpoint(
+            staged, checkpoint_root, completed_epoch=body["completed_epoch"],
+            optimizer_update=body["optimizer_update"], validation_id=body["validation_id"],
+            validation_retrieval_loss=body["validation_retrieval_loss"],
+            mean_source_separation_margin=body["mean_source_separation_margin"],
+            selector_state=selector, queue=body["queue"], sampler=body["sampler"],
+            state_presence=body["state_presence"], occurred_at=body["occurred_at"])
+        return worker_response(
+            request["request_id"], status="COMMITTED", event_id=event["event_id"],
+            event_hash=event["event_hash"], event_sequence=event["event_sequence"],
+            checkpoint_id=event["payload"]["checkpoint_id"],
+            checkpoint_payload_sha256=event["payload"]["checkpoint_payload_sha256"],
+            checkpoint_manifest_sha256=event["payload"]["checkpoint_manifest_sha256"],
+            selector_state=event["payload"]["selector_state"],
+        )
 
 
 def checkpoint_manifest(*, run_id: str, completed_epoch: int, optimizer_update: int,

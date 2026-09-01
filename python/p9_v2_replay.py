@@ -236,7 +236,10 @@ def _apply(acc: _ReplayAccumulator, event: dict[str, Any]) -> None:
                 else "FORBIDDEN_POLICY"
             )
         else:
-            acc.resumability_state = "RESTART_REQUIRED"
+            acc.resumability_state = (
+                "FORBIDDEN_POLICY" if payload["resume_policy"] == "FORBIDDEN"
+                else "RESTART_REQUIRED"
+            )
     elif event_type == "FINALIZATION_STARTED":
         _require(acc.scientific_state == "COMPLETE", "finalization requires complete science")
         _require(operational in {"RUNNING", "FINALIZATION_FAILED"}, "finalization start has invalid operational predecessor")

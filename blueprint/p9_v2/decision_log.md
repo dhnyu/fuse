@@ -64,6 +64,11 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | D58 | Make checkpoint directory publication precede ledger candidate linkage; only `VALIDATION_CHECKPOINT_COMMITTED` creates an eligible candidate. | Crash retry is ordinary create-or-validate plus ledger replay, with no recovery transaction. | Implemented in V2-H. |
 | D59 | Use one isolated eight-target graph whose authority is an explicit external file and whose controller closure contains only one configuration. | Target metadata is orchestration only and cannot bootstrap or widen a formal run. | Implemented in V2-H. |
 | D60 | Validate `cfg_d48` with one actual two-GPU production-cache batch and forward-only loss, with all scientific mutation counters fixed at zero. | Exercises production-shaped construction without creating an authority, run, checkpoint, or scientific result. | Implemented in V2-H. |
+| D61 | Use canonical stdin/stdout request/ACK IPC between controller and rank zero, with deterministic request IDs and a blocking all-rank ACK barrier. | Adds the missing bidirectional commit boundary without an RPC service or additional writer. | Implemented in V2-H remediation. |
+| D62 | Let workers write only opaque fsynced staging payloads; let the controller derive checkpoint ID, publish payload/manifest, append linkage, and ACK. | Removes checkpoint-ID circularity and prevents science workers from publishing canonical evidence. | Implemented in V2-H remediation. |
+| D63 | Keep interrupted ledgers open and restore the complete model/optimizer/queue/sampler/RNG/trace state from the latest committed checkpoint. | Enables same-run exact resume; ACK loss and controller death reconcile through ordinary replay. | Implemented and proven by the 2+2 versus 4 update pilot. |
+| D64 | Bind both the accepted P8 legacy-serializer scientific hash and the V2 canonical scientific-document hash in native training authority. | The two canonical numeric encodings differ; conflating them made either startup or bundle validation impossible. | Implemented in V2-H remediation. |
+| D65 | Replace environment-injected post-training artifacts with nine executable isolated targets invoking existing V2-B/C/E APIs. | Gives one-configuration formal execution a complete ledger-to-resolver closure without alternate publication logic. | Implemented in V2-H remediation. |
 
 ## Retained identity justification
 

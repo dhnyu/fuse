@@ -22,9 +22,12 @@ roots:
   production_cache: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/production_cache/p9cba_5c472951ac896e82a0a0f555
   production_cache_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/authorization/p9a_c16721ffbce259df3f723cdd/production_cache_acceptance.json
   immutable_publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2
+  canonical_publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical
   eligibility_snapshot: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical/eligibility/p9elig_335f0baafea2a7e381f3634e.json
   writable_runs: /mnt/hdd002/dhnyu/fusedata/runtime/p9_v2_training_runs
   execution_locks: /mnt/hdd002/dhnyu/fusedata/runtime/p9_v2_training_locks
+  lifecycle_records: /mnt/hdd002/dhnyu/fusedata/runtime/p9_v2_training_lifecycle
+  categories: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_cd00016f6b5bfd960b0a6842/production/acceptance/bsa_e617ee0280a6edfa722994d3/spatial_categories.json
 selection_contract_id: p9-selection-v2.1.0
 production_cache_manifest_sha256: 5e512bec42f6112340fd5f2a0d5aa0f4232d5372e324d698493b374b576ce28a
 execution:

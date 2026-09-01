@@ -41,7 +41,7 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 | Lock classes | 3 | 2 maximum |
 | Formal/recovery identity types | At least 8 core, more acceptance/supersession types | 5 total |
 | P9 target scripts | 3 | 1 isolated v2 script; v1 frozen |
-| Isolated active targets/edges | 26/50 plus recovery 11/13 | 8/7 |
+| Isolated active targets/edges | 26/50 plus recovery 11/13 | 9/20 executable native closure |
 | Dedicated active stores | 6 historical generations plus main coupling | 1 generation per v2 pipeline generation; historical stores read-only |
 | Mutable state artifact classes | 8 | 3 evidence files across two locks; scientific state is ledger-derived |
 | Target metadata required for science | Yes | 0 |
@@ -51,10 +51,11 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 
 - `cfg_main` canonical V2 acceptance: complete; duplicate training prohibited.
 - V1 execution retirement: complete.
-- V2-H production controller: complete.
-- New formal variant architecture: ready but no new run is authorized or executed.
+- V2-H controller foundation: complete.
+- V2-H production-worker remediation: complete; update/checkpoint/resume and V2-B/C/E closure validated in temporary evidence.
+- New formal variant architecture: executable and ready, but no new formal authority or run is authorized or executed.
 - Remaining P9-A configurations: 12.
 - Remaining P9-B comparisons: 7, after selected-FM resolution.
 - Held-out evaluation: not started.
 
-The next work unit is: `P9-A formal variant execution -- begin with one explicitly authorized non-main hyperparameter configuration, using the new V2 controller.` It must authorize and run only one configuration, not all 12.
+The next work unit is: `P9-A cfg_d48 formal variant execution -- retry the same single variant using the now-complete V2 production lifecycle.` It must not authorize another configuration or batch all 12.

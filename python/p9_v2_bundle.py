@@ -15,6 +15,7 @@ from p9_v2_canonical import (
     CanonicalJSONError,
     canonical_json_bytes,
     canonical_sha256,
+    deterministic_id,
     parse_canonical_json,
     sha256_bytes,
 )
@@ -390,6 +391,26 @@ def _verify_document_linkage(
     if not starts or starts[-1]["payload"]["runtime_digest"] != documents["runtime"]["content_sha256"]:
         _fail("RUNTIME_MISMATCH", "run-start event does not bind runtime digest")
     authority = documents["authority"]["content"]
+    if authority.get("authority_kind") == "FUTURE_FORMAL_TRAINING":
+        try:
+            validate_instance("training_authority", documents["authority"])
+        except P9V2SchemaError as error:
+            _fail("AUTHORITY_MISMATCH", f"native training authority is invalid: {error}")
+        expected_run_id = deterministic_id("p9runv2_", {
+            "authority_hash": documents["authority"]["content_sha256"],
+            "scientific_run_key": authority["scientific_run_key"],
+        })
+        if (
+            run_id != expected_run_id
+            or authority["scientific"]["configuration_id"] != documents["scientific_configuration"]["identity"]
+            or authority["scientific"]["configuration_hash"] != documents["scientific_configuration"]["content_sha256"]
+            or authority["scientific"]["selection_contract_id"] != documents["selection_contract"]["content"].get("contract_version")
+            or authority["parents"] != parent_content["identities"]
+            or authority["parent_hashes"] != parent_content["hashes"]
+            or authority["parents"].get("production_cache_acceptance_id") != documents["cache_acceptance"]["identity"]
+        ):
+            _fail("AUTHORITY_MISMATCH", "native training authority bindings differ from bundle evidence")
+        return
     expected = {
         "run_id": run_id,
         "scientific_configuration_id": documents["scientific_configuration"]["identity"],

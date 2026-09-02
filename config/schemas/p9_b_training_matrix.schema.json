@@ -2,20 +2,20 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://fuse.local/schemas/p9_b_training_matrix.schema.json",
   "type": "object",
-  "required": ["schema_version", "artifact_type", "status", "plan_id", "selected_fm_acceptance_id", "count", "evaluation_ancestry", "rows"],
+  "required": ["schema_version", "artifact_type", "status", "plan_id", "full_model_acceptance_id", "count", "evaluation_ancestry", "rows"],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "2.0.0"},
     "artifact_type": {"const": "p9_b_training_matrix"},
     "status": {"const": "MATERIALIZED_NOT_EXECUTED"},
     "plan_id": {"pattern": "^p9bplan_[0-9a-f]{24}$"},
-    "selected_fm_acceptance_id": {"pattern": "^p9accv2_[0-9a-f]{24}$"},
+    "full_model_acceptance_id": {"const": "p9accv2_a1c00e32a882ddc4b7e2677b"},
     "count": {"const": 7},
     "evaluation_ancestry": {"const": false},
     "rows": {
       "type": "array", "minItems": 7, "maxItems": 7,
       "items": {
         "type": "object",
-        "required": ["configuration_id", "configuration_family", "model_family", "scientific_hash", "scientific", "bank_binding", "transformation_contract", "selected_fm_acceptance_id", "p9_b_plan_id", "run_seed_configuration_id", "evaluation_query_identity", "evaluation_ancestry"],
+        "required": ["configuration_id", "configuration_family", "model_family", "scientific_hash", "scientific", "bank_binding", "transformation_contract", "full_model_acceptance_id", "p9_b_plan_id", "run_seed_configuration_id", "evaluation_query_identity", "evaluation_ancestry"],
         "properties": {
           "configuration_id": {"pattern": "^cmp_[a-z0-9_]+$"},
           "configuration_family": {"const": "comparison"},
@@ -24,7 +24,7 @@
           "scientific": {"type": "object"},
           "bank_binding": {"type": "object"},
           "transformation_contract": {"type": "object"},
-          "selected_fm_acceptance_id": {"pattern": "^p9accv2_[0-9a-f]{24}$"},
+          "full_model_acceptance_id": {"const": "p9accv2_a1c00e32a882ddc4b7e2677b"},
           "p9_b_plan_id": {"pattern": "^p9bplan_[0-9a-f]{24}$"},
           "run_seed_configuration_id": {"pattern": "^cmp_[a-z0-9_]+$"},
           "evaluation_query_identity": {"type": "null"},

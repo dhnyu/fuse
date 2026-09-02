@@ -41,7 +41,7 @@ SCIENTIFIC_KEYS = (
 def scientific_configuration_content(row: Mapping[str, Any]) -> dict[str, Any]:
     value = {key: row[key] for key in SCIENTIFIC_KEYS}
     for key in ("run_seed_configuration_id", "model_family", "transformation_contract",
-                "selected_fm_acceptance_id", "p9_b_plan_id"):
+                "selected_fm_acceptance_id", "full_model_acceptance_id", "p9_b_plan_id"):
         if key in row:
             value[key] = row[key]
     return value

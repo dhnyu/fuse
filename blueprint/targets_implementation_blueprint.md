@@ -868,12 +868,14 @@ canonically accepted. The factor-wise validation selection is `d=128`, `K=4`,
 weak `0.5x`, EMA `0.999`, `lambda_IP=0`, and peak LR `3e-3`. Because this exact
 joint configuration was not executed, the bounded sequential
 `cfg_selected_fm_ip0` versus `cfg_selected_fm_ip1` confirmation was completed.
-The runs share the selected-FM seed and differ only in `lambda_IP`. IP1 won on
-validation loss and `p9accv2_1e1e842ee66f169f189725aa` is the frozen full-model
-reference. The seven comparison templates inherit that acceptance, not
-`cfg_main`/`cfg_d64`, and are materialized in
-`p9bplan_747bbf5e1e12f831ea5fb101`. No P9-B execution is authorized until the
-comparison implementation-readiness gate passes.
+The runs share the selected-FM seed and differ only in `lambda_IP`; IP1 won that
+scoped interaction comparison. The overall validation comparison selected the
+best actually executed configuration, `cfg_d128` (`0.1765069515`, margin
+`0.3754689395`), because the factor-wise combination was not additive. The
+seven comparison templates inherit exact `cfg_d128` acceptance
+`p9accv2_a1c00e32a882ddc4b7e2677b`, not `cfg_main`/`cfg_d64` or either
+selected-FM confirmation, and are materialized in
+`p9bplan_e36f7c9c5069a504eb31a9ef`. P9-B execution remains a separate work unit.
 
 Scientific configuration includes model/loss/optimizer/schedule/bank and run seed. Execution configuration contains worker count, threads, device mapping, runtime path and controller. Numeric modes such as precision or DDP that change results belong to training-run identity; pure host/path placement remains execution-only.
 

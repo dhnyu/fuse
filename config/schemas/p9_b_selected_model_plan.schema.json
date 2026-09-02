@@ -2,19 +2,57 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://fuse.local/schemas/p9_b_selected_model_plan.schema.json",
   "type": "object",
-  "required": ["schema_version", "artifact_type", "status", "selected_fm_decision_id", "selected_fm_acceptance_id", "selected_scientific_configuration", "comparisons", "count", "evaluation_consumption_count", "plan_id", "content_sha256"],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"enum": ["1.0.0", "2.0.0"]},
     "artifact_type": {"const": "p9_b_selected_model_plan"},
     "status": {"const": "MATERIALIZED_NOT_EXECUTED"},
     "selected_fm_decision_id": {"pattern": "^p9sfm_[0-9a-f]{24}$"},
     "selected_fm_acceptance_id": {"pattern": "^p9accv2_[0-9a-f]{24}$"},
     "selected_scientific_configuration": {"type": "object"},
+    "final_model_decision_id": {"pattern": "^p9fms_[0-9a-f]{24}$"},
+    "full_model_configuration_id": {"const": "cfg_d128"},
+    "full_model_acceptance_id": {"const": "p9accv2_a1c00e32a882ddc4b7e2677b"},
+    "full_model_checkpoint_id": {"const": "p9ck_56195e9ea3cd45d80cf5e23c"},
+    "full_model_scientific_configuration": {"type": "object"},
     "comparisons": {"type": "array", "minItems": 7, "maxItems": 7},
     "count": {"const": 7},
     "evaluation_consumption_count": {"const": 0},
     "plan_id": {"pattern": "^p9bplan_[0-9a-f]{24}$"},
     "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
   },
+  "oneOf": [
+    {
+      "required": ["schema_version", "artifact_type", "status", "selected_fm_decision_id", "selected_fm_acceptance_id", "selected_scientific_configuration", "comparisons", "count", "evaluation_consumption_count", "plan_id", "content_sha256"],
+      "properties": {"schema_version": {"const": "1.0.0"}},
+      "not": {"anyOf": [
+        {"required": ["final_model_decision_id"]},
+        {"required": ["full_model_acceptance_id"]},
+        {"required": ["full_model_scientific_configuration"]}
+      ]}
+    },
+    {
+      "required": ["schema_version", "artifact_type", "status", "final_model_decision_id", "full_model_configuration_id", "full_model_acceptance_id", "full_model_checkpoint_id", "full_model_scientific_configuration", "comparisons", "count", "evaluation_consumption_count", "plan_id", "content_sha256"],
+      "properties": {
+        "schema_version": {"const": "2.0.0"},
+        "comparisons": {
+          "items": {
+            "type": "object",
+            "required": ["template_id", "template_hash", "transformation_contract", "full_model_dependency", "full_model_checkpoint_id", "final_config_hash_status", "final_scientific_hash"],
+            "properties": {
+              "full_model_dependency": {"const": "p9accv2_a1c00e32a882ddc4b7e2677b"},
+              "full_model_checkpoint_id": {"const": "p9ck_56195e9ea3cd45d80cf5e23c"},
+              "final_config_hash_status": {"const": "RESOLVED"},
+              "final_scientific_hash": {"pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        }
+      },
+      "not": {"anyOf": [
+        {"required": ["selected_fm_decision_id"]},
+        {"required": ["selected_fm_acceptance_id"]},
+        {"required": ["selected_scientific_configuration"]}
+      ]}
+    }
+  ],
   "additionalProperties": false
 }

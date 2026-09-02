@@ -21,11 +21,12 @@
   "p9_a_acceptance_count": 13,
   "p9_a_eligibility_id": "p9elig_8d017288b37c7c7a08734fa7",
   "p9_b": {
-    "basis_scientific_hash": "cd0e6c835b4e788408e60a42ea516f7f0f00e3388a969fe1471f195dae02fb32",
+    "basis_scientific_hash": "8ce5bf6d8fb0760cd03ab5a4331584d7975aa6581e32d25ec1005ba4b2ca5c8d",
     "execution_authorized": false,
-    "full_model_acceptance_id": "p9accv2_1e1e842ee66f169f189725aa",
-    "full_model_reference": "cfg_selected_fm_ip1",
-    "materialized_plan_id": "p9bplan_747bbf5e1e12f831ea5fb101",
+    "final_model_decision_id": "p9fms_389a0ce89992eee507d7c846",
+    "full_model_acceptance_id": "p9accv2_a1c00e32a882ddc4b7e2677b",
+    "full_model_reference": "cfg_d128",
+    "materialized_plan_id": "p9bplan_e36f7c9c5069a504eb31a9ef",
     "template_count": 7,
     "templates": [
       {
@@ -117,8 +118,20 @@
     "final_selected_acceptance_id": "p9accv2_1e1e842ee66f169f189725aa",
     "final_selected_configuration_id": "cfg_selected_fm_ip1",
     "final_selected_scientific_hash": "cd0e6c835b4e788408e60a42ea516f7f0f00e3388a969fe1471f195dae02fb32",
+    "interpretation_scope": "lambda_ip_interaction_within_factor_wise_joint_configuration_only",
+    "overall_final_model": false,
     "scientific_hash": "961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7"
   },
+  "overall_final_model": {
+    "acceptance_id": "p9accv2_a1c00e32a882ddc4b7e2677b",
+    "checkpoint_id": "p9ck_56195e9ea3cd45d80cf5e23c",
+    "configuration_id": "cfg_d128",
+    "decision_id": "p9fms_389a0ce89992eee507d7c846",
+    "mean_source_separation_margin": 0.3754689395427704,
+    "selected_epoch": 85,
+    "stopping_epoch": 105,
+    "validation_retrieval_loss": 0.17650695145130157
+  },
   "selection_contract_id": "p9-selection-v2.1.0",
-  "status": "SELECTED_FM_IP1_CONFIRMED_P9_B_MATERIALIZED_NOT_EXECUTED"
+  "status": "CFG_D128_FINAL_MODEL_P9_B_MATERIALIZED_NOT_EXECUTED"
 }

@@ -1,4 +1,4 @@
-"""Winner-bound sequential P9-B comparison campaign."""
+"""Final-full-model-bound sequential P9-B comparison campaign."""
 
 from __future__ import annotations
 
@@ -18,6 +18,10 @@ from p9_v2_canonical import canonical_json_bytes, canonical_sha256
 from p9_v2_schema import validate_instance
 from p9_v2_training_controller import build_training_authority, validate_training_authority
 from p9_v2_training_lifecycle import scientific_configuration_content
+from p9_final_model_selection import (
+    FINAL_ACCEPTANCE_ID, FINAL_CONFIGURATION_ID, FINAL_CHECKPOINT_ID,
+    validate_final_model_resolution,
+)
 
 
 CONFIGURATIONS = (
@@ -42,9 +46,11 @@ def build_training_matrix(plan: Mapping[str, Any]) -> dict[str, Any]:
         raise P9BCampaignError("P9_B_PLAN_IDENTITY_INVALID")
     if tuple(item.get("template_id") for item in plan["comparisons"]) != CONFIGURATIONS:
         raise P9BCampaignError("P9_B_TEMPLATE_ORDER_INVALID")
-    selected = plan["selected_scientific_configuration"]["content"]
-    if selected.get("configuration_id") != "cfg_selected_fm_ip1":
-        raise P9BCampaignError("P9_B_SELECTED_FM_WINNER_INVALID")
+    selected = plan["full_model_scientific_configuration"]["content"]
+    if (plan.get("schema_version"), plan.get("full_model_configuration_id"),
+            plan.get("full_model_acceptance_id"), plan.get("full_model_checkpoint_id")) != (
+                "2.0.0", FINAL_CONFIGURATION_ID, FINAL_ACCEPTANCE_ID, FINAL_CHECKPOINT_ID):
+        raise P9BCampaignError("P9_B_FINAL_FULL_MODEL_INVALID")
     rows = []
     for item in plan["comparisons"]:
         configuration_id = item["template_id"]; family = FAMILIES[configuration_id]
@@ -55,7 +61,7 @@ def build_training_matrix(plan: Mapping[str, Any]) -> dict[str, Any]:
             "model_family": family, "scientific_hash": item["final_scientific_hash"],
             "scientific": scientific, "bank_binding": copy.deepcopy(selected["bank_binding"]),
             "transformation_contract": copy.deepcopy(item["transformation_contract"]),
-            "selected_fm_acceptance_id": plan["selected_fm_acceptance_id"],
+            "full_model_acceptance_id": plan["full_model_acceptance_id"],
             "p9_b_plan_id": plan["plan_id"], "run_seed_configuration_id": configuration_id,
             "run_seed_formula": "sha256_canonical_json_root_seed_configuration_id",
             "run_seed_namespace": f"p9-b/{configuration_id}",
@@ -64,9 +70,9 @@ def build_training_matrix(plan: Mapping[str, Any]) -> dict[str, Any]:
             "validation_acceptance_id": selected["validation_acceptance_id"],
             "evaluation_query_identity": None, "evaluation_ancestry": False,
         })
-    value = {"schema_version": "1.0.0", "artifact_type": "p9_b_training_matrix",
+    value = {"schema_version": "2.0.0", "artifact_type": "p9_b_training_matrix",
              "status": "MATERIALIZED_NOT_EXECUTED", "plan_id": plan["plan_id"],
-             "selected_fm_acceptance_id": plan["selected_fm_acceptance_id"],
+             "full_model_acceptance_id": plan["full_model_acceptance_id"],
              "count": 7, "evaluation_ancestry": False, "rows": rows}
     validate_instance("p9_b_training_matrix", value)
     return value
@@ -76,8 +82,8 @@ def build_authority(row: Mapping[str, Any], contract: Mapping[str, Any], reposit
     if row["configuration_id"] not in CONFIGURATIONS:
         raise P9BCampaignError("P9_B_CONFIGURATION_INVALID")
     parents = campaign_parents(contract)
-    if parents.get("selected_fm_acceptance_id") != row["selected_fm_acceptance_id"]:
-        raise P9BCampaignError("P9_B_SELECTED_FM_PARENT_MISMATCH")
+    if parents.get("full_model_acceptance_id") != row["full_model_acceptance_id"]:
+        raise P9BCampaignError("P9_B_FULL_MODEL_PARENT_MISMATCH")
     return build_training_authority(
         configuration_id=row["configuration_id"],
         configuration_hash=canonical_sha256(scientific_configuration_content(row)),
@@ -90,10 +96,11 @@ def build_authority(row: Mapping[str, Any], contract: Mapping[str, Any], reposit
 
 
 def campaign_contract(base: Mapping[str, Any], matrix: Path, eligibility: Path,
-                      selected_fm_acceptance_id: str) -> dict[str, Any]:
+                      full_model_acceptance_id: str) -> dict[str, Any]:
     value = json.loads(json.dumps(base)); value["roots"]["configuration_matrix"] = str(matrix.resolve())
     value["roots"]["eligibility_snapshot"] = str(eligibility.resolve())
-    value["parents"]["selected_fm_acceptance_id"] = selected_fm_acceptance_id
+    value["parents"].pop("selected_fm_acceptance_id", None)
+    value["parents"]["full_model_acceptance_id"] = full_model_acceptance_id
     return value
 
 
@@ -125,33 +132,34 @@ def run_campaign(paths: SelectedFMCampaignPaths, plan_path: Path) -> None:
                 source["template_id"], source["template_hash"], source["transformation_contract"]):
             raise P9BCampaignError("P9_B_TEMPLATE_SOURCE_MISMATCH")
     atomic_write(paths.matrix, canonical_json_bytes(matrix_value)); rows = matrix_value["rows"]
-    base["parents"]["selected_fm_acceptance_id"] = plan["selected_fm_acceptance_id"]
+    base["parents"].pop("selected_fm_acceptance_id", None)
+    base["parents"]["full_model_acceptance_id"] = plan["full_model_acceptance_id"]
     canonical_root = Path(base["roots"]["canonical_publication"])
-    decision = json.loads((canonical_root / "selected_fm" / f"{plan['selected_fm_decision_id']}.json").read_text())
-    if decision["selected_acceptance_id"] != plan["selected_fm_acceptance_id"]:
+    decision = json.loads((canonical_root / "final_model" / f"{plan['final_model_decision_id']}.json").read_text())
+    if decision["selected_acceptance_id"] != plan["full_model_acceptance_id"]:
         raise P9BCampaignError("P9_B_DECISION_PLAN_MISMATCH")
-    selected_eligibility = canonical_root / "eligibility" / f"{decision['eligibility_id']}.json"
+    selected_eligibility = canonical_root / "eligibility" / f"{decision['p9_a_eligibility_id']}.json"
     base["roots"]["eligibility_snapshot"] = str(selected_eligibility)
     selected_acceptance = json.loads((canonical_root / "acceptances" /
-                                      plan["selected_fm_acceptance_id"] / "acceptance.json").read_text())
+                                      plan["full_model_acceptance_id"] / "acceptance.json").read_text())
     selected_lifecycle = Path(base["roots"]["lifecycle_records"]) / selected_acceptance["authority_id"] / "bundle.json"
     selected_resolver = _resolver(canonical_root, selected_eligibility,
                                   [{"bundle_record": str(selected_lifecycle)}])
-    selected = selected_resolver.resolve_accepted_checkpoint(plan["selected_fm_acceptance_id"])
-    if (selected.scientific_configuration["content"]["configuration_id"] != "cfg_selected_fm_ip1" or
-            any(item["selected_checkpoint_id"] != selected.checkpoint_id for item in plan["comparisons"])):
-        raise P9BCampaignError("P9_B_SELECTED_FM_RESOLUTION_MISMATCH")
+    selected = selected_resolver.resolve_accepted_checkpoint(plan["full_model_acceptance_id"])
+    validate_final_model_resolution(selected)
+    if any(item["full_model_checkpoint_id"] != selected.checkpoint_id for item in plan["comparisons"]):
+        raise P9BCampaignError("P9_B_FULL_MODEL_RESOLUTION_MISMATCH")
     completed, eligibility = _restore(paths, rows, base)
     _status(paths, status="RUNNING", configurations=list(CONFIGURATIONS), completed=completed,
             current_configuration=None, latest_eligibility=str(eligibility), evaluation_consumption_count=0,
-            selected_fm_acceptance_id=plan["selected_fm_acceptance_id"], p9_b_plan_id=plan["plan_id"],
+            full_model_acceptance_id=plan["full_model_acceptance_id"], p9_b_plan_id=plan["plan_id"],
             error=None, error_type=None)
     canonical = Path(base["roots"]["canonical_publication"])
     for row in rows[len(completed):]:
         configuration_id = row["configuration_id"]; authority = build_authority(row, base, paths.repository)
         config_root = paths.root / configuration_id; candidate = config_root / "authority_candidate.json"
         atomic_write(candidate, canonical_json_bytes(authority))
-        dynamic = campaign_contract(base, paths.matrix, eligibility, plan["selected_fm_acceptance_id"])
+        dynamic = campaign_contract(base, paths.matrix, eligibility, plan["full_model_acceptance_id"])
         contract_path = config_root / "training_contract.yml"
         atomic_write(contract_path, yaml.safe_dump(dynamic, sort_keys=True).encode("utf-8"))
         _status(paths, current_configuration=configuration_id, stage="PREAUTHORITY_PREFLIGHT")

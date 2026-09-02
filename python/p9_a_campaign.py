@@ -54,6 +54,8 @@ def campaign_parents(contract: Mapping[str, Any]) -> dict[str, str]:
     parents = {key: contract["parents"][key] for key in keys}
     if "selected_fm_acceptance_id" in contract["parents"]:
         parents["selected_fm_acceptance_id"] = contract["parents"]["selected_fm_acceptance_id"]
+    if "full_model_acceptance_id" in contract["parents"]:
+        parents["full_model_acceptance_id"] = contract["parents"]["full_model_acceptance_id"]
     parents["methodology_commit"] = contract["source"]["dissertation_commit"]
     return parents
 

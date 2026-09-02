@@ -20,7 +20,7 @@ from p9_b_campaign import build_authority,build_training_matrix,campaign_contrac
 from p9_v2_canonical import canonical_json_bytes  # noqa:E402
 from p9_v2_ledger import read_ledger  # noqa:E402
 
-PLAN=Path("/mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical/p9_b_plans/p9bplan_747bbf5e1e12f831ea5fb101.json")
+PLAN=Path("/mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical/p9_b_plans/p9bplan_e36f7c9c5069a504eb31a9ef.json")
 
 
 def run(output: Path) -> dict:
@@ -33,7 +33,7 @@ def run(output: Path) -> dict:
     results=[]
     for row in matrix["rows"]:
         family_root=output/row["configuration_id"]; family_root.mkdir()
-        contract=campaign_contract(base,matrix_path,Path(base["roots"]["eligibility_snapshot"]),plan["selected_fm_acceptance_id"])
+        contract=campaign_contract(base,matrix_path,Path(base["roots"]["eligibility_snapshot"]),plan["full_model_acceptance_id"])
         contract_path=family_root/"contract.yml"; atomic_write(contract_path,yaml.safe_dump(contract,sort_keys=True).encode())
         authority=build_authority(row,contract,ROOT); authority_path=family_root/"noncanonical_authority.json"
         atomic_write(authority_path,canonical_json_bytes(authority))

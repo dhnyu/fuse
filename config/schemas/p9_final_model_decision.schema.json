@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p9_final_model_decision.schema.json",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "status", "selection_contract_id", "selection_scope", "p9_a_eligibility_id", "executed_candidate_count", "selected_configuration_id", "selected_acceptance_id", "selected_checkpoint_id", "selected_epoch", "stopping_epoch", "validation_retrieval_loss", "mean_source_separation_margin", "factor_wise_preferred_values", "factor_wise_additivity_supported", "interaction_confirmation", "evaluation_consumption_count", "decision_id", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p9_final_model_decision"},
+    "status": {"const": "SELECTED"},
+    "selection_contract_id": {"const": "p9-selection-v2.1.0"},
+    "selection_scope": {"const": "all_executed_p9_a_and_joint_confirmation_candidates"},
+    "p9_a_eligibility_id": {"pattern": "^p9elig_[0-9a-f]{24}$"},
+    "executed_candidate_count": {"const": 15},
+    "selected_configuration_id": {"const": "cfg_d128"},
+    "selected_acceptance_id": {"const": "p9accv2_a1c00e32a882ddc4b7e2677b"},
+    "selected_checkpoint_id": {"const": "p9ck_56195e9ea3cd45d80cf5e23c"},
+    "selected_epoch": {"const": 85},
+    "stopping_epoch": {"const": 105},
+    "validation_retrieval_loss": {"const": 0.17650695145130157},
+    "mean_source_separation_margin": {"const": 0.3754689395427704},
+    "factor_wise_preferred_values": {"type": "object"},
+    "factor_wise_additivity_supported": {"const": false},
+    "interaction_confirmation": {"type": "object", "required": ["decision_id", "acceptance_ids", "interpretation"]},
+    "evaluation_consumption_count": {"const": 0},
+    "decision_id": {"pattern": "^p9fms_[0-9a-f]{24}$"},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

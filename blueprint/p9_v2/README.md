@@ -141,8 +141,11 @@ IP0 source scientific hash is
 `961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7`; the
 IP1 hash is `cd0e6c835b4e788408e60a42ea516f7f0f00e3388a969fe1471f195dae02fb32`.
 Both use the same selected-FM seed namespace, so `lambda_IP` is their sole
-scientific difference. Both confirmations completed canonically. IP1 won on
-validation retrieval loss (`0.1987979710` versus `0.2012318373`) and is frozen
-by decision `p9sfm_dca5569ef50bd9bfb1940032` and acceptance
-`p9accv2_1e1e842ee66f169f189725aa`. The seven P9-B templates are materialized,
-but remain non-executed, in `p9bplan_747bbf5e1e12f831ea5fb101`.
+scientific difference. Both confirmations completed canonically. IP1 won the
+scoped lambda comparison (`0.1987979710` versus `0.2012318373`), as recorded by
+`p9sfm_dca5569ef50bd9bfb1940032`; both runs remain valid interaction evidence.
+Across all 15 executed candidates, `cfg_d128` is the best observed configuration
+(`0.1765069515`, margin `0.3754689395`) and is the final full model under
+`p9fms_389a0ce89992eee507d7c846`. The factor-wise combination was not additive.
+The seven non-executed P9-B templates therefore inherit `cfg_d128` acceptance
+`p9accv2_a1c00e32a882ddc4b7e2677b` in `p9bplan_e36f7c9c5069a504eb31a9ef`.

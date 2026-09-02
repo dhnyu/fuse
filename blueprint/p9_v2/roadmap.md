@@ -55,15 +55,17 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 - V2-H controller foundation: complete.
 - V2-H production-worker remediation: complete; update/checkpoint/resume and V2-B/C/E closure validated in temporary evidence.
 - New formal variant architecture: executable; one non-main formal trajectory has completed.
-- Completed sequential-campaign configurations: `cfg_d128`, `cfg_k2`, `cfg_k4`, and `cfg_k16`.
-- The first `cfg_intensity_05` authority/run is preserved as `INCOMPLETE / BLOCKED / RESTART_REQUIRED` at zero updates; it is not resumable after the implementation correction.
-- Remaining P9-A configurations: 7. The repaired campaign resumes at `cfg_intensity_05` only after canonical restoration of the four accepted predecessors.
-- Remaining P9-B comparisons: 7, after selected-FM resolution.
+- P9-A configurations: 13/13 canonically accepted and resolver-validated. The
+  original failed `cfg_intensity_05` authority/run remains preserved as
+  `INCOMPLETE / BLOCKED / RESTART_REQUIRED`; the corrected run is independently
+  accepted.
+- Validation-only factor selection: `d=128`, `K=4`, weak `0.5x`, EMA `0.999`,
+  `lambda_IP=0`, and peak LR `3e-3`.
+- Selected-FM: one `cfg_selected_fm` confirmation is required because the joint
+  factor-wise combination was not one of the 13 OFAT executions.
+- Remaining P9-B comparisons: 7, blocked until selected-FM acceptance.
 - Held-out evaluation: not started.
 
-The post-cfg_d48 audit found no lifecycle or runtime-scaling blocker. The exact
-eleven remaining P8 rows may run sequentially; no concurrent or extra row is
-authorized. After the campaign terminates, the next decision unit is validation-
-only P9-A factor selection, selected-FM reuse or one confirmation run, and P9-B
-template materialization against that selected full model. Held-out evaluation
-remains prohibited.
+The P9-A campaign completion audit found no scientific comparability blocker.
+The exact next work unit is `P9_SELECTED_FM_FORMAL_CONFIRMATION`. P9-B remains
+unmaterialized and held-out evaluation remains prohibited.

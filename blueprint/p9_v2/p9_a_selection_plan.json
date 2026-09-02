@@ -1,0 +1,106 @@
+{
+  "artifact_type": "p9_a_selection_plan",
+  "evaluation_consumption_count": 0,
+  "factor_selection": {
+    "d": 128,
+    "effective_k": 4,
+    "ema": 0.999,
+    "intensity": "weak_0.5x",
+    "lambda_ip": 0.0,
+    "peak_learning_rate": 0.003
+  },
+  "non_authorizing": true,
+  "observed_best": {
+    "acceptance_id": "p9accv2_a1c00e32a882ddc4b7e2677b",
+    "checkpoint_id": "p9ck_56195e9ea3cd45d80cf5e23c",
+    "configuration_id": "cfg_d128",
+    "mean_source_separation_margin": 0.3754689395427704,
+    "selected_epoch": 85,
+    "validation_retrieval_loss": 0.17650695145130157
+  },
+  "p9_a_acceptance_count": 13,
+  "p9_a_eligibility_id": "p9elig_8d017288b37c7c7a08734fa7",
+  "p9_b": {
+    "basis_scientific_hash": "961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7",
+    "execution_authorized": false,
+    "full_model_reference": "cfg_selected_fm",
+    "template_count": 7,
+    "templates": [
+      {
+        "template_hash": "36b124e7ddef9c78518e7805c23d4b97acb561ad52cf30594c84f368fe4db29d",
+        "template_id": "cmp_a1_geometric_core"
+      },
+      {
+        "template_hash": "2baa42fe1fa62d5d603f949e611a26905958d7a12a29918bd7783e1927304af3",
+        "template_id": "cmp_a2_semantic_enriched"
+      },
+      {
+        "template_hash": "e49ed21dfa80119c68a48f71f9dac1b4bb11231881f73448e44e8f5ae5b8188a",
+        "template_id": "cmp_a3_object_context_enriched"
+      },
+      {
+        "template_hash": "4b650ce82b661b0f6c897be17355970299fd8302227367e7e30a8392d467c467",
+        "template_id": "cmp_a4_raster_complete_non_relational"
+      },
+      {
+        "template_hash": "d4a3b814cb04945b61e17aed0fa7d043f6a44ed427426f89b99be20de88002c5",
+        "template_id": "cmp_a5_relation_type_agnostic"
+      },
+      {
+        "template_hash": "c32c80baae23d14a142555e85e2232daf55d58a3a16ca8b26318211043a6a748",
+        "template_id": "cmp_ssv_like"
+      },
+      {
+        "template_hash": "5ccf13ccc1d585ab4504d1cad3d1b8a0c2f06ca6f62db93f3a9d0b21d2f927e1",
+        "template_id": "cmp_ds_like"
+      }
+    ],
+    "templates_remain_unmaterialized": true
+  },
+  "schema_version": "1.0.0",
+  "selected_fm": {
+    "configuration": {
+      "bank_binding": {
+        "bank_acceptance_id": "aba_39de6c260a8e427767bc01d6",
+        "effective_k": 4,
+        "logical_index_id": "abi_66dfe52602ffe442336685e0",
+        "nested_subset_identity": "p8abi_24471ee4574c585c98083b53",
+        "physical_bank_id": "augbank_252ce67e6d74679b02871e57",
+        "profile_id": "weak_0.5x"
+      },
+      "configuration_family": "selected_fm",
+      "configuration_id": "cfg_selected_fm",
+      "parent_p7_acceptance_id": "p7acc_3c78cc0e85b93aec6a0cc02c",
+      "run_seed_formula": "sha256_canonical_json_root_seed_configuration_id",
+      "run_seed_namespace": "p9-selected-fm/cfg_selected_fm",
+      "runtime_acceptance_id": "p7rta_c780441a553abe26772827d0",
+      "scientific": {
+        "attention_heads": 4,
+        "checkpoint_selector": "validation_retrieval_loss_margin_1e-4_earlier_epoch",
+        "d": 128,
+        "d_c": 128,
+        "d_r": 32,
+        "d_t": 16,
+        "dropout": 0.2,
+        "effective_k": 4,
+        "ema": 0.999,
+        "ffn_dimension": 256,
+        "ffn_multiplier": 2,
+        "intensity": "weak_0.5x",
+        "lambda_ip": 0.0,
+        "optimizer": "AdamW",
+        "peak_learning_rate": 0.003,
+        "per_head_dimension": 32,
+        "scheduler": "linear_warmup_then_cosine_zero",
+        "validation_interval_epochs": 5,
+        "validation_patience_events": 4
+      },
+      "validation_acceptance_id": "fqsa_27565de68d9432e47fe7b99d"
+    },
+    "confirmation_required": true,
+    "executed_configuration_match": null,
+    "scientific_hash": "961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7"
+  },
+  "selection_contract_id": "p9-selection-v2.1.0",
+  "status": "SELECTION_AUDIT_COMPLETE_CONFIRMATION_REQUIRED"
+}

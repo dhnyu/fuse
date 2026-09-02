@@ -863,6 +863,14 @@ The primary interpretations are conditional on this declared nesting: A2-A1 meas
 | `comparison_training_configuration_plan` | V2 accepted-checkpoint identity resolved through the canonical resolver, seven accepted templates | Materialize exactly seven final P9-B configurations; paths, `latest`, v1 recovery and direct bundle/finalization inputs are invalid. |
 | `comparison_training_acceptance` | comparison runs, validation histories, selectors | Publish seven frozen comparison checkpoints without entering hyperparameter selection. |
 
+Current P9-A selection state (2026-09-02): all 13 OFAT configurations are
+canonically accepted. The factor-wise validation selection is `d=128`, `K=4`,
+weak `0.5x`, EMA `0.999`, `lambda_IP=0`, and peak LR `3e-3`. Because this exact
+joint configuration was not executed, `selected_configuration_identity` remains
+blocked on one `cfg_selected_fm` formal confirmation. The seven comparison
+templates inherit that future accepted configuration, not `cfg_main`/`cfg_d64`;
+they remain unmaterialized and no P9-B execution is authorized.
+
 Scientific configuration includes model/loss/optimizer/schedule/bank and run seed. Execution configuration contains worker count, threads, device mapping, runtime path and controller. Numeric modes such as precision or DDP that change results belong to training-run identity; pure host/path placement remains execution-only.
 
 #### P9 implementation-readiness boundary

@@ -129,3 +129,13 @@ predeclared P9-A rows are executed by `scripts/p9_a_campaign.py`, which wraps
 the same single-configuration graph sequentially, carries forward the explicit
 immutable eligibility snapshot, and stops before launching another row after
 any failed target lifecycle.
+
+The sequential campaign is now complete: all 13 P9-A configurations have
+canonical eligible acceptances in `p9elig_8d017288b37c7c7a08734fa7`, with
+held-out evaluation consumption remaining zero. Validation-only OFAT selection
+chose `d=128`, `K=4`, weak `0.5x` intensity, EMA `0.999`, `lambda_IP=0`, and
+peak LR `3e-3`. No executed row contains that joint combination. The
+non-authorizing plan `p9_a_selection_plan.json` therefore requires exactly one
+`cfg_selected_fm` confirmation before the seven P9-B templates can be
+materialized. Its planned scientific hash is
+`961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7`.

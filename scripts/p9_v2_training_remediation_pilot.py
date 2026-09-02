@@ -75,7 +75,8 @@ def run(output: str | Path) -> dict:
         "p3_cache_acceptance_id", "production_cache_id", "production_cache_acceptance_id", "v1_retirement_id")}
     parents["methodology_commit"] = contract["source"]["dissertation_commit"]
     implementation_hash = canonical_sha256({name: sha256_file(ROOT / name) for name in (
-        "python/p9_v2_training_worker.py", "python/p9_v2_training_controller.py",
+        "python/p9_v2_prepared_cache.py", "python/p9_v2_training_worker.py",
+        "python/p9_v2_training_controller.py",
         "python/p9_v2_training_lifecycle.py", "config/p7_deterministic_training.yml",
         "config/p6_model_dataloader.yml")})
     authority = build_training_authority(
@@ -105,7 +106,8 @@ def run(output: str | Path) -> dict:
         raise RuntimeError("EXACT_RESUME_SCIENTIFIC_STATE_MISMATCH")
     sources = [authority_path, contract_path, matrix,
                contract["roots"]["production_cache_acceptance"],
-               ROOT / "python/p9_v2_training_worker.py", ROOT / "python/p9_v2_training_controller.py",
+               ROOT / "python/p9_v2_prepared_cache.py", ROOT / "python/p9_v2_training_worker.py",
+               ROOT / "python/p9_v2_training_controller.py",
                ROOT / "python/p9_v2_training_lifecycle.py", ROOT / "config/p7_deterministic_training.yml",
                ROOT / "config/p6_model_dataloader.yml"]
     lifecycle = publish_native_lifecycle(

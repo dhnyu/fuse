@@ -55,7 +55,9 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 - V2-H controller foundation: complete.
 - V2-H production-worker remediation: complete; update/checkpoint/resume and V2-B/C/E closure validated in temporary evidence.
 - New formal variant architecture: executable; one non-main formal trajectory has completed.
-- Remaining P9-A configurations: 11, authorized only as the declared fail-stop sequential campaign.
+- Completed sequential-campaign configurations: `cfg_d128`, `cfg_k2`, `cfg_k4`, and `cfg_k16`.
+- The first `cfg_intensity_05` authority/run is preserved as `INCOMPLETE / BLOCKED / RESTART_REQUIRED` at zero updates; it is not resumable after the implementation correction.
+- Remaining P9-A configurations: 7. The repaired campaign resumes at `cfg_intensity_05` only after canonical restoration of the four accepted predecessors.
 - Remaining P9-B comparisons: 7, after selected-FM resolution.
 - Held-out evaluation: not started.
 

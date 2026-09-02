@@ -41,6 +41,7 @@ from p9_v2_canonical import (
 from p9_v2_finalization import (
     evaluate_selection_candidate, make_selection_contract, qualifies_patience_reset,
 )
+from p9_v2_prepared_cache import ProductionPreparedData
 from p9_v2_schema import SCHEMA_VERSION, validate_instance
 from rotating_padding_sampler import logical_groups, rotating_padding_state
 
@@ -82,45 +83,6 @@ class ControllerClient:
         if response["message_type"] != "ACK" or response["body"]["status"] != "COMMITTED":
             raise ScienceWorkerError(f"CONTROLLER_NACK: {response['body']}")
         return response["body"]
-
-
-class ProductionPreparedData:
-    """Read the accepted fixed-index cache without directory discovery."""
-
-    def __init__(self, root: str | Path, profile: str, logical_k: int):
-        self.root = Path(root)
-        plan = json.loads((self.root / "canonical_cache_plan.json").read_text(encoding="utf-8"))
-        if int(plan["entry_count"]) != 78_672:
-            raise ScienceWorkerError("PRODUCTION_CACHE_ENTRY_COUNT_MISMATCH")
-        self.index: dict[tuple[str, str, int | None], dict[str, Any]] = {}
-        for row in plan["entries"]:
-            if row["role"] == "training" and row["profile"] != profile:
-                continue
-            key = (row["role"], row["scene_id"], row["view"])
-            if key in self.index:
-                raise ScienceWorkerError("DUPLICATE_PREPARED_VIEW")
-            self.index[key] = row
-        by_scene: dict[str, list[int]] = {}
-        for role, scene, view in self.index:
-            if role == "training":
-                by_scene.setdefault(scene, []).append(int(view))
-        self.views = {scene: tuple(sorted(values)[:logical_k]) for scene, values in by_scene.items()}
-        if len(self.views) != 2_421 or any(len(values) != logical_k for values in self.views.values()):
-            raise ScienceWorkerError("PRODUCTION_TRAINING_POPULATION_MISMATCH")
-        self.training_scenes = sorted(self.views)
-        self.validation_scenes = sorted({scene for role, scene, _ in self.index if role == "validation_gallery"})
-        if len(self.validation_scenes) != 400:
-            raise ScienceWorkerError("FIXED_VALIDATION_IDENTITY_MISMATCH")
-
-    def sample(self, role: str, scene: str, view: int | None) -> dict[str, Any]:
-        spec = self.index.get((role, scene, view))
-        if spec is None:
-            raise ScienceWorkerError("PREPARED_VIEW_MISSING")
-        index = int(spec["global_index"])
-        payload = torch.load(self.root / "prepared" / f"{index:06d}.pt", map_location="cpu", weights_only=False)
-        if payload.get("spec") != spec or int(payload.get("global_index", -1)) != index:
-            raise ScienceWorkerError("PREPARED_PAYLOAD_IDENTITY_MISMATCH")
-        return payload["sample"]
 
 
 @dataclass
@@ -220,7 +182,8 @@ def training_update(ddp: DistributedDataParallel, state: WorkerState, values: di
     ds_inputs = [ds_raster_from_batch(batch) if values["family"] == "DS" else None for batch in cpu]
     batches = [to_device(batch, device) for batch in cpu]
     geometries = [None if "geometry" not in family_contract(values["family"]).modalities else
-                  values["geometry_cache"].batch(batch, "training", device) for batch in batches]
+                  values["geometry_cache"].batch(
+                      batch, values["data"].physical_training_role, device) for batch in batches]
     ds_inputs = [item.to(device) if item is not None else None for item in ds_inputs]
     state.optimizer.zero_grad(set_to_none=True)
     outputs = [ddp(batch, geometry, ds, assignment) for batch, geometry, ds, assignment in
@@ -268,7 +231,10 @@ def training_update(ddp: DistributedDataParallel, state: WorkerState, values: di
     return {
         "epoch": epoch, "batch_index": batch_index, "global_update": state.scheduler.completed_updates,
         "learning_rate": learning_rate, "total_loss": float(total.detach()),
-        "scene_loss": float(scene_objective.detach()), "gradient_norm": float(norm),
+        "scene_loss": float(scene_objective.detach()), "ip_loss": float(information.detach()),
+        "weighted_ip_loss": float((float(values["row"]["scientific"]["lambda_ip"])
+                                   * information).detach()),
+        "gradient_norm": float(norm),
         "queue_pointer": int(state.queue["pointer"]), "queue_count": int(state.queue["valid_count"]),
         "batch_identity_digest": training_batch_digest(scenes, [item for group in pairs_by_rank for item in group]),
     }

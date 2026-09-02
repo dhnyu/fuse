@@ -15,6 +15,7 @@ import yaml
 from p8_experiment_plan import reporting_configuration_id
 from p9_infrastructure import configuration_seed
 from p9_v2_canonical import canonical_json_bytes, canonical_sha256, sha256_file
+from p9_v2_downstream import AcceptedCheckpointResolver, load_acceptance_eligibility
 from p9_v2_ledger import fsync_directory, write_all
 from p9_v2_training_controller import build_training_authority, validate_training_authority
 from p9_v2_training_lifecycle import scientific_configuration_content
@@ -26,7 +27,8 @@ CAMPAIGN_CONFIGURATIONS = (
     "cfg_lr_3", "cfg_lr_10",
 )
 IMPLEMENTATION_SOURCES = (
-    "python/p9_v2_training_worker.py", "python/p9_v2_training_controller.py",
+    "python/p9_v2_prepared_cache.py", "python/p9_v2_training_worker.py",
+    "python/p9_v2_training_controller.py",
     "python/p9_v2_training_lifecycle.py", "config/p7_deterministic_training.yml",
     "config/p6_model_dataloader.yml",
 )
@@ -115,6 +117,85 @@ def campaign_plan(matrix: Mapping[str, Any]) -> list[dict[str, Any]]:
     return [rows[configuration_id] for configuration_id in CAMPAIGN_CONFIGURATIONS]
 
 
+def restore_campaign_progress(
+    paths: "CampaignPaths", rows: list[dict[str, Any]], contract: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], Path]:
+    """Fail closed while restoring a canonical accepted prefix from campaign status."""
+    eligibility = Path(contract["roots"]["eligibility_snapshot"])
+    if not paths.status.exists():
+        return [], eligibility
+    status = json.loads(paths.status.read_text(encoding="utf-8"))
+    if status.get("configurations") != list(CAMPAIGN_CONFIGURATIONS):
+        raise CampaignError("CAMPAIGN_STATUS_PLAN_MISMATCH")
+    completed = status.get("completed")
+    if not isinstance(completed, list):
+        raise CampaignError("CAMPAIGN_STATUS_COMPLETED_INVALID")
+    expected_prefix = [row["configuration_id"] for row in rows[:len(completed)]]
+    if [item.get("configuration_id") for item in completed] != expected_prefix:
+        raise CampaignError("CAMPAIGN_COMPLETED_PREFIX_INVALID")
+    if not completed:
+        return [], eligibility
+    eligibility = Path(status.get("latest_eligibility", ""))
+    if not eligibility.is_file():
+        raise CampaignError("CAMPAIGN_LATEST_ELIGIBILITY_MISSING")
+    snapshot = load_acceptance_eligibility(eligibility)
+    if snapshot["eligibility_id"] != completed[-1].get("eligibility_id"):
+        raise CampaignError("CAMPAIGN_LATEST_ELIGIBILITY_ID_MISMATCH")
+    canonical = Path(contract["roots"]["canonical_publication"])
+    restored: list[dict[str, Any]] = []
+    implementation_lineages: set[str] = set()
+    for row, item in zip(rows, completed, strict=False):
+        configuration_id = row["configuration_id"]
+        if item.get("evaluation_consumption_count") != 0:
+            raise CampaignError("CAMPAIGN_EVALUATION_CONSUMPTION_NONZERO")
+        authority_id = item.get("authority_id")
+        authority_path = canonical / "authorities" / f"{authority_id}.json"
+        if not authority_path.is_file():
+            raise CampaignError("CAMPAIGN_AUTHORITY_MISSING")
+        authority = json.loads(authority_path.read_text(encoding="utf-8"))
+        validate_training_authority(authority)
+        scientific = authority["content"]["scientific"]
+        if (
+            authority["identity"] != authority_id
+            or scientific["configuration_id"] != configuration_id
+            or scientific["p8_configuration_hash"] != row["scientific_hash"]
+            or scientific["configuration_hash"] != canonical_sha256(scientific_configuration_content(row))
+        ):
+            raise CampaignError("CAMPAIGN_AUTHORITY_CONFIGURATION_MISMATCH")
+        implementation_lineages.add(scientific["scientific_implementation_hash"])
+        lifecycle = Path(contract["roots"]["lifecycle_records"]) / authority_id
+        handoff_path = lifecycle / "eligibility.json"
+        resolution_path = lifecycle / "resolution.json"
+        if not handoff_path.is_file() or not resolution_path.is_file():
+            raise CampaignError("CAMPAIGN_LIFECYCLE_HANDOFF_MISSING")
+        handoff = json.loads(handoff_path.read_text(encoding="utf-8"))
+        recorded = json.loads(resolution_path.read_text(encoding="utf-8"))
+        if (
+            handoff.get("acceptance_id") != item.get("acceptance_id")
+            or handoff.get("eligibility_id") != item.get("eligibility_id")
+            or recorded.get("acceptance_id") != item.get("acceptance_id")
+            or recorded.get("checkpoint_id") != item.get("checkpoint_id")
+            or recorded.get("evaluation_consumption_count") != 0
+        ):
+            raise CampaignError("CAMPAIGN_LIFECYCLE_RECORD_MISMATCH")
+        resolver = AcceptedCheckpointResolver(
+            canonical / "acceptances", canonical / "bundles",
+            {handoff["checkpoint_namespace"]: Path(handoff["checkpoint_root"])}, snapshot)
+        resolved = resolver.resolve_accepted_checkpoint(item["acceptance_id"])
+        if (
+            resolved.authority_id != authority_id
+            or resolved.authority_hash != authority["content_sha256"]
+            or resolved.checkpoint_id != item["checkpoint_id"]
+            or resolved.scientific_configuration["identity"] != configuration_id
+            or resolved.scientific_configuration["content"] != scientific_configuration_content(row)
+        ):
+            raise CampaignError("CAMPAIGN_RESOLVER_RESTORATION_MISMATCH")
+        restored.append(dict(item))
+    if len(implementation_lineages) != 1:
+        raise CampaignError("CAMPAIGN_COMPLETED_IMPLEMENTATION_LINEAGE_AMBIGUOUS")
+    return restored, eligibility
+
+
 @dataclass(frozen=True)
 class CampaignPaths:
     root: Path
@@ -158,11 +239,13 @@ def run_campaign(paths: CampaignPaths) -> None:
     matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
     rows = campaign_plan(matrix)
     canonical_root = Path(contract["roots"]["canonical_publication"])
-    eligibility = Path(contract["roots"]["eligibility_snapshot"])
-    completed: list[dict[str, Any]] = []
+    completed, eligibility = restore_campaign_progress(paths, rows, contract)
     _status(paths, status="RUNNING", configurations=list(CAMPAIGN_CONFIGURATIONS), completed=completed,
-            current_configuration=None, evaluation_consumption_count=0)
-    for index, row in enumerate(rows, start=1):
+            current_configuration=None, evaluation_consumption_count=0,
+            restored_completed_count=len(completed), latest_eligibility=str(eligibility),
+            error=None, error_type=None, returncode=None, authority_id=None,
+            target_store=None, configuration_log=None)
+    for index, row in enumerate(rows[len(completed):], start=len(completed) + 1):
         configuration_id = row["configuration_id"]
         authority = build_campaign_authority(configuration_id, row, contract, paths.repository)
         config_root = paths.root / configuration_id

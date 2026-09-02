@@ -52,7 +52,8 @@ def command_bundle(args: argparse.Namespace) -> dict:
     sources = [
         args.authority, args.contract, contract["roots"]["p8_bundle"] + "/hyperparameter_configuration_matrix.json",
         contract["roots"]["production_cache_acceptance"], "config/p7_deterministic_training.yml",
-        "config/p6_model_dataloader.yml", "python/p9_v2_training_worker.py",
+        "config/p6_model_dataloader.yml", "python/p9_v2_prepared_cache.py",
+        "python/p9_v2_training_worker.py",
         "python/p9_v2_training_controller.py", "python/p9_v2_training_lifecycle.py",
     ]
     bundle, roots = build_publish_native_bundle(

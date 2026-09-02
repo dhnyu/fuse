@@ -4,6 +4,7 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -11,7 +12,8 @@ sys.path.insert(0, str(ROOT / "python"))
 
 from p8_experiment_plan import historical_configuration_id, reporting_configuration_id  # noqa: E402
 from p9_a_campaign import (  # noqa: E402
-    CAMPAIGN_CONFIGURATIONS, build_campaign_authority, campaign_contract, campaign_plan,
+    CAMPAIGN_CONFIGURATIONS, CampaignError, CampaignPaths, build_campaign_authority,
+    campaign_contract, campaign_plan, restore_campaign_progress,
 )
 from p9_v2_canonical import canonical_sha256  # noqa: E402
 from p9_v2_training_controller import training_run_id  # noqa: E402
@@ -56,3 +58,34 @@ def test_dynamic_contract_changes_only_eligibility_pointer(tmp_path):
     expected = json.loads(json.dumps(base))
     expected["roots"]["eligibility_snapshot"] = str((tmp_path / "eligibility.json").resolve())
     assert value == expected and base["roots"]["eligibility_snapshot"] != value["roots"]["eligibility_snapshot"]
+
+
+def test_blocked_campaign_restores_four_canonical_acceptances_and_latest_eligibility(tmp_path):
+    source = Path("/mnt/hdd002/dhnyu/fusedata/runtime/p9_a_campaigns/20260901_1450/campaign_status.json")
+    if not source.is_file():
+        pytest.skip("campaign audit status unavailable")
+    root = tmp_path / "campaign"
+    root.mkdir()
+    (root / "campaign_status.json").write_bytes(source.read_bytes())
+    contract = yaml.safe_load((ROOT / "config/p9_v2_training_controller.yml").read_text())
+    matrix = json.loads((P8 / "hyperparameter_configuration_matrix.json").read_text())
+    completed, eligibility = restore_campaign_progress(
+        CampaignPaths(root, ROOT, ROOT / "config/p9_v2_training_controller.yml"), campaign_plan(matrix), contract)
+    assert [item["configuration_id"] for item in completed] == ["cfg_d128", "cfg_k2", "cfg_k4", "cfg_k16"]
+    assert eligibility.name == "p9elig_76f891b4a1072237a90a50d7.json"
+
+
+def test_campaign_restore_rejects_unvalidated_skip(tmp_path):
+    source = Path("/mnt/hdd002/dhnyu/fusedata/runtime/p9_a_campaigns/20260901_1450/campaign_status.json")
+    if not source.is_file():
+        pytest.skip("campaign audit status unavailable")
+    status = json.loads(source.read_text())
+    status["completed"][0]["checkpoint_id"] = "p9ck_" + "0" * 24
+    root = tmp_path / "campaign"
+    root.mkdir()
+    (root / "campaign_status.json").write_text(json.dumps(status))
+    contract = yaml.safe_load((ROOT / "config/p9_v2_training_controller.yml").read_text())
+    matrix = json.loads((P8 / "hyperparameter_configuration_matrix.json").read_text())
+    with pytest.raises(CampaignError, match="LIFECYCLE_RECORD_MISMATCH"):
+        restore_campaign_progress(
+            CampaignPaths(root, ROOT, ROOT / "config/p9_v2_training_controller.yml"), campaign_plan(matrix), contract)

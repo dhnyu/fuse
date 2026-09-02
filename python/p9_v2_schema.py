@@ -34,6 +34,7 @@ SCHEMA_FILES = {
     "selected_fm_confirmation_matrix": "p9_selected_fm_confirmation_matrix.schema.json",
     "selected_fm_decision": "p9_selected_fm_decision.schema.json",
     "p9_b_selected_model_plan": "p9_b_selected_model_plan.schema.json",
+    "p9_b_training_matrix": "p9_b_training_matrix.schema.json",
 }
 
 

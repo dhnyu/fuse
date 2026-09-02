@@ -39,7 +39,8 @@
             "p5_validation_acceptance_id": {"type": "string", "minLength": 1}, "p4_bank_id": {"type": "string", "minLength": 1},
             "p4_bank_acceptance_id": {"type": "string", "minLength": 1}, "p3_cache_acceptance_id": {"type": "string", "minLength": 1},
             "production_cache_id": {"type": "string", "minLength": 1}, "production_cache_acceptance_id": {"type": "string", "minLength": 1},
-            "v1_retirement_id": {"type": "string", "pattern": "^p9ret_[0-9a-f]{24}$"}
+            "v1_retirement_id": {"type": "string", "pattern": "^p9ret_[0-9a-f]{24}$"},
+            "selected_fm_acceptance_id": {"type": "string", "pattern": "^p9accv2_[0-9a-f]{24}$"}
           },
           "additionalProperties": false
         },

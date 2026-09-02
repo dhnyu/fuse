@@ -67,7 +67,9 @@ def startup_inputs(contract: dict) -> StartupInputs:
         expected_parents={key: parents[key] for key in (
             "methodology_commit", "p8_acceptance_id", "p7_runtime_acceptance_id", "p7_acceptance_id",
             "p6_acceptance_id", "p5_validation_acceptance_id", "p4_bank_id", "p4_bank_acceptance_id",
-            "p3_cache_acceptance_id", "production_cache_id", "production_cache_acceptance_id", "v1_retirement_id")},
+            "p3_cache_acceptance_id", "production_cache_id", "production_cache_acceptance_id", "v1_retirement_id")}
+            | ({"selected_fm_acceptance_id": parents["selected_fm_acceptance_id"]}
+               if "selected_fm_acceptance_id" in parents else {}),
     )
 
 

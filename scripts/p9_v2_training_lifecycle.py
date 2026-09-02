@@ -59,7 +59,7 @@ def command_bundle(args: argparse.Namespace) -> dict:
         "config/p6_model_dataloader.yml", "python/p9_v2_prepared_cache.py",
         "python/p9_v2_training_worker.py",
         "python/p9_v2_training_controller.py", "python/p9_v2_training_lifecycle.py",
-        "python/p9_infrastructure.py",
+        "python/p9_infrastructure.py", "python/p9_model_families.py",
     ]
     bundle, roots = build_publish_native_bundle(
         authority, execution["ledger_root"], execution["checkpoint_root"], sources[2], sources[3],

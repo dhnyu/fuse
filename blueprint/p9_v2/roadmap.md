@@ -71,5 +71,7 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 The P9-A campaign completion audit found no scientific comparability blocker.
 `P9_SELECTED_FM_IP_COMPARISON` is complete. The next bounded work unit is
 `P9_B_SELECTED_MODEL_ABLATION_EXECUTION`; its implementation-readiness gate
-must pass before any comparison authority is issued. Held-out evaluation
-remains prohibited.
+passed with exact family-contract tests and seven sequential noncanonical
+two-GPU update/checkpoint pilots. Formal comparison execution remains 0/7 and
+must proceed sequentially from A1, stopping on the first invalid lifecycle.
+Held-out evaluation remains prohibited.

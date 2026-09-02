@@ -30,6 +30,7 @@ IMPLEMENTATION_SOURCES = (
     "python/p9_v2_prepared_cache.py", "python/p9_v2_training_worker.py",
     "python/p9_v2_training_controller.py",
     "python/p9_v2_training_lifecycle.py", "python/p9_infrastructure.py",
+    "python/p9_model_families.py",
     "config/p7_deterministic_training.yml",
     "config/p6_model_dataloader.yml",
 )
@@ -51,6 +52,8 @@ def campaign_parents(contract: Mapping[str, Any]) -> dict[str, str]:
         "production_cache_acceptance_id", "v1_retirement_id",
     )
     parents = {key: contract["parents"][key] for key in keys}
+    if "selected_fm_acceptance_id" in contract["parents"]:
+        parents["selected_fm_acceptance_id"] = contract["parents"]["selected_fm_acceptance_id"]
     parents["methodology_commit"] = contract["source"]["dissertation_commit"]
     return parents
 

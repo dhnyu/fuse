@@ -138,7 +138,7 @@ def configuration_seed(root_seed: int, configuration_id: str) -> int:
 def materialize_hyperparameter_configuration(
         row: dict[str, Any], base_training: dict[str, Any], base_model: dict[str, Any]) -> dict[str, Any]:
     """Route one accepted P8 OFAT row without authorizing or starting a P9 run."""
-    if row.get("configuration_family") not in {"hyperparameter", "selected_fm_confirmation"} or row.get("evaluation_ancestry") is not False:
+    if row.get("configuration_family") not in {"hyperparameter", "selected_fm_confirmation", "comparison"} or row.get("evaluation_ancestry") is not False:
         raise ValueError("P9 training requires an evaluation-free configuration row")
     if row.get("evaluation_query_identity") is not None:
         raise ValueError("evaluation query identity is prohibited in P9-A")
@@ -167,6 +167,7 @@ def materialize_hyperparameter_configuration(
     training["queue"]["embedding_dimension"] = scientific["d"]
     return {
         "configuration_id": row["configuration_id"], "scientific_hash": row["scientific_hash"],
+        "model_family": row.get("model_family", "FM"),
         "bank_binding": copy.deepcopy(row["bank_binding"]), "training": training, "model": model,
         "formal_authorized": False, "evaluation_ancestry": False,
     }

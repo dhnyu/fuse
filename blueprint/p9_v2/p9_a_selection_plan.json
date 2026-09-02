@@ -21,9 +21,11 @@
   "p9_a_acceptance_count": 13,
   "p9_a_eligibility_id": "p9elig_8d017288b37c7c7a08734fa7",
   "p9_b": {
-    "basis_scientific_hash": "961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7",
+    "basis_scientific_hash": "cd0e6c835b4e788408e60a42ea516f7f0f00e3388a969fe1471f195dae02fb32",
     "execution_authorized": false,
-    "full_model_reference": "cfg_selected_fm",
+    "full_model_acceptance_id": "p9accv2_1e1e842ee66f169f189725aa",
+    "full_model_reference": "cfg_selected_fm_ip1",
+    "materialized_plan_id": "p9bplan_747bbf5e1e12f831ea5fb101",
     "template_count": 7,
     "templates": [
       {
@@ -55,7 +57,7 @@
         "template_id": "cmp_ds_like"
       }
     ],
-    "templates_remain_unmaterialized": true
+    "templates_remain_unmaterialized": false
   },
   "schema_version": "1.0.0",
   "selected_fm": {
@@ -97,7 +99,8 @@
       },
       "validation_acceptance_id": "fqsa_27565de68d9432e47fe7b99d"
     },
-    "confirmation_required": true,
+    "confirmation_complete": true,
+    "confirmation_required": false,
     "confirmation_scope": {
       "configuration_ids": [
         "cfg_selected_fm_ip0",
@@ -110,8 +113,12 @@
       "shared_run_seed_configuration_id": "cfg_selected_fm"
     },
     "executed_configuration_match": null,
+    "final_decision_id": "p9sfm_dca5569ef50bd9bfb1940032",
+    "final_selected_acceptance_id": "p9accv2_1e1e842ee66f169f189725aa",
+    "final_selected_configuration_id": "cfg_selected_fm_ip1",
+    "final_selected_scientific_hash": "cd0e6c835b4e788408e60a42ea516f7f0f00e3388a969fe1471f195dae02fb32",
     "scientific_hash": "961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7"
   },
   "selection_contract_id": "p9-selection-v2.1.0",
-  "status": "SELECTION_AUDIT_COMPLETE_DUAL_IP_CONFIRMATION_REQUIRED"
+  "status": "SELECTED_FM_IP1_CONFIRMED_P9_B_MATERIALIZED_NOT_EXECUTED"
 }

@@ -135,10 +135,14 @@ canonical eligible acceptances in `p9elig_8d017288b37c7c7a08734fa7`, with
 held-out evaluation consumption remaining zero. Validation-only OFAT selection
 chose `d=128`, `K=4`, weak `0.5x` intensity, EMA `0.999`, `lambda_IP=0`, and
 peak LR `3e-3`. No executed row contains that joint combination. The
-non-authorizing plan `p9_a_selection_plan.json` therefore requires exactly one
-bounded `cfg_selected_fm_ip0` versus `cfg_selected_fm_ip1` confirmation before
-the seven P9-B templates can be materialized. The IP0 source scientific hash is
+non-authorizing plan `p9_a_selection_plan.json` therefore required exactly one
+bounded `cfg_selected_fm_ip0` versus `cfg_selected_fm_ip1` confirmation. The
+IP0 source scientific hash is
 `961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7`; the
 IP1 hash is `cd0e6c835b4e788408e60a42ea516f7f0f00e3388a969fe1471f195dae02fb32`.
 Both use the same selected-FM seed namespace, so `lambda_IP` is their sole
-scientific difference.
+scientific difference. Both confirmations completed canonically. IP1 won on
+validation retrieval loss (`0.1987979710` versus `0.2012318373`) and is frozen
+by decision `p9sfm_dca5569ef50bd9bfb1940032` and acceptance
+`p9accv2_1e1e842ee66f169f189725aa`. The seven P9-B templates are materialized,
+but remain non-executed, in `p9bplan_747bbf5e1e12f831ea5fb101`.

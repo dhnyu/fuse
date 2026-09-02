@@ -73,6 +73,7 @@ Status: `DRAFT_NON_RUNTIME_NON_AUTHORIZING`
 | D67 | Resume a campaign only from a canonical accepted prefix validated through authority, cumulative eligibility, lifecycle handoffs, resolver, checkpoint hashes, and exact P8 scientific content. | Mutable campaign status alone cannot authorize skipping science; a failed zero-update authority remains evidence and a source-hash change requires a new authority/run. | Implemented in P9-A campaign repair. |
 | D68 | Confirm the joint selected-FM configuration with exactly two sequential runs sharing one seed namespace and differing only in `lambda_IP=0/1`. | Isolates the final objective interaction without reopening P9-A or confounding it with a second random seed. | Implemented for the selected-FM launch gate. |
 | D69 | Select between the two accepted confirmations by loss, strict `<1e-4` equivalence, margin, then IP0 simplicity; publish one immutable `p9sfm_` decision and a seven-template non-executed P9-B plan. | Keeps held-out evaluation and runtime outside selection and prevents P9-B from retaining a `cfg_main` fallback. | Implemented for post-run publication; execution remains sequential. |
+| D70 | Freeze `cfg_selected_fm_ip1` as selected-FM after its validation loss `0.1987979710` beat IP0's `0.2012318373`; bind every P9-B template to its acceptance. | The loss difference exceeds `1e-4`, so margin and simplicity do not enter the decision. | `p9sfm_dca5569ef50bd9bfb1940032`; P9-B plan `p9bplan_747bbf5e1e12f831ea5fb101`. |
 
 ## Retained identity justification
 

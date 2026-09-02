@@ -61,13 +61,15 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
   accepted.
 - Validation-only factor selection: `d=128`, `K=4`, weak `0.5x`, EMA `0.999`,
   `lambda_IP=0`, and peak LR `3e-3`.
-- Selected-FM: the bounded final interaction check requires sequential
-  `cfg_selected_fm_ip0` and `cfg_selected_fm_ip1` confirmations because the
-  joint factor-wise combination was not one of the 13 OFAT executions.
-- Remaining P9-B comparisons: 7, blocked until selected-FM acceptance.
+- Selected-FM: complete. Both sequential confirmations are accepted; IP1 won
+  by validation loss and acceptance `p9accv2_1e1e842ee66f169f189725aa` is the
+  sole full-model reference.
+- Remaining P9-B comparisons: 7, materialized but not executed in
+  `p9bplan_747bbf5e1e12f831ea5fb101`.
 - Held-out evaluation: not started.
 
 The P9-A campaign completion audit found no scientific comparability blocker.
-The active work unit is `P9_SELECTED_FM_IP_COMPARISON`. P9-B remains
-unmaterialized and held-out evaluation remains prohibited until the two-run
-validation-only decision is complete.
+`P9_SELECTED_FM_IP_COMPARISON` is complete. The next bounded work unit is
+`P9_B_SELECTED_MODEL_ABLATION_EXECUTION`; its implementation-readiness gate
+must pass before any comparison authority is issued. Held-out evaluation
+remains prohibited.

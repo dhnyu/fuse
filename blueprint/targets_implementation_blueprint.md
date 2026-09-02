@@ -863,16 +863,17 @@ The primary interpretations are conditional on this declared nesting: A2-A1 meas
 | `comparison_training_configuration_plan` | V2 accepted-checkpoint identity resolved through the canonical resolver, seven accepted templates | Materialize exactly seven final P9-B configurations; paths, `latest`, v1 recovery and direct bundle/finalization inputs are invalid. |
 | `comparison_training_acceptance` | comparison runs, validation histories, selectors | Publish seven frozen comparison checkpoints without entering hyperparameter selection. |
 
-Current P9-A selection state (2026-09-02): all 13 OFAT configurations are
+Current P9-A selection state (2026-09-03): all 13 OFAT configurations are
 canonically accepted. The factor-wise validation selection is `d=128`, `K=4`,
 weak `0.5x`, EMA `0.999`, `lambda_IP=0`, and peak LR `3e-3`. Because this exact
-joint configuration was not executed, `selected_configuration_identity` remains
-blocked on the bounded sequential `cfg_selected_fm_ip0` versus
-`cfg_selected_fm_ip1` confirmation. The two runs share the selected-FM seed and
-differ only in `lambda_IP`; validation loss, margin, then IP0 simplicity select
-one final acceptance. The seven comparison
-templates inherit that future accepted configuration, not `cfg_main`/`cfg_d64`;
-they remain unmaterialized and no P9-B execution is authorized.
+joint configuration was not executed, the bounded sequential
+`cfg_selected_fm_ip0` versus `cfg_selected_fm_ip1` confirmation was completed.
+The runs share the selected-FM seed and differ only in `lambda_IP`. IP1 won on
+validation loss and `p9accv2_1e1e842ee66f169f189725aa` is the frozen full-model
+reference. The seven comparison templates inherit that acceptance, not
+`cfg_main`/`cfg_d64`, and are materialized in
+`p9bplan_747bbf5e1e12f831ea5fb101`. No P9-B execution is authorized until the
+comparison implementation-readiness gate passes.
 
 Scientific configuration includes model/loss/optimizer/schedule/bank and run seed. Execution configuration contains worker count, threads, device mapping, runtime path and controller. Numeric modes such as precision or DDP that change results belong to training-run identity; pure host/path placement remains execution-only.
 

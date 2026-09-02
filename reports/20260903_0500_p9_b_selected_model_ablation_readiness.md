@@ -74,6 +74,12 @@ finish authority through resolver before the next starts. The campaign stops on
 the first scientific, infrastructure, finalization, acceptance, or resolver
 failure. No comparison participates in hyperparameter selection.
 
+The first launch probe failed before authority publication because the base
+contract's older P9-A eligibility did not contain selected-FM. The runner was
+corrected to resolve the immutable eligibility identity from the selected-FM
+decision. No authority, run, or scientific update was created by the failed
+probe.
+
 ## Input prompt summary
 
 Proceed from the completed selected-FM comparison to the exact next P9-B work

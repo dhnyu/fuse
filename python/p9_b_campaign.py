@@ -126,11 +126,16 @@ def run_campaign(paths: SelectedFMCampaignPaths, plan_path: Path) -> None:
             raise P9BCampaignError("P9_B_TEMPLATE_SOURCE_MISMATCH")
     atomic_write(paths.matrix, canonical_json_bytes(matrix_value)); rows = matrix_value["rows"]
     base["parents"]["selected_fm_acceptance_id"] = plan["selected_fm_acceptance_id"]
-    selected_acceptance = json.loads((Path(base["roots"]["canonical_publication"]) / "acceptances" /
+    canonical_root = Path(base["roots"]["canonical_publication"])
+    decision = json.loads((canonical_root / "selected_fm" / f"{plan['selected_fm_decision_id']}.json").read_text())
+    if decision["selected_acceptance_id"] != plan["selected_fm_acceptance_id"]:
+        raise P9BCampaignError("P9_B_DECISION_PLAN_MISMATCH")
+    selected_eligibility = canonical_root / "eligibility" / f"{decision['eligibility_id']}.json"
+    base["roots"]["eligibility_snapshot"] = str(selected_eligibility)
+    selected_acceptance = json.loads((canonical_root / "acceptances" /
                                       plan["selected_fm_acceptance_id"] / "acceptance.json").read_text())
     selected_lifecycle = Path(base["roots"]["lifecycle_records"]) / selected_acceptance["authority_id"] / "bundle.json"
-    selected_resolver = _resolver(Path(base["roots"]["canonical_publication"]),
-                                  Path(base["roots"]["eligibility_snapshot"]),
+    selected_resolver = _resolver(canonical_root, selected_eligibility,
                                   [{"bundle_record": str(selected_lifecycle)}])
     selected = selected_resolver.resolve_accepted_checkpoint(plan["selected_fm_acceptance_id"])
     if (selected.scientific_configuration["content"]["configuration_id"] != "cfg_selected_fm_ip1" or

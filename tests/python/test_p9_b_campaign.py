@@ -58,3 +58,11 @@ def test_dynamic_contract_changes_only_matrix_eligibility_and_selected_parent(tm
     assert value["roots"]["eligibility_snapshot"]==str((tmp_path/"eligibility.json").resolve())
     assert value["parents"]["selected_fm_acceptance_id"]=="p9accv2_1e1e842ee66f169f189725aa"
     assert "selected_fm_acceptance_id" not in base["parents"]
+
+
+def test_selected_decision_eligibility_contains_winner():
+    plan=json.loads(PLAN.read_text()); canonical=PLAN.parents[1]
+    decision=json.loads((canonical/"selected_fm"/f"{plan['selected_fm_decision_id']}.json").read_text())
+    eligibility=json.loads((canonical/"eligibility"/f"{decision['eligibility_id']}.json").read_text())
+    assert decision["selected_acceptance_id"]==plan["selected_fm_acceptance_id"]
+    assert sum(entry["acceptance_id"]==plan["selected_fm_acceptance_id"] for entry in eligibility["entries"])==1

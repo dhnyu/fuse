@@ -34,3 +34,10 @@ test_that("P9 v2 campaign can supply an explicit external contract", {
   withr::local_envvar(P9_V2_TRAINING_CONTRACT = path)
   expect_identical(p9v2_training_contract_path(), normalizePath(path, mustWork = TRUE))
 })
+
+test_that("P9 v2 training honors an explicit authorized configuration matrix", {
+  root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
+  text <- paste(readLines(file.path(root, "R", "research_p9_v2_training.R"), warn = FALSE), collapse = "\n")
+  expect_match(text, "cfg\\$roots\\$configuration_matrix")
+  expect_match(text, "hyperparameter_configuration_matrix.json")
+})

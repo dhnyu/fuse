@@ -1,0 +1,102 @@
+{
+  "artifact_type": "p9_selected_fm_confirmation_matrix",
+  "count": 2,
+  "decision_contract": {
+    "equivalence_threshold": 0.0001,
+    "final_tie_break": "prefer_cfg_selected_fm_ip0",
+    "primary": "validation_retrieval_loss",
+    "secondary": "mean_source_separation_margin"
+  },
+  "evaluation_ancestry": false,
+  "rows": [
+    {
+      "bank_binding": {
+        "bank_acceptance_id": "aba_39de6c260a8e427767bc01d6",
+        "effective_k": 4,
+        "logical_index_id": "abi_66dfe52602ffe442336685e0",
+        "nested_subset_identity": "p8abi_24471ee4574c585c98083b53",
+        "physical_bank_id": "augbank_252ce67e6d74679b02871e57",
+        "profile_id": "weak_0.5x"
+      },
+      "configuration_family": "selected_fm_confirmation",
+      "configuration_id": "cfg_selected_fm_ip0",
+      "evaluation_ancestry": false,
+      "evaluation_query_identity": null,
+      "parent_p7_acceptance_id": "p7acc_3c78cc0e85b93aec6a0cc02c",
+      "run_seed_configuration_id": "cfg_selected_fm",
+      "run_seed_formula": "sha256_canonical_json_root_seed_configuration_id",
+      "run_seed_namespace": "p9-selected-fm/cfg_selected_fm",
+      "runtime_acceptance_id": "p7rta_c780441a553abe26772827d0",
+      "scientific": {
+        "attention_heads": 4,
+        "checkpoint_selector": "validation_retrieval_loss_margin_1e-4_earlier_epoch",
+        "d": 128,
+        "d_c": 128,
+        "d_r": 32,
+        "d_t": 16,
+        "dropout": 0.2,
+        "effective_k": 4,
+        "ema": 0.999,
+        "ffn_dimension": 256,
+        "ffn_multiplier": 2,
+        "intensity": "weak_0.5x",
+        "lambda_ip": 0.0,
+        "optimizer": "AdamW",
+        "peak_learning_rate": 0.003,
+        "per_head_dimension": 32,
+        "scheduler": "linear_warmup_then_cosine_zero",
+        "validation_interval_epochs": 5,
+        "validation_patience_events": 4
+      },
+      "scientific_hash": "961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7",
+      "source_configuration_id": "cfg_selected_fm",
+      "validation_acceptance_id": "fqsa_27565de68d9432e47fe7b99d"
+    },
+    {
+      "bank_binding": {
+        "bank_acceptance_id": "aba_39de6c260a8e427767bc01d6",
+        "effective_k": 4,
+        "logical_index_id": "abi_66dfe52602ffe442336685e0",
+        "nested_subset_identity": "p8abi_24471ee4574c585c98083b53",
+        "physical_bank_id": "augbank_252ce67e6d74679b02871e57",
+        "profile_id": "weak_0.5x"
+      },
+      "configuration_family": "selected_fm_confirmation",
+      "configuration_id": "cfg_selected_fm_ip1",
+      "evaluation_ancestry": false,
+      "evaluation_query_identity": null,
+      "parent_p7_acceptance_id": "p7acc_3c78cc0e85b93aec6a0cc02c",
+      "run_seed_configuration_id": "cfg_selected_fm",
+      "run_seed_formula": "sha256_canonical_json_root_seed_configuration_id",
+      "run_seed_namespace": "p9-selected-fm/cfg_selected_fm",
+      "runtime_acceptance_id": "p7rta_c780441a553abe26772827d0",
+      "scientific": {
+        "attention_heads": 4,
+        "checkpoint_selector": "validation_retrieval_loss_margin_1e-4_earlier_epoch",
+        "d": 128,
+        "d_c": 128,
+        "d_r": 32,
+        "d_t": 16,
+        "dropout": 0.2,
+        "effective_k": 4,
+        "ema": 0.999,
+        "ffn_dimension": 256,
+        "ffn_multiplier": 2,
+        "intensity": "weak_0.5x",
+        "lambda_ip": 1.0,
+        "optimizer": "AdamW",
+        "peak_learning_rate": 0.003,
+        "per_head_dimension": 32,
+        "scheduler": "linear_warmup_then_cosine_zero",
+        "validation_interval_epochs": 5,
+        "validation_patience_events": 4
+      },
+      "scientific_hash": "cd0e6c835b4e788408e60a42ea516f7f0f00e3388a969fe1471f195dae02fb32",
+      "source_configuration_id": "cfg_selected_fm",
+      "validation_acceptance_id": "fqsa_27565de68d9432e47fe7b99d"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "selection_plan": "blueprint/p9_v2/p9_a_selection_plan.json",
+  "status": "AUTHORIZED_CONFIGURATION_PLAN"
+}

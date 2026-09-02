@@ -136,6 +136,9 @@ held-out evaluation consumption remaining zero. Validation-only OFAT selection
 chose `d=128`, `K=4`, weak `0.5x` intensity, EMA `0.999`, `lambda_IP=0`, and
 peak LR `3e-3`. No executed row contains that joint combination. The
 non-authorizing plan `p9_a_selection_plan.json` therefore requires exactly one
-`cfg_selected_fm` confirmation before the seven P9-B templates can be
-materialized. Its planned scientific hash is
-`961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7`.
+bounded `cfg_selected_fm_ip0` versus `cfg_selected_fm_ip1` confirmation before
+the seven P9-B templates can be materialized. The IP0 source scientific hash is
+`961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7`; the
+IP1 hash is `cd0e6c835b4e788408e60a42ea516f7f0f00e3388a969fe1471f195dae02fb32`.
+Both use the same selected-FM seed namespace, so `lambda_IP` is their sole
+scientific difference.

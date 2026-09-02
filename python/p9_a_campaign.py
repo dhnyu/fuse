@@ -29,7 +29,8 @@ CAMPAIGN_CONFIGURATIONS = (
 IMPLEMENTATION_SOURCES = (
     "python/p9_v2_prepared_cache.py", "python/p9_v2_training_worker.py",
     "python/p9_v2_training_controller.py",
-    "python/p9_v2_training_lifecycle.py", "config/p7_deterministic_training.yml",
+    "python/p9_v2_training_lifecycle.py", "python/p9_infrastructure.py",
+    "config/p7_deterministic_training.yml",
     "config/p6_model_dataloader.yml",
 )
 
@@ -143,7 +144,7 @@ def restore_campaign_progress(
         raise CampaignError("CAMPAIGN_LATEST_ELIGIBILITY_ID_MISMATCH")
     canonical = Path(contract["roots"]["canonical_publication"])
     restored: list[dict[str, Any]] = []
-    implementation_lineages: set[str] = set()
+    implementation_lineages: list[str] = []
     for row, item in zip(rows, completed, strict=False):
         configuration_id = row["configuration_id"]
         if item.get("evaluation_consumption_count") != 0:
@@ -162,7 +163,7 @@ def restore_campaign_progress(
             or scientific["configuration_hash"] != canonical_sha256(scientific_configuration_content(row))
         ):
             raise CampaignError("CAMPAIGN_AUTHORITY_CONFIGURATION_MISMATCH")
-        implementation_lineages.add(scientific["scientific_implementation_hash"])
+        implementation_lineages.append(scientific["scientific_implementation_hash"])
         lifecycle = Path(contract["roots"]["lifecycle_records"]) / authority_id
         handoff_path = lifecycle / "eligibility.json"
         resolution_path = lifecycle / "resolution.json"
@@ -191,7 +192,10 @@ def restore_campaign_progress(
         ):
             raise CampaignError("CAMPAIGN_RESOLVER_RESTORATION_MISMATCH")
         restored.append(dict(item))
-    if len(implementation_lineages) != 1:
+    transitions = [index for index in range(1, len(implementation_lineages))
+                   if implementation_lineages[index] != implementation_lineages[index - 1]]
+    expected_transition = CAMPAIGN_CONFIGURATIONS.index("cfg_intensity_05")
+    if transitions not in ([], [expected_transition]):
         raise CampaignError("CAMPAIGN_COMPLETED_IMPLEMENTATION_LINEAGE_AMBIGUOUS")
     return restored, eligibility
 

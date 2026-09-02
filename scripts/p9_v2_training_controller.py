@@ -43,6 +43,9 @@ def visible_gpu_count() -> int:
 
 def startup_inputs(contract: dict) -> StartupInputs:
     p8 = Path(contract["roots"]["p8_bundle"])
+    configuration_matrix = Path(
+        contract["roots"].get("configuration_matrix", p8 / "hyperparameter_configuration_matrix.json")
+    )
     parents = dict(contract["parents"])
     parents["methodology_commit"] = contract["source"]["dissertation_commit"]
     return StartupInputs(
@@ -50,7 +53,7 @@ def startup_inputs(contract: dict) -> StartupInputs:
         retirement_manifest=Path(contract["roots"]["immutable_publication"]) / "canonical/retirement" /
             contract["parents"]["v1_retirement_id"] / "retirement_manifest.json",
         p8_acceptance=p8 / "formal_experiment_plan_acceptance.json",
-        p8_matrix=p8 / "hyperparameter_configuration_matrix.json",
+        p8_matrix=configuration_matrix,
         production_cache_root=Path(contract["roots"]["production_cache"]),
         production_cache_acceptance=Path(contract["roots"]["production_cache_acceptance"]),
         writable_root=Path(contract["roots"]["writable_runs"]),

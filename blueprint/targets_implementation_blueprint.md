@@ -867,7 +867,10 @@ Current P9-A selection state (2026-09-02): all 13 OFAT configurations are
 canonically accepted. The factor-wise validation selection is `d=128`, `K=4`,
 weak `0.5x`, EMA `0.999`, `lambda_IP=0`, and peak LR `3e-3`. Because this exact
 joint configuration was not executed, `selected_configuration_identity` remains
-blocked on one `cfg_selected_fm` formal confirmation. The seven comparison
+blocked on the bounded sequential `cfg_selected_fm_ip0` versus
+`cfg_selected_fm_ip1` confirmation. The two runs share the selected-FM seed and
+differ only in `lambda_IP`; validation loss, margin, then IP0 simplicity select
+one final acceptance. The seven comparison
 templates inherit that future accepted configuration, not `cfg_main`/`cfg_d64`;
 they remain unmaterialized and no P9-B execution is authorized.
 

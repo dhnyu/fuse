@@ -98,9 +98,20 @@
       "validation_acceptance_id": "fqsa_27565de68d9432e47fe7b99d"
     },
     "confirmation_required": true,
+    "confirmation_scope": {
+      "configuration_ids": [
+        "cfg_selected_fm_ip0",
+        "cfg_selected_fm_ip1"
+      ],
+      "decision_contract": "validation_loss_1e-4_margin_then_ip0",
+      "ip1_scientific_hash": "cd0e6c835b4e788408e60a42ea516f7f0f00e3388a969fe1471f195dae02fb32",
+      "maximum_formal_runs": 2,
+      "only_scientific_difference": "lambda_ip",
+      "shared_run_seed_configuration_id": "cfg_selected_fm"
+    },
     "executed_configuration_match": null,
     "scientific_hash": "961fac037720ab45a9e295598bdef41be59183a2fe3a2a5335d900217bb75bb7"
   },
   "selection_contract_id": "p9-selection-v2.1.0",
-  "status": "SELECTION_AUDIT_COMPLETE_CONFIRMATION_REQUIRED"
+  "status": "SELECTION_AUDIT_COMPLETE_DUAL_IP_CONFIRMATION_REQUIRED"
 }

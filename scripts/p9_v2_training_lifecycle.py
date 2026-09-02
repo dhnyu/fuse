@@ -49,12 +49,17 @@ def locator_roots(bundle_record: dict) -> dict[str, Path]:
 def command_bundle(args: argparse.Namespace) -> dict:
     execution, authority = load(args.execution), load(args.authority)
     contract = yaml.safe_load(Path(args.contract).read_text(encoding="utf-8"))
+    matrix = contract["roots"].get(
+        "configuration_matrix",
+        contract["roots"]["p8_bundle"] + "/hyperparameter_configuration_matrix.json",
+    )
     sources = [
-        args.authority, args.contract, contract["roots"]["p8_bundle"] + "/hyperparameter_configuration_matrix.json",
+        args.authority, args.contract, matrix,
         contract["roots"]["production_cache_acceptance"], "config/p7_deterministic_training.yml",
         "config/p6_model_dataloader.yml", "python/p9_v2_prepared_cache.py",
         "python/p9_v2_training_worker.py",
         "python/p9_v2_training_controller.py", "python/p9_v2_training_lifecycle.py",
+        "python/p9_infrastructure.py",
     ]
     bundle, roots = build_publish_native_bundle(
         authority, execution["ledger_root"], execution["checkpoint_root"], sources[2], sources[3],

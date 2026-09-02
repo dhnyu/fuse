@@ -31,6 +31,9 @@ SCHEMA_FILES = {
     "checkpoint_commit": "p9_v2_checkpoint_commit.schema.json",
     "training_pilot": "p9_v2_training_pilot.schema.json",
     "worker_ipc": "p9_v2_worker_ipc.schema.json",
+    "selected_fm_confirmation_matrix": "p9_selected_fm_confirmation_matrix.schema.json",
+    "selected_fm_decision": "p9_selected_fm_decision.schema.json",
+    "p9_b_selected_model_plan": "p9_b_selected_model_plan.schema.json",
 }
 
 

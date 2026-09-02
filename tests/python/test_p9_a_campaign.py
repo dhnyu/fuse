@@ -60,7 +60,7 @@ def test_dynamic_contract_changes_only_eligibility_pointer(tmp_path):
     assert value == expected and base["roots"]["eligibility_snapshot"] != value["roots"]["eligibility_snapshot"]
 
 
-def test_blocked_campaign_restores_four_canonical_acceptances_and_latest_eligibility(tmp_path):
+def test_completed_campaign_restores_all_canonical_acceptances_and_latest_eligibility(tmp_path):
     source = Path("/mnt/hdd002/dhnyu/fusedata/runtime/p9_a_campaigns/20260901_1450/campaign_status.json")
     if not source.is_file():
         pytest.skip("campaign audit status unavailable")
@@ -71,8 +71,8 @@ def test_blocked_campaign_restores_four_canonical_acceptances_and_latest_eligibi
     matrix = json.loads((P8 / "hyperparameter_configuration_matrix.json").read_text())
     completed, eligibility = restore_campaign_progress(
         CampaignPaths(root, ROOT, ROOT / "config/p9_v2_training_controller.yml"), campaign_plan(matrix), contract)
-    assert [item["configuration_id"] for item in completed] == ["cfg_d128", "cfg_k2", "cfg_k4", "cfg_k16"]
-    assert eligibility.name == "p9elig_76f891b4a1072237a90a50d7.json"
+    assert [item["configuration_id"] for item in completed] == list(CAMPAIGN_CONFIGURATIONS)
+    assert eligibility.name == "p9elig_8d017288b37c7c7a08734fa7.json"
 
 
 def test_campaign_restore_rejects_unvalidated_skip(tmp_path):

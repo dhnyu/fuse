@@ -138,8 +138,8 @@ def configuration_seed(root_seed: int, configuration_id: str) -> int:
 def materialize_hyperparameter_configuration(
         row: dict[str, Any], base_training: dict[str, Any], base_model: dict[str, Any]) -> dict[str, Any]:
     """Route one accepted P8 OFAT row without authorizing or starting a P9 run."""
-    if row.get("configuration_family") != "hyperparameter" or row.get("evaluation_ancestry") is not False:
-        raise ValueError("P9-A requires an evaluation-free hyperparameter row")
+    if row.get("configuration_family") not in {"hyperparameter", "selected_fm_confirmation"} or row.get("evaluation_ancestry") is not False:
+        raise ValueError("P9 training requires an evaluation-free configuration row")
     if row.get("evaluation_query_identity") is not None:
         raise ValueError("evaluation query identity is prohibited in P9-A")
     scientific = row["scientific"]
@@ -156,7 +156,10 @@ def materialize_hyperparameter_configuration(
     })
     training["training"].update({
         "profile_id": scientific["intensity"], "logical_k": scientific["effective_k"],
-        "root_seed": configuration_seed(int(base_training["training"]["root_seed"]), row["configuration_id"]),
+        "root_seed": configuration_seed(
+            int(base_training["training"]["root_seed"]),
+            row.get("run_seed_configuration_id", row["configuration_id"]),
+        ),
     })
     training["optimizer"]["peak_learning_rate"] = scientific["peak_learning_rate"]
     training["objective"]["information_preservation_weight"] = scientific["lambda_ip"]

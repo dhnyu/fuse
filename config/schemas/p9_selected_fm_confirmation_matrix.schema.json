@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p9_selected_fm_confirmation_matrix.schema.json",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "status", "selection_plan", "count", "evaluation_ancestry", "decision_contract", "rows"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "p9_selected_fm_confirmation_matrix"},
+    "status": {"const": "AUTHORIZED_CONFIGURATION_PLAN"},
+    "selection_plan": {"const": "blueprint/p9_v2/p9_a_selection_plan.json"},
+    "count": {"const": 2},
+    "evaluation_ancestry": {"const": false},
+    "decision_contract": {
+      "type": "object",
+      "properties": {
+        "primary": {"const": "validation_retrieval_loss"},
+        "equivalence_threshold": {"const": 0.0001},
+        "secondary": {"const": "mean_source_separation_margin"},
+        "final_tie_break": {"const": "prefer_cfg_selected_fm_ip0"}
+      },
+      "required": ["primary", "equivalence_threshold", "secondary", "final_tie_break"],
+      "additionalProperties": false
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["configuration_id", "configuration_family", "scientific_hash", "scientific", "bank_binding", "run_seed_configuration_id", "evaluation_query_identity", "evaluation_ancestry"],
+        "properties": {
+          "configuration_id": {"enum": ["cfg_selected_fm_ip0", "cfg_selected_fm_ip1"]},
+          "configuration_family": {"const": "selected_fm_confirmation"},
+          "scientific_hash": {"pattern": "^[0-9a-f]{64}$"},
+          "run_seed_configuration_id": {"const": "cfg_selected_fm"},
+          "evaluation_query_identity": {"type": "null"},
+          "evaluation_ancestry": {"const": false},
+          "scientific": {"type": "object"},
+          "bank_binding": {
+            "type": "object",
+            "properties": {
+              "effective_k": {"const": 4},
+              "profile_id": {"const": "weak_0.5x"},
+              "nested_subset_identity": {"const": "p8abi_24471ee4574c585c98083b53"}
+            },
+            "required": ["effective_k", "profile_id", "nested_subset_identity"]
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -42,7 +42,10 @@ p9v2_controller_run <- function(authority, contract, preflight) {
   cfg <- yaml::read_yaml(contract)
   auth <- jsonlite::read_json(authority, simplifyVector = FALSE)
   configuration <- auth$content$scientific$configuration_id
-  matrix <- file.path(cfg$roots$p8_bundle, "hyperparameter_configuration_matrix.json")
+  matrix <- cfg$roots$configuration_matrix
+  if (is.null(matrix) || !nzchar(matrix)) {
+    matrix <- file.path(cfg$roots$p8_bundle, "hyperparameter_configuration_matrix.json")
+  }
   worker <- paste(shQuote(Sys.which("python")), "-m torch.distributed.run --standalone --nproc_per_node=2",
     "scripts/p9_v2_training_worker.py", "--authority", shQuote(authority), "--matrix", shQuote(matrix),
     "--configuration-id", shQuote(configuration), "--cache-root", shQuote(cfg$roots$production_cache),

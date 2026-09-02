@@ -39,7 +39,10 @@ SCIENTIFIC_KEYS = (
 
 
 def scientific_configuration_content(row: Mapping[str, Any]) -> dict[str, Any]:
-    return {key: row[key] for key in SCIENTIFIC_KEYS}
+    value = {key: row[key] for key in SCIENTIFIC_KEYS}
+    if "run_seed_configuration_id" in row:
+        value["run_seed_configuration_id"] = row["run_seed_configuration_id"]
+    return value
 
 
 def _source_inventory(paths: Sequence[str | Path]) -> tuple[dict[str, Any], ...]:
@@ -62,7 +65,7 @@ def native_bundle_inputs(
     matrix = json.loads(Path(matrix_path).read_text(encoding="utf-8"))
     row = next((item for item in matrix["rows"]
                 if item["configuration_id"] == authority["content"]["scientific"]["configuration_id"]), None)
-    if row is None: raise TrainingLifecycleError("CONFIGURATION_NOT_IN_P8_MATRIX")
+    if row is None: raise TrainingLifecycleError("CONFIGURATION_NOT_IN_AUTHORIZED_MATRIX")
     scientific_content = scientific_configuration_content(row)
     scientific = make_bound_document(row["configuration_id"], scientific_content)
     if scientific["content_sha256"] != authority["content"]["scientific"]["configuration_hash"]:

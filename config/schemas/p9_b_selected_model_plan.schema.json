@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p9_b_selected_model_plan.schema.json",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "status", "selected_fm_decision_id", "selected_fm_acceptance_id", "selected_scientific_configuration", "comparisons", "count", "evaluation_consumption_count", "plan_id", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "p9_b_selected_model_plan"},
+    "status": {"const": "MATERIALIZED_NOT_EXECUTED"},
+    "selected_fm_decision_id": {"pattern": "^p9sfm_[0-9a-f]{24}$"},
+    "selected_fm_acceptance_id": {"pattern": "^p9accv2_[0-9a-f]{24}$"},
+    "selected_scientific_configuration": {"type": "object"},
+    "comparisons": {"type": "array", "minItems": 7, "maxItems": 7},
+    "count": {"const": 7},
+    "evaluation_consumption_count": {"const": 0},
+    "plan_id": {"pattern": "^p9bplan_[0-9a-f]{24}$"},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

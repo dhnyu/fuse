@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p9_selected_fm_decision.schema.json",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "status", "selection_contract", "eligibility_id", "results", "selected_configuration_id", "selected_acceptance_id", "evaluation_consumption_count", "decision_id", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "p9_selected_fm_decision"},
+    "status": {"const": "SELECTED"},
+    "selection_contract": {"const": "validation_loss_1e-4_margin_then_ip0"},
+    "eligibility_id": {"pattern": "^p9elig_[0-9a-f]{24}$"},
+    "results": {
+      "type": "object",
+      "required": ["cfg_selected_fm_ip0", "cfg_selected_fm_ip1"],
+      "additionalProperties": false,
+      "properties": {
+        "cfg_selected_fm_ip0": {"$ref": "#/$defs/result"},
+        "cfg_selected_fm_ip1": {"$ref": "#/$defs/result"}
+      }
+    },
+    "selected_configuration_id": {"enum": ["cfg_selected_fm_ip0", "cfg_selected_fm_ip1"]},
+    "selected_acceptance_id": {"pattern": "^p9accv2_[0-9a-f]{24}$"},
+    "evaluation_consumption_count": {"const": 0},
+    "decision_id": {"pattern": "^p9sfm_[0-9a-f]{24}$"},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "result": {
+      "type": "object",
+      "required": ["acceptance_id", "checkpoint_id", "selected_epoch", "validation_retrieval_loss", "mean_source_separation_margin"],
+      "properties": {
+        "acceptance_id": {"pattern": "^p9accv2_[0-9a-f]{24}$"},
+        "checkpoint_id": {"pattern": "^p9ck_[0-9a-f]{24}$"},
+        "selected_epoch": {"type": "integer", "minimum": 5},
+        "validation_retrieval_loss": {"type": "number"},
+        "mean_source_separation_margin": {"type": "number"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

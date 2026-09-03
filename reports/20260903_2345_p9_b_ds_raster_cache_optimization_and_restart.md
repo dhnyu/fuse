@@ -154,8 +154,11 @@ epoch events cannot advance the restorable boundary past epoch 75/update 5,700.
 - Run: `p9runv2_c63dfaa65295f1a2727b15a6`
 - Duplicate-run key:
   `f645084387a95622e10bf907e3703c8ffd87e7edeab075919f25a4938def0bec`
-- Launch observation: `RUNNING / IN_PROGRESS`, epoch 2/update 152, zero
-  validation/checkpoints at that early observation.
+- Launch observation: `RUNNING / IN_PROGRESS`; the first durable checkpoint was
+  committed at epoch 5/update 380 as `p9ck_09f28689725298b9cc5d87c6`.
+- First formal validation reproduced the abandoned trajectory exactly: retrieval
+  loss `2.41396045684814453125` and margin
+  `0.0583648383617401123046875` at epoch 5 in both implementations.
 - Cache activation: both worker process maps contained mmap-backed files under the
   exact accepted `ds/entries/` namespace.
 - tmux session: `p9b_ds_cache_restart_20260903`
@@ -221,10 +224,11 @@ The historical v1 source inventory remains
 
 ## Remaining risk and next action
 
-The restarted DS-like trajectory is running and has not yet reached its first formal
-validation boundary. Completion, bundle/finalization/acceptance publication, and
-resolver verification remain pending and must be audited without starting held-out
-evaluation. The exact next work unit after canonical DS completion is
+The restarted DS-like trajectory is running and passed its first formal validation
+and checkpoint boundary with metrics identical to the dynamic implementation.
+Completion, bundle/finalization/acceptance publication, and resolver verification
+remain pending and must be audited without starting held-out evaluation. The exact
+next work unit after canonical DS completion is
 `P9_ABLATION_COMPLETION_AND_HELDOUT_READINESS_AUDIT`.
 
 ## Input prompt summary

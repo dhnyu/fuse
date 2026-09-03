@@ -147,7 +147,7 @@ scoped lambda comparison (`0.1987979710` versus `0.2012318373`), as recorded by
 Across all 15 executed candidates, `cfg_d128` is the best observed configuration
 (`0.1765069515`, margin `0.3754689395`) and is the final full model under
 `p9fms_389a0ce89992eee507d7c846`. The factor-wise combination was not additive.
-The seven non-executed P9-B templates therefore inherit `cfg_d128` acceptance
+The seven P9-B configurations therefore inherit `cfg_d128` acceptance
 `p9accv2_a1c00e32a882ddc4b7e2677b` in `p9bplan_e36f7c9c5069a504eb31a9ef`.
 
 P9-B A1-A5 and SSV-like have completed canonically. The first DS-like
@@ -159,3 +159,13 @@ reads the already accepted per-augmentation-view and fixed-validation raster
 cache `p9ds_1e26585c61122cf7c758088a`. Every lookup validates the immutable
 manifest and exact physical role/scene/view payload; missing or stale evidence
 fails closed and never invokes online rasterization.
+
+The cached replacement completed at epoch 200/update 15,200 and published
+bundle `p9rb_b98d354c193bf5009befe00f`, finalization
+`p9fin_13f50ef19a0d8b437c316b84`, acceptance
+`p9accv2_f4194b7c74f8dedb4c867e6b`, and eligibility
+`p9elig_250e0140d593f360f1368ef1`. All 15 overlapping validation boundaries
+through epoch 75 reproduce the dynamic trajectory exactly after normalizing
+lineage-specific checkpoint IDs. P9-A is complete, P9-B is 7/7 complete,
+`cfg_d128` remains the fixed final full model, and held-out evaluation remains
+unconsumed but is ready for its separately authorized execution unit.

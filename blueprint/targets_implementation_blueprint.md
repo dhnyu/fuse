@@ -1291,10 +1291,11 @@ p9v2_training_contract + p9v2_training_authority
 
 Current status: controller foundation and production-worker remediation complete;
 all 13 P9-A results and two joint confirmations are accepted; `cfg_d128` is the fixed
-full-model reference. P9-B A1-A5 and SSV-like are complete. The first DS-like run is
-immutable abandoned evidence after an operator-requested performance interruption;
-only a fresh epoch-zero DS run using accepted deterministic raster cache
-`p9ds_1e26585c61122cf7c758088a` may complete P9-B. Held-out evaluation has not started.
+full-model reference. P9-B is 7/7 canonically complete. The first DS-like run remains
+immutable operator-abandoned evidence, while its fresh cached replacement completed
+under the same scientific contract as acceptance `p9accv2_f4194b7c74f8dedb4c867e6b`.
+Held-out evaluation has not run; the completion audit marks it ready for a separate
+authority-gated work unit.
 
 ### P9 v2 sequential campaign contract
 

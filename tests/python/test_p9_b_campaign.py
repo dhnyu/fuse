@@ -7,12 +7,14 @@ from pathlib import Path
 import yaml
 
 ROOT=Path(__file__).resolve().parents[2]; sys.path.insert(0,str(ROOT/"python"))
-from p9_b_campaign import CONFIGURATIONS,FAMILIES,build_authority,build_training_matrix,campaign_contract  # noqa:E402
+from p9_b_campaign import CONFIGURATIONS,FAMILIES,_restore,build_authority,build_training_matrix,campaign_contract  # noqa:E402
 from p9_infrastructure import materialize_hyperparameter_configuration  # noqa:E402
+from p9_selected_fm_campaign import SelectedFMCampaignPaths  # noqa:E402
 from p9_v2_canonical import canonical_sha256  # noqa:E402
 from p9_v2_training_lifecycle import scientific_configuration_content  # noqa:E402
 
 PLAN=Path("/mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical/p9_b_plans/p9bplan_e36f7c9c5069a504eb31a9ef.json")
+CAMPAIGN=Path("/mnt/hdd002/dhnyu/fusedata/runtime/p9_b_campaigns/20260903_0539_cfgd128")
 
 
 def matrix(): return build_training_matrix(json.loads(PLAN.read_text()))
@@ -66,3 +68,12 @@ def test_final_decision_eligibility_contains_cfg_d128():
     eligibility=json.loads((canonical/"eligibility"/f"{decision['p9_a_eligibility_id']}.json").read_text())
     assert decision["selected_acceptance_id"]==plan["full_model_acceptance_id"]
     assert sum(entry["acceptance_id"]==plan["full_model_acceptance_id"] for entry in eligibility["entries"])==1
+
+
+def test_completed_campaign_restores_all_seven_canonical_resolver_chains():
+    contract=yaml.safe_load((ROOT/"config/p9_v2_training_controller.yml").read_text())
+    paths=SelectedFMCampaignPaths(CAMPAIGN,ROOT,ROOT/"config/p9_v2_training_controller.yml",CAMPAIGN/"p9_b_training_matrix.json")
+    completed,eligibility=_restore(paths,matrix()["rows"],contract)
+    assert [item["configuration_id"] for item in completed]==list(CONFIGURATIONS)
+    assert all(item["evaluation_consumption_count"]==0 for item in completed)
+    assert eligibility.name=="p9elig_250e0140d593f360f1368ef1.json"

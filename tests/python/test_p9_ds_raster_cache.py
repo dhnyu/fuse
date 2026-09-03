@@ -17,6 +17,7 @@ from canonical_config import canonical_json_bytes  # noqa: E402
 from p7_training import collate, enqueue  # noqa: E402
 from p9_model_families import ds_raster_from_batch  # noqa: E402
 from p9_v2_canonical import sha256_file  # noqa: E402
+from p9_v2_ledger import read_ledger  # noqa: E402
 from p9_v2_prepared_cache import (  # noqa: E402
     DSRasterCacheError, DSRasterCacheReader, DS_RASTER_CONTRACT_ID,
 )
@@ -230,3 +231,35 @@ def test_production_worker_requires_cache_and_never_calls_online_ds_rasterizatio
     source = (ROOT / "python/p9_v2_training_worker.py").read_text(encoding="utf-8")
     assert "DSRasterCacheReader" in source
     assert "ds_raster_from_batch" not in source
+
+
+def test_abandoned_dynamic_and_cached_ds_trajectories_match_through_epoch_75() -> None:
+    run_root = Path("/mnt/hdd002/dhnyu/fusedata/runtime/p9_v2_training_runs")
+    roots = (
+        run_root / "362a455df0ce15b5c4fc6ae8ec9039638ba891310fbeda61d7c7d3a3b44171d2" / "ledger",
+        run_root / "f645084387a95622e10bf907e3703c8ffd87e7edeab075919f25a4938def0bec" / "ledger",
+    )
+
+    def normalized(path: Path) -> dict[int, tuple[float, float, int, int, str]]:
+        events = read_ledger(path).events
+        checkpoint_epochs: dict[str, int] = {}
+        result = {}
+        for index, event in enumerate(events):
+            if event["event_type"] != "VALIDATION_CHECKPOINT_COMMITTED":
+                continue
+            payload = event["payload"]
+            checkpoint_epochs[payload["checkpoint_id"]] = payload["completed_epoch"]
+            early = events[index + 1]
+            assert early["event_type"] == "EARLY_STOPPING_UPDATED"
+            result[payload["completed_epoch"]] = (
+                payload["validation_retrieval_loss"],
+                payload["mean_source_separation_margin"],
+                checkpoint_epochs[early["payload"]["best_checkpoint_id"]],
+                early["payload"]["events_without_improvement"],
+                early["payload"]["decision_basis"],
+            )
+        return result
+
+    dynamic, cached = (normalized(path) for path in roots)
+    shared = range(5, 76, 5)
+    assert all(dynamic[epoch] == cached[epoch] for epoch in shared)

@@ -33,7 +33,7 @@ from p7_training import (
 )
 from p9_infrastructure import P9ExactScheduler, materialize_hyperparameter_configuration
 from p9_model_families import (
-    P9MomentumModel, ds_raster_from_batch, family_contract, p9_reconstruction_terms,
+    P9MomentumModel, family_contract, p9_reconstruction_terms,
 )
 from p9_v2_canonical import (
     canonical_json_line, canonical_sha256, deterministic_id, parse_canonical_json,
@@ -41,7 +41,7 @@ from p9_v2_canonical import (
 from p9_v2_finalization import (
     evaluate_selection_candidate, make_selection_contract, qualifies_patience_reset,
 )
-from p9_v2_prepared_cache import ProductionPreparedData
+from p9_v2_prepared_cache import DSRasterCacheReader, ProductionPreparedData
 from p9_v2_schema import SCHEMA_VERSION, validate_instance
 from rotating_padding_sampler import logical_groups, rotating_padding_state
 
@@ -145,6 +145,8 @@ def load_worker_values(spec: Mapping[str, str]) -> dict[str, Any]:
         "vocabulary": vocabulary, "vocabulary_sizes": vocabulary_sizes,
         "vocabulary_masks": {field: int(contract["mask"]) for field, contract in vocabulary.items()},
         "geometry_cache": GeometryCacheReader(Path(spec["cache_root"]) / "geometry/geometry_cache_manifest.json", 4 * 1024**3),
+        "ds_raster_cache": (DSRasterCacheReader(spec["cache_root"])
+                            if row.get("model_family", "FM") == "DS" else None),
     }
 
 
@@ -179,12 +181,12 @@ def training_update(ddp: DistributedDataParallel, state: WorkerState, values: di
                     epoch: int, batch_index: int, rank: int, device: torch.device) -> dict[str, Any]:
     cpu, scenes, pairs = _local_batches(values, epoch, batch_index, rank)
     assignments = [modality_assignments(batch, values["config"], epoch, role, rank) for role, batch in enumerate(cpu)]
-    ds_inputs = [ds_raster_from_batch(batch) if values["family"] == "DS" else None for batch in cpu]
+    ds_inputs = [values["ds_raster_cache"].batch(batch, values["data"].physical_training_role, device)
+                 if values["family"] == "DS" else None for batch in cpu]
     batches = [to_device(batch, device) for batch in cpu]
     geometries = [None if "geometry" not in family_contract(values["family"]).modalities else
                   values["geometry_cache"].batch(
                       batch, values["data"].physical_training_role, device) for batch in batches]
-    ds_inputs = [item.to(device) if item is not None else None for item in ds_inputs]
     state.optimizer.zero_grad(set_to_none=True)
     outputs = [ddp(batch, geometry, ds, assignment) for batch, geometry, ds, assignment in
                zip(batches, geometries, ds_inputs, assignments, strict=True)]
@@ -251,8 +253,9 @@ def full_validation(state: WorkerState, values: dict[str, Any], device: torch.de
             if (start // 8) % 2 != rank: continue
             selected = records[start:start + 8]
             cpu = collate([values["data"].sample(*row) for row in selected], values["vocabulary"])
-            ds = ds_raster_from_batch(cpu).to(device) if values["family"] == "DS" else None
-            batch = to_device(cpu, device); role = selected[0][0]
+            role = selected[0][0]
+            ds = values["ds_raster_cache"].batch(cpu, role, device) if values["family"] == "DS" else None
+            batch = to_device(cpu, device)
             geometry = None if "geometry" not in family_contract(values["family"]).modalities else values["geometry_cache"].batch(batch, role, device)
             vectors.append(torch.nn.functional.normalize(state.model.online(batch, geometry, ds)["scene_embedding"], dim=1))
             indices.extend(range(start, start + len(selected)))

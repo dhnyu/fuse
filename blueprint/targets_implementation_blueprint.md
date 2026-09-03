@@ -893,9 +893,12 @@ Eight explicit model-family implementations are required: FM, nested A1-A5, SSV,
 DS. Inactive modality, relation, raster, and reconstruction modules are absent from the
 trainable graph rather than hidden with unused-parameter discovery. A5 preserves the FM
 directed edge tensor byte-for-byte and maps all relation labels to one learnable relation.
-DS materializes `C_cat + 4` channels on the accepted 100 x 100 grid, uses the realized
-17 x 17 DEM with cell-center bilinear interpolation, and fails closed on incomplete DEM
-support.
+DS consumes the accepted pre-materialized `C_cat + 4` channel tensors on the common
+100 x 100 grid. The cache is keyed by exact physical role, source scene, and augmented
+view, includes fixed validation query/gallery inputs, and was generated from the
+realized 17 x 17 DEM with cell-center bilinear interpolation. Runtime lookup verifies
+the production binding, contract, source key, payload hash, raw tensor hash, shape, and
+dtype and fails closed without online rasterization fallback.
 
 Until a separate formal authorization is accepted, only `p9_infrastructure_readiness`
 and a temporary, externally namespaced pilot of at most 40 optimizer updates are
@@ -1286,7 +1289,12 @@ p9v2_training_contract + p9v2_training_authority
 
 `P9_V2_TRAINING_AUTHORITY` must name one immutable non-main configuration authority. The controller constructs the repository-owned production worker command; bundle, finalization, acceptance, eligibility, and resolver targets invoke existing V2 APIs from prior results and do not read pre-created artifact environment variables. The graph contains no other P9-A configuration, P9-B, evaluation, P10, P11, maintenance, v1, or recovery target. `targets` metadata and store paths are execution provenance only. The dependency snapshot is `artifacts/targets-network-p9-v2-training/targets-network.html` (9 targets, 20 edges, one component); it was generated from an empty non-executing metadata store, so all nodes correctly appear outdated and no target ran.
 
-Current status: controller foundation and production-worker remediation complete; cfg_main accepted; 12 P9-A variants and 7 P9-B comparisons remain; held-out evaluation has not started. The next formal unit must retry only cfg_d48 and authorize no other configuration.
+Current status: controller foundation and production-worker remediation complete;
+all 13 P9-A results and two joint confirmations are accepted; `cfg_d128` is the fixed
+full-model reference. P9-B A1-A5 and SSV-like are complete. The first DS-like run is
+immutable abandoned evidence after an operator-requested performance interruption;
+only a fresh epoch-zero DS run using accepted deterministic raster cache
+`p9ds_1e26585c61122cf7c758088a` may complete P9-B. Held-out evaluation has not started.
 
 ### P9 v2 sequential campaign contract
 

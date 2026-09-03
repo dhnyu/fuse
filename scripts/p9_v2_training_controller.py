@@ -23,7 +23,7 @@ from p9_v2_ledger import read_ledger  # noqa: E402
 from p9_v2_training_controller import (  # noqa: E402
     StartupInputs, TrainingController, TrainingControllerError, TrainingRunLock,
     accepted_scientific_configurations, validate_startup, validate_training_authority,
-    validate_worker_message, worker_response,
+    latest_checkpoint_boundary, validate_worker_message, worker_response,
 )
 
 
@@ -104,9 +104,8 @@ def run(args: argparse.Namespace) -> dict:
             events = read_ledger(controller.ledger_root).events
             latest = next((event for event in reversed(events)
                            if event["event_type"] == "VALIDATION_CHECKPOINT_COMMITTED"), None)
-            boundary = ({"completed_epoch": 0, "resume_epoch": 1, "optimizer_update": 0}
-                        if latest is None else {key: latest["payload"][key]
-                        for key in ("completed_epoch", "resume_epoch", "optimizer_update")})
+            boundary = latest_checkpoint_boundary(events) or {
+                "completed_epoch": 0, "resume_epoch": 1, "optimizer_update": 0}
             controller.append("TRAINING_INTERRUPTED", {
                 "last_durable_boundary": boundary,
                 "resumable_checkpoint_committed": latest is not None,
@@ -163,8 +162,9 @@ def run(args: argparse.Namespace) -> dict:
             if state.operational_state == "TRAINING_FAILED":
                 controller.close()
                 raise TrainingControllerError(f"SCIENCE_WORKER_TRAINING_FAILED: {stderr[-1000:]}")
-            boundary = state.last_durable_scientific_boundary
-            exact = bool(boundary and state.best_checkpoint_state)
+            events = read_ledger(controller.ledger_root).events
+            boundary = latest_checkpoint_boundary(events)
+            exact = boundary is not None
             if boundary is None: boundary = {"completed_epoch": 0, "resume_epoch": 1, "optimizer_update": 0}
             controller.append("TRAINING_INTERRUPTED", {
                 "last_durable_boundary": {key: boundary[key] for key in ("completed_epoch", "resume_epoch", "optimizer_update")},

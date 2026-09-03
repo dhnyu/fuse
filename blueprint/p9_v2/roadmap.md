@@ -66,14 +66,14 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
 - Final full model: `cfg_d128`, acceptance
   `p9accv2_a1c00e32a882ddc4b7e2677b`, selected across all executed validation
   candidates by `p9fms_389a0ce89992eee507d7c846`.
-- Remaining P9-B comparisons: 7, materialized but not executed in
-  `p9bplan_e36f7c9c5069a504eb31a9ef` from exact `cfg_d128` science.
+- P9-B comparisons: A1-A5 and SSV-like are canonically complete. The original
+  DS-like trajectory is preserved as an operator-abandoned performance run;
+  its replacement starts from epoch zero under the same scientific contract
+  using accepted deterministic raster cache `p9ds_1e26585c61122cf7c758088a`.
 - Held-out evaluation: not started.
 
 The P9-A campaign completion audit found no scientific comparability blocker.
-`P9_SELECTED_FM_IP_COMPARISON` is complete. The next bounded work unit is
-`P9_B_CFG_D128_ABLATION_EXECUTION`; its implementation-readiness gate
-passed with exact family-contract tests and seven sequential noncanonical
-two-GPU update/checkpoint pilots. Formal comparison execution remains 0/7 and
-must proceed sequentially from A1, stopping on the first invalid lifecycle.
-Held-out evaluation remains prohibited.
+`P9_SELECTED_FM_IP_COMPARISON` is complete. P9-B execution is 6/7 complete.
+The exact next action is completion of the fresh cached DS-like trajectory,
+followed by the P9 ablation completion and held-out-readiness audit. Held-out
+evaluation remains prohibited until that audit passes.

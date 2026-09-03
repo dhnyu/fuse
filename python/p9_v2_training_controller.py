@@ -109,6 +109,16 @@ def training_run_id(authority: dict[str, Any]) -> str:
     })
 
 
+def latest_checkpoint_boundary(events: list[dict[str, Any]] | tuple[dict[str, Any], ...]) -> dict[str, int] | None:
+    """Return only the latest atomically committed exact-resume boundary."""
+    latest = next((event for event in reversed(events)
+                   if event["event_type"] == "VALIDATION_CHECKPOINT_COMMITTED"), None)
+    if latest is None:
+        return None
+    return {key: int(latest["payload"][key])
+            for key in ("completed_epoch", "resume_epoch", "optimizer_update")}
+
+
 def validate_training_authority(authority: dict[str, Any]) -> None:
     validate_instance("training_authority", authority)
     observed = canonical_sha256(authority["content"])

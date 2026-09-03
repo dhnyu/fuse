@@ -149,3 +149,13 @@ Across all 15 executed candidates, `cfg_d128` is the best observed configuration
 `p9fms_389a0ce89992eee507d7c846`. The factor-wise combination was not additive.
 The seven non-executed P9-B templates therefore inherit `cfg_d128` acceptance
 `p9accv2_a1c00e32a882ddc4b7e2677b` in `p9bplan_e36f7c9c5069a504eb31a9ef`.
+
+P9-B A1-A5 and SSV-like have completed canonically. The first DS-like
+trajectory used scientifically correct but operationally unsuitable online
+Shapely rasterization and was intentionally closed after epoch 76, with the
+latest durable checkpoint at epoch 75/update 5,700. It remains immutable,
+incomplete, blocked, and forbidden from resume. The production worker now
+reads the already accepted per-augmentation-view and fixed-validation raster
+cache `p9ds_1e26585c61122cf7c758088a`. Every lookup validates the immutable
+manifest and exact physical role/scene/view payload; missing or stale evidence
+fails closed and never invokes online rasterization.

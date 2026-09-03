@@ -1,10 +1,13 @@
-"""Production-shaped P9 v2 science-plane pilot with a hard zero-update contract."""
+"""Production-shaped P9 v2 science-plane pilots with explicit mutation bounds."""
 
 from __future__ import annotations
 
 import json
 import os
+import resource
 import socket
+import statistics
+import time
 from pathlib import Path
 from typing import Any
 
@@ -145,7 +148,8 @@ def run_non_training_pilot(spec: dict[str, str], output: str | Path) -> dict[str
     return result
 
 
-def _update_rank(rank: int, world_size: int, port: int, spec: dict[str, str], output: str) -> None:
+def _update_rank(rank: int, world_size: int, port: int, spec: dict[str, str], output: str,
+                 updates: int = 1) -> None:
     """Run one real update with no validation, ledger, checkpoint, or publication."""
     from p9_v2_training_worker import (
         configure_process, create_state, load_worker_values, training_update,
@@ -165,8 +169,15 @@ def _update_rank(rank: int, world_size: int, port: int, spec: dict[str, str], ou
             find_unused_parameters=False, bucket_cap_mb=50,
             gradient_as_bucket_view=False, static_graph=False,
         )
-        observation = training_update(ddp, state, values, 1, 0, rank, device)
-        torch.cuda.synchronize(device)
+        torch.cuda.reset_peak_memory_stats(device)
+        walls = []
+        observation = None
+        for batch_index in range(updates):
+            started = time.monotonic()
+            observation = training_update(ddp, state, values, 1, batch_index, rank, device)
+            torch.cuda.synchronize(device)
+            walls.append(time.monotonic() - started)
+        assert observation is not None
         result = {
             "rank": rank,
             "configuration_id": spec["configuration_id"],
@@ -178,7 +189,7 @@ def _update_rank(rank: int, world_size: int, port: int, spec: dict[str, str], ou
             "queue_count": int(state.queue["valid_count"]),
             "queue_pointer": int(state.queue["pointer"]),
             "sampler_epoch": 1,
-            "sampler_cursor": 1,
+            "sampler_cursor": updates,
             "finite": all(torch.isfinite(torch.tensor(observation[key])) for key in
                           ("total_loss", "scene_loss", "ip_loss")),
             "training_observation": observation,
@@ -186,6 +197,14 @@ def _update_rank(rank: int, world_size: int, port: int, spec: dict[str, str], ou
             "evaluation_executions": 0,
             "checkpoint_publications": 0,
             "acceptance_publications": 0,
+            "update_wall_samples": walls,
+            "median_update_wall_seconds": statistics.median(walls),
+            "p95_update_wall_seconds": sorted(walls)[max(0, int(0.95 * len(walls)) - 1)],
+            "throughput_scenes_per_second": 32 * updates / sum(walls),
+            "peak_vram_bytes": int(torch.cuda.max_memory_allocated(device)),
+            "peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss) * 1024,
+            "ds_raster_cache": (None if values["ds_raster_cache"] is None
+                                else values["ds_raster_cache"].stats()),
         }
         Path(output, f"rank-{rank}.json").write_text(
             json.dumps(result, sort_keys=True), encoding="utf-8")
@@ -201,7 +220,7 @@ def run_bounded_update_pilot(spec: dict[str, str], output: str | Path) -> dict[s
         raise PilotContractError("PILOT_REQUIRES_EXACTLY_TWO_VISIBLE_GPUS")
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
-    mp.spawn(_update_rank, args=(2, _free_port(), spec, str(output)), nprocs=2, join=True)
+    mp.spawn(_update_rank, args=(2, _free_port(), spec, str(output), 1), nprocs=2, join=True)
     ranks = [json.loads((output / f"rank-{rank}.json").read_text(encoding="utf-8")) for rank in range(2)]
     if not all(
         row["training_scenes"] == 2_421
@@ -226,6 +245,54 @@ def run_bounded_update_pilot(spec: dict[str, str], output: str | Path) -> dict[s
         "logical_training_views": ranks[0]["logical_training_views"],
         "queue_count": ranks[0]["queue_count"], "queue_pointer": ranks[0]["queue_pointer"],
         "sampler_epoch": 1, "sampler_cursor": 1,
+        "validation_executions": 0, "evaluation_executions": 0,
+        "formal_checkpoint_publications": 0, "formal_acceptance_publications": 0,
+        "ranks": ranks,
+    }
+
+
+def run_bounded_ds_cache_pilot(spec: dict[str, str], output: str | Path,
+                               updates: int = 4) -> dict[str, Any]:
+    """Exercise cached DS inputs through bounded real DDP optimizer updates."""
+    if spec["configuration_id"] != "cmp_ds_like" or updates not in range(2, 5):
+        raise PilotContractError("DS_CACHE_PILOT_SCOPE_INVALID")
+    if torch.cuda.device_count() != 2:
+        raise PilotContractError("PILOT_REQUIRES_EXACTLY_TWO_VISIBLE_GPUS")
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=False)
+    mp.spawn(_update_rank, args=(2, _free_port(), spec, str(output), updates), nprocs=2, join=True)
+    ranks = [json.loads((output / f"rank-{rank}.json").read_text(encoding="utf-8"))
+             for rank in range(2)]
+    if not all(
+        row["training_scenes"] == 2_421
+        and row["logical_training_views"] == 2_421 * 8
+        and row["optimizer_updates"] == updates
+        and row["queue_count"] == 64 * updates
+        and row["queue_pointer"] == 64 * updates
+        and row["sampler_cursor"] == updates
+        and row["finite"]
+        and row["ds_raster_cache"]["cache_id"] == "p9ds_1e26585c61122cf7c758088a"
+        and row["ds_raster_cache"]["misses"] == 32 * updates
+        and row["validation_executions"] == 0
+        and row["evaluation_executions"] == 0
+        and row["checkpoint_publications"] == 0
+        and row["acceptance_publications"] == 0
+        for row in ranks
+    ):
+        raise PilotContractError("BOUNDED_DS_CACHE_UPDATE_INVARIANT_FAILED")
+    samples = [value for row in ranks for value in row["update_wall_samples"]]
+    return {
+        "status": "PASS", "pilot_kind": "NONCANONICAL_DS_CACHE_UPDATE",
+        "configuration_id": "cmp_ds_like", "world_size": 2,
+        "global_optimizer_updates": updates,
+        "cache_id": ranks[0]["ds_raster_cache"]["cache_id"],
+        "cache_misses_per_rank": ranks[0]["ds_raster_cache"]["misses"],
+        "median_update_wall_seconds": statistics.median(samples),
+        "p95_update_wall_seconds": sorted(samples)[max(0, int(0.95 * len(samples)) - 1)],
+        "estimated_epoch_wall_seconds": max(row["median_update_wall_seconds"] for row in ranks) * 76,
+        "throughput_scenes_per_second": min(row["throughput_scenes_per_second"] for row in ranks),
+        "peak_vram_bytes": max(row["peak_vram_bytes"] for row in ranks),
+        "peak_rss_bytes": max(row["peak_rss_bytes"] for row in ranks),
         "validation_executions": 0, "evaluation_executions": 0,
         "formal_checkpoint_publications": 0, "formal_acceptance_publications": 0,
         "ranks": ranks,

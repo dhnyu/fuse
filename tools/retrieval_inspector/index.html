@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P10 Retrieval Inspector</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div><p class="eyebrow">P10 qualitative evidence</p><h1>Spatial Scene Retrieval Inspector</h1></div>
+    <div id="status" class="status">Loading evidence</div>
+  </header>
+  <section class="controls" aria-label="Retrieval controls">
+    <div class="control model-control"><label for="model">Model</label><div class="stepper"><button id="prevModel" title="Previous model" aria-label="Previous model">&#8249;</button><select id="model"></select><button id="nextModel" title="Next model" aria-label="Next model">&#8250;</button></div></div>
+    <div class="control"><label for="query">Fixed query</label><select id="query"></select></div>
+    <fieldset class="segments"><legend>Retrieval setting</legend><label><input type="radio" name="setting" value="standard" checked><span>Local included</span></label><label><input type="radio" name="setting" value="nonlocal"><span>Local excluded</span></label></fieldset>
+    <fieldset class="checks"><legend>Vector layers</legend><label><input type="checkbox" value="B" checked> Building</label><label><input type="checkbox" value="R" checked> Road</label><label><input type="checkbox" value="P" checked> POI</label></fieldset>
+    <fieldset class="segments"><legend>Raster</legend><label><input type="radio" name="raster" value="landcover" checked><span>LC</span></label><label><input type="radio" name="raster" value="dem"><span>DEM</span></label></fieldset>
+  </section>
+  <section id="context" class="context"></section>
+  <main id="comparison" class="comparison" aria-live="polite"></main>
+  <footer><span>Cosine similarity: larger is more similar.</span><span>All scene maps: EPSG:5186, north-up, fixed 500 m x 500 m extent.</span><span>Qualitative inspection only.</span></footer>
+  <script src="manifest.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

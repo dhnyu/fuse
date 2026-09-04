@@ -1,0 +1,11 @@
+{
+  "artifact_type": "retrieval_inspector_local_example",
+  "inspector_id": "retrieval_inspector_c612a074a9211c222eb9a811",
+  "output_path": "artifacts/retrieval-inspector/retrieval_inspector_c612a074a9211c222eb9a811/index.html",
+  "p10_acceptance_id": "p10acc_6e5071beee7616750dec7907",
+  "qualitative_contract_id": "p10qq_dd7d0775f5809a793575342b",
+  "query_count": 10,
+  "model_count": 8,
+  "scene_asset_count": 1342,
+  "status": "PASS"
+}

@@ -2,9 +2,9 @@
   "schema_version": "1.0.0",
   "artifact_type": "p11_downstream_source_contract",
   "contract_name": "p11-ecostress-lst-source-v1",
-  "contract_id": "p11src_683e32d59c65b8094c308d19",
-  "content_sha256": "683e32d59c65b8094c308d19c9e0305e61489dc5764e5070f54e932bacda4ad8",
-  "status": "PARTIALLY_CLOSED",
+  "contract_id": "p11src_a54ca1cb6685381047646483",
+  "content_sha256": "a54ca1cb6685381047646483fbc0062cb0df618e9bc01919a0f2b0971cf84368",
+  "status": "CLOSED",
   "preprocessing_authorized": false,
   "source_family": "ecostress_lst",
   "methodology_authority": {
@@ -71,7 +71,10 @@
       "timestamp_rule": "never merge distinct timestamps, including same-day acquisitions",
       "day_night_rule": "include every accepted timestamp; UTC and derived Asia/Seoul local time are provenance only",
       "period_aggregation": "arithmetic mean of accepted per-acquisition scene means; each accepted acquisition has equal weight and is not coverage-weighted",
-      "output_cardinality": "one response per eligible scene"
+      "output_cardinality": "one response per eligible scene",
+      "minimum_valid_area_fraction_per_acquisition": 0.5,
+      "minimum_accepted_acquisitions_per_scene": 12,
+      "temporal_coverage_gate": "at least one accepted acquisition in every calendar quarter"
     }
   },
   "closed_fields": [
@@ -89,31 +92,13 @@
     "equal_acquisition_weighting",
     "all_day_and_night_acquisitions_included"
   ],
-  "unresolved_fields": [
-    {
-      "field": "minimum_valid_area_fraction_per_acquisition",
-      "classification": "BLOCKED_SCIENTIFIC_DECISION",
-      "reason": "The dissertation requires sufficient and complete geographic coverage but supplies no numeric threshold."
-    },
-    {
-      "field": "minimum_accepted_acquisitions_per_scene",
-      "classification": "BLOCKED_SCIENTIFIC_DECISION",
-      "reason": "Neither the dissertation nor product documentation defines the minimum temporal sample count for the annual response."
-    },
-    {
-      "field": "final_temporal_coverage_gate",
-      "classification": "BLOCKED_SCIENTIFIC_DECISION",
-      "reason": "No accepted rule defines required seasonal/monthly coverage or maximum temporal imbalance."
-    }
-  ],
+  "unresolved_fields": [],
   "provenance": [
     {"role": "appeears_package_readme", "locator": "downstream_data/ECOSTRESS/README.md", "sha256": "8bc9f4928ea8971f67c84cf6fa167c08031972178c3bfe97e818a356ef274528"},
     {"role": "official_collection_2_user_guide", "locator": "https://lpdaac.usgs.gov/documents/1574/ECOL2_User_Guide_V2.pdf", "sha256": "66b4c53068c5024692e8e791d336e200004e5827aa2ad9e59d3f70f44d344d42", "retrieved_date": "2026-09-04"},
     {"role": "official_qc_faq", "locator": "https://ecostress.jpl.nasa.gov/downloads/faq/ECOSTRESS_FAQ_20240401.pdf", "sha256": "7eeb09e0d6a840f5a0fa7e712c5e36eaa571169cb0ad45cedb7f0cae8783175b", "retrieved_date": "2026-09-04"}
   ],
   "prohibited": [
-    "downstream_preprocessing",
-    "scene_target_materialization",
     "cloud_inference_from_qc_bits",
     "dynamic_qa_threshold_tuning",
     "lst_imputation",

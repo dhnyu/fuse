@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p11_methodology_decision.schema.json",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "decision_id", "content_sha256", "status", "dissertation_commit", "p10_acceptance_id", "scene_index_id", "active_targets", "flickr", "coverage_rules", "district_folds", "unspecified_scientific_decision_count", "prohibited"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "p11_methodology_decision"},
+    "decision_id": {"type": "string", "pattern": "^p11meth_[0-9a-f]{24}$"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"const": "CLOSED"},
+    "dissertation_commit": {"const": "ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a"},
+    "p10_acceptance_id": {"const": "p10acc_6e5071beee7616750dec7907"},
+    "scene_index_id": {"const": "rsi_80031f1493c75163f91b7c71"},
+    "active_targets": {"type": "array", "minItems": 11, "maxItems": 11, "uniqueItems": true},
+    "flickr": {"type": "object", "required": ["status", "reason"]},
+    "coverage_rules": {"type": "object", "minProperties": 5},
+    "district_folds": {"type": "object", "required": ["count", "algorithm", "assignment", "boundary_tie_break", "spatial_buffer_metres", "target_missingness", "empty_fold_rule", "fit_gate"]},
+    "unspecified_scientific_decision_count": {"const": 0},
+    "prohibited": {"type": "array", "minItems": 1, "uniqueItems": true}
+  },
+  "additionalProperties": false
+}

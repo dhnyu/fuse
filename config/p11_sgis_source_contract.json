@@ -2,9 +2,9 @@
   "schema_version": "1.0.0",
   "artifact_type": "p11_downstream_source_contract",
   "contract_name": "p11-sgis-grid-statistics-source-v1",
-  "contract_id": "p11src_9e57aab4897734490f26037a",
-  "content_sha256": "9e57aab4897734490f26037ad360ef4f049a02ebf62f8a9666e3a7b413028e94",
-  "status": "PARTIALLY_CLOSED",
+  "contract_id": "p11src_484dbd54b6722fed6fcb1187",
+  "content_sha256": "484dbd54b6722fed6fcb1187d78fa314ebdf17b7c4a6e47840973a5ae73b56ec",
+  "status": "CLOSED",
   "preprocessing_authorized": false,
   "source_family": "sgis_grid_statistics",
   "methodology_authority": {
@@ -62,8 +62,8 @@
     "row_omission": {
       "official_meanings": ["no population or establishment in grid", "no value for requested statistic"],
       "distinguishable_per_row": false,
-      "provisional_ingest_action": "missing, never silently zero",
-      "scene_level_authorization": "blocked until the two official meanings can be resolved or an explicit scientific missingness policy is approved"
+      "preprocessing_action": "unavailable for that statistic, never zero",
+      "scene_eligibility": "require positive explicitly present source-grid support; preserve exact missing-support area and never extrapolate"
     },
     "future_scene_mapping": {
       "variable_type": "extensive",
@@ -84,20 +84,12 @@
     "extensive_overlap_weighted_scene_aggregation",
     "duplicate_rejection"
   ],
-  "unresolved_fields": [
-    {
-      "field": "row_omission_semantics",
-      "classification": "BLOCKED_SOURCE_SEMANTICS",
-      "reason": "The official manual says an omitted grid row can mean either no population/establishment or no value for the statistic; the supplied rows contain no flag that distinguishes those cases."
-    }
-  ],
+  "unresolved_fields": [],
   "provenance": [
     {"role": "supplied_codebook", "locator": "downstream_data/grid_statistics/3. 제공용 코드(statistics_code).xls", "sha256": "e72eac92cce04bc01f3702ed37b5e3b12af2cee244e9af19c9595891392983e7", "note": "The prompt's /mnt/data locator was absent; this source-directory copy was audited."},
     {"role": "official_small_area_statistics_manual", "locator": "https://sgis.kostat.go.kr/html/attachFiles/개정판 SGIS 소지역 통계 이용매뉴얼.pdf", "sha256": "144afc96aa9b68a1fad220346e614f8e045d78deb683b3e97abc0f0f166abb53", "retrieved_date": "2026-09-04"}
   ],
   "prohibited": [
-    "downstream_preprocessing",
-    "scene_target_materialization",
     "treat_omitted_row_as_zero",
     "privacy_reversal",
     "denoising",

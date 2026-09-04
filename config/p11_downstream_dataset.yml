@@ -1,0 +1,18 @@
+schema_version: 1.0.0
+status: ACCEPTED
+dataset_id: p11ds_fdb1f34c6daeda259e803e37
+content_sha256: fdb1f34c6daeda259e803e378cf5325c5e8377edcc76f8dac3e1f82bec421197
+acceptance_path: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_prepared/p11ds_fdb1f34c6daeda259e803e37/downstream_dataset_acceptance.json
+acceptance_sha256: 726fd5e1d9969a01fff797ccdff16bd7d7ae5e090591ea478850d11aa4079a8b
+p10_acceptance_id: p10acc_6e5071beee7616750dec7907
+scene_index_id: rsi_80031f1493c75163f91b7c71
+target_count: 11
+scene_universe_count: 1600
+next_work_unit: P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES
+noncanonical_development_outputs:
+  - dataset_id: p11ds_65f0ef98f7e4008937f70c34
+    reason: pre-publication identity did not bind output scientific-content hashes
+  - dataset_id: p11ds_5386f6089feca93f3d2273f2
+    reason: idempotent readback exposed an undeclared legacy helper dependency
+  - dataset_id: p11ds_deff8cba30999543a72f2f58
+    reason: hash file connections were not explicitly closed before validation

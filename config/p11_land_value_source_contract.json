@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "p11_downstream_source_contract",
+  "contract_name": "p11-official-land-value-source-v1",
+  "contract_id": "p11src_2ae748fc8cbd5bcfc0a63388",
+  "content_sha256": "2ae748fc8cbd5bcfc0a633883c07fb03d3d79954f1f0fe53169f310533d79579",
+  "status": "CLOSED",
+  "preprocessing_authorized": false,
+  "source_family": "official_land_value",
+  "methodology_authority": {"dissertation_commit": "ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a", "module_contract_id": "mmc_3a9bda55a57b8e66"},
+  "source_inventory": {
+    "logical_root": "downstream_data/official_landvalue", "file_count": 43, "total_byte_size": 6890946659,
+    "canonical_order": "UTF-8 bytewise ascending relative path", "record_contract": ["logical_path", "byte_size", "sha256"],
+    "inventory_sha256": "038c509062175f4e1eb637f166ed11be138d7220c98fba5b9fda56a58d3444ca",
+    "required_files": [
+      {"logical_path": "AL_D150_11_20260526.shp", "byte_size": 199531880, "sha256": "08fd76ebe380edcd0a9bffdf6d775c6d3d558d57ce5f6d92bad013b4d037ae9f", "role": "seoul_parcel_geometry"},
+      {"logical_path": "AL_D150_11_20260526.dbf", "byte_size": 557308753, "sha256": "4e3c9c4a9b07487ce0afaa20f568a71846390df7079abc6057ac3f21e4653910", "role": "seoul_parcel_attributes"},
+      {"logical_path": "AL_D150_11_20260526.prj", "byte_size": 553, "sha256": "c9e055f0ba3e7d3844883a41ed9dbfc060fabc1fbf09bef13d7de34c0ef788cc", "role": "parcel_crs"},
+      {"logical_path": "AL_D150_11_20260526.shx", "byte_size": 7191172, "sha256": "2dc815858852a2affdf0a7ce8f33478a8354e924ebe0520b09c7cdfbe17a7c78", "role": "parcel_index"},
+      {"logical_path": "AL_D151_11_20260526.csv", "byte_size": 102020871, "sha256": "7edd8967653d9c85c3c003fb0ac761236db8bc6ca3e694512a1e89d8cd2c227a", "role": "seoul_2026_values"}
+    ]
+  },
+  "semantic_contract": {
+    "source_year": 2026, "native_crs": "EPSG:5186", "unit": "KRW per square metre",
+    "response": "overlap-area-weighted parcel land-value mean",
+    "geometry_repair": "st_make_valid; retain only valid nonempty polygonal geometry under the same parcel identity",
+    "invalid_geometry_rule": "exclude after failed deterministic repair with explicit reason",
+    "unmatched_rule": "geometry without value is unavailable; value without geometry cannot contribute; no imputation or zero fill",
+    "duplicate_parcel_rule": "fail closed",
+    "coverage_gate": "require complete valued support among parcel geometry intersecting a scene and positive contributing parcel area",
+    "coverage_record": "record valued parcel area divided by all source parcel area intersecting the scene"
+  },
+  "closed_fields": ["year", "unit", "join_identity", "geometry_repair", "unmatched_handling", "duplicate_rejection", "scene_aggregation", "coverage_gate"],
+  "unresolved_fields": [],
+  "provenance": [{"role": "supplied_official_land_value_package", "locator": "downstream_data/official_landvalue"}],
+  "prohibited": ["unmatched_zero_fill", "land_value_imputation", "duplicate_resolution", "fold_generation", "ridge_fitting"]
+}

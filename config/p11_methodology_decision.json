@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "p11_methodology_decision",
+  "decision_id": "p11meth_c671fa4c1ebdf9ec3e79bd64",
+  "content_sha256": "c671fa4c1ebdf9ec3e79bd649fc7be2e9b9720e6808132293919f61d1fae4a01",
+  "status": "CLOSED",
+  "dissertation_commit": "ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a",
+  "p10_acceptance_id": "p10acc_6e5071beee7616750dec7907",
+  "scene_index_id": "rsi_80031f1493c75163f91b7c71",
+  "active_targets": ["total_population", "households", "housing_units", "establishments", "workers", "weekday_daytime", "weekday_nighttime", "weekend_daytime", "weekend_nighttime", "official_land_value", "ecostress_lst"],
+  "flickr": {"status": "EXCLUDED_STALE_TABLE_EVIDENCE", "reason": "The dissertation body and accepted methodology lineage define eleven downstream responses and no Flickr source exists."},
+  "coverage_rules": {
+    "sgis": "sum only explicitly present target-specific source-grid support; require positive represented area and retain the exact coverage fraction",
+    "living_spatial": "complete explicitly present source-grid support per scene-hour",
+    "living_temporal": "at least 90 percent of expected hours in every temporal class",
+    "land_value": "complete valued support among source parcel geometry intersecting the scene",
+    "ecostress": "at least 50 percent valid scene area per acquisition, at least 12 acquisitions, and at least one acquisition in each calendar quarter"
+  },
+  "district_folds": {
+    "count": 25, "algorithm": "leave one Seoul autonomous district out", "assignment": "scene center point",
+    "boundary_tie_break": "lowest canonical district ID among covering boundaries", "spatial_buffer_metres": 0,
+    "target_missingness": "fold membership fixed independently of response eligibility",
+    "empty_fold_rule": "retain structural fold but exclude it from metric aggregation with explicit coverage reason",
+    "fit_gate": "nonzero eligible train and test populations"
+  },
+  "unspecified_scientific_decision_count": 0,
+  "prohibited": ["flickr_preprocessing", "new_embedding_inference", "fold_generation", "ridge_fitting", "response_informed_threshold_tuning"]
+}

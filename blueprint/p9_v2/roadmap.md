@@ -80,5 +80,6 @@ The P9-A campaign completion audit found no scientific comparability blocker.
 `P9_SELECTED_FM_IP_COMPARISON` and P9-B are complete. The P9 ablation
 completion audit verified every canonical chain and exact dynamic/cached
 overlap. P10 has since completed without reopening P9 selection. The exact next
-bounded work unit is `P11 Downstream Evaluation`: leakage-controlled frozen
-scene embeddings and spatial ridge-regression probes using accepted P10 evidence.
+P11-A2 has now closed the source methodology and materialized the accepted
+eleven-target dataset without new embedding inference or model fitting. The
+exact next bounded work unit is `P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`.

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from copy import deepcopy
 from pathlib import Path
 
 import jsonschema
+import yaml
 
 from p9_v2_canonical import canonical_sha256
 
@@ -12,6 +14,12 @@ from p9_v2_canonical import canonical_sha256
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads(
     (ROOT / "config/schemas/p11_downstream_source_contract.schema.json").read_text()
+)
+METHODOLOGY_SCHEMA = json.loads(
+    (ROOT / "config/schemas/p11_methodology_decision.schema.json").read_text()
+)
+DATASET_SCHEMA = json.loads(
+    (ROOT / "config/schemas/p11_downstream_dataset_acceptance.schema.json").read_text()
 )
 
 
@@ -32,14 +40,16 @@ def _assert_content_identity(contract: dict) -> None:
 
 def test_p11_source_contract_schema_is_draft_2020_12() -> None:
     jsonschema.Draft202012Validator.check_schema(SCHEMA)
+    jsonschema.Draft202012Validator.check_schema(METHODOLOGY_SCHEMA)
+    jsonschema.Draft202012Validator.check_schema(DATASET_SCHEMA)
 
 
-def test_sgis_partial_contract_is_hash_bound_and_fail_closed() -> None:
+def test_sgis_closed_contract_is_hash_bound_and_preserves_omissions() -> None:
     contract = _load("p11_sgis_source_contract.json")
     jsonschema.Draft202012Validator(SCHEMA).validate(contract)
     _assert_content_identity(contract)
 
-    assert contract["status"] == "PARTIALLY_CLOSED"
+    assert contract["status"] == "CLOSED"
     assert contract["preprocessing_authorized"] is False
     mapping = {
         item["target"]: item["code"]
@@ -57,22 +67,16 @@ def test_sgis_partial_contract_is_hash_bound_and_fail_closed() -> None:
     )
     omission = contract["semantic_contract"]["row_omission"]
     assert omission["distinguishable_per_row"] is False
-    assert omission["provisional_ingest_action"] == "missing, never silently zero"
-    assert contract["unresolved_fields"] == [
-        {
-            "field": "row_omission_semantics",
-            "classification": "BLOCKED_SOURCE_SEMANTICS",
-            "reason": contract["unresolved_fields"][0]["reason"],
-        }
-    ]
+    assert omission["preprocessing_action"] == "unavailable for that statistic, never zero"
+    assert contract["unresolved_fields"] == []
 
 
-def test_ecostress_partial_contract_closes_qa_without_coverage_guess() -> None:
+def test_ecostress_closed_contract_freezes_qa_and_coverage() -> None:
     contract = _load("p11_ecostress_source_contract.json")
     jsonschema.Draft202012Validator(SCHEMA).validate(contract)
     _assert_content_identity(contract)
 
-    assert contract["status"] == "PARTIALLY_CLOSED"
+    assert contract["status"] == "CLOSED"
     assert contract["preprocessing_authorized"] is False
     pixel = contract["semantic_contract"]["pixel_acceptance"]
     assert pixel["qc_mandatory_bits_1_0"].startswith("00")
@@ -90,22 +94,51 @@ def test_ecostress_partial_contract_closes_qa_without_coverage_guess() -> None:
         "different_timestamps_are_distinct"
     ] is True
     assert mapping["period_aggregation"].startswith("arithmetic mean")
-    assert {
-        item["classification"] for item in contract["unresolved_fields"]
-    } == {"BLOCKED_SCIENTIFIC_DECISION"}
+    assert mapping["minimum_valid_area_fraction_per_acquisition"] == 0.5
+    assert mapping["minimum_accepted_acquisitions_per_scene"] == 12
+    assert contract["unresolved_fields"] == []
 
 
 def test_source_contracts_cannot_authorize_scientific_work() -> None:
     for name in (
         "p11_sgis_source_contract.json",
+        "p11_living_population_source_contract.json",
+        "p11_land_value_source_contract.json",
         "p11_ecostress_source_contract.json",
     ):
         contract = _load(name)
         assert contract["preprocessing_authorized"] is False
-        assert "downstream_preprocessing" in contract["prohibited"]
-        assert "scene_target_materialization" in contract["prohibited"]
         assert "fold_generation" in contract["prohibited"]
         assert "ridge_fitting" in contract["prohibited"]
+
+
+def test_all_four_source_contracts_are_closed_and_hash_bound() -> None:
+    names = (
+        "p11_sgis_source_contract.json",
+        "p11_living_population_source_contract.json",
+        "p11_land_value_source_contract.json",
+        "p11_ecostress_source_contract.json",
+    )
+    for name in names:
+        contract = _load(name)
+        jsonschema.Draft202012Validator(SCHEMA).validate(contract)
+        _assert_content_identity(contract)
+        assert contract["status"] == "CLOSED"
+        assert contract["unresolved_fields"] == []
+
+
+def test_methodology_decision_closes_scope_and_forbids_model_work() -> None:
+    decision = _load("p11_methodology_decision.json")
+    jsonschema.Draft202012Validator(METHODOLOGY_SCHEMA).validate(decision)
+    preimage = {k: v for k, v in decision.items() if k not in {"decision_id", "content_sha256"}}
+    digest = canonical_sha256(preimage)
+    assert decision["decision_id"] == f"p11meth_{digest[:24]}"
+    assert decision["content_sha256"] == digest
+    assert decision["status"] == "CLOSED"
+    assert decision["unspecified_scientific_decision_count"] == 0
+    assert len(decision["active_targets"]) == 11
+    assert decision["flickr"]["status"] == "EXCLUDED_STALE_TABLE_EVIDENCE"
+    assert {"new_embedding_inference", "fold_generation", "ridge_fitting"} <= set(decision["prohibited"])
 
 
 def test_source_contract_schema_rejects_preprocessing_authority() -> None:
@@ -114,3 +147,19 @@ def test_source_contract_schema_rejects_preprocessing_authority() -> None:
     errors = list(jsonschema.Draft202012Validator(SCHEMA).iter_errors(contract))
     assert len(errors) == 1
     assert list(errors[0].absolute_path) == ["preprocessing_authorized"]
+
+
+def test_accepted_downstream_dataset_reference_and_schema() -> None:
+    reference = yaml.safe_load((ROOT / "config/p11_downstream_dataset.yml").read_text())
+    assert reference["status"] == "ACCEPTED"
+    assert reference["dataset_id"] == "p11ds_fdb1f34c6daeda259e803e37"
+    assert reference["target_count"] == 11
+    assert reference["scene_universe_count"] == 1600
+    assert reference["next_work_unit"] == "P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES"
+    acceptance_path = Path(reference["acceptance_path"])
+    payload = acceptance_path.read_bytes()
+    assert hashlib.sha256(payload).hexdigest() == reference["acceptance_sha256"]
+    acceptance = json.loads(payload)
+    jsonschema.Draft202012Validator(DATASET_SCHEMA).validate(acceptance)
+    assert acceptance["dataset_id"] == reference["dataset_id"]
+    assert acceptance["content_sha256"] == reference["content_sha256"]

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p11_downstream_dataset_acceptance.schema.json",
+  "type": "object",
+  "required": ["schema_version", "artifact_type", "implementation", "methodology_decision_id", "p10_acceptance_id", "scene_index_id", "source_inventory_sha256", "source_contract_sha256", "output_content_sha256", "thresholds", "target_count", "scene_universe_count", "dataset_id", "content_sha256", "status", "artifacts"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "p11_downstream_dataset_acceptance"},
+    "implementation": {"type": "object", "required": ["version", "implementation_sha256", "configuration_sha256"]},
+    "methodology_decision_id": {"type": "string", "pattern": "^p11meth_[0-9a-f]{24}$"},
+    "p10_acceptance_id": {"const": "p10acc_6e5071beee7616750dec7907"},
+    "scene_index_id": {"const": "rsi_80031f1493c75163f91b7c71"},
+    "source_inventory_sha256": {"type": "object", "minProperties": 4},
+    "source_contract_sha256": {"type": "object", "minProperties": 4},
+    "output_content_sha256": {"type": "object", "minProperties": 4},
+    "thresholds": {"type": "object", "minProperties": 5},
+    "target_count": {"const": 11},
+    "scene_universe_count": {"const": 1600},
+    "dataset_id": {"type": "string", "pattern": "^p11ds_[0-9a-f]{24}$"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"const": "ACCEPTED"},
+    "artifacts": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["role", "basename", "byte_size", "sha256"]}}
+  },
+  "additionalProperties": false
+}

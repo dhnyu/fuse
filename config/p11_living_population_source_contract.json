@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "p11_downstream_source_contract",
+  "contract_name": "p11-living-population-source-v1",
+  "contract_id": "p11src_fe6e9b4985da4229c182d1c1",
+  "content_sha256": "fe6e9b4985da4229c182d1c1c3628183843f8c7b5272bd82fa19cae886b8df51",
+  "status": "CLOSED",
+  "preprocessing_authorized": false,
+  "source_family": "living_population",
+  "methodology_authority": {"dissertation_commit": "ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a", "module_contract_id": "mmc_3a9bda55a57b8e66"},
+  "source_inventory": {
+    "logical_root": "downstream_data/livingpopulation", "file_count": 369, "total_byte_size": 22809895556,
+    "canonical_order": "UTF-8 bytewise ascending relative path", "record_contract": ["logical_path", "byte_size", "sha256"],
+    "inventory_sha256": "80192bd35b7c0fb51fbed8225c01780f925f4b566314164b0b635c934f3dae57",
+    "required_files": [
+      {"logical_path": "250_LOCAL_RESD_20250101.csv", "byte_size": 66467814, "sha256": "a39491ab9ba451d9d6a245d8b22155f7fd35463d4277949b87ae61bee39172ca", "role": "daily_schema_and_first_day"},
+      {"logical_path": "빈격자(250m).shp", "byte_size": 230268228, "sha256": "a9447999ced13a30f1a71d96fa611ca3057e2e1fd37f9199374102d7c3953222", "role": "grid_geometry"},
+      {"logical_path": "빈격자(250m).dbf", "byte_size": 33863057, "sha256": "4195f659323e9730e0b2b69f80c7c80a99072a7728fedc6c0f8ebfc026769cca", "role": "grid_attributes"},
+      {"logical_path": "빈격자(250m).prj", "byte_size": 611, "sha256": "0c549431311685a7f58ce669878c50db7b4d77d5b27e4a3c942067b8654bbe48", "role": "grid_crs"},
+      {"logical_path": "빈격자(250m).shx", "byte_size": 13545284, "sha256": "28a257e7030b250cdc0ebd1bb496a011f3ae20397c3a940463579677047d4493", "role": "grid_index"}
+    ]
+  },
+  "semantic_contract": {
+    "source_year": 2025, "timezone": "Asia/Seoul", "native_grid_metres": 250, "native_crs": "EPSG:5179", "unit": "persons",
+    "duplicate_rule": "sum administrative rows by grid_id/date/hour only when every component is finite and nonnegative; otherwise unavailable",
+    "suppression_rule": "suppressed or nonnumeric values are unavailable, never zero",
+    "daytime_hours": "09:00-18:59", "nighttime_hours": "19:00-08:59",
+    "weekday_rule": "Monday-Friday excluding official Korean public holidays", "weekend_rule": "Saturday, Sunday, and official Korean public holidays",
+    "expected_hour_counts": {"weekday_daytime": 2440, "weekday_nighttime": 3416, "weekend_daytime": 1210, "weekend_nighttime": 1694},
+    "minimum_temporal_completeness_fraction": 0.9,
+    "scene_mapping": "overlap-weighted extensive sum for each valid hour, followed by valid-hour arithmetic mean per temporal class",
+    "spatial_gate": "each retained scene-hour requires complete explicitly present 250 m grid support"
+  },
+  "closed_fields": ["year_timezone", "holiday_calendar", "duplicate_aggregation", "suppression_semantics", "four_temporal_classes", "expected_hours", "spatial_mapping", "temporal_completeness"],
+  "unresolved_fields": [],
+  "provenance": [
+    {"role": "official_2025_calendar_release", "locator": "https://www.kasi.re.kr/kor/publication/post/newsMaterial/30071?cPage=10", "sha256": "6ab9010336e0f5d5c27e7704672bf67bfb53334e55e4460b5059d5061a90b1e8", "retrieved_date": "2026-09-04"},
+    {"role": "official_2025_01_27_temporary_holiday", "locator": "https://www.korea.kr/common/download.do?tblKey=GMN&fileId=198019718", "sha256": "e9440eff7fe364a748c0df7b26e5436a49935bb27dbc0f6b40c7f785ff5adf2c", "retrieved_date": "2026-09-04"},
+    {"role": "official_2025_06_03_election_holiday", "locator": "https://www.korea.kr/common/download.do?fileId=198112121&tblKey=GMN", "sha256": "1a54cf0cdfe97a8dd6c2cb6893f8aa6a43261c384c1502f5ecdd467c9e0446be", "retrieved_date": "2026-09-04"}
+  ],
+  "prohibited": ["suppressed_value_zero_fill", "partial_administrative_sum", "fold_generation", "ridge_fitting"]
+}

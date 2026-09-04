@@ -1,0 +1,28 @@
+version: p11-downstream-preprocessing-v1
+methodology_decision: config/p11_methodology_decision.json
+scene_index: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index/rsi_80031f1493c75163f91b7c71/spatial_scene_index.parquet
+output_root: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_prepared
+sources:
+  sgis: /mnt/hdd002/dhnyu/fusedata/downstream_data/grid_statistics
+  living_population: /mnt/hdd002/dhnyu/fusedata/downstream_data/livingpopulation
+  land_value: /mnt/hdd002/dhnyu/fusedata/downstream_data/official_landvalue
+  ecostress: /mnt/hdd002/dhnyu/fusedata/downstream_data/ECOSTRESS
+contracts:
+  sgis: config/p11_sgis_source_contract.json
+  living_population: config/p11_living_population_source_contract.json
+  land_value: config/p11_land_value_source_contract.json
+  ecostress: config/p11_ecostress_source_contract.json
+source_inventory_sha256:
+  sgis: bf9e5dd4859362529cfb7bf53a7f959e8a2fceb01d25b999df39b882f86dde96
+  living_population: 80192bd35b7c0fb51fbed8225c01780f925f4b566314164b0b635c934f3dae57
+  land_value: 038c509062175f4e1eb637f166ed11be138d7220c98fba5b9fda56a58d3444ca
+  ecostress: 269fd12a88f3472731e1384bf43ad831048c4c5f791f68ca3dda1392e6a16b72
+thresholds:
+  grid_spatial_fraction: 0.0
+  living_temporal_fraction: 0.9
+  land_value_parcel_support_fraction: 1.0
+  ecostress_acquisition_area_fraction: 0.5
+  ecostress_minimum_acquisitions: 12
+  ecostress_required_calendar_quarters: 4
+numeric_tolerance: 1.0e-9
+workers: 4

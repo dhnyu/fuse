@@ -1112,6 +1112,40 @@ Neither partial contract authorizes preprocessing. P11 remains blocked until
 all source semantics and scientific decisions required by a source acceptance
 are closed.
 
+#### P11-A2 methodology closure and preprocessing (2026-09-04)
+
+P11-A2 closes the remaining source and mapping decisions without changing the
+dissertation. Flickr is excluded from active scope because the dissertation
+body and accepted lineage define eleven responses and no Flickr source exists;
+the stale table row remains historical evidence. The immutable decision
+`p11meth_c671fa4c1ebdf9ec3e79bd64` records zero unspecified scientific
+decisions for preprocessing.
+
+- SGIS omissions remain unavailable, never zero. Scene responses sum only
+  explicitly released support and retain the exact target-specific coverage.
+- Living population uses `Asia/Seoul`, all 365 days of 2025, the official
+  Korean holiday calendar including 27 January and 3 June temporary holidays,
+  the four fixed temporal classes, and a 90% valid-hour completeness gate.
+- Land value uses 2026 Seoul parcels, deterministic `st_make_valid()` repair,
+  fail-closed duplicate identities, no unmatched imputation, and complete
+  valued parcel-support coverage.
+- ECOSTRESS accepts acquisitions with at least 50% valid scene area and scenes
+  with at least 12 accepted acquisitions spanning all four calendar quarters.
+  These thresholds were frozen from source-support distributions before target
+  or predictive-result inspection.
+- The later fold contract is 25 leave-one-autonomous-district-out folds by
+  scene center, lowest district-ID boundary tie-break, no buffer, fixed
+  target-independent membership, and nonzero train/test eligibility gates.
+
+The isolated `_targets_p11_preprocessing.R` graph performs only source
+acceptance and deterministic scene-target materialization. It publishes four
+source-family prepared shards, eleven 1,600-row target/eligibility records, and
+one content-addressed dataset acceptance. It does not generate folds, infer new
+embeddings, fit ridge models, or run P11 evaluation. The next boundary is
+`P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`. The accepted dataset is
+`p11ds_fdb1f34c6daeda259e803e37`, selected explicitly by
+`config/p11_downstream_dataset.yml`.
+
 ## 5. Active Dependency Graph and Leakage Barrier
 
 All targets in this graph are defined in [P0-P11](#4-active-roadmap-p0-p11). Boxes labeled acceptance are hard gates.

@@ -27,7 +27,7 @@
     "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "status": {"enum": ["CLOSED", "PARTIALLY_CLOSED", "BLOCKED"]},
     "preprocessing_authorized": {"const": false},
-    "source_family": {"enum": ["sgis_grid_statistics", "ecostress_lst"]},
+    "source_family": {"enum": ["sgis_grid_statistics", "living_population", "official_land_value", "ecostress_lst"]},
     "methodology_authority": {
       "type": "object",
       "required": ["dissertation_commit", "module_contract_id"],

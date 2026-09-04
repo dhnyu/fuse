@@ -137,13 +137,19 @@ def test_living_population_v2_contract_closes_latest_partial_support_rule() -> N
     assert decision["unspecified_scientific_decision_count"] == 0
 
 
-def test_future_rematerialization_contract_does_not_mutate_current_dataset() -> None:
+def test_rematerialization_contract_preserves_superseded_dataset() -> None:
     future = yaml.safe_load(
         (ROOT / "config/p11_downstream_preprocessing_v2.yml").read_text()
     )
     current = yaml.safe_load((ROOT / "config/p11_downstream_dataset.yml").read_text())
-    assert future["status"] == "CONTRACT_ONLY_NOT_EXECUTED"
-    assert future["current_immutable_dataset"] == current["dataset_id"]
+    assert future["status"] == "AUTHORIZED_FOR_LIVING_REMATERIALIZATION"
+    assert future["current_immutable_dataset"] == current["supersedes"]
+    assert future["accepted_output"] == current["dataset_id"]
+    assert (
+        future["accepted_living_population_shard"]
+        == current["living_population_shard_id"]
+    )
     assert future["living_population"]["minimum_valid_scene_hours"] == 1
     assert future["living_population"]["extrapolate_missing_spatial_support"] is False
-    assert current["dataset_id"] == "p11ds_fdb1f34c6daeda259e803e37"
+    assert current["dataset_id"] == "p11ds_39607da2de792ad6b3c9bb30"
+    assert current["supersedes"] == "p11ds_fdb1f34c6daeda259e803e37"

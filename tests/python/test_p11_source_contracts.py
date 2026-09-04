@@ -152,7 +152,14 @@ def test_source_contract_schema_rejects_preprocessing_authority() -> None:
 def test_accepted_downstream_dataset_reference_and_schema() -> None:
     reference = yaml.safe_load((ROOT / "config/p11_downstream_dataset.yml").read_text())
     assert reference["status"] == "ACCEPTED"
-    assert reference["dataset_id"] == "p11ds_fdb1f34c6daeda259e803e37"
+    assert reference["dataset_id"] == "p11ds_39607da2de792ad6b3c9bb30"
+    assert reference["supersedes"] == "p11ds_fdb1f34c6daeda259e803e37"
+    assert reference["dissertation_authority_id"] == "disauth_60a514578f57b9397ce71ee6"
+    assert reference["methodology_decision_id"] == "p11meth_42070c9b832c232a6e989d25"
+    assert (
+        reference["living_population_source_contract_id"]
+        == "p11src_ff2f5bb24376968aedfdfecc"
+    )
     assert reference["target_count"] == 11
     assert reference["scene_universe_count"] == 1600
     assert reference["next_work_unit"] == "P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES"
@@ -160,6 +167,18 @@ def test_accepted_downstream_dataset_reference_and_schema() -> None:
     payload = acceptance_path.read_bytes()
     assert hashlib.sha256(payload).hexdigest() == reference["acceptance_sha256"]
     acceptance = json.loads(payload)
-    jsonschema.Draft202012Validator(DATASET_SCHEMA).validate(acceptance)
+    v2_schema = json.loads(
+        (ROOT / "config/schemas/p11_downstream_dataset_acceptance_v2.schema.json").read_text()
+    )
+    jsonschema.Draft202012Validator(v2_schema).validate(acceptance)
     assert acceptance["dataset_id"] == reference["dataset_id"]
     assert acceptance["content_sha256"] == reference["content_sha256"]
+    assert (
+        acceptance["living_population_shard"]["shard_id"]
+        == reference["living_population_shard_id"]
+    )
+    dataset_root = acceptance_path.parent
+    for artifact in acceptance["artifacts"]:
+        artifact_path = dataset_root / artifact["basename"]
+        assert artifact_path.stat().st_size == artifact["byte_size"]
+        assert hashlib.sha256(artifact_path.read_bytes()).hexdigest() == artifact["sha256"]

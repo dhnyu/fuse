@@ -84,11 +84,10 @@ The P9-A campaign completion audit found no scientific comparability blocker.
 `P9_SELECTED_FM_IP_COMPARISON` and P9-B are complete. The P9 ablation
 completion audit verified every canonical chain and exact dynamic/cached
 overlap. P10 has since completed without reopening P9 selection. P11-A2
-materialized the immutable eleven-target dataset
-`p11ds_fdb1f34c6daeda259e803e37`. The latest dissertation now explicitly
-permits living-population partial spatial support and incomplete temporal
-sequences when at least one valid scene-hour exists. Versioned future contracts
-close that authority conflict without rewriting the accepted dataset. The exact
-next work unit is `P11_LIVING_POPULATION_PARTIAL_SUPPORT_REMATERIALIZATION`;
-only its successful new dataset acceptance may unblock
-`P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`.
+materialized the immutable historical eleven-target dataset
+`p11ds_fdb1f34c6daeda259e803e37`. The dissertation-authorized partial-support
+rematerialization supersedes it with `p11ds_39607da2de792ad6b3c9bb30`, without
+rewriting the historical dataset. The replacement constructs the full
+scene-grid-date-hour support universe, keeps absent observations unavailable,
+and accepts a temporal class only when at least one valid scene-hour exists.
+The exact next work unit is `P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`.

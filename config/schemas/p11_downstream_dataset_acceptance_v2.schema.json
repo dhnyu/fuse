@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p11_downstream_dataset_acceptance_v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "artifact_type", "implementation", "dissertation_authority_id",
+    "methodology_decision_id", "p10_acceptance_id", "scene_index_id", "supersedes",
+    "supersession_reason", "living_population_shard", "source_inventory_sha256",
+    "source_contract_sha256", "output_content_sha256", "reused_artifacts",
+    "target_count", "scene_universe_count", "dataset_id", "content_sha256", "status", "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p11_downstream_dataset_acceptance"},
+    "implementation": {"type": "object", "required": ["version", "implementation_sha256"]},
+    "dissertation_authority_id": {"const": "disauth_60a514578f57b9397ce71ee6"},
+    "methodology_decision_id": {"const": "p11meth_42070c9b832c232a6e989d25"},
+    "p10_acceptance_id": {"const": "p10acc_6e5071beee7616750dec7907"},
+    "scene_index_id": {"const": "rsi_80031f1493c75163f91b7c71"},
+    "supersedes": {"const": "p11ds_fdb1f34c6daeda259e803e37"},
+    "supersession_reason": {"const": "living_population_methodology_authority_revision_to_partial_support"},
+    "living_population_shard": {
+      "type": "object",
+      "required": ["shard_id", "content_sha256"],
+      "properties": {
+        "shard_id": {"type": "string", "pattern": "^p11lp_[0-9a-f]{24}$"},
+        "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "source_inventory_sha256": {"type": "object", "minProperties": 4},
+    "source_contract_sha256": {"type": "object", "minProperties": 4},
+    "output_content_sha256": {"type": "object", "minProperties": 4},
+    "reused_artifacts": {"type": "array", "minItems": 6, "maxItems": 6},
+    "target_count": {"const": 11},
+    "scene_universe_count": {"const": 1600},
+    "dataset_id": {"type": "string", "pattern": "^p11ds_[0-9a-f]{24}$"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"const": "ACCEPTED"},
+    "artifacts": {
+      "type": "array",
+      "minItems": 12,
+      "items": {
+        "type": "object",
+        "required": ["role", "basename", "byte_size", "sha256"],
+        "properties": {
+          "role": {"type": "string"},
+          "basename": {"type": "string"},
+          "byte_size": {"type": "integer", "minimum": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

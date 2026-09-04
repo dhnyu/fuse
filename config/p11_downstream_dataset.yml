@@ -1,11 +1,17 @@
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: ACCEPTED
-dataset_id: p11ds_fdb1f34c6daeda259e803e37
-content_sha256: fdb1f34c6daeda259e803e378cf5325c5e8377edcc76f8dac3e1f82bec421197
-acceptance_path: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_prepared/p11ds_fdb1f34c6daeda259e803e37/downstream_dataset_acceptance.json
-acceptance_sha256: 726fd5e1d9969a01fff797ccdff16bd7d7ae5e090591ea478850d11aa4079a8b
+dataset_id: p11ds_39607da2de792ad6b3c9bb30
+content_sha256: 39607da2de792ad6b3c9bb305e390236e07da97726eae5ebb2d77e7e6bb1daed
+acceptance_path: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_prepared/p11ds_39607da2de792ad6b3c9bb30/downstream_dataset_acceptance.json
+acceptance_sha256: ff246a1134ebd3f6e63b826eab786053718bebb5c5e33baba58b85db246ee51f
 p10_acceptance_id: p10acc_6e5071beee7616750dec7907
 scene_index_id: rsi_80031f1493c75163f91b7c71
+dissertation_authority_id: disauth_60a514578f57b9397ce71ee6
+methodology_decision_id: p11meth_42070c9b832c232a6e989d25
+living_population_source_contract_id: p11src_ff2f5bb24376968aedfdfecc
+living_population_shard_id: p11lp_a79001b2fc01b928ab67f303
+supersedes: p11ds_fdb1f34c6daeda259e803e37
+supersession_reason: living_population_methodology_authority_revision_to_partial_support
 target_count: 11
 scene_universe_count: 1600
 next_work_unit: P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES
@@ -16,3 +22,7 @@ noncanonical_development_outputs:
     reason: idempotent readback exposed an undeclared legacy helper dependency
   - dataset_id: p11ds_deff8cba30999543a72f2f58
     reason: hash file connections were not explicitly closed before validation
+  - dataset_id: p11ds_5b0e57366d593c1ca4b02a35
+    reason: pre-publication daily audit contained a temporary staging path
+  - dataset_id: p11ds_6fe07c22b5aeba1e76ccd632
+    reason: deterministic rerun exposed the same temporary-path defect

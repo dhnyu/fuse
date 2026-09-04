@@ -1138,13 +1138,14 @@ decisions for preprocessing.
   scene center, lowest district-ID boundary tie-break, no buffer, fixed
   target-independent membership, and nonzero train/test eligibility gates.
 
-The isolated `_targets_p11_preprocessing.R` graph performs only source
+The historical `_targets_p11_preprocessing.R` graph performs only source
 acceptance and deterministic scene-target materialization. It publishes four
 source-family prepared shards, eleven 1,600-row target/eligibility records, and
 one content-addressed dataset acceptance. It does not generate folds, infer new
 embeddings, fit ridge models, or run P11 evaluation. The next boundary is
-`P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`. The accepted dataset is
-`p11ds_fdb1f34c6daeda259e803e37`, selected explicitly by
+`P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`. Its accepted dataset
+`p11ds_fdb1f34c6daeda259e803e37` remains immutable historical evidence; the
+active replacement is documented below and selected explicitly by
 `config/p11_downstream_dataset.yml`.
 
 #### P11-A3 living-population coverage redesign audit (2026-09-04)
@@ -1179,11 +1180,13 @@ coverage remain required quality metadata.
 
 The versioned decision `p11meth_42070c9b832c232a6e989d25` and living source
 contract `p11src_ff2f5bb24376968aedfdfecc` supersede only the living-population
-rules for future execution. The previously accepted dataset
-`p11ds_fdb1f34c6daeda259e803e37` and its strict contract remain immutable and
-have not been rematerialized. `config/p11_downstream_preprocessing_v2.yml` is a
-contract-only plan and cannot execute without explicit rematerialization
-authority.
+rules. The isolated `_targets_p11_living_rematerialization.R` graph constructs
+the complete expected grid-hour universe, aggregates only available support,
+and publishes `p11ds_39607da2de792ad6b3c9bb30`. It reuses the seven non-living
+targets byte-for-byte and supersedes, but never mutates,
+`p11ds_fdb1f34c6daeda259e803e37`. The active pointer is
+`config/p11_downstream_dataset.yml`; the next boundary is
+`P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`.
 
 The same dissertation authority confirms `cfg_d128` as the selected full
 model (`d=d_c=128`, four 32-dimensional attention heads, 128-to-256-to-128

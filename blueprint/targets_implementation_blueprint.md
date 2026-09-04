@@ -1030,8 +1030,8 @@ unexecuted.
 |---|---|
 | Purpose | Evaluate frozen scene representations with leakage-controlled spatial ridge-regression probes. |
 | Authoritative inputs | P10 accepted evaluation, the same canonical V2 accepted-checkpoint resolver output, downstream source contract. |
-| Output artifact | Prepared downstream targets, frozen embeddings, spatial folds, ridge predictions/metrics and acceptance. |
-| Schema requirements | Scene/source IDs, target transforms, coverage flags, fold IDs, feature/checkpoint hash, alpha selection, OOF predictions/metrics. |
+| Output artifact | Accepted downstream targets, immutable bindings to accepted P10 gallery embeddings, spatial folds, ridge predictions/metrics and acceptance. |
+| Schema requirements | Scene/source IDs, target transforms, coverage flags, fold IDs, feature/checkpoint hash, fixed ridge `lambda = 1`, OOF predictions/metrics. |
 | Scientific fingerprint | Downstream source/transform + frozen checkpoint/embedding + fold/leakage/coverage + ridge contract. |
 | Acceptance invariants | Embeddings frozen; no target leakage into training; spatially disjoint folds; coverage threshold; OOF completeness; deterministic folds. |
 | Smoke fixture | Synthetic spatial blocks with intentional neighbor/fold leakage and missing coverage. |
@@ -1046,13 +1046,39 @@ unexecuted.
 | `downstream_data_preparation_plan` | P10 evaluation acceptance, P1 scene index, downstream source inputs/contract | Define source-family x spatial shard preparation. |
 | `downstream_data_preparation_shard` | mapped preparation plan | Aggregate/transform downstream labels without model features. |
 | `downstream_dataset_acceptance` | all prepared shards | Publish coverage and source-provenance gate. |
-| `frozen_scene_embedding_plan` | canonical resolver output referenced by P10 acceptance, eligible scenes | Define immutable embedding shards without manual/latest/v1 fallback. |
-| `frozen_scene_embedding_shard` | mapped embedding plan | Produce read-only frozen scene embeddings. |
+| `frozen_scene_embedding_binding` | P10 acceptance, canonical resolver outputs, eligible evaluation-scene IDs | Bind the accepted P10 gallery slice and ordering without new inference or manual/latest/v1 fallback. |
 | `spatial_fold_construction` | accepted downstream dataset, scene index | Build deterministic spatially disjoint folds. |
 | `downstream_leakage_check` | folds, prepared targets, embedding identities | Reject source/scene/spatial/fit-transform leakage. |
 | `downstream_coverage_check` | prepared targets, folds | Verify eligible counts, spatial distribution and missingness. |
-| `ridge_regression_evaluation` | frozen embeddings, accepted folds/checks | Fit/select ridge inside training folds and emit OOF predictions/metrics. |
+| `ridge_regression_evaluation` | bound frozen embeddings, accepted folds/checks | Fit the fixed `lambda = 1` ridge probe independently in each training fold and emit OOF predictions/metrics. |
 | `downstream_acceptance` | all P11 artifacts, P0 authority | Final downstream gate. |
+
+#### P11 readiness audit (2026-09-04)
+
+P10 acceptance supplies the required 1,600 original evaluation-scene gallery
+embeddings for all eight fixed models; P11 must bind and slice those immutable
+artifacts and must not run new embedding inference. The dissertation fixes
+25-fold leave-one-autonomous-district-out evaluation by scene center, a ridge
+probe with intercept and `lambda = 1`, training-fold-only feature/target fitting,
+and pooled out-of-fold R2/RMSE/MAE.
+
+P11 scientific execution is nevertheless blocked pending explicit methodology
+closure. The body specifies eleven downstream responses, while the downstream
+dataset table additionally lists Flickr photos. Source-specific transform and
+coverage decisions are also incomplete: SGIS code/missing semantics, living-
+population holiday and temporal-coverage rules, land-value invalid/unmatched
+parcel handling, ECOSTRESS QA/cloud/unit/temporal rules, target transformation
+maps, district-boundary handling, and minimum coverage/fold/non-degeneracy gates.
+No preprocessing, fold construction, embedding inference, or ridge fitting is
+authorized until these decisions are frozen in an immutable downstream source
+contract.
+
+The implementation sequence after methodology closure is: (A) source contracts
+and immutable source acceptance; (B) deterministic source preprocessing and
+scene-target alignment; (C) district folds plus leakage/coverage gates; (D)
+immutable P10 gallery-embedding bindings; (E) fixed ridge probes and OOF
+predictions; and (F) final comparison and acceptance. This sequence is a plan,
+not an active target implementation.
 
 ## 5. Active Dependency Graph and Leakage Barrier
 

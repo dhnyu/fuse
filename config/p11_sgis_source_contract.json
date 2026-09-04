@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "p11_downstream_source_contract",
+  "contract_name": "p11-sgis-grid-statistics-source-v1",
+  "contract_id": "p11src_9e57aab4897734490f26037a",
+  "content_sha256": "9e57aab4897734490f26037ad360ef4f049a02ebf62f8a9666e3a7b413028e94",
+  "status": "PARTIALLY_CLOSED",
+  "preprocessing_authorized": false,
+  "source_family": "sgis_grid_statistics",
+  "methodology_authority": {
+    "dissertation_commit": "ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a",
+    "module_contract_id": "mmc_3a9bda55a57b8e66"
+  },
+  "source_inventory": {
+    "logical_root": "downstream_data/grid_statistics",
+    "file_count": 10,
+    "total_byte_size": 1698681320,
+    "canonical_order": "UTF-8 bytewise ascending relative path",
+    "record_contract": ["logical_path", "byte_size", "sha256"],
+    "inventory_sha256": "bf9e5dd4859362529cfb7bf53a7f959e8a2fceb01d25b999df39b882f86dde96",
+    "required_files": [
+      {"logical_path": "2024년_가구_다사_100M.csv", "byte_size": 5498705, "sha256": "d8abb27822498cef4d1eac35ad245b4646655041245185beea7fe9e168708934", "role": "households"},
+      {"logical_path": "2024년_사업체_다사_100M.csv", "byte_size": 5462025, "sha256": "fa04bfeb4701cb67d2d3fc01cfab998df5235d312cad19f86a3899811bc7107d", "role": "establishments"},
+      {"logical_path": "2024년_인구_다사_100M.csv", "byte_size": 17315745, "sha256": "a959490296d5e1cf78916c7815b9f5c449816692ed46de9079d37c9dffd1830f", "role": "population"},
+      {"logical_path": "2024년_종사자_다사_100M.csv", "byte_size": 5536301, "sha256": "5bc3b5e724e375b8318cc79982aa213daae2f7a1c5a40113f4f9308b05b64cf7", "role": "workers"},
+      {"logical_path": "2024년_주택_다사_100M.csv", "byte_size": 4820046, "sha256": "89fb35194e3c76e07b9637801c1a9519f22efc10a73536f1529f208fb9cf3c20", "role": "housing_units"},
+      {"logical_path": "3. 제공용 코드(statistics_code).xls", "byte_size": 192512, "sha256": "e72eac92cce04bc01f3702ed37b5e3b12af2cee244e9af19c9595891392983e7", "role": "official_supplied_codebook"},
+      {"logical_path": "빈격자(100m).dbf", "byte_size": 184428439, "sha256": "5c35f0160fdada8f7537f8689213f38020659fe2da9756212e6f286c5da25824", "role": "grid_attributes"},
+      {"logical_path": "빈격자(100m).prj", "byte_size": 611, "sha256": "0c549431311685a7f58ce669878c50db7b4d77d5b27e4a3c942067b8654bbe48", "role": "grid_crs"},
+      {"logical_path": "빈격자(100m).shp", "byte_size": 1393458684, "sha256": "845916fe9470b89874a7821dd8eb6f49f1ed71814135d0bb2a6463c8c10e129c", "role": "grid_geometry"},
+      {"logical_path": "빈격자(100m).shx", "byte_size": 81968252, "sha256": "50d2128491d375dff92e74140059646d2ddbb3b447e1c5dd96f0d7fd9babcbc5", "role": "grid_index"}
+    ]
+  },
+  "semantic_contract": {
+    "source_year": 2024,
+    "native_grid_metres": 100,
+    "native_crs": "EPSG:5179",
+    "csv_encoding": "CP949",
+    "csv_columns": ["year", "grid_id", "statistic_code", "released_value"],
+    "codebook": {
+      "worksheet": "격자",
+      "header_row": 2,
+      "code_column": 4,
+      "korean_label_column": 3,
+      "english_labels_are_translations": true
+    },
+    "targets": [
+      {"target": "total_population", "code": "to_in_001", "korean_label": "총인구", "english_label": "total population", "category": "총괄/총인구", "unit": "released persons count"},
+      {"target": "households", "code": "to_ga_001", "korean_label": "총가구수", "english_label": "total households", "category": "총괄/총가구", "unit": "released household count"},
+      {"target": "housing_units", "code": "to_ho_001", "korean_label": "총주택(거처)수", "english_label": "total housing units", "category": "총괄/총주택", "unit": "released housing-unit count"},
+      {"target": "establishments", "code": "to_fa_010", "korean_label": "총사업체수", "english_label": "total establishments", "category": "총괄/총사업체", "unit": "released establishment count"},
+      {"target": "workers", "code": "to_em_020", "korean_label": "총종사자수", "english_label": "total workers", "category": "총괄/총종사자", "unit": "released person count"}
+    ],
+    "privacy": {
+      "release_definition": "official SGIS privacy-protected released grid statistic, not an estimate of the latent true count",
+      "portal_method": "BSCA noise/controlled replacement",
+      "use_released_values_exactly": true,
+      "denoise_or_reconstruct": false,
+      "explicit_zero": "retain as observed released zero",
+      "small_released_count": "retain as released, including BSCA-protected values"
+    },
+    "row_omission": {
+      "official_meanings": ["no population or establishment in grid", "no value for requested statistic"],
+      "distinguishable_per_row": false,
+      "provisional_ingest_action": "missing, never silently zero",
+      "scene_level_authorization": "blocked until the two official meanings can be resolved or an explicit scientific missingness policy is approved"
+    },
+    "future_scene_mapping": {
+      "variable_type": "extensive",
+      "scene_size_metres": 500,
+      "operation": "sum(released_value * intersection_area / source_grid_area)",
+      "boundary_rule": "exact polygon intersection in the accepted equal-area scene CRS with deterministic grid_id ordering",
+      "duplicate_rule": "duplicate year/grid_id/statistic_code is invalid",
+      "output_cardinality": "one response per eligible scene and target"
+    }
+  },
+  "closed_fields": [
+    "five_target_code_mapping",
+    "source_year",
+    "native_grid_and_crs",
+    "privacy_protected_release_definition",
+    "explicit_zero_handling",
+    "no_denoising_or_reconstruction",
+    "extensive_overlap_weighted_scene_aggregation",
+    "duplicate_rejection"
+  ],
+  "unresolved_fields": [
+    {
+      "field": "row_omission_semantics",
+      "classification": "BLOCKED_SOURCE_SEMANTICS",
+      "reason": "The official manual says an omitted grid row can mean either no population/establishment or no value for the statistic; the supplied rows contain no flag that distinguishes those cases."
+    }
+  ],
+  "provenance": [
+    {"role": "supplied_codebook", "locator": "downstream_data/grid_statistics/3. 제공용 코드(statistics_code).xls", "sha256": "e72eac92cce04bc01f3702ed37b5e3b12af2cee244e9af19c9595891392983e7", "note": "The prompt's /mnt/data locator was absent; this source-directory copy was audited."},
+    {"role": "official_small_area_statistics_manual", "locator": "https://sgis.kostat.go.kr/html/attachFiles/개정판 SGIS 소지역 통계 이용매뉴얼.pdf", "sha256": "144afc96aa9b68a1fad220346e614f8e045d78deb683b3e97abc0f0f166abb53", "retrieved_date": "2026-09-04"}
+  ],
+  "prohibited": [
+    "downstream_preprocessing",
+    "scene_target_materialization",
+    "treat_omitted_row_as_zero",
+    "privacy_reversal",
+    "denoising",
+    "fold_generation",
+    "ridge_fitting"
+  ]
+}

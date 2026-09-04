@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p11_downstream_source_contract.schema.json",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "contract_name",
+    "contract_id",
+    "content_sha256",
+    "status",
+    "preprocessing_authorized",
+    "source_family",
+    "methodology_authority",
+    "source_inventory",
+    "semantic_contract",
+    "closed_fields",
+    "unresolved_fields",
+    "provenance",
+    "prohibited"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "p11_downstream_source_contract"},
+    "contract_name": {"type": "string", "minLength": 1},
+    "contract_id": {"type": "string", "pattern": "^p11src_[0-9a-f]{24}$"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"enum": ["CLOSED", "PARTIALLY_CLOSED", "BLOCKED"]},
+    "preprocessing_authorized": {"const": false},
+    "source_family": {"enum": ["sgis_grid_statistics", "ecostress_lst"]},
+    "methodology_authority": {
+      "type": "object",
+      "required": ["dissertation_commit", "module_contract_id"],
+      "properties": {
+        "dissertation_commit": {"const": "ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a"},
+        "module_contract_id": {"const": "mmc_3a9bda55a57b8e66"}
+      },
+      "additionalProperties": false
+    },
+    "source_inventory": {
+      "type": "object",
+      "required": ["logical_root", "file_count", "total_byte_size", "canonical_order", "record_contract", "inventory_sha256", "required_files"],
+      "properties": {
+        "logical_root": {"type": "string", "minLength": 1},
+        "file_count": {"type": "integer", "minimum": 1},
+        "total_byte_size": {"type": "integer", "minimum": 1},
+        "canonical_order": {"const": "UTF-8 bytewise ascending relative path"},
+        "record_contract": {"const": ["logical_path", "byte_size", "sha256"]},
+        "inventory_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "required_files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "required": ["logical_path", "byte_size", "sha256", "role"],
+            "properties": {
+              "logical_path": {"type": "string", "minLength": 1},
+              "byte_size": {"type": "integer", "minimum": 1},
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "role": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "semantic_contract": {"type": "object", "minProperties": 1},
+    "closed_fields": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "unresolved_fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["field", "classification", "reason"],
+        "properties": {
+          "field": {"type": "string", "minLength": 1},
+          "classification": {"enum": ["BLOCKED_SCIENTIFIC_DECISION", "BLOCKED_SOURCE_SEMANTICS"]},
+          "reason": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["role", "locator"],
+        "properties": {
+          "role": {"type": "string", "minLength": 1},
+          "locator": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "retrieved_date": {"type": "string", "format": "date"},
+          "note": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "prohibited": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "additionalProperties": false
+}

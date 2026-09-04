@@ -1080,6 +1080,38 @@ immutable P10 gallery-embedding bindings; (E) fixed ridge probes and OOF
 predictions; and (F) final comparison and acceptance. This sequence is a plan,
 not an active target implementation.
 
+#### P11-A SGIS and ECOSTRESS contract audit (2026-09-04)
+
+Two immutable, non-authorizing partial source contracts record the closed facts:
+
+- SGIS `p11src_9e57aab4897734490f26037a` fixes the five 2024 codes,
+  EPSG:5179 100 m support, released privacy-protected value semantics, explicit
+  zero retention, and extensive overlap-weighted scene aggregation. It remains
+  blocked because the official manual assigns two indistinguishable meanings to
+  an absent statistic row: structural absence and unavailable statistic.
+- ECOSTRESS `p11src_683e32d59c65b8094c308d19` fixes
+  `ECO_L2T_LSTE.002`, the seven downloaded layers, mandatory QA bits `00`, the
+  separate clear-cloud value `0`, water retention, source-valid finite Kelvin,
+  distinct-timestamp observations, and equal acquisition weighting. It remains
+  blocked on minimum valid area, minimum acquisition count, and final temporal
+  coverage.
+
+| Decision | Status after P11-A |
+|---|---|
+| Flickr scope | `BLOCKED_SCIENTIFIC_DECISION` |
+| SGIS five-code mapping | `CLOSED` |
+| SGIS privacy and explicit-zero semantics | `CLOSED` |
+| SGIS omitted-row semantics | `BLOCKED_SOURCE_SEMANTICS` |
+| Living-population calendar/completeness | `BLOCKED_SCIENTIFIC_DECISION` |
+| Land-value invalid/unmatched handling | `BLOCKED_SCIENTIFIC_DECISION` |
+| ECOSTRESS product/layers, QA/cloud/water/unit, timestamp and weighting rules | `CLOSED` |
+| ECOSTRESS coverage thresholds | `BLOCKED_SCIENTIFIC_DECISION` |
+| District boundary and fold minimum coverage | `BLOCKED_SCIENTIFIC_DECISION` |
+
+Neither partial contract authorizes preprocessing. P11 remains blocked until
+all source semantics and scientific decisions required by a source acceptance
+are closed.
+
 ## 5. Active Dependency Graph and Leakage Barrier
 
 All targets in this graph are defined in [P0-P11](#4-active-roadmap-p0-p11). Boxes labeled acceptance are hard gates.

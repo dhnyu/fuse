@@ -1146,6 +1146,26 @@ embeddings, fit ridge models, or run P11 evaluation. The next boundary is
 `p11ds_fdb1f34c6daeda259e803e37`, selected explicitly by
 `config/p11_downstream_dataset.yml`.
 
+#### P11-A3 living-population coverage redesign audit (2026-09-04)
+
+The proposed partial-support living-population redesign is blocked by the
+authoritative reduced dissertation. The request would retain a scene-hour when
+any intersecting 250 m source observation is available and preserve observed
+support as metadata, but the dissertation explicitly requires geographic
+coverage to span the complete 500 m scene. No new methodology decision, source
+contract, prepared shard, or dataset acceptance was published. The active
+dataset remains `p11ds_fdb1f34c6daeda259e803e37` and is byte-unchanged.
+
+A read-only 365-day source audit found that the proposed `>=1` valid-hour rule
+would retain 1,565--1,570 scenes depending on temporal class; 30--35 scenes
+have no usable observation for a class and cannot be retained without
+imputation. It also exposed that the current implementation's merge does not
+place omitted `(grid_id,hour)` cells in the scene-hour denominator. Therefore
+the accepted 471/291/486/360 counts reproduce from its immutable outputs, but a
+complete grid-hour-universe audit produces stricter 90%-coverage counts of
+327/192/332/231. P11-C must not begin until an explicit methodology-authority
+decision resolves partial-support eligibility and the implementation issue.
+
 ## 5. Active Dependency Graph and Leakage Barrier
 
 All targets in this graph are defined in [P0-P11](#4-active-roadmap-p0-p11). Boxes labeled acceptance are hard gates.

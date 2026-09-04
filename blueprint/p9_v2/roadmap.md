@@ -82,4 +82,9 @@ completion audit verified every canonical chain and exact dynamic/cached
 overlap. P10 has since completed without reopening P9 selection. The exact next
 P11-A2 has now closed the source methodology and materialized the accepted
 eleven-target dataset without new embedding inference or model fitting. The
-exact next bounded work unit is `P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`.
+P11-A3 subsequently audited a proposed living-population partial-support
+redesign and blocked it because the reduced dissertation explicitly requires
+complete scene coverage. No P11 artifact was superseded or republished. The
+next work must first resolve that methodology-authority contradiction; only a
+successful resolution and rematerialization may unblock
+`P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`.

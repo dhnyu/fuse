@@ -167,5 +167,11 @@ bundle `p9rb_b98d354c193bf5009befe00f`, finalization
 `p9elig_250e0140d593f360f1368ef1`. All 15 overlapping validation boundaries
 through epoch 75 reproduce the dynamic trajectory exactly after normalizing
 lineage-specific checkpoint IDs. P9-A is complete, P9-B is 7/7 complete,
-`cfg_d128` remains the fixed final full model, and held-out evaluation remains
-unconsumed but is ready for its separately authorized execution unit.
+and `cfg_d128` remains the fixed final full model.
+
+P10 held-out evaluation is complete under authority
+`p10auth_8b6919578aaa24fa8f1b98a2`. The prepared-input re-execution
+`p10exec_7fee193dac532190c79e02c6` evaluated the closed eight-model set and
+published acceptance `p10acc_6e5071beee7616750dec7907`. It reuses the single
+0-to-1 consumption record `p10cons_7d0eba832b70d545fc5d3eb4`; no second
+consumption transition exists. P10 does not reopen the P9 selection decision.

@@ -1015,6 +1015,14 @@ committed outputs from an earlier attempt.
 | `final_model_comparison` | retrieval, representation, UMAP/HDBSCAN, ablations/baselines | Publish cross-model/config comparison tables. |
 | `evaluation_acceptance` | all P10 artifacts, P0 authority | Final held-out evaluation gate and immutable result manifest. |
 
+The closed eight-model P10 campaign is complete. Prepared-input execution
+attempt `p10exec_7fee193dac532190c79e02c6` published immutable acceptance
+`p10acc_6e5071beee7616750dec7907` while retaining the original single
+consumption transition `p10cons_7d0eba832b70d545fc5d3eb4`. Validation
+revalidation, quantitative and qualitative retrieval, and frozen UMAP/HDBSCAN
+artifacts passed independent readback and aggregate recomputation. P11 remains
+unexecuted.
+
 <a id="p11-downstream-evaluation"></a>
 ### P11 Downstream Evaluation
 

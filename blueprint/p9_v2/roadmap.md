@@ -70,10 +70,15 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
   `p9bplan_e36f7c9c5069a504eb31a9ef`. The original DS-like trajectory remains
   preserved as operator-abandoned evidence; its fresh cached replacement is
   acceptance `p9accv2_f4194b7c74f8dedb4c867e6b`.
-- Held-out evaluation: not started.
+- P10 held-out evaluation: complete for the closed eight-model set under
+  `p10auth_8b6919578aaa24fa8f1b98a2`; prepared-input attempt
+  `p10exec_7fee193dac532190c79e02c6` is accepted as
+  `p10acc_6e5071beee7616750dec7907` and reuses the single consumption record
+  `p10cons_7d0eba832b70d545fc5d3eb4`.
 
 The P9-A campaign completion audit found no scientific comparability blocker.
 `P9_SELECTED_FM_IP_COMPARISON` and P9-B are complete. The P9 ablation
-completion audit verified every canonical chain, exact dynamic/cached overlap,
-and zero evaluation consumption. Status is `HELDOUT_EVALUATION_READY`; the
-exact next bounded work unit is `P9_HELDOUT_EVALUATION_EXECUTION`.
+completion audit verified every canonical chain and exact dynamic/cached
+overlap. P10 has since completed without reopening P9 selection. The exact next
+bounded work unit is `P11 Downstream Evaluation`: leakage-controlled frozen
+scene embeddings and spatial ridge-regression probes using accepted P10 evidence.

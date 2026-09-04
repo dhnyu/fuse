@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "dissertation_authority_refresh",
+  "status": "ACTIVE_P11_FUTURE",
+  "supersedes": "disauth_60a514578f57b9397ce71ee6",
+  "dissertation": {
+    "repository": "dhnyu-masters-dissertation",
+    "branch": "reduced",
+    "commit": "989c19d98e64ec129dc53b761c58a4d961fc3983",
+    "documents": [
+      {"logical_path": "template/sections/chapters/results/04-downstream-representation-utility.typ", "sha256": "512acd2359544fbf24736225e82190b8113bd8f23973b0e9e9bc90d945241fd8"}
+    ]
+  },
+  "scope": "P11 target transformations and future spatial ridge execution only",
+  "historical_artifacts_rewritten": false,
+  "authority_id": "disauth_febd90b8475a5e9caa9f7d2f",
+  "content_sha256": "febd90b8475a5e9caa9f7d2fa29d1902fe29f50db56ab0283760810b5fe564c1"
+}

@@ -1,0 +1,16 @@
+schema_version: 1.0.0
+status: PASS
+readiness_id: p11c_e78d7c740edc49f1f646ebc3
+content_sha256: e78d7c740edc49f1f646ebc324f2e5716cf111aed1ffb7f368fda69ed77346ba
+acceptance_sha256: 216d96f9bdc7ff70e49aa66e4784335430a0c380d0f73a615720e648836f5fae
+acceptance_path: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_readiness/p11c_e78d7c740edc49f1f646ebc3/p11_c_acceptance.json
+master_fold_id: p11fold_48a03eba108b799379891e4c
+embedding_binding_id: p11emb_0fe61f9e1dc0faf640084abb
+dissertation_authority_id: disauth_febd90b8475a5e9caa9f7d2f
+methodology_id: p11meth_6cc844b7f5d1fc896d9e7be2
+downstream_dataset_id: p11ds_39607da2de792ad6b3c9bb30
+p10_acceptance_id: p10acc_6e5071beee7616750dec7907
+next_work_unit: P11_E_SPATIAL_RIDGE_PROBES_AND_OOF_PREDICTIONS
+noncanonical_development_outputs:
+  - readiness_id: p11c_2d941e185f215e0f23be9dd9
+    reason: pre-publication identity did not bind the implementation hash

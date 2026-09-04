@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p11_target_transformation_methodology.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "status", "dissertation_authority_id", "supersedes_methodology_id", "downstream_dataset_id", "decision_timing", "transforms", "forward", "inverse", "domain", "parameter_free", "predictor_standardization", "metrics_scale", "ridge", "prohibited", "methodology_id", "content_sha256"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "p11_target_transformation_methodology"},
+    "status": {"const": "CLOSED"},
+    "dissertation_authority_id": {"pattern": "^disauth_[0-9a-f]{24}$"},
+    "supersedes_methodology_id": {"const": "p11meth_42070c9b832c232a6e989d25"},
+    "downstream_dataset_id": {"const": "p11ds_39607da2de792ad6b3c9bb30"},
+    "decision_timing": {"const": "before downstream predictive result inspection"},
+    "transforms": {"type": "array", "minItems": 11, "maxItems": 11, "items": {"type": "object", "required": ["target", "transform"], "properties": {"target": {"type": "string"}, "transform": {"enum": ["log1p", "identity"]}}, "additionalProperties": false}},
+    "forward": {"type": "object"},
+    "inverse": {"type": "object"},
+    "domain": {"type": "object"},
+    "parameter_free": {"const": true},
+    "predictor_standardization": {"const": "fit on training fold only"},
+    "metrics_scale": {"const": "original target scale after inverse transformation"},
+    "ridge": {"type": "object", "required": ["intercept", "lambda", "alpha_tuning", "inner_cv"]},
+    "prohibited": {"type": "array"},
+    "methodology_id": {"pattern": "^p11meth_[0-9a-f]{24}$"},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"}
+  }
+}

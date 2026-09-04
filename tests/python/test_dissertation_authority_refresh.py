@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import jsonschema
@@ -46,8 +47,16 @@ def test_latest_dissertation_authority_is_hash_bound_and_readable() -> None:
     assert authority["dissertation"]["commit"] == "4adbd49b6dacab589d2fa99d88ec5be83aceb287"
     if DISSERTATION.exists():
         for document in authority["dissertation"]["documents"]:
-            path = DISSERTATION / document["logical_path"]
-            assert hashlib.sha256(path.read_bytes()).hexdigest() == document["sha256"]
+            committed = subprocess.check_output(
+                [
+                    "git",
+                    "-C",
+                    str(DISSERTATION),
+                    "show",
+                    f'{authority["dissertation"]["commit"]}:{document["logical_path"]}',
+                ]
+            )
+            assert hashlib.sha256(committed).hexdigest() == document["sha256"]
 
 
 def test_selected_full_model_matches_latest_dissertation_dimensions() -> None:

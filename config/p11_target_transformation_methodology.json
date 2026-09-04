@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "p11_target_transformation_methodology",
+  "status": "CLOSED",
+  "dissertation_authority_id": "disauth_febd90b8475a5e9caa9f7d2f",
+  "supersedes_methodology_id": "p11meth_42070c9b832c232a6e989d25",
+  "downstream_dataset_id": "p11ds_39607da2de792ad6b3c9bb30",
+  "decision_timing": "before downstream predictive result inspection",
+  "transforms": [
+    {"target": "total_population", "transform": "log1p"},
+    {"target": "households", "transform": "log1p"},
+    {"target": "housing_units", "transform": "log1p"},
+    {"target": "establishments", "transform": "log1p"},
+    {"target": "workers", "transform": "log1p"},
+    {"target": "weekday_daytime", "transform": "log1p"},
+    {"target": "weekday_nighttime", "transform": "log1p"},
+    {"target": "weekend_daytime", "transform": "log1p"},
+    {"target": "weekend_nighttime", "transform": "log1p"},
+    {"target": "official_land_value", "transform": "log1p"},
+    {"target": "ecostress_lst", "transform": "identity"}
+  ],
+  "forward": {"log1p": "log(1 + y)", "identity": "y"},
+  "inverse": {"log1p": "exp(y_transformed) - 1", "identity": "y_transformed"},
+  "domain": {"log1p": "finite and nonnegative", "identity": "finite"},
+  "parameter_free": true,
+  "predictor_standardization": "fit on training fold only",
+  "metrics_scale": "original target scale after inverse transformation",
+  "ridge": {"intercept": true, "lambda": 1, "alpha_tuning": false, "inner_cv": false},
+  "prohibited": ["transformation_tuning", "negative_value_shift", "negative_value_clip", "box_cox", "yeo_johnson", "rank_transform", "learned_offset", "predictive_result_informed_change"],
+  "methodology_id": "p11meth_6cc844b7f5d1fc896d9e7be2",
+  "content_sha256": "6cc844b7f5d1fc896d9e7be25ba48c7b544bb7b82750c40bc2d1eeb8b5c57ce9"
+}

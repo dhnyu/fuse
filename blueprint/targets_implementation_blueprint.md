@@ -1197,6 +1197,24 @@ rewritten. The accepted P9/P10 cfg_d128 checkpoint and embeddings remain the
 canonical frozen predictors. The exact next work unit is
 `P11_LIVING_POPULATION_PARTIAL_SUPPORT_REMATERIALIZATION`.
 
+#### P11 transformation closure and spatial readiness (2026-09-05)
+
+Dissertation `reduced@989c19d98e64ec129dc53b761c58a4d961fc3983` fixes the
+target transforms before downstream model comparison. The five SGIS targets,
+four living-population targets, and official land value use parameter-free
+`log1p`; ECOSTRESS Kelvin LST uses identity. Predictions must be inverse-
+transformed before original-scale R2, RMSE, and MAE. This authority is bound by
+`disauth_febd90b8475a5e9caa9f7d2f` and methodology
+`p11meth_6cc844b7f5d1fc896d9e7be2`; historical authorities and datasets remain
+immutable.
+
+The isolated `_targets_p11_spatial_readiness.R` graph materializes no model
+fit. It publishes one 1,600-scene center-point district assignment, 275
+target-fold eligibility/evaluability records, eight hash-bound P10 gallery-
+slice bindings, leakage gates, and prospective OOF ownership evidence.
+Readiness `p11c_e78d7c740edc49f1f646ebc3` has 25/25 evaluable folds for every
+target and authorizes only `P11_E_SPATIAL_RIDGE_PROBES_AND_OOF_PREDICTIONS`.
+
 ## 5. Active Dependency Graph and Leakage Barrier
 
 All targets in this graph are defined in [P0-P11](#4-active-roadmap-p0-p11). Boxes labeled acceptance are hard gates.

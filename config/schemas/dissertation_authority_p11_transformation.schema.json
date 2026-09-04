@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/dissertation_authority_p11_transformation.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "status",
+    "supersedes",
+    "dissertation",
+    "scope",
+    "historical_artifacts_rewritten",
+    "authority_id",
+    "content_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "dissertation_authority_refresh"},
+    "status": {"const": "ACTIVE_P11_FUTURE"},
+    "supersedes": {"const": "disauth_60a514578f57b9397ce71ee6"},
+    "dissertation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "branch", "commit", "documents"],
+      "properties": {
+        "repository": {"const": "dhnyu-masters-dissertation"},
+        "branch": {"const": "reduced"},
+        "commit": {"const": "989c19d98e64ec129dc53b761c58a4d961fc3983"},
+        "documents": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["logical_path", "sha256"],
+            "properties": {
+              "logical_path": {"type": "string", "minLength": 1},
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        }
+      }
+    },
+    "scope": {"const": "P11 target transformations and future spatial ridge execution only"},
+    "historical_artifacts_rewritten": {"const": false},
+    "authority_id": {"const": "disauth_febd90b8475a5e9caa9f7d2f"},
+    "content_sha256": {"const": "febd90b8475a5e9caa9f7d2fa29d1902fe29f50db56ab0283760810b5fe564c1"}
+  }
+}

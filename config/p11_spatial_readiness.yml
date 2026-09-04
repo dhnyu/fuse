@@ -1,0 +1,22 @@
+schema_version: 1.0.0
+contract_name: p11-spatial-readiness-v1
+publication_root: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_readiness
+dissertation_authority: config/dissertation_authority_p11_transformation.json
+transformation_methodology: config/p11_target_transformation_methodology.json
+downstream_dataset: config/p11_downstream_dataset.yml
+p10_contract: config/p10_evaluation.yml
+scene_index: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index/rsi_80031f1493c75163f91b7c71/spatial_scene_index.parquet
+district_boundary: /mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_sigungu_00_2025_2Q.shp
+district_crs: EPSG:5179
+scene_crs: EPSG:5186
+folds:
+  count: 25
+  assignment: scene_center
+  boundary_tie_break: lowest_canonical_district_id
+  buffer_metres: 0
+ridge:
+  intercept: true
+  lambda: 1
+  alpha_tuning: false
+  inner_cv: false
+next_work_unit: P11_E_SPATIAL_RIDGE_PROBES_AND_OOF_PREDICTIONS

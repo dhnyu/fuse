@@ -15,7 +15,8 @@ supersession_reason: living_population_methodology_authority_revision_to_partial
 target_count: 11
 scene_universe_count: 1600
 p11_c_readiness_id: p11c_e78d7c740edc49f1f646ebc3
-next_work_unit: P11_E_SPATIAL_RIDGE_PROBES_AND_OOF_PREDICTIONS
+p11_e_acceptance_id: p11e_047e764ed7467b72ebe846df
+next_work_unit: P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE
 noncanonical_development_outputs:
   - dataset_id: p11ds_65f0ef98f7e4008937f70c34
     reason: pre-publication identity did not bind output scientific-content hashes

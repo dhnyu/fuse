@@ -162,8 +162,9 @@ def test_accepted_downstream_dataset_reference_and_schema() -> None:
     )
     assert reference["target_count"] == 11
     assert reference["scene_universe_count"] == 1600
-    assert reference["next_work_unit"] == "P11_E_SPATIAL_RIDGE_PROBES_AND_OOF_PREDICTIONS"
+    assert reference["next_work_unit"] == "P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE"
     assert reference["p11_c_readiness_id"] == "p11c_e78d7c740edc49f1f646ebc3"
+    assert reference["p11_e_acceptance_id"] == "p11e_047e764ed7467b72ebe846df"
     acceptance_path = Path(reference["acceptance_path"])
     payload = acceptance_path.read_bytes()
     assert hashlib.sha256(payload).hexdigest() == reference["acceptance_sha256"]

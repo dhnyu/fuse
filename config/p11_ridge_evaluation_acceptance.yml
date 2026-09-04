@@ -1,0 +1,14 @@
+schema_version: 1.0.0
+status: PASS
+acceptance_id: p11e_047e764ed7467b72ebe846df
+content_sha256: 047e764ed7467b72ebe846df04dd5e408f48c917da65eb5832b017b73f6c0766
+acceptance_sha256: 9cb67827449bbb5172af223fbd2798ca8bd7d2ffd99cf06f00b2e64c019a99d0
+acceptance_path: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_ridge/p11e_047e764ed7467b72ebe846df/p11_e_acceptance.json
+p11_c_acceptance_id: p11c_e78d7c740edc49f1f646ebc3
+master_fold_id: p11fold_48a03eba108b799379891e4c
+embedding_binding_id: p11emb_0fe61f9e1dc0faf640084abb
+downstream_dataset_id: p11ds_39607da2de792ad6b3c9bb30
+fit_count: 2200
+oof_row_count: 128432
+metric_row_count: 88
+next_work_unit: P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE

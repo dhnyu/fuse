@@ -97,5 +97,9 @@ while ECOSTRESS Kelvin LST uses identity. P11-C readiness
 `p11c_e78d7c740edc49f1f646ebc3` assigns all 1,600 scenes to exactly one of 25
 district folds, binds the original 1,600-row gallery slice for all eight P10
 models, and passes all 275 target-fold evaluability and leakage gates without
-fitting a ridge model or producing predictions. The exact next work unit is
-`P11_E_SPATIAL_RIDGE_PROBES_AND_OOF_PREDICTIONS`.
+fitting a ridge model or producing predictions. P11-E is now complete:
+`p11e_047e764ed7467b72ebe846df` binds 2,200 successful fixed-
+lambda ridge fits, 128,432 exactly-once original-scale OOF predictions, and 88
+pooled metric rows. It uses only training-fold predictor statistics and does
+not alter P9/P10 selection. The exact next work unit is
+`P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE`.

@@ -1,0 +1,37 @@
+schema_version: 1.0.0
+contract_name: p11-spatial-ridge-v1
+publication_root: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_ridge
+readiness_pointer: config/p11_spatial_readiness_acceptance.yml
+transformation_methodology: config/p11_target_transformation_methodology.json
+downstream_dataset_pointer: config/p11_downstream_dataset.yml
+p10_contract: config/p10_evaluation.yml
+parallel_workers: 8
+blas_threads_per_worker: 1
+ridge:
+  intercept: true
+  lambda: 1.0
+  solver: float64_normal_equation_solve
+  predictor_standard_deviation_ddof: 0
+  zero_variance_scale: 1.0
+models:
+  - cfg_d128
+  - cmp_a1_geometric_core
+  - cmp_a2_semantic_enriched
+  - cmp_a3_object_context_enriched
+  - cmp_a4_raster_complete_non_relational
+  - cmp_a5_relation_type_agnostic
+  - cmp_ssv_like
+  - cmp_ds_like
+targets:
+  - total_population
+  - households
+  - housing_units
+  - establishments
+  - workers
+  - weekday_daytime
+  - weekday_nighttime
+  - weekend_daytime
+  - weekend_nighttime
+  - official_land_value
+  - ecostress_lst
+next_work_unit: P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE

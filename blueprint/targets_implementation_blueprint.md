@@ -1215,6 +1215,20 @@ slice bindings, leakage gates, and prospective OOF ownership evidence.
 Readiness `p11c_e78d7c740edc49f1f646ebc3` has 25/25 evaluable folds for every
 target and authorizes only `P11_E_SPATIAL_RIDGE_PROBES_AND_OOF_PREDICTIONS`.
 
+#### P11-E spatial ridge probes and OOF predictions (2026-09-05)
+
+The isolated `_targets_p11_ridge.R` graph consumes only P11-C readiness, the
+fixed transform methodology, and the accepted downstream dataset. Acceptance
+`p11e_047e764ed7467b72ebe846df` records 2,200/2,200 successful fits and
+128,432 exactly-once OOF predictions across eight frozen P10 gallery
+representations, eleven targets, and 25 district-held-out folds. Each fit uses
+training-fold-only population mean/standard deviation, keeps zero-variance
+dimensions with scale one, fits the dissertation objective with an unpenalized
+intercept and `lambda = 1`, and inverse-transforms predictions before pooled
+original-scale R2/RMSE/MAE. The fixed FM remains `cfg_d128`; these outputs do
+not reopen P9 selection. The next boundary is
+`P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE`.
+
 ## 5. Active Dependency Graph and Leakage Barrier
 
 All targets in this graph are defined in [P0-P11](#4-active-roadmap-p0-p11). Boxes labeled acceptance are hard gates.

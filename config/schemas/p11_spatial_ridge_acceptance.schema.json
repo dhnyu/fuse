@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p11_spatial_ridge_acceptance.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "artifact_type", "implementation_version", "implementation_sha256",
+    "dissertation_authority_id", "transformation_methodology_id", "p11_c_acceptance_id",
+    "master_fold_id", "embedding_binding_id", "downstream_dataset_id", "p10_acceptance_id",
+    "model_count", "target_count", "fold_count", "fit_count", "oof_row_count",
+    "metric_row_count", "ridge_lambda", "intercept", "scientific_output_sha256",
+    "next_work_unit", "acceptance_id", "content_sha256", "status", "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "p11_spatial_ridge_oof_acceptance"},
+    "implementation_version": {"const": "p11-spatial-ridge-v1"},
+    "implementation_sha256": {"const": "43d92ee070e5aadf9661f7f41693a1624c9af2f2abc02ef99ce699b24af7a0ee"},
+    "dissertation_authority_id": {"const": "disauth_febd90b8475a5e9caa9f7d2f"},
+    "transformation_methodology_id": {"const": "p11meth_6cc844b7f5d1fc896d9e7be2"},
+    "p11_c_acceptance_id": {"const": "p11c_e78d7c740edc49f1f646ebc3"},
+    "master_fold_id": {"const": "p11fold_48a03eba108b799379891e4c"},
+    "embedding_binding_id": {"const": "p11emb_0fe61f9e1dc0faf640084abb"},
+    "downstream_dataset_id": {"const": "p11ds_39607da2de792ad6b3c9bb30"},
+    "p10_acceptance_id": {"const": "p10acc_6e5071beee7616750dec7907"},
+    "model_count": {"const": 8},
+    "target_count": {"const": 11},
+    "fold_count": {"const": 25},
+    "fit_count": {"const": 2200},
+    "oof_row_count": {"const": 128432},
+    "metric_row_count": {"const": 88},
+    "ridge_lambda": {"const": 1},
+    "intercept": {"const": true},
+    "scientific_output_sha256": {
+      "type": "object", "minProperties": 8, "maxProperties": 8,
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    },
+    "next_work_unit": {"const": "P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE"},
+    "acceptance_id": {"const": "p11e_047e764ed7467b72ebe846df"},
+    "content_sha256": {"const": "047e764ed7467b72ebe846df04dd5e408f48c917da65eb5832b017b73f6c0766"},
+    "status": {"const": "PASS"},
+    "artifacts": {
+      "type": "array", "minItems": 9, "maxItems": 9,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["basename", "byte_size", "sha256"],
+        "properties": {
+          "basename": {"type": "string"},
+          "byte_size": {"type": "integer", "minimum": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

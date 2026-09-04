@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "dissertation_authority_refresh",
+  "authority_id": "disauth_60a514578f57b9397ce71ee6",
+  "content_sha256": "60a514578f57b9397ce71ee69dabfa013cdd572edc0a0f9ffd6f59898b140a2c",
+  "status": "ACTIVE",
+  "dissertation": {
+    "repository": "dhnyu-masters-dissertation",
+    "branch": "reduced",
+    "commit": "4adbd49b6dacab589d2fa99d88ec5be83aceb287",
+    "documents": [
+      {"logical_path": "template/materials/tables/results-02-model-dimension-table.typ", "sha256": "f9b1389b8b90cbbd2ec603f3dfbbe4b6b6d9ad3d99b1a3dd453ed9de539361fe"},
+      {"logical_path": "template/materials/tables/results-05-model-architecture-table.typ", "sha256": "870fba29b7b1fc155c4c746f92ffb13038f60224ed12fb2532b8d4e0633e1a50"},
+      {"logical_path": "template/sections/chapters/results/04-downstream-representation-utility.typ", "sha256": "5e807e9aecd3503661099263755f573c992d494682f4780768e542d862ef7571"},
+      {"logical_path": "template/sections/chapters/results/05-hyperparameter-study.typ", "sha256": "b528440850e07ac737b767ac51727439d2fe7c8d5fbe19a58bb43a57c7f4abcb"}
+    ]
+  },
+  "selected_full_model": {
+    "configuration_id": "cfg_d128",
+    "acceptance_id": "p9accv2_a1c00e32a882ddc4b7e2677b",
+    "checkpoint_id": "p9ck_56195e9ea3cd45d80cf5e23c",
+    "dimensions": {
+      "d": 128,
+      "d_c": 128,
+      "d_t": 16,
+      "d_r": 32,
+      "d_a": 32,
+      "poi_hierarchy": [8, 12, 16, 16, 24, 32],
+      "poi_common_projection": 32,
+      "land_cover_embedding": 16,
+      "attention_heads": 4,
+      "per_head": 32,
+      "relation_ffn": [128, 256, 128],
+      "fusion_input": 640,
+      "final_scene_representation": 128,
+      "mask_embedding": 128,
+      "contrastive_head": [128, 256, 128],
+      "land_cover_cnn_channels": [64, 128, 128],
+      "dem_cnn_channels": [64, 128, 128]
+    }
+  },
+  "historical_reference": {
+    "configuration_id": "cfg_main",
+    "reporting_alias": "cfg_d64",
+    "d": 64,
+    "role": "reference configuration shared across the immutable original OFAT study",
+    "identity_rewrite": false
+  },
+  "p10": {
+    "acceptance_id": "p10acc_6e5071beee7616750dec7907",
+    "selected_model": "cfg_d128",
+    "embedding_regeneration_required": false
+  },
+  "p11": {
+    "living_population_partial_spatial_support": true,
+    "living_population_minimum_valid_scene_hours": 1,
+    "missing_values_are_zero": false,
+    "dataset_rematerialized": false,
+    "folds_generated": false,
+    "ridge_fitted": false
+  }
+}

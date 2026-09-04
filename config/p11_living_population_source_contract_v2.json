@@ -1,0 +1,61 @@
+{
+  "schema_version": "2.0.0",
+  "artifact_type": "p11_downstream_source_contract",
+  "contract_name": "p11-living-population-source-v2",
+  "contract_id": "p11src_ff2f5bb24376968aedfdfecc",
+  "content_sha256": "ff2f5bb24376968aedfdfecc3b5cc34cfce07ed9b19741b198c6593d64fa47b3",
+  "status": "CLOSED",
+  "preprocessing_authorized": false,
+  "source_family": "living_population",
+  "methodology_authority": {
+    "dissertation_commit": "4adbd49b6dacab589d2fa99d88ec5be83aceb287",
+    "dissertation_authority_id": "disauth_60a514578f57b9397ce71ee6",
+    "methodology_decision_id": "p11meth_42070c9b832c232a6e989d25"
+  },
+  "supersedes": {
+    "contract_id": "p11src_fe6e9b4985da4229c182d1c1",
+    "content_sha256": "fe6e9b4985da4229c182d1c1c3628183843f8c7b5272bd82fa19cae886b8df51",
+    "reason": "The latest dissertation explicitly permits partial spatial support and incomplete temporal sequences."
+  },
+  "source_inventory": {
+    "logical_root": "downstream_data/livingpopulation",
+    "file_count": 369,
+    "total_byte_size": 22809895556,
+    "canonical_order": "UTF-8 bytewise ascending relative path",
+    "record_contract": ["logical_path", "byte_size", "sha256"],
+    "inventory_sha256": "80192bd35b7c0fb51fbed8225c01780f925f4b566314164b0b635c934f3dae57",
+    "required_files": [
+      {"logical_path": "250_LOCAL_RESD_20250101.csv", "byte_size": 66467814, "sha256": "a39491ab9ba451d9d6a245d8b22155f7fd35463d4277949b87ae61bee39172ca", "role": "daily_schema_and_first_day"},
+      {"logical_path": "빈격자(250m).shp", "byte_size": 230268228, "sha256": "a9447999ced13a30f1a71d96fa611ca3057e2e1fd37f9199374102d7c3953222", "role": "grid_geometry"},
+      {"logical_path": "빈격자(250m).dbf", "byte_size": 33863057, "sha256": "4195f659323e9730e0b2b69f80c7c80a99072a7728fedc6c0f8ebfc026769cca", "role": "grid_attributes"},
+      {"logical_path": "빈격자(250m).prj", "byte_size": 611, "sha256": "0c549431311685a7f58ce669878c50db7b4d77d5b27e4a3c942067b8654bbe48", "role": "grid_crs"},
+      {"logical_path": "빈격자(250m).shx", "byte_size": 13545284, "sha256": "28a257e7030b250cdc0ebd1bb496a011f3ae20397c3a940463579677047d4493", "role": "grid_index"}
+    ]
+  },
+  "semantic_contract": {
+    "source_year": 2025,
+    "timezone": "Asia/Seoul",
+    "native_grid_metres": 250,
+    "native_crs": "EPSG:5179",
+    "unit": "persons",
+    "duplicate_rule": "sum administrative rows by grid_id/date/hour only when every component is finite and nonnegative; otherwise unavailable",
+    "suppression_rule": "suppressed or nonnumeric values are unavailable, never zero",
+    "daytime_hours": "09:00-18:59",
+    "nighttime_hours": "19:00-08:59",
+    "weekday_rule": "Monday-Friday excluding official Korean public holidays",
+    "weekend_rule": "Saturday, Sunday, and official Korean public holidays",
+    "expected_hour_counts": {"weekday_daytime": 2440, "weekday_nighttime": 3416, "weekend_daytime": 1210, "weekend_nighttime": 1694},
+    "scene_hour_mapping": "overlap-weighted extensive sum over finite available intersecting grid observations without extrapolation to unavailable scene area",
+    "spatial_coverage_metadata": "record available intersecting area divided by the full scene area for every valid scene-hour",
+    "temporal_mapping": "arithmetic mean over valid scene-hour observations in each fixed temporal class; missing hours are excluded, never zero-filled",
+    "eligibility_rule": "at least one valid hourly scene-level observation in the temporal class",
+    "zero_observation_rule": "ineligible for that target only"
+  },
+  "closed_fields": ["year_timezone", "holiday_calendar", "duplicate_aggregation", "suppression_semantics", "four_temporal_classes", "expected_hours", "partial_spatial_mapping", "coverage_metadata", "temporal_mean", "eligibility"],
+  "unresolved_fields": [],
+  "provenance": [
+    {"role": "superseded_source_contract", "locator": "config/p11_living_population_source_contract.json", "sha256": "23b2cc890c8966f8a37c6b02d2c25f3f7d5a505cb2b9722d7f35937e5662bab2"},
+    {"role": "latest_dissertation_methodology", "locator": "template/sections/chapters/results/04-downstream-representation-utility.typ", "sha256": "5e807e9aecd3503661099263755f573c992d494682f4780768e542d862ef7571"}
+  ],
+  "prohibited": ["suppressed_value_zero_fill", "missing_area_extrapolation", "missing_hour_zero_fill", "fold_generation", "ridge_fitting", "preprocessing_in_authority_refresh"]
+}

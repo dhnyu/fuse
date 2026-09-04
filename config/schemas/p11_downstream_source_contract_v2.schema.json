@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/p11_downstream_source_contract_v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "contract_name", "contract_id", "content_sha256", "status", "preprocessing_authorized", "source_family", "methodology_authority", "supersedes", "source_inventory", "semantic_contract", "closed_fields", "unresolved_fields", "provenance", "prohibited"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "artifact_type": {"const": "p11_downstream_source_contract"},
+    "contract_name": {"const": "p11-living-population-source-v2"},
+    "contract_id": {"type": "string", "pattern": "^p11src_[0-9a-f]{24}$"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"const": "CLOSED"},
+    "preprocessing_authorized": {"const": false},
+    "source_family": {"const": "living_population"},
+    "methodology_authority": {"type": "object", "required": ["dissertation_commit", "dissertation_authority_id", "methodology_decision_id"]},
+    "supersedes": {"type": "object", "required": ["contract_id", "content_sha256", "reason"]},
+    "source_inventory": {"type": "object", "required": ["logical_root", "file_count", "total_byte_size", "canonical_order", "record_contract", "inventory_sha256", "required_files"]},
+    "semantic_contract": {"type": "object", "required": ["source_year", "timezone", "native_grid_metres", "native_crs", "unit", "duplicate_rule", "suppression_rule", "daytime_hours", "nighttime_hours", "weekday_rule", "weekend_rule", "expected_hour_counts", "scene_hour_mapping", "spatial_coverage_metadata", "temporal_mapping", "eligibility_rule", "zero_observation_rule"]},
+    "closed_fields": {"type": "array", "minItems": 1, "uniqueItems": true},
+    "unresolved_fields": {"const": []},
+    "provenance": {"type": "array", "minItems": 2},
+    "prohibited": {"type": "array", "minItems": 1, "uniqueItems": true}
+  }
+}

@@ -2,7 +2,8 @@ schema_version: "2.0.0"
 contract_name: p9-v2-production-training-controller-v1
 source:
   required_branch: reduced
-  dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
+  dissertation_commit: 4adbd49b6dacab589d2fa99d88ec5be83aceb287
+  dissertation_authority_id: disauth_60a514578f57b9397ce71ee6
 parents:
   p8_acceptance_id: p8acc_c9f16a07275aadfae928d329
   p8_hyperparameter_matrix_id: p8hm_f34f1666b62255babab0ae08

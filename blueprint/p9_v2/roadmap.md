@@ -75,16 +75,20 @@ These rules handle the historical target bootstrap and closure failures as `BLOC
   `p10exec_7fee193dac532190c79e02c6` is accepted as
   `p10acc_6e5071beee7616750dec7907` and reuses the single consumption record
   `p10cons_7d0eba832b70d545fc5d3eb4`.
+- Future scientific contracts bind dissertation
+  `reduced@4adbd49b6dacab589d2fa99d88ec5be83aceb287` through
+  `disauth_60a514578f57b9397ce71ee6`; historical P9/P10 bindings remain
+  immutable.
 
 The P9-A campaign completion audit found no scientific comparability blocker.
 `P9_SELECTED_FM_IP_COMPARISON` and P9-B are complete. The P9 ablation
 completion audit verified every canonical chain and exact dynamic/cached
-overlap. P10 has since completed without reopening P9 selection. The exact next
-P11-A2 has now closed the source methodology and materialized the accepted
-eleven-target dataset without new embedding inference or model fitting. The
-P11-A3 subsequently audited a proposed living-population partial-support
-redesign and blocked it because the reduced dissertation explicitly requires
-complete scene coverage. No P11 artifact was superseded or republished. The
-next work must first resolve that methodology-authority contradiction; only a
-successful resolution and rematerialization may unblock
+overlap. P10 has since completed without reopening P9 selection. P11-A2
+materialized the immutable eleven-target dataset
+`p11ds_fdb1f34c6daeda259e803e37`. The latest dissertation now explicitly
+permits living-population partial spatial support and incomplete temporal
+sequences when at least one valid scene-hour exists. Versioned future contracts
+close that authority conflict without rewriting the accepted dataset. The exact
+next work unit is `P11_LIVING_POPULATION_PARTIAL_SUPPORT_REMATERIALIZATION`;
+only its successful new dataset acceptance may unblock
 `P11_C_SPATIAL_FOLDS_AND_LEAKAGE_GATES`.

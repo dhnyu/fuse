@@ -24,9 +24,10 @@ acceptance above and `resolve_accepted_checkpoint()`.
 ## Authority and methodology
 
 - Fuse starting lineage: `reduced@e84fc1943beee33a4299472369e2c976e6baa7e6`.
-- Dissertation lineage: `reduced@ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a`.
+- Historical P9 methodology lineage: `reduced@ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a`.
+- Active dissertation authority for future work: `reduced@4adbd49b6dacab589d2fa99d88ec5be83aceb287`, bound by `disauth_60a514578f57b9397ce71ee6`.
 - Methodology read: `template/sections/chapters/04-methodology-training.typ`, `template/sections/chapters/results/03-representation-analysis.typ`, and the active implementation blueprint.
-- No methodology conflict was found. The v2 design preserves validation every five epochs, retrieval-loss selection with the `1e-4` equivalence rule, margin then earlier-epoch tie breaking, and patience four.
+- The refreshed dissertation preserves validation every five epochs, retrieval-loss selection with the `1e-4` equivalence rule, margin then earlier-epoch tie breaking, and patience four. It also confirms `cfg_d128` as the final full model while retaining `cfg_main`/`cfg_d64` as immutable OFAT history.
 
 ## Design in one view
 

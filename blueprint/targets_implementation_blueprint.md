@@ -3,10 +3,10 @@
 ## 0. Document Status and Authority
 
 - **상태:** 승인된 read-only audit를 반영한 active implementation blueprint.
-- **개정 시각:** 2026-08-30 KST.
+- **개정 시각:** 2026-09-04 KST.
 - **구현 저장소 기준:** `/members/dhnyu/fuse`, branch `reduced`; P8 implementation commit is bound by the published P8 authority.
-- **논문 방법론 기준:** `/members/dhnyu/dhnyu-masters-dissertation`, branch `reduced`, commit `ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a`.
-- **Active status:** P0-P7 accepted; P7 runtime acceptance `p7rta_c780441a553abe26772827d0`; P8 nested-comparison republication is the current plan-only implementation unit.
+- **논문 방법론 기준:** `/members/dhnyu/dhnyu-masters-dissertation`, branch `reduced`, commit `4adbd49b6dacab589d2fa99d88ec5be83aceb287` (`disauth_60a514578f57b9397ce71ee6`).
+- **Active status:** P0-P10 accepted; `cfg_d128` is the selected full model and P10 acceptance is `p10acc_6e5071beee7616750dec7907`. P11 living-population rematerialization is the next scientific boundary.
 - **승인 근거:** [20260827_1748 reduced methodology read-only audit](../reports/20260827_1748_reduced_methodology_read_only_audit.md).
 - **방법론 권위:** dissertation reduced Typst 원문, 승인 감사 보고서, 이 blueprint, 기존 구현/artifact 순이다.
 - **작업 범위:** 이 개정은 P8-P9 comparison 계획과 그 plan-only publication contract만 변경한다. P1-P7 scientific artifacts, P9 training, evaluation and maintenance execution remain outside scope.
@@ -52,7 +52,8 @@ study_data_inputs
 | Intermediate/sliding centers | prohibited; no 250 m stride |
 | Training/validation/evaluation | 2,421 / 400 / 1,600; total 4,421 |
 | Off-grid exclusion | nearest training center distance at least 50 m |
-| Model dimensions | `d=64`, `d_c=64`, `d_t=16`, `d_r=32` |
+| Selected full-model dimensions | `d=128`, `d_c=128`, `d_t=16`, `d_r=32`, `d_a=32` |
+| Historical OFAT reference | immutable `cfg_main` (`cfg_d64` reporting alias), `d=d_c=64` |
 | Main augmentation bank | fixed before training; effective `K_aug=8` |
 | K study master | common physical 16-view master; nested K=2/4/8/16 indices |
 | Global dropout | 0.2 |
@@ -1165,6 +1166,33 @@ the accepted 471/291/486/360 counts reproduce from its immutable outputs, but a
 complete grid-hour-universe audit produces stricter 90%-coverage counts of
 327/192/332/231. P11-C must not begin until an explicit methodology-authority
 decision resolves partial-support eligibility and the implementation issue.
+
+#### Dissertation authority refresh (2026-09-04)
+
+The latest reduced dissertation, commit
+`4adbd49b6dacab589d2fa99d88ec5be83aceb287`, is bound by
+`disauth_60a514578f57b9397ce71ee6`. It closes the P11-A3 authority conflict:
+living-population scene-hours use all available intersecting 250 m observations
+without extrapolation, temporal means exclude missing hours, and a target is
+eligible when at least one valid scene-hour exists. Spatial and temporal
+coverage remain required quality metadata.
+
+The versioned decision `p11meth_42070c9b832c232a6e989d25` and living source
+contract `p11src_ff2f5bb24376968aedfdfecc` supersede only the living-population
+rules for future execution. The previously accepted dataset
+`p11ds_fdb1f34c6daeda259e803e37` and its strict contract remain immutable and
+have not been rematerialized. `config/p11_downstream_preprocessing_v2.yml` is a
+contract-only plan and cannot execute without explicit rematerialization
+authority.
+
+The same dissertation authority confirms `cfg_d128` as the selected full
+model (`d=d_c=128`, four 32-dimensional attention heads, 128-to-256-to-128
+relation FFN, 640-dimensional fusion input, and 128-dimensional final scene
+representation). Historical `cfg_main` remains the original d64 OFAT reference
+and is only displayed as `cfg_d64`; no identity or accepted evidence is
+rewritten. The accepted P9/P10 cfg_d128 checkpoint and embeddings remain the
+canonical frozen predictors. The exact next work unit is
+`P11_LIVING_POPULATION_PARTIAL_SUPPORT_REMATERIALIZATION`.
 
 ## 5. Active Dependency Graph and Leakage Barrier
 

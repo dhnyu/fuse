@@ -1,0 +1,42 @@
+{
+  "schema_version": "2.0.0",
+  "artifact_type": "p11_methodology_decision",
+  "decision_id": "p11meth_42070c9b832c232a6e989d25",
+  "content_sha256": "42070c9b832c232a6e989d25c862bbd2c701db6c60c5953be6a215f9207345ce",
+  "status": "CLOSED",
+  "dissertation_authority_id": "disauth_60a514578f57b9397ce71ee6",
+  "dissertation_commit": "4adbd49b6dacab589d2fa99d88ec5be83aceb287",
+  "supersedes": {
+    "decision_id": "p11meth_c671fa4c1ebdf9ec3e79bd64",
+    "content_sha256": "c671fa4c1ebdf9ec3e79bd649fc7be2e9b9720e6808132293919f61d1fae4a01",
+    "scope": "living_population_spatial_and_temporal_eligibility_only"
+  },
+  "p10_acceptance_id": "p10acc_6e5071beee7616750dec7907",
+  "scene_index_id": "rsi_80031f1493c75163f91b7c71",
+  "active_targets": ["total_population", "households", "housing_units", "establishments", "workers", "weekday_daytime", "weekday_nighttime", "weekend_daytime", "weekend_nighttime", "official_land_value", "ecostress_lst"],
+  "flickr": {"status": "EXCLUDED_STALE_TABLE_EVIDENCE", "reason": "The dissertation body and accepted methodology lineage define eleven downstream responses and no Flickr source exists."},
+  "coverage_rules": {
+    "sgis": "unchanged: sum only explicitly present target-specific source-grid support; require positive represented area and retain exact coverage fraction",
+    "living_spatial": "overlap-weighted sum over available intersecting 250 m observations without extrapolation to unavailable support; retain observed spatial support fraction per scene-hour",
+    "living_temporal": "arithmetic mean over available scene-hour observations in the fixed class; require at least one valid scene-hour; retain valid-hour count and fraction",
+    "land_value": "unchanged: complete valued support among source parcel geometry intersecting the scene",
+    "ecostress": "unchanged: at least 50 percent valid scene area per acquisition, at least 12 acquisitions, and at least one acquisition in each calendar quarter"
+  },
+  "district_folds": {
+    "count": 25,
+    "algorithm": "leave one Seoul autonomous district out",
+    "assignment": "scene center point",
+    "boundary_tie_break": "lowest canonical district ID among covering boundaries",
+    "spatial_buffer_metres": 0,
+    "target_missingness": "fold membership fixed independently of response eligibility",
+    "empty_fold_rule": "retain structural fold but exclude it from metric aggregation with explicit coverage reason",
+    "fit_gate": "nonzero eligible train and test populations"
+  },
+  "downstream_dataset": {
+    "current_immutable_dataset_id": "p11ds_fdb1f34c6daeda259e803e37",
+    "status": "REQUIRES_FUTURE_LIVING_POPULATION_REMATERIALIZATION",
+    "mutated": false
+  },
+  "unspecified_scientific_decision_count": 0,
+  "prohibited": ["flickr_preprocessing", "new_embedding_inference", "fold_generation", "ridge_fitting", "response_informed_threshold_tuning", "dataset_rematerialization_in_authority_refresh"]
+}

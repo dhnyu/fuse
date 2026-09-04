@@ -1,0 +1,32 @@
+version: p11-downstream-preprocessing-v2
+status: CONTRACT_ONLY_NOT_EXECUTED
+dissertation_authority: config/dissertation_authority_refresh.json
+methodology_decision: config/p11_methodology_decision_v2.json
+supersedes_execution_contract: config/p11_downstream_preprocessing.yml
+current_immutable_dataset: p11ds_fdb1f34c6daeda259e803e37
+future_output: new_content_addressed_dataset_without_mutating_current_dataset
+scene_index: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index/rsi_80031f1493c75163f91b7c71/spatial_scene_index.parquet
+sources:
+  sgis: /mnt/hdd002/dhnyu/fusedata/downstream_data/grid_statistics
+  living_population: /mnt/hdd002/dhnyu/fusedata/downstream_data/livingpopulation
+  land_value: /mnt/hdd002/dhnyu/fusedata/downstream_data/official_landvalue
+  ecostress: /mnt/hdd002/dhnyu/fusedata/downstream_data/ECOSTRESS
+contracts:
+  sgis: config/p11_sgis_source_contract.json
+  living_population: config/p11_living_population_source_contract_v2.json
+  land_value: config/p11_land_value_source_contract.json
+  ecostress: config/p11_ecostress_source_contract.json
+living_population:
+  spatial_aggregation: overlap_weighted_sum_of_available_support
+  extrapolate_missing_spatial_support: false
+  temporal_aggregation: arithmetic_mean_of_valid_scene_hours
+  minimum_valid_scene_hours: 1
+  zero_observation_scene: ineligible_for_target_only
+  retain_spatial_and_temporal_coverage_metadata: true
+prohibited:
+  - execute_from_this_contract_without_explicit_rematerialization_authority
+  - mutate_p11ds_fdb1f34c6daeda259e803e37
+  - missing_value_zero_fill
+  - model_specific_eligibility
+  - fold_generation
+  - ridge_fitting

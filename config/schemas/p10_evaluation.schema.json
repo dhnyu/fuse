@@ -1,0 +1,20 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://fuse.local/schemas/p10_evaluation.schema.json",
+  "title":"P10 full evaluation contract",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["schema_version","contract_name","publication_root","runtime_root","model_set","inputs","accepted_evaluation","validation_revalidation","qualitative","analysis","execution","prepared_input","reexecution"],
+  "properties":{
+    "schema_version":{"const":"1.0.0"},
+    "contract_name":{"const":"p10-full-evaluation-v1"},
+    "publication_root":{"type":"string","minLength":1},
+    "runtime_root":{"type":"string","minLength":1},
+    "model_set":{"type":"array","minItems":8,"maxItems":8,"uniqueItems":true,"items":{"type":"object","additionalProperties":false,"required":["configuration_id","acceptance_id","family"],"properties":{"configuration_id":{"type":"string"},"acceptance_id":{"pattern":"^p9accv2_[0-9a-f]{24}$"},"family":{"enum":["FM","A1","A2","A3","A4","A5","SSV","DS"]}}}},
+    "inputs":{"type":"object","minProperties":12,"additionalProperties":{"type":"string","minLength":1}},
+    "accepted_evaluation":{"type":"object","additionalProperties":false,"required":["split_acceptance_id","query_index_id","gallery_id","mapping_id","original_count","query_count","gallery_count"],"properties":{"split_acceptance_id":{"const":"fqsa_3a2581d57c735d2e5ebc91fd"},"query_index_id":{"const":"fqi_55aa7d01752b5f3b1bdbd6c2"},"gallery_id":{"const":"fgg_2fa46178130bfc397a9e722c"},"mapping_id":{"const":"fqpm_1534ab2bf81f24a6a94c0cae"},"original_count":{"const":1600},"query_count":{"const":3200},"gallery_count":{"const":1600}}},
+    "validation_revalidation":{"type":"object"},"qualitative":{"type":"object"},"analysis":{"type":"object"},"execution":{"type":"object"},
+    "prepared_input":{"type":"object","additionalProperties":false,"required":["contract_version","root","geometry_root","batch_size","build_workers","loader","environment"],"properties":{"contract_version":{"const":"p10-prepared-input-v1"},"root":{"type":"string","minLength":1},"geometry_root":{"type":"string","minLength":1},"batch_size":{"const":8},"build_workers":{"type":"integer","minimum":1,"maximum":48},"loader":{"type":"object","additionalProperties":false,"required":["workers","prefetch","pin_memory","nonblocking_h2d"],"properties":{"workers":{"type":"integer","minimum":1},"prefetch":{"type":"integer","minimum":1},"pin_memory":{"const":true},"nonblocking_h2d":{"const":true}}},"environment":{"type":"object","additionalProperties":false,"required":["torch","numpy","scikit-learn","umap-learn","hdbscan","pyarrow"],"properties":{"torch":{"type":"string"},"numpy":{"type":"string"},"scikit-learn":{"type":"string"},"umap-learn":{"type":"string"},"hdbscan":{"type":"string"},"pyarrow":{"type":"string"}}}}},
+    "reexecution":{"type":"object","additionalProperties":false,"required":["authority_id","consumption_id","interruption_reason","interrupted_tmux_session","interrupted_completed_models"],"properties":{"authority_id":{"const":"p10auth_8b6919578aaa24fa8f1b98a2"},"consumption_id":{"const":"p10cons_7d0eba832b70d545fc5d3eb4"},"interruption_reason":{"const":"OPERATOR_REQUESTED_PERFORMANCE_REMEDIATION_P10_INPUT_PIPELINE"},"interrupted_tmux_session":{"const":"p10_model_shards_20260904"},"interrupted_completed_models":{"const":["cmp_ssv_like","cmp_ds_like"]}}}
+  }
+}

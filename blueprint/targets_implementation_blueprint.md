@@ -965,7 +965,7 @@ in a worker `finally` path.
 | Field | Contract |
 |---|---|
 | Purpose | Evaluate the frozen selected FM and accepted comparison checkpoints; no training or checkpoint creation occurs in P10. |
-| Authoritative inputs | P9 V2 acceptance identities resolved through the canonical accepted-checkpoint resolver, P5 fixed validation/evaluation query/gallery acceptances, evaluation contract. |
+| Authoritative inputs | P9 V2 acceptance identities resolved through the canonical accepted-checkpoint resolver, P5 fixed validation/evaluation query/gallery acceptances, the accepted P9 validation prepared cache, and the evaluation contract. |
 | Output artifact | Embeddings, metrics/rankings, qualitative retrieval, UMAP/HDBSCAN, representation analysis, baselines/ablations, model comparison and acceptance. |
 | Schema requirements | Checkpoint/query/gallery IDs, embedding dimension/hash, full ranks, retrieval loss/margin/MRR/HIT, analysis seeds/parameters, baseline config, result provenance. |
 | Scientific fingerprint | Selected checkpoint + fixed query/gallery identity + evaluation/analysis implementation/config. |
@@ -977,8 +977,27 @@ in a worker `finally` path.
 | Downstream invalidation | Checkpoint/query/evaluation contract change invalidates affected P10/P11 outputs, not training. |
 | Prohibited early execution | Held-out evaluation cannot tune hyperparameters, select checkpoints, reset patience or become an ancestor of P7-P9. |
 
+P10 formal evaluation consumes immutable, tensor-ready prepared inputs rather than
+reconstructing each scene from tar, Parquet, and Zarr sources for every model. The
+prepared-input identity binds the accepted P9 validation cache, accepted held-out
+scene/query/gallery evidence, ordered scene/view identities, preprocessing contract,
+source hashes, tensor schema, dtype, layout, deterministic DS rasters, and the fixed
+2 km exclusion masks. Evaluation geometry Fourier features are materialized in a
+separate content-addressed cache whose identity binds the prepared-input plan and the
+accepted vectorized geometry implementation. Formal P10 has no dynamic input fallback:
+missing, stale, malformed, or hash-mismatched entries fail closed.
+
+An operational P10 retry after held-out access reuses the original closed evaluation
+authority, qualitative-query contract, analysis contract, and consumption record. It
+publishes into an immutable execution-attempt namespace bound to those identities,
+the prepared caches, exact dependency versions, implementation hash, and interruption
+reason. A retry never resets or duplicates evaluation consumption and never overwrites
+committed outputs from an earlier attempt.
+
 | Target | Direct dependencies | Role |
 |---|---|---|
+| `p10_prepared_input_cache` | accepted P9 validation cache, fixed evaluation query/gallery evidence, preprocessing and source contracts | Atomically publish and validate deterministic tensor batches, DS rasters, and non-local masks; no formal dynamic fallback. |
+| `p10_prepared_geometry_cache` | prepared input cache, accepted vectorized geometry implementation/configuration | Materialize immutable evaluation geometry Fourier tensors on two GPUs and reject missing, stale, or mismatched payloads. |
 | `validation_embedding_plan` | selected checkpoints, fixed validation acceptance | Cost-balanced selected-model x validation scene/query specs. |
 | `validation_embedding_shard` | mapped validation plan | Produce frozen original/query embeddings. |
 | `validation_embeddings_and_metrics` | all validation embeddings | Publish final validation metrics for reporting, not re-selection. |

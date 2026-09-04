@@ -1229,6 +1229,27 @@ original-scale R2/RMSE/MAE. The fixed FM remains `cfg_d128`; these outputs do
 not reopen P9 selection. The next boundary is
 `P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE`.
 
+#### P11-G diagnostic probe matrix (2026-09-05)
+
+The isolated `_targets_p11_diagnostics.R` graph binds immutable P11-E Spatial
+Ridge evidence and adds exactly three diagnostic cells: five-fold Random
+Ridge, district-held-out Spatial MLP, and five-fold Random MLP. Random folds
+are a target-independent PCG64 permutation of the canonical 1,600-scene
+population followed by round-robin assignment, using content-derived seed
+`4824802954555229827`. Every MLP fit uses the single frozen
+`128 -> 64 -> 1` GELU/dropout contract, train/inner-validation isolation,
+train-only predictor standardization, and original-scale pooled metrics.
+
+Acceptance `p11g_b1ad31498120f8f4a9445958` records 3,080/3,080 new fits,
+513,728 exactly-once four-cell OOF rows and a 352-row metric table. The 2,640
+MLP fits ran as deterministic independent tasks on two RTX A6000 GPUs with two
+persistent workers per GPU. CUDA changes execution provenance only: a fixed
+native-dropout schedule makes fit seed/identity backend-independent, and the
+bounded CPU/CUDA gate reproduced the same best epoch with maximum prediction
+difference below `1e-4`. P11-E acceptance and P9 model selection remain
+immutable. The next boundary is
+`P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE`.
+
 ## 5. Active Dependency Graph and Leakage Barrier
 
 All targets in this graph are defined in [P0-P11](#4-active-roadmap-p0-p11). Boxes labeled acceptance are hard gates.

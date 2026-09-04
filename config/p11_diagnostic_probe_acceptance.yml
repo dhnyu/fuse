@@ -1,0 +1,6 @@
+schema_version: 1.0.0
+acceptance_id: p11g_b1ad31498120f8f4a9445958
+status: PASS
+acceptance_path: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_diagnostics/p11g_b1ad31498120f8f4a9445958/p11_g_acceptance.json
+acceptance_sha256: a1310a4cc8a40e92645827616fbffea71e5c5fd8df2e7f3c5d7901e038c28218
+next_work_unit: P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE

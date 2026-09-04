@@ -1,0 +1,62 @@
+schema_version: 1.0.0
+contract_name: p11-diagnostic-probe-matrix-v1
+status: FROZEN_BEFORE_DIAGNOSTIC_FITTING
+publication_root: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_diagnostics
+dissertation_authority_id: disauth_febd90b8475a5e9caa9f7d2f
+transformation_methodology_id: p11meth_6cc844b7f5d1fc896d9e7be2
+p11_c_acceptance_id: p11c_e78d7c740edc49f1f646ebc3
+p11_e_acceptance_pointer: config/p11_ridge_evaluation_acceptance.yml
+downstream_dataset_id: p11ds_39607da2de792ad6b3c9bb30
+embedding_binding_id: p11emb_0fe61f9e1dc0faf640084abb
+input_contract: config/p11_ridge_evaluation.yml
+seed:
+  derivation_label: p11-g-diagnostic-v1
+  preimage: p11-g-diagnostic-v1|disauth_febd90b8475a5e9caa9f7d2f|p11c_e78d7c740edc49f1f646ebc3|p11e_047e764ed7467b72ebe846df|p11emb_0fe61f9e1dc0faf640084abb
+  sha256: 42f524b969850683878ea60c71f0038b7952d029105ff41d0f479063a9b2533a
+  conversion: first_8_digest_bytes_big_endian_bitwise_and_2^63_minus_1
+  global_seed: 4824802954555229827
+random_cv:
+  folds: 5
+  algorithm: numpy_pcg64_permutation_then_round_robin
+  target_independent: true
+  stratified: false
+ridge:
+  lambda: 1.0
+  intercept: true
+  solver: float64_normal_equation_solve
+mlp:
+  architecture: [128, 64, 1]
+  activation: GELU_exact
+  dropout: 0.1
+  optimizer: AdamW
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  betas: [0.9, 0.999]
+  epsilon: 1.0e-8
+  batch_size: 64
+  maximum_epochs: 200
+  inner_validation_fraction: 0.1
+  inner_validation_count: floor_10_percent_of_outer_train
+  patience: 20
+  improvement_rule: strictly_lower_transformed_scale_mse
+  restore_best: true
+  target_standardization: false
+  predictor_standardization: inner_training_partition_only
+  dtype: float32
+  deterministic_algorithms: true
+execution:
+  backend: dual_cuda_task_parallel
+  gpu_indices: [0, 1]
+  persistent_workers_per_gpu: 2
+  allow_tf32: false
+  mixed_precision: false
+  cpu_gpu_equivalence:
+    prediction_atol: 0.001
+    prediction_rtol: 0.0001
+    validation_loss_atol: 0.0001
+    metric_atol: 0.001
+    best_epoch_tolerance: 1
+parallel:
+  mlp_processes: 4
+  threads_per_process: 1
+next_work_unit: P11_F_FINAL_DOWNSTREAM_COMPARISON_AND_ACCEPTANCE

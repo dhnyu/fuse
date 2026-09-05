@@ -1,0 +1,16 @@
+schema_version: "1.0.0"
+required_phase_ids: [Authority, Spatial, Cache, Inference, Retrieval, Acceptance]
+phases:
+  - {id: Authority, label: Supplementary Authority, color: "#475569"}
+  - {id: Spatial, label: Retrieval-Only Spatial Truth, color: "#0F766E"}
+  - {id: Cache, label: Original-Only Inputs, color: "#0369A1"}
+  - {id: Inference, label: Frozen Eight-Model Inference, color: "#7C3AED"}
+  - {id: Retrieval, label: Exact 10K Retrieval, color: "#9F1239"}
+  - {id: Acceptance, label: Supplementary Validation, color: "#4D7C0F"}
+exact:
+  Authority: [retrieval_gallery_sources, retrieval_gallery_pilot_evidence, retrieval_gallery_authority]
+  Spatial: [retrieval_gallery_scene_index, retrieval_gallery_spatial_truth]
+  Cache: [retrieval_gallery_original_cache, retrieval_gallery_prepared_inputs]
+  Inference: [retrieval_gallery_geometry, retrieval_gallery_embeddings]
+  Retrieval: [retrieval_gallery_union, retrieval_gallery_rankings, retrieval_gallery_inspector]
+  Acceptance: [retrieval_gallery_validation, retrieval_gallery_acceptance]

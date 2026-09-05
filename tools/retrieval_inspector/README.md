@@ -41,3 +41,32 @@ Every vector map is north-up with a fixed 500 m x 500 m extent and common buildi
 ## Limitations
 
 Visual resemblance is interpretive and is not a labelled relevance judgment. Rank bands are a deterministic inspection view, not additional P10 metrics. The inspector must not be used to reopen checkpoint or model selection. P10's dissertation figure protocol used representative rank positions; this inspector adds non-authoritative top/middle/bottom bands for systematic human browsing while preserving the same queries, gallery, embeddings, similarity, and geographic filter.
+## Supplementary Gallery Integration
+
+The optional `galleries` manifest field enables explicit `Canonical 1,600` and
+`Supplemental 10,000` modes. Older canonical-only manifests remain supported.
+Both modes retain the accepted ten queries, eight models, two retrieval settings,
+and existing band definitions. Supplemental middle/bottom bands use their actual
+candidate counts, not the canonical indices.
+
+Supplemental assets resolve through an explicit union catalog. Their geographic
+metadata is optional and does not require P11; unavailable district information
+is labeled as such. Canonical metadata keeps its existing accepted source.
+Only required band scenes are rendered, once per scene/render contract, and the
+browser loads assets lazily. No new held-out metrics or downstream results are
+defined by this mode.
+
+The production entry point is `_targets_retrieval_gallery.R`, using the isolated
+`/mnt/hdd002/dhnyu/fusedata/targets/retrieval-gallery` store. It is unavailable until
+all three complete pilot records and the reviewed throughput/parity evidence are
+provided. It must never be run against the canonical targets store.
+
+Once a supplementary acceptance is published and registered in
+`supplemental_output.json`, validate its binding and locate the dual-gallery HTML:
+
+```bash
+python tools/render_retrieval_inspector.py --supplemental
+```
+
+This command does not generate scenes, embeddings, or rankings. The default
+command and `example_output.json` retain their canonical-only behavior.

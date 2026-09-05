@@ -72,11 +72,12 @@ latest_target_metadata <- function(metadata, target_names) {
 
 extract_network_snapshot <- function(store, script = targets::tar_config_get("script")) {
   assert_supported_environment(store)
-  manifest <- suppressMessages(targets::tar_manifest(fields = tidyselect::everything(), callr_function = NULL, script = script))
-  network <- suppressMessages(targets::tar_network(targets_only = TRUE, outdated = FALSE, callr_function = NULL, script = script, store = store))
+  manifest <- suppressMessages(targets::tar_manifest(fields = tidyselect::everything(), script = script))
+  network <- suppressMessages(targets::tar_network(targets_only = TRUE, outdated = FALSE, script = script, store = store))
   metadata <- targets::tar_meta(targets_only = TRUE, store = store)
   progress <- targets::tar_progress(store = store)
-  outdated <- suppressMessages(targets::tar_outdated(store = store, callr_function = NULL, script = script))
+  # Keep script evaluation isolated so repeated inspection cannot contaminate globals.
+  outdated <- suppressMessages(targets::tar_outdated(store = store, script = script))
   manifest_names <- manifest$name
   running <- map_metadata_names(progress$name[progress$progress == "dispatched"], manifest_names, metadata)
   errored <- map_metadata_names(targets::tar_errored(store = store), manifest_names, metadata)
@@ -101,7 +102,8 @@ read_phase_config <- function(path) {
   if (!length(config$phases)) stop("Phase mapping must declare ordered phases", call. = FALSE)
   phase_ids <- vapply(config$phases, `[[`, character(1L), "id")
   if (anyDuplicated(phase_ids)) stop("Duplicate Phase identifiers are prohibited", call. = FALSE)
-  if (!all(c("Foundation", paste0("P", 1:9)) %in% phase_ids)) stop("Phase mapping must include Foundation and P1 through P9", call. = FALSE)
+  required_ids <- unlist(config$required_phase_ids %||% c("Foundation", paste0("P", 1:9)), use.names = FALSE)
+  if (!length(required_ids) || !all(required_ids %in% phase_ids)) stop("Phase mapping omits required phases", call. = FALSE)
   colors <- vapply(config$phases, `[[`, character(1L), "color")
   if (any(!grepl("^#[0-9A-Fa-f]{6}$", colors))) stop("Every Phase requires a six-digit color", call. = FALSE)
   exact <- config$exact %||% list()

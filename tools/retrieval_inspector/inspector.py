@@ -282,27 +282,35 @@ def build_rank_manifest(repository: Path) -> tuple[dict[str, Any], set[str]]:
     return manifest, required
 
 
-def _scene_assets(repository: Path, manifest: Mapping[str, Any], scene_ids: set[str], output: Path) -> dict[str, str]:
+def _scene_assets(repository: Path, manifest: Mapping[str, Any], scene_ids: set[str], output: Path,
+                  *, catalog_rows=None, geographic_metadata=None) -> dict[str, str]:
     contract = load_contract(repository / "config/p10_evaluation.yml")
     p3_root = Path(contract["inputs"]["p3_root"])
-    index_path = next((p3_root / "index").glob("*/scene_to_shard.parquet"))
-    index_rows = pq.read_table(index_path).to_pylist()
+    if catalog_rows is None:
+        index_path = next((p3_root / "index").glob("*/scene_to_shard.parquet"))
+        index_rows = pq.read_table(index_path).to_pylist()
+    else:
+        index_rows = catalog_rows
     by_scene = {str(row["scene_id"]): row for row in index_rows}
     if not scene_ids <= set(by_scene):
         raise InspectorError(f"P3 source scenes missing: {sorted(scene_ids - set(by_scene))[:3]}")
-    # Populate metadata for non-query scenes from the accepted fold assignment.
-    fold_root = Path(yaml.safe_load((repository / "config/p11_spatial_readiness_acceptance.yml").read_text())["acceptance_path"]).parent
-    fold_rows = pq.read_table(fold_root / "master_district_folds.parquet")
-    if fold_rows.num_rows != 1600:
-        raise InspectorError("accepted fold population mismatch")
-    district_names, _ = _district_metadata(repository)
+    if catalog_rows is None:
+        # Retain the historical canonical metadata gate.
+        fold_root = Path(yaml.safe_load((repository / "config/p11_spatial_readiness_acceptance.yml").read_text())["acceptance_path"]).parent
+        fold_rows = pq.read_table(fold_root / "master_district_folds.parquet")
+        if fold_rows.num_rows != 1600:
+            raise InspectorError("accepted fold population mismatch")
+        district_names, _ = _district_metadata(repository)
+    else:
+        district_names = geographic_metadata or {}
     grouped: dict[str, list[str]] = defaultdict(list)
     for scene in sorted(scene_ids):
         grouped[str(by_scene[scene]["branch_id"])].append(scene)
     hashes: dict[str, str] = {}
     for branch_id in sorted(grouped):
         exemplar = by_scene[grouped[branch_id][0]]
-        tar_path = p3_root / "shards" / branch_id / exemplar["payload_filename"]
+        tar_path = (Path(exemplar["payload_path"]) if catalog_rows is not None
+                    else p3_root / "shards" / branch_id / exemplar["payload_filename"])
         if sha256_file(tar_path) != exemplar["payload_sha256"]:
             raise InspectorError(f"P3 shard hash mismatch: {branch_id}")
         with tempfile.TemporaryDirectory(prefix="retrieval-inspector-") as temporary:
@@ -325,7 +333,8 @@ def _scene_assets(repository: Path, manifest: Mapping[str, Any], scene_ids: set[
             for scene in grouped[branch_id]:
                 raster = raster_index.get(scene)
                 relation = relations.get(scene)
-                if raster is None or relation is None or raster.get("split") != "evaluation":
+                allowed_splits = {"evaluation"} if catalog_rows is None else {"evaluation", "retrieval_only"}
+                if raster is None or relation is None or raster.get("split") not in allowed_splits:
                     raise InspectorError(f"P3 evaluation scene linkage invalid: {scene}")
                 xmin, ymin = float(raster["xmin"]), float(raster["ymin"])
                 index = int(raster["zarr_index"])
@@ -348,7 +357,9 @@ def _scene_assets(repository: Path, manifest: Mapping[str, Any], scene_ids: set[
                 dem_values = dem[dem_valid]
                 building_area = sum(float(row.get("observed_area_m2") or 0) for row in groups["B"])
                 road_length = sum(float(row.get("observed_length_m") or 0) for row in groups["R"])
-                meta = district_names[scene]
+                meta = (district_names[scene] if catalog_rows is None else district_names.get(scene,
+                    {"district": "Unavailable", "district_id": "Unavailable",
+                     "center": [(xmin + float(raster["xmax"])) / 2, (ymin + float(raster["ymax"])) / 2]}))
                 payload = {
                     "scene_id": scene, "district": meta["district"], "district_id": meta["district_id"],
                     "center": meta["center"], "bounds": [xmin, ymin, float(raster["xmax"]), float(raster["ymax"])],

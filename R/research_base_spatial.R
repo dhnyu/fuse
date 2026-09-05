@@ -357,7 +357,8 @@ p2_observed_vertex_index <- function(geometry, x, y, tolerance) {
 }
 
 p2_build_topology_shard <- function(base_spatial_observation_plan, vector_shard, prototype_runtime_inputs,
-                                    p2_base_spatial_contract_files, workers = 1L, threads = 1L) {
+                                    p2_base_spatial_contract_files, workers = 1L, threads = 1L,
+                                    output_directory = NULL, manifest_schema = NULL) {
   fuse_parallel_spec(workers, threads); spec_cfg <- p2_load_spec(p2_base_spatial_contract_files); branch <- base_spatial_observation_plan
   vector <- read_i10_branch_context(branch, vector_shard); roads <- read_standard_geoparquet(vector$files[["road"]])
   road_path <- runtime_mirror_path(prototype_runtime_inputs, "road")
@@ -402,7 +403,7 @@ p2_build_topology_shard <- function(base_spatial_observation_plan, vector_shard,
       topology_provenance = character(), source_identity_hash = character(), topology_dataset_id = character(), branch_id = character())
   }
   p2_validate_topology_table(rows)
-  final_dir <- file.path(spec_cfg$config$publication_root, branch$original_observation_id, branch$scope, "topology", "branches", branch$branch_id)
+  final_dir <- output_directory %||% file.path(spec_cfg$config$publication_root, branch$original_observation_id, branch$scope, "topology", "branches", branch$branch_id)
   p1_publish_immutable_bundle(final_dir, c("source_topology.parquet", "topology_manifest.json", "topology_qc.json"), function(stage) {
     parquet <- file.path(stage, "source_topology.parquet"); arrow::write_parquet(rows, parquet, compression = "zstd")
     scientific <- list(scope = branch$scope, branch_id = branch$branch_id, dataset_id = dataset_id, scene_ids = branch$scene_ids,
@@ -417,7 +418,7 @@ p2_build_topology_shard <- function(base_spatial_observation_plan, vector_shard,
                      chain_length_distribution = list(min = if (roads_count) 2L else 0L, max = if (roads_count) 2L else 0L, variable_length_schema = TRUE),
                      p4_absorption_ready = TRUE, files = list(p1_artifact_record(parquet, "source_topology"),
                      p1_artifact_record(file.path(stage, "topology_qc.json"), "topology_qc")), scientific_hash = hash)
-    path <- write_json_file(manifest, file.path(stage, "topology_manifest.json")); validate_json_schema_file(path, spec_cfg$schemas[["topology_manifest"]])
+    path <- write_json_file(manifest, file.path(stage, "topology_manifest.json")); validate_json_schema_file(path, manifest_schema %||% spec_cfg$schemas[["topology_manifest"]])
   })
 }
 

@@ -139,11 +139,27 @@ test_that("current graph Phase and outdated counts independently agree", {
   edges <- build_edges(snapshot)
   stats <- validate_network_model(snapshot, nodes, edges, assignments)
   independent <- suppressMessages(targets::tar_outdated(
-    store = store, script = file.path(fuse_test_root, "_targets.R"), callr_function = NULL
+    store = store, script = file.path(fuse_test_root, "_targets.R")
   ))
-  expect_equal(stats$node_count, 190L)
-  expect_equal(stats$edge_count, 577L)
+  expect_equal(stats$node_count, length(unique(snapshot$manifest$name)))
+  expect_equal(stats$edge_count, nrow(unique(edges[c("from", "to")])))
   expect_equal(unname(stats$status_counts[["outdated"]]), length(intersect(independent, snapshot$manifest$name)))
   expect_equal(length(assignments), length(unique(snapshot$manifest$name)))
   expect_true(all(c("P8", "P9") %in% assignments))
+})
+
+test_that("repeated graph inspection preserves completed function dependencies", {
+  root <- tempfile("network-isolation-")
+  dir.create(root)
+  withr::defer(unlink(root, recursive = TRUE))
+  script <- file.path(root, "targets.R")
+  store <- file.path(root, "store")
+  writeLines(c("library(targets)", "network_fixture_value <- function() 7L",
+    "list(tar_target(network_fixture_result, network_fixture_value()))"), script)
+  suppressMessages(targets::tar_make(script = script, store = store, reporter = "silent"))
+  first <- extract_network_snapshot(store, script)
+  second <- extract_network_snapshot(store, script)
+  expect_length(first$outdated, 0L)
+  expect_identical(second$outdated, first$outdated)
+  expect_identical(unname(second$status), "up_to_date")
 })

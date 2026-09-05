@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/retrieval-only-prototype_relation-1.0.0.json",
+  "title": "Prototype relation edge contract",
+  "type": "object",
+  "required": [
+    "scene_id",
+    "scene_footprint_id",
+    "split",
+    "edge_id",
+    "source_local_entity_id",
+    "destination_local_entity_id",
+    "source_entity_type",
+    "destination_entity_type",
+    "relation_mask",
+    "has_sn",
+    "has_cnt",
+    "has_wit",
+    "has_int",
+    "has_con",
+    "directed",
+    "distance_m",
+    "sn_source_rank",
+    "sn_destination_rank",
+    "host_building_local_entity_id",
+    "shared_original_node_id",
+    "relation_contract_version",
+    "vector_observation_dataset_id",
+    "relation_dataset_id",
+    "branch_id"
+  ],
+  "properties": {
+    "scene_id": {
+      "type": "string"
+    },
+    "scene_footprint_id": {
+      "type": "string"
+    },
+    "split": {
+      "const": "retrieval_only"
+    },
+    "edge_id": {
+      "type": "string",
+      "pattern": "^red_[0-9a-f]{24}$"
+    },
+    "source_local_entity_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "destination_local_entity_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_entity_type": {
+      "enum": [
+        "B",
+        "R",
+        "P"
+      ]
+    },
+    "destination_entity_type": {
+      "enum": [
+        "B",
+        "R",
+        "P"
+      ]
+    },
+    "relation_mask": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 31
+    },
+    "has_sn": {
+      "type": "boolean"
+    },
+    "has_cnt": {
+      "type": "boolean"
+    },
+    "has_wit": {
+      "type": "boolean"
+    },
+    "has_int": {
+      "type": "boolean"
+    },
+    "has_con": {
+      "type": "boolean"
+    },
+    "directed": {
+      "type": "boolean"
+    },
+    "distance_m": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "sn_source_rank": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "sn_destination_rank": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "host_building_local_entity_id": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "shared_original_node_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "relation_contract_version": {
+      "const": "1.1.0"
+    },
+    "vector_observation_dataset_id": {
+      "type": "string"
+    },
+    "relation_dataset_id": {
+      "type": "string"
+    },
+    "branch_id": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

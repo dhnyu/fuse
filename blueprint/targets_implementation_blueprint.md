@@ -1532,3 +1532,30 @@ advances the eligibility pointer before authorizing the next predeclared row.
 It does not add a multi-configuration target closure or make target metadata a
 scientific input. The historical `cfg_main` identity is reported as `cfg_d64`
 without changing any canonical artifact.
+
+## Supplementary Retrieval Gallery (Pilot-Gated)
+
+The supplementary graph in `_targets_retrieval_gallery.R` is separate from
+canonical P0-P11 and maintenance stores. `config/retrieval_gallery.yml` freezes
+8,400 retrieval-only additions, reuse of the accepted 1,600 originals and ten
+queries, all eight accepted checkpoints, original views only, and 2 km exclusion.
+It does not redefine canonical held-out metrics, model selection, or P11.
+
+| Target Boundary | Input | Output and Gate | Execution |
+|---|---|---|---|
+| Pilot evidence / authority | Exact historical stream replay; complete 100/500/1,000 pilots; reviewed scaling and parity | New `retrag_` methodology, fail-closed on incomplete evidence | One CPU orchestration worker |
+| Scene index / spatial truth | Stream positions 2,001-10,400; frozen Seoul sources | 8,400 unique `retrscn_` IDs; 50 m training separation; full buffered footprints; keyed vector/raster/relation QC | Measured bounded process pool, one native thread/process |
+| Original cache | Verified supplemental spatial shards | v3-layout immutable tar shards; member-checksum roundtrip; no canonical repacking | CPU |
+| Prepared input / geometry | Original-only cache; frozen training vocabularies/statistics | Batch 8 tensor payloads; accepted Fourier layout and numerical contract | CPU preparation; one locked task/GPU for geometry |
+| Embeddings / union | Eight frozen checkpoints; 8,400 new originals; accepted 1,600-row P10 slices | Float32 finite 8,400 x 128 per model; byte-identical old rows in each 10,000 x 128 union | Two GPU tasks, no DDP/AMP/TF32 |
+| Rankings / inspector | Same ten accepted queries and ordered union | Exact 10 x N similarities/distances; 9,999 standard candidates; deterministic bands; optional non-P11 geographic metadata | CPU; render required deduplicated assets only |
+| Validation / acceptance | All manifests and immutable history snapshot | New `retr10k_` acceptance only after complete coverage, numerical/ranking/readback/browser checks | CPU |
+
+Store: `/mnt/hdd002/dhnyu/fusedata/targets/retrieval-gallery`.
+Scientific outputs: `/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/<authority>/`.
+Pilot staging: `/mnt/hdd002/dhnyu/fusedata/runtime/retrieval_gallery/`.
+The production graph cannot start from a 100-scene extrapolation or an incomplete
+pilot. Processing specs are sorted lexically within shards to preserve the
+accepted relation statistics helper's positional contract; union ordering remains
+canonical P10 order followed by supplemental source-stream order. Historical
+P9/P10/P11 acceptances are not outputs of this graph.

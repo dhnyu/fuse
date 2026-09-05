@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/retrieval-only-prototype_vector_observation-1.0.0.json",
+  "title": "Prototype vector observation row contract",
+  "type": "object",
+  "required": [
+    "scene_id",
+    "scene_footprint_id",
+    "split",
+    "entity_type",
+    "source_entity_id",
+    "local_entity_id",
+    "source_artifact_id",
+    "membership_dataset_id",
+    "observation_contract_version",
+    "source_geometry_fingerprint",
+    "observed_geometry_fingerprint",
+    "scene_center_x_5186",
+    "scene_center_y_5186",
+    "observed_center_x_5186",
+    "observed_center_y_5186",
+    "relative_center_x_m",
+    "relative_center_y_m",
+    "observed_geometry"
+  ],
+  "properties": {
+    "scene_id": {
+      "type": "string"
+    },
+    "scene_footprint_id": {
+      "type": "string"
+    },
+    "split": {
+      "const": "retrieval_only"
+    },
+    "entity_type": {
+      "enum": [
+        "B",
+        "R",
+        "P"
+      ]
+    },
+    "source_entity_id": {
+      "type": "string"
+    },
+    "local_entity_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_artifact_id": {
+      "type": "string"
+    },
+    "membership_dataset_id": {
+      "type": "string"
+    },
+    "observation_contract_version": {
+      "type": "string"
+    },
+    "source_geometry_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "observed_geometry_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "observed_geometry": {
+      "description": "GeoParquet 1.1.0 primary WKB geometry column"
+    }
+  },
+  "additionalProperties": true
+}

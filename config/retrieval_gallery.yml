@@ -1,0 +1,57 @@
+schema_version: 1.0.0
+contract_version: supplementary-retrieval-gallery-v1
+audit_report: reports/20260905_1617_evaluation_10k_expansion_feasibility_audit.md
+root: /mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced
+runtime_root: /mnt/hdd002/dhnyu/fusedata/runtime/retrieval_gallery
+store: /mnt/hdd002/dhnyu/fusedata/targets/retrieval-gallery
+p10_contract: config/p10_evaluation.yml
+scientific:
+  canonical_evaluation_count: 1600
+  supplemental_count: 8400
+  union_count: 10000
+  model_scope: accepted_eight_models
+  role: retrieval_only
+  scene_prefix: retrscn_
+  width_m: 500
+  epsg: 5186
+  minimum_training_distance_m: 50
+  source_buffer_m: 400
+  seed: 26082501
+  rng_version: 4.0.0
+  rng_kind: Mersenne-Twister
+  normal_kind: Inversion
+  sample_kind: Rejection
+  candidate_batch_size: 8192
+  skip_accepted_positions: 2000
+  continuation: replay_exact_prefix_then_consume_unused_eligible_tail
+  coordinate_storage: float64_unrounded
+  inter_scene_spacing: none
+  duplicate_policy: exact_duplicate_fail_no_resampling
+  union_order: canonical_p10_order_then_supplemental_stream_order
+  query_contract_id: p10qq_dd7d0775f5809a793575342b
+  p10_acceptance_id: p10acc_6e5071beee7616750dec7907
+  p10_attempt_id: p10exec_7fee193dac532190c79e02c6
+  query_count: 10
+  standard_candidates: 9999
+  nonlocal_exclusion_m: 2000
+  ranking: normalized_dot_product_descending_then_scene_id
+  original_only: true
+  augmented_queries: 0
+  downstream_targets: 0
+  model_selection_reopened: false
+  batch_size: 8
+  precision: float32
+  amp: false
+  tf32: false
+  shard_size: 25
+execution:
+  pilot_counts: [100, 500, 1000]
+  pilot_workers: [4, 8, 16]
+  threads_per_worker: 1
+  gpu_indices: [0, 1]
+  loader_workers: 8
+  prefetch: 2
+  pin_memory: true
+  minimum_free_bytes: 128849018880.0
+  maximum_projected_hours: 16
+  gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks

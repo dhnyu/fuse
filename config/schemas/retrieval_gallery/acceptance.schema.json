@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["acceptance_id", "schema_version", "artifact_type", "authority_id", "parents_sha256", "canonical_p10_acceptance", "canonical_p10_unchanged", "canonical_p11_unchanged", "supplementary_retrieval_only", "canonical_evaluation_count", "supplemental_count", "union_count", "model_count", "query_count", "original_only", "model_selection_reopened", "augmented_queries", "downstream_targets", "standard_candidates", "nonlocal_exclusion_m", "status", "prohibited_work"],
+  "properties": {
+    "acceptance_id": {"type": "string", "pattern": "^retr10k_[0-9a-f]{24}$"},
+    "schema_version": {"const": "1.0.0"},
+    "artifact_type": {"const": "supplementary_retrieval_gallery_acceptance"},
+    "authority_id": {"type": "string", "pattern": "^retrag_[0-9a-f]{24}$"},
+    "parents_sha256": {"type": "object", "required": ["methodology", "sampling_index", "spatial_truth", "scene_cache", "prepared_input", "geometry", "embeddings", "union_gallery", "rankings", "inspector", "validation"], "minProperties": 11, "maxProperties": 11, "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "canonical_p10_acceptance": {"const": "p10acc_6e5071beee7616750dec7907"},
+    "canonical_p10_unchanged": {"const": true},
+    "canonical_p11_unchanged": {"const": true},
+    "supplementary_retrieval_only": {"const": true},
+    "canonical_evaluation_count": {"const": 1600},
+    "supplemental_count": {"const": 8400},
+    "union_count": {"const": 10000},
+    "model_count": {"const": 8},
+    "query_count": {"const": 10},
+    "original_only": {"const": true},
+    "model_selection_reopened": {"const": false},
+    "augmented_queries": {"const": 0},
+    "downstream_targets": {"const": 0},
+    "standard_candidates": {"const": 9999},
+    "nonlocal_exclusion_m": {"const": 2000},
+    "status": {"const": "PASS"},
+    "prohibited_work": {"type": "object", "required": ["training", "fine_tuning", "checkpoint_reselection", "model_reselection", "p9_rerun", "canonical_p10_acceptance_mutation", "p11_rematerialization", "ridge_mlp_fitting", "target_transformation_changes", "canonical_evaluation_replacement", "dissertation_mutation"], "minProperties": 11, "maxProperties": 11, "additionalProperties": {"const": 0}}
+  }
+}

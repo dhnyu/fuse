@@ -1,0 +1,20 @@
+{
+  "comparison_models": 8,
+  "duplicate_models": 0,
+  "excluded_scope_rows": 0,
+  "p10_metric_rows": 8,
+  "p9_rank_trajectory_models": 19,
+  "p9a_models": 13,
+  "p9b_variants": 7,
+  "primary_models": 20,
+  "secondary_models": 2,
+  "selection_agreements": 20,
+  "source_preservation": {
+    "changed_files": 0,
+    "files_checked": 8473,
+    "status": "PASS"
+  },
+  "status": "PASS",
+  "training_history_rows": 186580,
+  "validation_history_rows": 491
+}

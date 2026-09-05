@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>P10 Retrieval Inspector</title>
+  <title>Spatial Scene Retrieval Inspector</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,17 +12,20 @@
     <div id="status" class="status">Loading evidence</div>
   </header>
   <section class="controls" aria-label="Retrieval controls">
-    <div id="galleryControl" class="control" hidden><label for="gallery">Gallery</label><select id="gallery"><option value="canonical">Canonical 1,600</option><option value="supplemental">Supplemental 10,000</option></select></div>
+    <div id="galleryControl" class="control gallery-control" hidden><label for="gallery">Gallery</label><div class="stepper"><button id="prevGallery" title="Previous gallery" aria-label="Previous gallery">&#8249;</button><select id="gallery"><option value="canonical">Canonical 1,600</option><option value="supplemental">Expanded 10,000</option></select><button id="nextGallery" title="Next gallery" aria-label="Next gallery">&#8250;</button></div></div>
     <div class="control model-control"><label for="model">Model</label><div class="stepper"><button id="prevModel" title="Previous model" aria-label="Previous model">&#8249;</button><select id="model"></select><button id="nextModel" title="Next model" aria-label="Next model">&#8250;</button></div></div>
-    <div class="control"><label for="query">Fixed query</label><select id="query"></select></div>
-    <fieldset class="segments"><legend>Retrieval setting</legend><label><input type="radio" name="setting" value="standard" checked><span>Local included</span></label><label><input type="radio" name="setting" value="nonlocal"><span>Local excluded</span></label></fieldset>
+    <div class="control"><label for="query">Fixed query</label><div class="stepper"><button id="prevQuery" title="Previous query" aria-label="Previous query">&#8249;</button><select id="query"></select><button id="nextQuery" title="Next query" aria-label="Next query">&#8250;</button></div></div>
+    <fieldset class="segments"><legend>Retrieval setting</legend><label><input type="radio" name="setting" value="standard" checked><span>Standard</span></label><label><input type="radio" name="setting" value="nonlocal"><span>Non-local ≥ 2 km</span></label></fieldset>
     <fieldset class="checks"><legend>Vector layers</legend><label><input type="checkbox" value="B" checked> Building</label><label><input type="checkbox" value="R" checked> Road</label><label><input type="checkbox" value="P" checked> POI</label></fieldset>
     <fieldset class="segments"><legend>Raster</legend><label><input type="radio" name="raster" value="landcover" checked><span>LC</span></label><label><input type="radio" name="raster" value="dem"><span>DEM</span></label></fieldset>
   </section>
   <section id="context" class="context"></section>
+  <section id="stability" class="stability" aria-label="Gallery expansion diagnostics" hidden></section>
+  <details id="interpretation" class="interpretation" hidden><summary>Supplementary retrieval-only evidence · canonical P10 and P11 unchanged</summary><p>The 10K gallery adds candidates; it does not redefine canonical P10 or P11. Lower top-k overlap does not mean the old retrieval was incorrect. New candidates can outrank old ones because the candidate universe is larger. These diagnostics are descriptive, not evidence of model superiority.</p></details>
   <main id="comparison" class="comparison" aria-live="polite"></main>
   <footer><span>Cosine similarity: larger is more similar.</span><span>All scene maps: EPSG:5186, north-up, fixed 500 m x 500 m extent.</span><span>Qualitative inspection only.</span></footer>
   <script src="manifest.js"></script>
+  <!-- presentation-data -->
   <script src="app.js"></script>
 </body>
 </html>

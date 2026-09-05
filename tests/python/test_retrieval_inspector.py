@@ -50,6 +50,6 @@ def test_static_interface_has_required_controls() -> None:
     javascript = (ROOT / "tools/retrieval_inspector/app.js").read_text()
     for identifier in ("model", "query", "prevModel", "nextModel", "comparison"):
         assert f'id="{identifier}"' in html
-    for phrase in ("Original spatial scene", "Most similar", "Top band", "Middle band", "Bottom band"):
+    for phrase in ('title:"Query"', "Most similar", '"top","middle","bottom"'):
         assert phrase in javascript
     assert "assets/scenes/${id}.js" in javascript

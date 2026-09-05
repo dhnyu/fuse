@@ -31,6 +31,9 @@ def supplemental_output(pointer: Path) -> Path:
     if hashlib.sha256((output / "manifest.json").read_bytes()).hexdigest() != acceptance["parents_sha256"]["inspector"]:
         raise ValueError("Supplemental inspector binding mismatch")
     validate_output(output)
+    if (output / "presentation.json").exists():
+        from retrieval_inspector.presentation import validate_presentation
+        validate_presentation(output)
     return output / "index.html"
 
 
@@ -40,14 +43,22 @@ def main() -> int:
     parser.add_argument("--validate", type=Path, help="validate an existing generated directory only")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--supplemental", action="store_true", help="validate and locate the accepted dual-gallery inspector")
+    parser.add_argument("--refresh-supplemental", action="store_true", help="publish a browser-validated presentation using only accepted rankings and assets")
     args = parser.parse_args()
-    if args.supplemental:
+    if args.supplemental or args.refresh_supplemental:
         if args.validate or args.overwrite:
             parser.error("--supplemental cannot be combined with --validate or --overwrite")
         pointer = ROOT / "tools/retrieval_inspector/supplemental_output.json"
         if not pointer.exists():
             parser.error("No accepted supplemental inspector has been registered")
-        print(supplemental_output(pointer))
+        entry = supplemental_output(pointer)
+        if args.refresh_supplemental:
+            from retrieval_inspector.presentation import prepare_update, publish_update
+            from retrieval_inspector.browser_validation import validate_browser
+            revision = prepare_update(ROOT, entry.parent)
+            checked = validate_browser(revision)
+            entry = publish_update(entry.parent, revision, checked)
+        print(entry)
         return 0
     if args.validate:
         result = validate_output(args.validate.resolve())

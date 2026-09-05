@@ -1,0 +1,13 @@
+{
+  "acceptance_id": "retr10k_0672df44ea0fb5adceafbec9",
+  "artifact_manifest_sha256": "0bab776414eef3e30ab32775b0a9f87b35b7185ce50f4bf70fa1995218404477",
+  "default_gallery": "expanded",
+  "gallery_count": 10000,
+  "inspector_id": "retrieval_inspector_dafc174b9997c59198b3d121",
+  "manifest_sha256": "fe450d22026b16403392b8bf80a78e2c66c1c10c8d3a830ff958fcd308ff3a54",
+  "model_count": 8,
+  "path": "artifacts/retrieval-inspector/current/retrieval_inspector_dafc174b9997c59198b3d121/index.html",
+  "query_count": 10,
+  "role": "current",
+  "scene_asset_count": 3622
+}

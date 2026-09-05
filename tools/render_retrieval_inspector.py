@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate or validate the local P10 retrieval inspector."""
+"""Resolve/build the current 10K inspector, or explicitly access legacy evidence."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 sys.path.insert(0, str(ROOT / "tools"))
 
-from retrieval_inspector.inspector import generate_inspector, validate_output  # noqa: E402
+from retrieval_inspector.inspector import validate_output  # noqa: E402
 
 
 def supplemental_output(pointer: Path) -> Path:
@@ -40,11 +40,16 @@ def supplemental_output(pointer: Path) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-root", type=Path, default=ROOT / "artifacts/retrieval-inspector")
-    parser.add_argument("--validate", type=Path, help="validate an existing generated directory only")
-    parser.add_argument("--overwrite", action="store_true")
-    parser.add_argument("--supplemental", action="store_true", help="validate and locate the accepted dual-gallery inspector")
-    parser.add_argument("--refresh-supplemental", action="store_true", help="publish a browser-validated presentation using only accepted rankings and assets")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--validate", type=Path, help="validate an explicit current or legacy package")
+    mode.add_argument("--legacy-canonical", action="store_true", help="locate the immutable old 1600-only application; never rerank")
+    mode.add_argument("--build-current", action="store_true", help="build and browser-validate a current repo-local package from accepted evidence")
+    mode.add_argument("--supplemental", action="store_true", help="compatibility alias: locate the external accepted presentation, not the current package")
+    mode.add_argument("--refresh-supplemental", action="store_true", help="compatibility: explicitly refresh the external presentation only")
+    parser.add_argument("--overwrite", action="store_true", help="deprecated; immutable artifacts cannot be overwritten")
     args = parser.parse_args()
+    if args.overwrite:
+        parser.error("--overwrite is not supported; use --build-current for a new immutable package")
     if args.supplemental or args.refresh_supplemental:
         if args.validate or args.overwrite:
             parser.error("--supplemental cannot be combined with --validate or --overwrite")
@@ -52,6 +57,7 @@ def main() -> int:
         if not pointer.exists():
             parser.error("No accepted supplemental inspector has been registered")
         entry = supplemental_output(pointer)
+        print("Compatibility workflow: external presentation. Omit this flag for the current repo-local inspector.", file=sys.stderr)
         if args.refresh_supplemental:
             from retrieval_inspector.presentation import prepare_update, publish_update
             from retrieval_inspector.browser_validation import validate_browser
@@ -61,12 +67,22 @@ def main() -> int:
         print(entry)
         return 0
     if args.validate:
-        result = validate_output(args.validate.resolve())
+        if (args.validate / "artifact.json").exists():
+            from retrieval_inspector.artifacts import validate_current
+            artifact = validate_current(args.validate.resolve())
+            result = {"status":"PASS", "inspector_id":artifact["inspector_id"], "role":"current"}
+        else:
+            result = validate_output(args.validate.resolve())
         print(json.dumps(result, sort_keys=True))
         return 0
-    args.output_root.mkdir(parents=True, exist_ok=True)
-    output = generate_inspector(ROOT, args.output_root, overwrite=args.overwrite)
-    print(output / "index.html")
+    from retrieval_inspector.artifacts import build_current, legacy_output, resolve_current
+    if args.legacy_canonical:
+        entry = legacy_output(ROOT, args.output_root)
+    elif args.build_current:
+        entry = build_current(ROOT, args.output_root)
+    else:
+        entry = resolve_current(ROOT, args.output_root)
+    print(entry)
     return 0
 
 

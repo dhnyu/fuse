@@ -3,11 +3,11 @@ from pathlib import Path
 import json
 
 
-def validate_browser(directory):
+def validate_browser(directory, output=None):
     from playwright.sync_api import sync_playwright
 
     directory = Path(directory)
-    output = directory.parent.parent
+    output = Path(output) if output is not None else directory.parent.parent
     manifest = json.loads((output / "manifest.json").read_text())
     revision = json.loads((directory / "presentation.json").read_text())["presentation_id"]
     errors, console, failed = [], [], []
@@ -44,6 +44,11 @@ def validate_browser(directory):
                 assert page.locator("#stability").is_visible()
 
             ready()
+            default = manifest.get("default_gallery", "canonical")
+            assert page.locator("#gallery").input_value() == default
+            if default == "supplemental":
+                assert "9,999" in page.locator("#context").inner_text()
+            page.screenshot(path=str(directory / "default_desktop.png"), full_page=True)
             for gallery in ("canonical","supplemental"):
                 page.locator("#gallery").select_option(gallery)
                 for model in manifest["models"]:
@@ -98,6 +103,10 @@ def validate_browser(directory):
             assert page.locator('.checks input:checked').count() == 3
 
             page.set_viewport_size({"width":390,"height":844})
+            page.goto((directory / "index.html").as_uri())
+            ready()
+            assert page.locator("#gallery").input_value() == default
+            page.screenshot(path=str(directory / "default_mobile.png"), full_page=True)
             for gallery in ("canonical","supplemental"):
                 page.locator("#gallery").select_option(gallery)
                 for model in manifest["models"]:
@@ -118,4 +127,4 @@ def validate_browser(directory):
     return {"status":"PASS","presentation_id":revision,"desktop_states":desktop_states,
         "mobile_states":mobile_states,"console_errors":len(console),"page_errors":len(errors),
         "failed_requests":len(failed),"broken_links":0,"url_restore":True,"gallery_state_preserved":True,
-        "canvas_checks":True,"browser_version":version,"unique_resource_requests":len(requests)}
+        "canvas_checks":True,"default_gallery":default,"browser_version":version,"unique_resource_requests":len(requests)}

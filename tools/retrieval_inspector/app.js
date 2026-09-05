@@ -6,7 +6,8 @@ const modelOrder = ["cfg_d128", "cmp_a1_geometric_core", "cmp_a2_semantic_enrich
 const models = modelOrder.filter(id => ROOT.models[id]);
 const loaded = window.RETRIEVAL_SCENES = window.RETRIEVAL_SCENES || {};
 const pending = new Map();
-const state = {gallery:"canonical", model:models[0], query:M.queries[0].scene_id, setting:"standard", raster:"landcover", layers:new Set(["B","R","P"]), selected:{top:0,middle:0,bottom:0}};
+const defaultGallery = ROOT.default_gallery || "canonical";
+const state = {gallery:defaultGallery, model:models[0], query:M.queries[0].scene_id, setting:"standard", raster:"landcover", layers:new Set(["B","R","P"]), selected:{top:0,middle:0,bottom:0}};
 const $ = s => document.querySelector(s), all = s => [...document.querySelectorAll(s)];
 const galleryName = id => id === "supplemental" ? "Expanded 10,000" : "Canonical 1,600";
 const sourceName = item => item.source === "supplemental" ? "Supplemental" : "Canonical";
@@ -17,7 +18,7 @@ function setGallery(id) {
 }
 function parseHash() {
   const p = new URLSearchParams(location.hash.slice(1));
-  setGallery(p.get("gallery") || "canonical");
+  setGallery(p.get("gallery") || defaultGallery);
   state.model = models.includes(p.get("model")) ? p.get("model") : models[0];
   state.query = M.queries.some(q => q.scene_id === p.get("query")) ? p.get("query") : M.queries[0].scene_id;
   state.setting = p.get("setting") === "nonlocal" ? "nonlocal" : "standard";

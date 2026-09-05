@@ -1,0 +1,17 @@
+{
+  "acceptance_id": "p10acc_6e5071beee7616750dec7907",
+  "core_sha256": {
+    "app.js": "bbde141d8bfc47afef4c361f46262dc3a0159a0ce17a1ad7faebcdbadcfb30f3",
+    "index.html": "a5ef0616e8c9097493947a8e460f2cdbfee3cfc638cb46b2b10eca376c08c9d7",
+    "manifest.js": "5e9e5265500f26008e1dcd743f95ae36dde90e83ac61f543efa93c7dde2756f6",
+    "manifest.json": "71e9ff0970eaf8b002a600ea3081f04227d4e285d25ccde683de34407affb020",
+    "style.css": "cb41d451b41f9cfad15e32e1963363d4ba78115a6955770b30ad9a7fbd9c13a9"
+  },
+  "gallery_count": 1600,
+  "inspector_id": "retrieval_inspector_c612a074a9211c222eb9a811",
+  "original_path": "artifacts/retrieval-inspector/retrieval_inspector_c612a074a9211c222eb9a811/index.html",
+  "path": "artifacts/retrieval-inspector/legacy/retrieval_inspector_c612a074a9211c222eb9a811/index.html",
+  "role": "legacy",
+  "scene_asset_count": 1342,
+  "scene_asset_manifest_sha256": "bdf5083b1b4df766a1278ab199ad86beea250f4305e3b65268f8e17f227451da"
+}

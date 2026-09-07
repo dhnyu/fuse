@@ -3,15 +3,15 @@
   "$id": "urn:fuse:p9-v1:retirement-manifest:1.0.0",
   "title": "P9 v1 immutable retirement manifest",
   "type": "object",
-  "required": ["schema_version", "artifact_type", "retirement_id", "content_sha256", "implementation_version", "status", "authorization_basis", "formal_authorities", "recovery_authorities", "historical_stores", "retired_entry_points", "prohibited_interfaces", "preserved_read_only_interfaces", "replacement", "source_hashes"],
+  "required": ["schema_version", "artifact_type", "retirement_id", "content_sha256", "implementation_version", "status", "authorization_basis", "formal_authorities", "recovery_authorities", "historical_stores", "retired_entry_points", "prohibited_interfaces", "preserved_read_only_interfaces", "replacement", "retirement_publication_identity"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "artifact_type": {"const": "p9_v1_retirement_manifest"},
     "retirement_id": {"type": "string", "pattern": "^p9ret_[0-9a-f]{24}$"},
     "content_sha256": {"$ref": "#/$defs/sha256"},
-    "implementation_version": {"const": "p9-v1-retirement-v1"},
+    "implementation_version": {"const": "p9-v1-retirement-v2"},
     "status": {"const": "V1_RETIRED_READ_ONLY"},
-    "authorization_basis": {"const": "EXPLICIT_V2_I_USER_WORK_UNIT"},
+    "authorization_basis": {"const": "CURRENT_LINEAGE_SOURCE_CLEANUP"},
     "formal_authorities": {"$ref": "#/$defs/authorities"},
     "recovery_authorities": {"$ref": "#/$defs/authorities"},
     "historical_stores": {
@@ -31,14 +31,7 @@
       },
       "additionalProperties": false
     },
-    "source_hashes": {
-      "type": "array", "minItems": 1,
-      "items": {
-        "type": "object", "required": ["path", "sha256"],
-        "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}},
-        "additionalProperties": false
-      }
-    }
+    "retirement_publication_identity": {"const": "current-lineage-p9-v1-retirement-v2"}
   },
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

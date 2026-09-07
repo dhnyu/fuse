@@ -8,9 +8,9 @@ import tempfile
 from pathlib import Path
 from typing import Any, NoReturn
 
-from p9_v2_canonical import canonical_json_bytes, canonical_sha256, parse_canonical_json
-from p9_v2_ledger import fsync_directory, write_all
-from p9_v2_schema import validate_instance
+from artifact_protocol import canonical_json_bytes, canonical_sha256, parse_canonical_json
+from training_ledger import fsync_directory, write_all
+from training_schema import validate_instance
 
 
 RETIREMENT_ERROR_CODE = "P9_V1_EXECUTION_RETIRED"
@@ -18,7 +18,7 @@ RETIREMENT_MESSAGE = (
     "P9 v1 is historical/read-only; execution is retired; "
     "use a canonical p9accv2 acceptance through resolve_accepted_checkpoint()."
 )
-RETIREMENT_IMPLEMENTATION_VERSION = "p9-v1-retirement-v1"
+RETIREMENT_IMPLEMENTATION_VERSION = "p9-v1-retirement-v2"
 CANONICAL_ACCEPTANCE_ID = "p9accv2_d93b01ef13c3f26a22287ce7"
 CANONICAL_CHECKPOINT_ID = "p9ck_42f7957d2ea998ac9e8ff705"
 
@@ -44,27 +44,16 @@ HISTORICAL_STORE_NAMES = (
     "fuse-p9-recovery-complete-20260831", "fuse-p9-recovery-lockstate-20260831",
 )
 RETIRED_ENTRY_POINTS = (
-    "_targets.R:p9_v1_main_execution_retired",
-    "_targets_p9_formal.R:p9_v1_formal_execution_retired",
-    "_targets_p9_recovery.R:p9_v1_recovery_execution_retired",
-    "targets/research_p9_infrastructure.R",
-    "scripts/p9_bounded_main_pilot.py",
+    "_targets_p9_formal.R",
+    "_targets_p9_recovery.R",
     "scripts/p9_checkpoint_recovery_authorization.py",
     "scripts/p9_formal_authorization.py",
-    "scripts/p9_formal_isolated_authorization.py",
-    "scripts/p9_formal_reauthorization.py",
-    "scripts/p9_formal_training.py",
-    "scripts/p9_infrastructure.py",
-    "scripts/p9_production_cache.py",
-    "python/p9_recovery_transaction.py:resolve_committed",
+    "retired:p9_formal_training",
+    "retired:p9_recovery_execution",
+    "retired:p9_campaign_execution",
 )
 PRESERVED_READ_ONLY_INTERFACES = (
-    "p9_v1_retirement.inspect_retirement_sources",
-    "p9_v2_legacy_import.inspect_legacy_run",
-    "p9_v2_legacy_import.validate_legacy_import",
-    "p9_checkpoint_recovery.audit_pairs",
-    "p9_identity_diagnostics",
-    "p9_recovery_transaction.inspect_committed_recovery",
+    "checkpoint_resolution.resolve_accepted_checkpoint",
 )
 PROHIBITED_INTERFACES = (
     "create_v1_acceptance", "create_v1_attempt", "create_v1_authority",
@@ -116,10 +105,8 @@ def _tree_inventory(root: Path) -> tuple[list[dict[str, Any]], str]:
     return entries, canonical_sha256(entries)
 
 
-def inspect_retirement_sources(repository_root: str | Path) -> dict[str, Any]:
-    """Read and hash all retirement evidence without writing source artifacts."""
-
-    root = Path(repository_root)
+def inspect_retirement_sources(repository_root: str | Path | None = None) -> dict[str, Any]:
+    """Read immutable historical evidence without depending on executable source files."""
     formal = []
     for identity in FORMAL_AUTHORITY_IDS:
         entries, digest = _tree_inventory(FORMAL_AUTHORITY_ROOT / identity)
@@ -132,18 +119,9 @@ def inspect_retirement_sources(repository_root: str | Path) -> dict[str, Any]:
     for name in HISTORICAL_STORE_NAMES:
         entries, digest = _tree_inventory(TARGETS_ROOT / name)
         stores.append({"name": name, "status": "HISTORICAL_READ_ONLY", "inventory_sha256": digest, "entry_count": len(entries)})
-    source_paths = tuple(item.split(":", 1)[0] for item in RETIRED_ENTRY_POINTS if not item.startswith("_targets")) + (
-        "_targets.R", "_targets_p9_formal.R", "_targets_p9_recovery.R",
-        "R/research_p9_v1_retirement.R", "targets/research_p9_formal_authorization.R",
-        "targets/research_p9_formal_execution.R", "targets/research_p9_checkpoint_recovery.R",
-        "python/p9_v1_retirement.py", "python/p9_v2_downstream.py",
-    )
-    source_hashes = [
-        {"path": value, "sha256": _file_sha256(root / value)} for value in sorted(set(source_paths))
-    ]
     return {
         "formal_authorities": formal, "recovery_authorities": recovery,
-        "historical_stores": stores, "source_hashes": source_hashes,
+        "historical_stores": stores,
     }
 
 
@@ -153,7 +131,7 @@ def build_retirement_manifest(repository_root: str | Path) -> dict[str, Any]:
         "schema_version": "1.0.0", "artifact_type": "p9_v1_retirement_manifest",
         "implementation_version": RETIREMENT_IMPLEMENTATION_VERSION,
         "status": "V1_RETIRED_READ_ONLY",
-        "authorization_basis": "EXPLICIT_V2_I_USER_WORK_UNIT",
+        "authorization_basis": "CURRENT_LINEAGE_SOURCE_CLEANUP",
         **evidence,
         "retired_entry_points": list(RETIRED_ENTRY_POINTS),
         "prohibited_interfaces": list(PROHIBITED_INTERFACES),
@@ -163,6 +141,7 @@ def build_retirement_manifest(repository_root: str | Path) -> dict[str, Any]:
             "checkpoint_id": CANONICAL_CHECKPOINT_ID,
             "resolver_contract": "resolve_accepted_checkpoint(acceptance_identity)",
         },
+        "retirement_publication_identity": "current-lineage-p9-v1-retirement-v2",
     }
     digest = canonical_sha256(preimage)
     manifest = {**preimage, "retirement_id": f"p9ret_{digest[:24]}", "content_sha256": digest}

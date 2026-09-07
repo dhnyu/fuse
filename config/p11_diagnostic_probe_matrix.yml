@@ -1,6 +1,7 @@
 schema_version: 1.0.0
 contract_name: p11-diagnostic-probe-matrix-v1
-status: FROZEN_BEFORE_DIAGNOSTIC_FITTING
+status: RECOMPUTE_REQUIRED
+migration_status: RECOMPUTE_REQUIRED
 publication_root: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_diagnostics
 dissertation_authority_id: disauth_febd90b8475a5e9caa9f7d2f
 transformation_methodology_id: p11meth_6cc844b7f5d1fc896d9e7be2

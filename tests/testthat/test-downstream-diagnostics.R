@@ -1,0 +1,10 @@
+test_that("downstream diagnostic graph is isolated and binds the accepted baseline", {
+  script <- readLines(file.path(fuse_test_root, "targets/s11_diagnostics.R"), warn = FALSE)
+  text <- paste(script, collapse = "\n")
+  expect_true(grepl("scripts/run_downstream_diagnostics.py", text, fixed = TRUE))
+  expect_true(grepl("s11_diagnostic_sources", text, fixed = TRUE))
+  sources <- paste(readLines(file.path(fuse_test_root, "R/downstream_sources.R")), collapse = "\n")
+  expect_true(grepl("p11_ridge_evaluation_acceptance.yml", sources, fixed = TRUE))
+  expect_false(grepl("training", text, fixed = TRUE))
+  expect_false(grepl("inference", text, fixed = TRUE))
+})

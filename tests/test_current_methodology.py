@@ -13,8 +13,8 @@ from current_methodology import (COMPARISON_NAMES, active_raster_sources, build_
                                  build_plan, comparison_contracts, component_contracts,
                                  induced_subgraph, load_current_methodology,
                                  retained_entity_mask, source_contracts, validate_plan)
-from p9_model_families import P9SceneEncoder, family_contract
-from p6_data import filter_scene_sources
+from model_families import SceneEncoder, family_contract
+from model_data import filter_scene_sources
 
 
 @pytest.fixture(scope="module")
@@ -113,7 +113,7 @@ def test_current_model_has_no_reconstruction_parameters(methodology):
                          "dropout": 0.2, "wavelengths": {"minimum_m": 10, "maximum_m": 1000, "count": 16},
                          "poi_hierarchy_dimensions": [8, 12, 16, 16, 24, 32]}}
     vocab = {name: 4 for name in ("A9", "A11", "ROAD_RANK", "ROAD_TYPE", *(f"CLASS_L{i}" for i in range(1, 7)))}
-    model = P9SceneEncoder(config, vocab, "FM")
+    model = SceneEncoder(config, vocab, "FM")
     forbidden = ("decoder", "reconstruction")
     assert not any(any(token in name for token in forbidden) for name, _ in model.named_parameters())
     assert model.dimension == 128

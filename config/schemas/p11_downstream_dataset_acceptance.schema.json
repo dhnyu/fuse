@@ -15,7 +15,7 @@
     "output_content_sha256": {"type": "object", "minProperties": 4},
     "thresholds": {"type": "object", "minProperties": 5},
     "target_count": {"const": 11},
-    "scene_universe_count": {"const": 1600},
+    "scene_universe_count": {"const": 9000},
     "dataset_id": {"type": "string", "pattern": "^p11ds_[0-9a-f]{24}$"},
     "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "status": {"const": "ACCEPTED"},

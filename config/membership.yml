@@ -58,7 +58,7 @@ membership_columns:
   branch_id: string
   source_artifact_id: string
   scene_index_id: string
-  prototype_id: string
+  scope_id: string
 
 sharding:
   target_shards: 8

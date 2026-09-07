@@ -11,7 +11,7 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
   root_pipeline <- readLines(file.path(fuse_test_root, "_targets.R"), warn = FALSE)
   expect_false(any(grepl("tar_target\\(", root_pipeline)))
   expect_false(any(grepl("seoul_data_preprocess.R", root_pipeline, fixed = TRUE)))
-  expect_true(any(grepl("targets/research_scene_index.R", root_pipeline, fixed = TRUE)))
+  expect_true(any(grepl("current_target_source_files", root_pipeline, fixed = TRUE)))
 
   maintenance_pipeline <- readLines(file.path(fuse_test_root, "_targets_maintenance.R"), warn = FALSE)
   expect_true(any(grepl("targets/seoul_data_preprocess.R", maintenance_pipeline, fixed = TRUE)))
@@ -21,78 +21,13 @@ test_that("research and maintenance pipelines use separate scripts and stores", 
   research_manifest <- targets::tar_manifest(
     script = file.path(fuse_test_root, "_targets.R"), callr_arguments = list(wd = fuse_test_root)
   )
-  expect_setequal(
-    research_manifest$name,
-    c(
-      "observation_contract_files", "training_dataset_acceptance_contract_files", "membership_contract_files",
-      "serialization_shard_contract_files", "augmentation_benchmark_contract_files", "s01_study_sources",
-      "s07_training_sources", "training_plan_contract_files", "joint_model_smoke_contract_files",
-      "s01_study_sources", "encoder_smoke_contract_files", "dataloader_smoke_contract_files",
-      "relation_contract_files", "distributed_joint_model_contract_files", "serialization_plan_contract_files",
-      "raster_observation_contract_files", "spatial_acceptance_contract_files",
-      "prototype_model_validation_contract_files",
-      "prototype_model_acceptance_contract_files",
-      "full_membership_plan_contract_files", "full_membership_authorization_contract",
-      "full_membership_i24_authorization",
-      "s00_methodology_sources", "s00_methodology_source_authority",
-      "s00_scene_methodology_contract", "s00_spatial_methodology_contract",
-      "s00_cache_methodology_contract", "s00_augmentation_methodology_contract",
-      "s00_model_methodology_contract", "s00_evaluation_methodology_contract",
-      "s00_hyperparameter_methodology_contract", "s00_comparison_methodology_contract",
-      "s00_methodology_authority",
-      "s01_scene_sources", "s01_scene_index", "s01_scene_acceptance",
-      "i01_offgrid_scene_sources", "runtime_mirror_contract_files", "prototype_runtime_inputs",
-      "i01_seoul_spatial_sources", "s01_study_inventory_validation", "methodology_contract", "s01_scene_index",
-      "s01_pilot_scene_index", "prototype_membership_plan", "prototype_membership_shard",
-      "prototype_membership_acceptance", "prototype_observation_plan",
-      "prototype_vector_observation_shard", "prototype_raster_observation_shard", "prototype_relation_shard",
-      "prototype_spatial_acceptance", "prototype_serialization_plan", "prototype_serialization_shard",
-      "prototype_training_dataset_acceptance", "prototype_dataloader_smoke", "prototype_encoder_smoke",
-      "prototype_scientific_geometry_roundtrip", "prototype_augmentation_benchmark",
-      "prototype_joint_model_smoke", "prototype_distributed_joint_model_smoke", "prototype_training_plan",
-      "i05_validation_query_sources", "i06_accepted_model_sources", "i07_training_input_sources",
-      "s07_pilot_training_authority", "s07_training_geometry_cache", "s07_ddp_initialization_validation",
-      "s07_ddp_update_validation", "s07_ddp_reference_validation", "s07_ddp_resume_validation",
-      "s07_pilot_training_execution", "s07_pilot_training_acceptance", "s07_pilot_training_acceptance",
-      "s07_pilot_training_acceptance", "s07_pilot_training_acceptance", "prototype_model_validation",
-      "s07_runtime_sources", "s07_runtime_acceptance",
-      "i07_runtime_validation_sources", "s07_runtime_acceptance",
-      "s08_experiment_sources", "s08_experiment_plan",
-      "prototype_model_acceptance", "full_membership_plan",
-      "p2_base_spatial_contract_files",
-      "base_spatial_prototype_membership_plan", "base_spatial_prototype_membership_shard",
-      "base_spatial_prototype_membership_acceptance", "base_spatial_prototype_observation_plan",
-      "base_spatial_prototype_vector_observation_shard", "base_spatial_prototype_raster_observation_shard",
-      "base_spatial_prototype_relation_graph_shard", "base_spatial_prototype_source_topology_shard",
-      "base_spatial_prototype_acceptance",
-      "base_spatial_membership_plan", "base_spatial_membership_shard",
-      "base_spatial_membership_acceptance", "base_spatial_observation_plan",
-      "base_vector_observation_shard", "base_raster_observation_shard",
-      "base_relation_tiered_execution_acceptance", "base_relation_graph_shard",
-      "base_source_topology_shard", "base_spatial_acceptance",
-      "s03_dataset_sources", "s03_scene_serialization_plan",
-      "s03_scene_serialization_shard", "s03_scene_shard_validation",
-      "s03_scene_cache_index", "s03_scene_dataset_acceptance",
-      "accepted_immutable_parent_config", "accepted_p1_scene_index_reference",
-      "accepted_p2_base_spatial_reference", "accepted_p3_shard_files_reference",
-      "accepted_p3_shard_reference", "accepted_p3_index_reference",
-      "accepted_p3_dataset_acceptance_reference",
-      "s04_bank_sources", "s04_bank_profile_plan",
-      "s04_bank_road_validation", "s04_bank_geometry_validation",
-      "s04_bank_shard_plan", "s04_bank_execution", "s04_bank_validated_shard",
-      "s04_bank_acceptance",
-      "s04_bank_acceptance", "s04_bank_acceptance",
-      "s05_query_sources", "s05_query_contract",
-      "s05_query_shard_plan", "s05_query_shard_plan",
-      "s05_query_shard_plan", "s05_query_execution", "s05_query_shard_plan",
-      "s05_query_validated_shard",
-      "s05_query_acceptance", "s05_query_acceptance",
-      "s05_query_acceptance", "s05_query_acceptance",
-      "s06_dataset_sources", "s06_reference_model_contract",
-      "s06_dataset_preprocessing_contract", "s06_dataset_loader_acceptance",
-      "s06_reference_encoder_validation", "s06_dataset_acceptance"
-    )
-  )
+  retired <- yaml::read_yaml(file.path(fuse_test_root, "config/retired_main_targets.yml"))$retired_targets
+  expect_length(retired, 60L)
+  expect_length(research_manifest$name, 61L)
+  expect_length(intersect(research_manifest$name, unlist(retired, use.names = FALSE)), 0L)
+  expect_true(all(c("s00_methodology_authority", "s01_scene_index", "s02_spatial_acceptance",
+                    "s03_scene_dataset_acceptance", "s04_bank_acceptance", "s05_query_acceptance",
+                    "s06_dataset_acceptance", "s08_current_experiment_plan") %in% research_manifest$name))
   expect_false("seoul_data_preprocess" %in% research_manifest$name)
   maintenance_manifest <- targets::tar_manifest(
     script = file.path(fuse_test_root, "_targets_maintenance.R"), callr_arguments = list(wd = fuse_test_root)

@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
   "required": ["schema_version", "scope", "plan_id", "membership_dataset_id", "authority_id", "scene_index_id", "scene_acceptance_id", "inventory_id", "base_contract_id", "scientific_fingerprint", "branch_specs", "execution"],
   "properties": {
-    "schema_version": {"const": "1.0.0"}, "scope": {"enum": ["prototype", "production"]},
+    "schema_version": {"const": "1.0.0"}, "scope": {"const": "production"},
     "plan_id": {"pattern": "^bmp_[0-9a-f]{24}$"}, "membership_dataset_id": {"pattern": "^bmd_[0-9a-f]{24}$"},
-    "authority_id": {"const": "mta_03e8d7f42fe2018237f3fcde"}, "scene_index_id": {"pattern": "^rsi_[0-9a-f]{24}$"},
+    "authority_id": {"const": "mta_7875c4ba4587e4877ba0be1d"}, "scene_index_id": {"pattern": "^rsi_[0-9a-f]{24}$"},
     "scene_acceptance_id": {"pattern": "^sia_[0-9a-f]{24}$"}, "inventory_id": {"pattern": "^rin_[0-9a-f]{24}$"},
     "base_contract_id": {"const": "mmc_b75dcec66fe442fc"}, "scientific_fingerprint": {"pattern": "^[0-9a-f]{64}$"},
     "branch_specs": {"type": "array", "minItems": 1}, "execution": {"type": "object"}

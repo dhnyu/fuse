@@ -1,2 +1,2 @@
-source("R/research_p9_v1_retirement.R")
-p9_v1_retired_stop("_targets_p9_recovery.R")
+source("R/training_retirement_guard.R")
+retired_training_stop("_targets_p9_recovery.R")

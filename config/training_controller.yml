@@ -1,0 +1,40 @@
+schema_version: "2.0.0"
+contract_name: current-production-training-controller-v1
+migration_status: RECOMPUTE_REQUIRED
+source:
+  required_branch: reduced
+  dissertation_commit: cbb824f19be8355296603f8426ac241ce587ddcc
+  dissertation_authority_id: mta_7875c4ba4587e4877ba0be1d
+parents:
+  methodology_authority_id: mta_7875c4ba4587e4877ba0be1d
+  experiment_plan_id: PENDING_CURRENT_PLAN
+  dataset_acceptance_id: PENDING_CURRENT_DATASET
+  query_acceptance_id: PENDING_CURRENT_QUERIES
+  bank_acceptance_id: PENDING_CURRENT_BANK
+  scene_cache_acceptance_id: PENDING_CURRENT_SCENE_CACHE
+  production_cache_id: PENDING_CURRENT_PRODUCTION_CACHE
+  production_cache_acceptance_id: PENDING_CURRENT_PRODUCTION_CACHE
+  retirement_id: p9ret_246eaf97570f115d4faaf3d1
+roots:
+  experiment_plan: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/current_cbb824f19be83552/current_experiment_plan.json
+  production_cache: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/current_production_cache
+  production_cache_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/current_production_cache/acceptance.json
+  immutable_publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/training
+  canonical_publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/training/canonical
+  eligibility_snapshot: /mnt/hdd002/dhnyu/fusedata/models/reduced/training/canonical/eligibility/current.json
+  retirement_manifest: /mnt/hdd002/dhnyu/fusedata/models/reduced/p9_v2/canonical/retirement/p9ret_246eaf97570f115d4faaf3d1/retirement_manifest.json
+  writable_runs: /mnt/hdd002/dhnyu/fusedata/runtime/training_runs
+  execution_locks: /mnt/hdd002/dhnyu/fusedata/runtime/training_locks
+  lifecycle_records: /mnt/hdd002/dhnyu/fusedata/runtime/training_lifecycle
+  categories: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_cd00016f6b5bfd960b0a6842/production/acceptance/bsa_e617ee0280a6edfa722994d3/spatial_categories.json
+selection_contract_id: current-training-selection-v1.0.0
+production_cache_manifest_sha256: PENDING_CURRENT_PRODUCTION_CACHE
+execution:
+  world_size: 2
+  backend: nccl
+  precision: float32
+  optimizer_updates_per_epoch: 76
+  validation_interval_epochs: 5
+  early_stopping_patience_events: 4
+  exact_resume: committed_checkpoint_only
+  scientific_divergence_code: SCIENTIFIC_DIVERGENCE

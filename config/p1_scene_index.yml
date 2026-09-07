@@ -2,8 +2,8 @@ schema_version: "1.0.0"
 implementation_version: "1.0.0"
 migration_status: RECOMPUTE_REQUIRED
 authority:
-  expected_id: mta_03e8d7f42fe2018237f3fcde
-  expected_manifest_sha256: 766e5b0e99f2342c19b477c8e5905124defeeccc9d7cf562640fe1b34f4994b2
+  expected_id: mta_7875c4ba4587e4877ba0be1d
+  expected_manifest_sha256: b2991c2d22faefc2d35e11d57778dd2488a1059b090d20f7ce50dbc79a1e00cf
 scene:
   processing_epsg: 5186
   official_grid_epsg: 5179
@@ -35,14 +35,6 @@ off_grid_source:
     path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/off_grid_sources/ogs_19933828d3de55d16b8861d7/approved_off_grid_scene_source_qc.json
     size_bytes: 495
     sha256: 50bd3f0d927bde08b2ac52e0b9199299b3c5b100c3bd749897480f5c0089eaab
-prototype:
-  seed: 20260824
-  counts:
-    training: 256
-    validation: 32
-    evaluation: 32
-  density_quantiles: [0.25, 0.75, 0.95]
-  boundary_proximity_m: 250
 publication:
   root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index
 schemas:
@@ -51,4 +43,3 @@ schemas:
   plan: config/schemas/p1_scene_index_plan.schema.json
   index: config/schemas/p1_scene_index_manifest.schema.json
   acceptance: config/schemas/p1_scene_index_acceptance.schema.json
-  prototype: config/schemas/p1_prototype_scene_selection.schema.json

@@ -1,10 +1,14 @@
 schema_version: 1.0.0
 contract_name: p11-spatial-readiness-v1
+migration_status: RECOMPUTE_REQUIRED
 publication_root: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_readiness
 dissertation_authority: config/dissertation_authority_p11_transformation.json
 transformation_methodology: config/p11_target_transformation_methodology.json
 downstream_dataset: config/p11_downstream_dataset.yml
-p10_contract: config/p10_evaluation.yml
+p10_contract: config/evaluation.yml
+p10_acceptance: PENDING_CURRENT_RECOMPUTATION
+p10_acceptance_id: PENDING_CURRENT_RECOMPUTATION
+current_methodology: config/current_methodology.yml
 scene_index: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index/rsi_80031f1493c75163f91b7c71/spatial_scene_index.parquet
 district_boundary: /mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_sigungu_00_2025_2Q.shp
 district_crs: EPSG:5179

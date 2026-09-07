@@ -3,6 +3,9 @@
 /_targets
 /artifacts/targets-network/
 /artifacts/retrieval-inspector/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 *.gpkg
 *.gpkg-shm
 *.gpkg-wal

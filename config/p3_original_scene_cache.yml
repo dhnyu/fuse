@@ -1,7 +1,7 @@
 schema_version: "3.0.0"
 implementation_version: "1.0.0"
 migration_status: RECOMPUTE_REQUIRED
-authority_id: mta_03e8d7f42fe2018237f3fcde
+authority_id: mta_7875c4ba4587e4877ba0be1d
 original_cache_contract_id: mmc_1989e1225beeb5f2
 scene_index_id: PENDING_CURRENT_RECOMPUTATION
 scene_acceptance_id: PENDING_CURRENT_RECOMPUTATION

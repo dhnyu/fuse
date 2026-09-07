@@ -1,10 +1,13 @@
 schema_version: 1.0.0
 contract_name: p11-spatial-ridge-v1
+migration_status: RECOMPUTE_REQUIRED
 publication_root: /mnt/hdd002/dhnyu/fusedata/downstream_data/p11_ridge
 readiness_pointer: config/p11_spatial_readiness_acceptance.yml
 transformation_methodology: config/p11_target_transformation_methodology.json
 downstream_dataset_pointer: config/p11_downstream_dataset.yml
-p10_contract: config/p10_evaluation.yml
+p10_contract: config/evaluation.yml
+p10_acceptance: PENDING_CURRENT_RECOMPUTATION
+p10_acceptance_id: PENDING_CURRENT_RECOMPUTATION
 parallel_workers: 8
 blas_threads_per_worker: 1
 ridge:
@@ -14,14 +17,23 @@ ridge:
   predictor_standard_deviation_ddof: 0
   zero_variance_scale: 1.0
 models:
-  - cfg_d128
-  - cmp_a1_geometric_core
-  - cmp_a2_semantic_enriched
-  - cmp_a3_object_context_enriched
-  - cmp_a4_raster_complete_non_relational
-  - cmp_a5_relation_type_agnostic
-  - cmp_ssv_like
-  - cmp_ds_like
+  - FM
+  - A1
+  - A2
+  - A3
+  - A4
+  - A5
+  - B1
+  - B2
+  - B3
+  - B4
+  - B5
+  - B6
+  - B7
+  - B8
+  - B9
+  - SSV
+  - DS
 targets:
   - total_population
   - households

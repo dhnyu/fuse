@@ -20,7 +20,7 @@
     "leakage_gate_sha256": {"pattern": "^[0-9a-f]{64}$"},
     "oof_readiness_sha256": {"pattern": "^[0-9a-f]{64}$"},
     "fold_count": {"const": 25},
-    "scene_count": {"const": 1600},
+    "scene_count": {"const": 9000},
     "target_count": {"const": 11},
     "model_count": {"const": 8},
     "next_work_unit": {"const": "P11_E_SPATIAL_RIDGE_PROBES_AND_OOF_PREDICTIONS"},

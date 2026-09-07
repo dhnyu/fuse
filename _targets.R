@@ -3,49 +3,8 @@ library(crew)
 
 # Research pipeline only. Seoul study-data maintenance is declared in
 # _targets_maintenance.R and uses a separate targets store.
-research_function_files <- c(
-  "R/config_paths.R",
-  "R/io_spatial.R",
-  "R/research_contracts.R",
-  "R/research_canonical_config.R",
-  "R/research_immutable_parent_references.R",
-  "R/research_methodology_authority.R",
-  "R/research_methodology_current.R",
-  "R/research_dynamic_branch_recovery.R",
-  "R/research_runtime_mirror.R",
-  "R/research_scene_index.R",
-  "R/research_scene_index_reduced.R",
-  "R/research_prototype.R",
-  "R/research_membership.R",
-  "R/research_observation.R",
-  "R/research_raster_observation.R",
-  "R/research_relation.R",
-  "R/research_spatial_acceptance.R",
-  "R/research_base_spatial.R",
-  "R/research_relation_tiered_execution.R",
-  "R/research_original_scene_cache.R",
-  "R/research_fixed_augmentation_banks.R",
-  "R/research_fixed_queries.R",
-  "R/research_model_dataloader.R",
-  "R/research_serialization_plan.R",
-  "R/research_serialization_shard.R",
-  "R/research_training_dataset_acceptance.R",
-  "R/research_dataloader_smoke.R",
-  "R/research_encoder_smoke.R",
-  "R/research_augmentation_benchmark.R",
-  "R/research_joint_model_smoke.R",
-  "R/research_distributed_joint_model_smoke.R",
-  "R/research_prototype_training.R",
-  "R/research_p7_cold_path_runtime.R",
-  "R/research_p8_experiment_plan.R",
-  "R/research_p9_infrastructure.R",
-  "R/research_p9_formal_authorization.R",
-  "R/research_p9_v1_retirement.R",
-  "R/research_prototype_model_validation.R",
-  "R/research_prototype_model_acceptance.R",
-  "R/research_training_plan.R"
-)
-targets::tar_source(research_function_files)
+source("R/current_source_registry.R", local = TRUE)
+targets::tar_source(current_research_source_files())
 
 controller_05 <- crew::crew_controller_local(
   name = "controller_05",
@@ -86,67 +45,15 @@ targets::tar_option_set(
   storage = "worker"
 )
 
-targets::tar_source("targets/research_methodology_authority.R")
-targets::tar_source("targets/research_scene_index.R")
-targets::tar_source("targets/research_membership.R")
-targets::tar_source("targets/research_observation.R")
-targets::tar_source("targets/research_raster_observation.R")
-targets::tar_source("targets/research_relation.R")
-targets::tar_source("targets/research_spatial_acceptance.R")
-targets::tar_source("targets/research_base_spatial.R")
-targets::tar_source("targets/research_original_scene_cache.R")
-targets::tar_source("targets/research_immutable_parent_references.R")
-targets::tar_source("targets/research_fixed_augmentation_banks.R")
-targets::tar_source("targets/research_fixed_queries.R")
-targets::tar_source("targets/research_model_dataloader.R")
-targets::tar_source("targets/research_serialization_plan.R")
-targets::tar_source("targets/research_serialization_shard.R")
-targets::tar_source("targets/research_training_dataset_acceptance.R")
-targets::tar_source("targets/research_dataloader_smoke.R")
-targets::tar_source("targets/research_encoder_smoke.R")
-targets::tar_source("targets/research_augmentation_benchmark.R")
-targets::tar_source("targets/research_joint_model_smoke.R")
-targets::tar_source("targets/research_distributed_joint_model_smoke.R")
-targets::tar_source("targets/research_training_plan.R")
-targets::tar_source("targets/research_prototype_training.R")
-targets::tar_source("targets/research_p7_cold_path_runtime.R")
-targets::tar_source("targets/research_p8_experiment_plan.R")
-targets::tar_source("targets/research_p9_infrastructure.R")
-targets::tar_source("targets/research_prototype_model_validation.R")
-targets::tar_source("targets/research_prototype_model_acceptance.R")
-targets::tar_source("R/research_metadata_recovery.R")
-targets::tar_source("R/research_full_membership_authorization.R")
-targets::tar_source("R/research_full_membership_plan.R")
-targets::tar_source("targets/research_full_membership_plan.R")
+targets::tar_source(current_target_source_files())
 
 c(
-  list_research_methodology_authority,
-  list_research_scene_index,
-  list_research_membership,
-  list_research_observation,
-  list_research_raster_observation,
-  list_research_relation,
-  list_research_spatial_acceptance,
-  list_research_base_spatial,
-  list_research_original_scene_cache,
-  list_research_immutable_parent_references,
-  list_research_fixed_augmentation_banks,
-  list_research_fixed_queries,
-  list_research_model_dataloader,
-  list_research_serialization_plan,
-  list_research_serialization_shard,
-  list_research_training_dataset_acceptance,
-  list_research_dataloader_smoke,
-  list_research_encoder_smoke,
-  list_research_augmentation_benchmark,
-  list_research_joint_model_smoke,
-  list_research_distributed_joint_model_smoke,
-  list_research_training_plan,
-  list_research_prototype_training,
-  list_research_p7_cold_path_runtime,
-  list_research_p8_experiment_plan,
-  list_research_p9_infrastructure,
-  list_research_prototype_model_validation,
-  list_research_prototype_model_acceptance,
-  list_research_full_membership_plan
+  list_s00_methodology,
+  list_s01_scene_index,
+  list_s02_spatial_observations,
+  list_s03_scene_cache,
+  list_s04_augmentation,
+  list_s05_fixed_queries,
+  list_s06_model_inputs,
+  list_s08_experiment_plan
 )

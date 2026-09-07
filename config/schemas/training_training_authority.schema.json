@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/training_training_authority.schema.json",
+  "title": "current training training authority bound evidence",
+  "type": "object",
+  "required": ["schema_version", "identity", "content_sha256", "content"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "identity": {"type": "string", "pattern": "^p9authv2_[0-9a-f]{24}$"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "content": {
+      "type": "object",
+      "required": ["authority_kind", "scope", "scientific_run_key", "scientific", "parents", "parent_hashes", "execution_policy"],
+      "properties": {
+        "authority_kind": {"const": "FUTURE_FORMAL_TRAINING"},
+        "scope": {"const": "ONE_NEW_FORMAL_CONFIGURATION"},
+        "scientific_run_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "scientific": {
+          "type": "object",
+          "required": ["configuration_id", "configuration_hash", "plan_configuration_hash", "scientific_implementation_hash", "selection_contract_id", "root_seed", "evaluation_ancestry"],
+          "properties": {
+            "configuration_id": {"type": "string", "pattern": "^(main|ofat_[a-z0-9_.-]+|cmp_[a-z0-9_]+)$"},
+            "configuration_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "plan_configuration_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "scientific_implementation_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "selection_contract_id": {"const": "current-training-selection-v1.0.0"},
+            "root_seed": {"type": "integer", "minimum": 0},
+            "evaluation_ancestry": {"const": false}
+          },
+          "additionalProperties": false
+        },
+        "parents": {
+          "type": "object",
+          "required": ["methodology_commit", "methodology_authority_id", "experiment_plan_id", "dataset_acceptance_id", "query_acceptance_id", "bank_acceptance_id", "scene_cache_acceptance_id", "production_cache_id", "production_cache_acceptance_id", "retirement_id"],
+          "properties": {
+            "methodology_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "methodology_authority_id": {"type": "string", "minLength": 1}, "experiment_plan_id": {"type": "string", "minLength": 1},
+            "dataset_acceptance_id": {"type": "string", "minLength": 1}, "query_acceptance_id": {"type": "string", "minLength": 1},
+            "bank_acceptance_id": {"type": "string", "minLength": 1}, "scene_cache_acceptance_id": {"type": "string", "minLength": 1},
+            "production_cache_id": {"type": "string", "minLength": 1}, "production_cache_acceptance_id": {"type": "string", "minLength": 1},
+            "retirement_id": {"type": "string", "pattern": "^p9ret_[0-9a-f]{24}$"}
+          },
+          "additionalProperties": false
+        },
+        "parent_hashes": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        },
+        "execution_policy": {
+          "type": "object",
+          "required": ["world_size", "backend", "training_allowed", "resume_policy", "validation_only_selection", "canonical_acceptance_handoff"],
+          "properties": {
+            "world_size": {"const": 2}, "backend": {"const": "nccl"}, "training_allowed": {"const": true},
+            "resume_policy": {"const": "EXACT_COMMITTED_CHECKPOINT_ONLY"}, "validation_only_selection": {"const": true},
+            "canonical_acceptance_handoff": {"const": "CURRENT_IMMUTABLE_LIFECYCLE"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

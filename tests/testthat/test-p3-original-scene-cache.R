@@ -52,10 +52,17 @@ test_that("P3 scientific hash excludes execution environment", {
 })
 
 test_that("P3 graph has no P4, maintenance, or GPU ancestry", {
-  required <- c("original_scene_cache_contract","original_scene_serialization_plan","original_scene_serialization_shard",
-                "original_scene_geometry_roundtrip","original_scene_cache_index","original_scene_dataset_acceptance")
+  required <- c("s03_dataset_sources", "s03_scene_serialization_plan",
+                "s03_scene_serialization_shard", "s03_scene_shard_validation",
+                "s03_scene_cache_index", "s03_scene_dataset_acceptance")
   text <- paste(readLines(file.path(fuse_test_root,"targets/research_original_scene_cache.R"),warn=FALSE),collapse="\n")
   expect_true(all(vapply(required, grepl, logical(1L), x=text, fixed=TRUE)))
   expect_false(grepl("augmentation|dataloader|gpu|maintenance",text,ignore.case=TRUE))
   expect_true(grepl("base_spatial_acceptance",text,fixed=TRUE))
+})
+
+test_that("P3 aggregate reuses independent shard validation results", {
+  body_text <- paste(deparse(body(p3_build_roundtrip)), collapse = "\n")
+  expect_false(grepl("p3_validate_shard", body_text, fixed = TRUE))
+  expect_true(grepl("validations <- shard_validation", body_text, fixed = TRUE))
 })

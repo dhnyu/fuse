@@ -247,6 +247,56 @@ p5_validate_query_shard <- function(shard_files, plan_branch, contract_files) {
   value <- jsonlite::read_json(output, simplifyVector = FALSE); unlink(output); value
 }
 
+p5_validated_query_shard <- function(plan_branch, contract_files, tiered_execution) {
+  shard_files <- p5_build_query_shard(plan_branch, contract_files, tiered_execution)
+  validation <- p5_validate_query_shard(shard_files, plan_branch, contract_files)
+  if (!identical(validation$status, "PASS")) {
+    stop("P5 independent branch validation did not return PASS: ", plan_branch$branch_id, call. = FALSE)
+  }
+  payload <- artifact_path(shard_files, paste0(plan_branch$branch_id, ".tar"))
+  validation_hash <- p0_scientific_sha256(list(
+    branch_id = plan_branch$branch_id, split = plan_branch$split,
+    namespace = plan_branch$namespace, seed = plan_branch$config$seed,
+    payload_sha256 = sha256_file(payload),
+    validation = validation
+  ))
+  root <- file.path(
+    dirname(plan_branch$output_directory), "validation", plan_branch$branch_id,
+    paste0("p5v_", substr(validation_hash, 1L, 24L))
+  )
+  receipt <- p1_publish_immutable_bundle(root, "validation_receipt.json", function(stage) {
+    write_json_file(list(
+      schema_version = plan_branch$schema_version,
+      status = "PASS", branch_id = plan_branch$branch_id,
+      split = plan_branch$split, namespace = plan_branch$namespace,
+      seed = plan_branch$config$seed,
+      validation_sha256 = validation_hash, validation = validation
+    ), file.path(stage, "validation_receipt.json"))
+  })
+  c(shard_files, receipt)
+}
+
+p5_validation_evidence <- function(validated_shards, plan) {
+  if (length(validated_shards) != length(plan)) {
+    stop("P5 validated shard/plan coverage mismatch", call. = FALSE)
+  }
+  Map(function(paths, branch) {
+    receipt_path <- artifact_path(paths, "validation_receipt.json")
+    if (!file.exists(receipt_path)) stop("P5 validation receipt missing", call. = FALSE)
+    receipt <- jsonlite::read_json(
+      receipt_path, simplifyVector = FALSE
+    )
+    if (!identical(receipt$status, "PASS") ||
+        !identical(receipt$branch_id, branch$branch_id) ||
+        !identical(receipt$split, branch$split) ||
+        !identical(receipt$namespace, branch$namespace) ||
+        !identical(receipt$seed, branch$config$seed)) {
+      stop("P5 validation receipt identity/split mismatch", call. = FALSE)
+    }
+    receipt$validation
+  }, validated_shards, plan)
+}
+
 p5_accept_queries <- function(plan, shard_files, shard_validation, fixed_query_methodology_contract,
                               original_scene_dataset_acceptance, contract_files) {
   spec <- p5_load_spec(contract_files); cfg <- spec$config
@@ -294,9 +344,10 @@ p5_final_acceptance <- function(bundle, validation_acceptance, evaluation_accept
   bundle
 }
 
-p5_consolidated_acceptance <- function(plan, shard_files, shard_validation,
+p5_consolidated_acceptance <- function(plan, shard_files,
                                        fixed_query_methodology_contract,
                                        original_scene_dataset_acceptance, contract_files) {
+  shard_validation <- p5_validation_evidence(shard_files, plan)
   bundle <- p5_accept_queries(
     plan, shard_files, shard_validation, fixed_query_methodology_contract,
     original_scene_dataset_acceptance, contract_files

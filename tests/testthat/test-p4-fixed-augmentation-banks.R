@@ -29,13 +29,13 @@ testthat::test_that("P4 target declarations use only the fixed bank interface", 
   text <- paste(readLines(path, warn = FALSE), collapse = "\n")
   expected <- c("s04_bank_profile_plan", "s04_bank_road_validation",
                 "s04_bank_geometry_validation", "s04_bank_shard_plan",
-                "s04_bank_execution", "augmentation_bank_shard",
-                "s04_bank_acceptance",
-                "s04_bank_acceptance", "s04_bank_acceptance")
+                "s04_bank_execution", "s04_bank_validated_shard",
+                "s04_bank_acceptance")
   testthat::expect_true(all(vapply(expected, grepl, logical(1L), x = text, fixed = TRUE)))
   testthat::expect_false(grepl("controller_gpu", text, fixed = TRUE))
   testthat::expect_false(grepl("seoul_data_preprocess", text, fixed = TRUE))
   testthat::expect_false(grepl("fixed_validation_query", text, fixed = TRUE))
+  testthat::expect_false(grepl("augmentation_bank_shard_validation", text, fixed = TRUE))
 })
 
 testthat::test_that("P4 tiered execution is tracked but excluded from scientific identity", {

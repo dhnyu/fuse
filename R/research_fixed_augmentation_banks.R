@@ -201,6 +201,48 @@ p4_validate_bank_shard <- function(shard_files, contract_files) {
   value<-jsonlite::read_json(output,simplifyVector=FALSE);unlink(output);value
 }
 
+p4_validated_bank_shard <- function(plan_branch, contract_files, tiered_execution) {
+  shard_files <- p4_build_bank_shard(plan_branch, contract_files, tiered_execution)
+  validation <- p4_validate_bank_shard(shard_files, contract_files)
+  if (!identical(validation$status, "PASS")) {
+    stop("P4 independent branch validation did not return PASS: ", plan_branch$branch_id, call. = FALSE)
+  }
+  validation_hash <- p0_scientific_sha256(list(
+    branch_id = plan_branch$branch_id,
+    payload_sha256 = sha256_file(artifact_path(shard_files, paste0(plan_branch$branch_id, ".tar"))),
+    validation = validation
+  ))
+  root <- file.path(
+    dirname(plan_branch$output_directory), "validation", plan_branch$branch_id,
+    paste0("p4v_", substr(validation_hash, 1L, 24L))
+  )
+  receipt <- p1_publish_immutable_bundle(root, "validation_receipt.json", function(stage) {
+    write_json_file(list(
+      schema_version = plan_branch$schema_version,
+      status = "PASS",
+      branch_id = plan_branch$branch_id,
+      validation_sha256 = validation_hash,
+      validation = validation
+    ), file.path(stage, "validation_receipt.json"))
+  })
+  c(shard_files, receipt)
+}
+
+p4_validation_evidence <- function(validated_shards) {
+  lapply(validated_shards, function(paths) {
+    receipt_path <- artifact_path(paths, "validation_receipt.json")
+    if (!file.exists(receipt_path)) stop("P4 validation receipt missing", call. = FALSE)
+    receipt <- jsonlite::read_json(
+      receipt_path, simplifyVector = FALSE
+    )
+    if (!identical(receipt$status, "PASS") || !identical(receipt$branch_id,
+      p4_read(paths, "branch_manifest.json")$branch_id)) {
+      stop("P4 validation receipt identity mismatch", call. = FALSE)
+    }
+    receipt$validation
+  })
+}
+
 p4_accept_bank <- function(plan, shard_files, shard_validation, original_scene_dataset_acceptance, contract_files) {
   spec<-p4_load_spec(contract_files);p3<-p4_read(original_scene_dataset_acceptance,"original_scene_dataset_acceptance.json")
   if(length(shard_files)!=288L||length(shard_validation)!=288L||!all(vapply(shard_validation,function(x)x$status=="PASS",logical(1L))))stop("P4 validated branch coverage incomplete",call.=FALSE)
@@ -229,8 +271,9 @@ p4_benchmark_bank <- function(bank_acceptance, effective_index, contract_files) 
   p1_publish_immutable_bundle(root,"augmentation_bank_benchmark.json",function(stage){path<-write_json_file(value,file.path(stage,"augmentation_bank_benchmark.json"));validate_json_schema_file(path,spec$schemas[["benchmark"]])})
 }
 
-p4_consolidated_acceptance <- function(plan, shard_files, shard_validation,
+p4_consolidated_acceptance <- function(plan, shard_files,
                                        original_scene_dataset_acceptance, contract_files) {
+  shard_validation <- p4_validation_evidence(shard_files)
   bank <- p4_accept_bank(
     plan, shard_files, shard_validation, original_scene_dataset_acceptance, contract_files
   )

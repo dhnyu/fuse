@@ -180,7 +180,7 @@ p3_validate_shard <- function(shard_files, contract_files) {
 }
 
 p3_build_roundtrip <- function(plan, shard_files, shard_validation, contract_files) {
-  spec <- p3_load_spec(contract_files); validations <- lapply(shard_files,p3_validate_shard,contract_files=contract_files)
+  spec <- p3_load_spec(contract_files); validations <- shard_validation
   if (length(shard_validation) != length(shard_files) || !all(vapply(shard_validation,function(x)x$status=="PASS",logical(1L)))) stop("P3 structural shard validation incomplete",call.=FALSE)
   manifests <- lapply(shard_files,p3_json,name="shard_manifest.json")
   branches <- vapply(manifests,`[[`,character(1L),"branch_id"); planned <- vapply(plan,`[[`,character(1L),"branch_id")
@@ -193,6 +193,45 @@ p3_build_roundtrip <- function(plan, shard_files, shard_validation, contract_fil
     logical_content_sha256=p0_scientific_sha256(lapply(manifests,function(x)list(branch_id=x$branch_id,hash=x$logical_content_sha256))))
   root <- file.path(spec$config$publication_root,plan[[1L]]$cache_id,"validation",paste0("rtv_",substr(value$logical_content_sha256,1L,24L)))
   p1_publish_immutable_bundle(root,"original_scene_geometry_roundtrip.json",function(stage) write_json_file(value,file.path(stage,"original_scene_geometry_roundtrip.json")))
+}
+
+p3_build_serialization_plan <- function(original_cache_methodology_contract,
+                                        reduced_methodology_authority,
+                                        base_spatial_acceptance,
+                                        base_spatial_observation_plan,
+                                        base_vector_observation_shard,
+                                        base_raster_observation_shard,
+                                        base_relation_graph_shard,
+                                        base_source_topology_shard,
+                                        base_spatial_membership_acceptance,
+                                        contract_files) {
+  contract <- p3_build_contract(
+    original_cache_methodology_contract, reduced_methodology_authority, contract_files
+  )
+  p3_build_plan(
+    contract, base_spatial_acceptance, base_spatial_observation_plan,
+    base_vector_observation_shard, base_raster_observation_shard,
+    base_relation_graph_shard, base_source_topology_shard,
+    base_spatial_membership_acceptance, contract_files
+  )
+}
+
+p3_build_scene_cache_index <- function(plan, shard_files, shard_validation, contract_files) {
+  roundtrip <- p3_build_roundtrip(plan, shard_files, shard_validation, contract_files)
+  index <- p3_build_index(plan, shard_files, roundtrip, contract_files)
+  c(roundtrip, index)
+}
+
+p3_build_dataset_acceptance <- function(plan, shard_files, cache_index,
+                                        base_spatial_acceptance, contract_files) {
+  manifest <- p3_build_cache_manifest(
+    plan, shard_files, cache_index, cache_index, base_spatial_acceptance, contract_files
+  )
+  acceptance <- p3_accept_dataset(
+    plan, shard_files, cache_index, cache_index, manifest,
+    base_spatial_acceptance, contract_files
+  )
+  c(manifest, acceptance)
 }
 
 p3_build_index <- function(plan, shard_files, roundtrip, contract_files) {

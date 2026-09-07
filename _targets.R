@@ -10,6 +10,7 @@ research_function_files <- c(
   "R/research_canonical_config.R",
   "R/research_immutable_parent_references.R",
   "R/research_methodology_authority.R",
+  "R/research_methodology_current.R",
   "R/research_dynamic_branch_recovery.R",
   "R/research_runtime_mirror.R",
   "R/research_scene_index.R",

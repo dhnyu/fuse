@@ -4,7 +4,7 @@
   "type": "object",
   "required": ["schema_version", "source_set_id", "repository_path", "repository_relative_entrypoint", "repository_identity", "branch", "commit_sha", "ordered_files", "import_edges", "unresolved_imports", "duplicate_diagnostics", "cycle_diagnostics", "unsupported_dynamic_imports", "resolver_implementation_version", "resolver_implementation_sha256", "audit", "source_set_content_sha256", "status"],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "2.0.0"},
     "source_set_id": {"type": "string", "pattern": "^mss_[0-9a-f]{16}$"},
     "repository_path": {"type": "string", "minLength": 1},
     "repository_relative_entrypoint": {"type": "string", "minLength": 1},

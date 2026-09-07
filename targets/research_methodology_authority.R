@@ -53,6 +53,18 @@ list_research_methodology_authority <- list(
     resources = p0_authority_resources
   ),
   targets::tar_target(
+    s00_hyperparameter_methodology_contract,
+    build_p0_module_contract("hyperparameter_study", s00_methodology_source_authority, s00_methodology_source_authority, p0_authority_spec),
+    format = "file",
+    resources = p0_authority_resources
+  ),
+  targets::tar_target(
+    s00_comparison_methodology_contract,
+    build_p0_module_contract("comparison", s00_methodology_source_authority, s00_methodology_source_authority, p0_authority_spec),
+    format = "file",
+    resources = p0_authority_resources
+  ),
+  targets::tar_target(
     s00_methodology_authority,
     p0_build_final_authority(
       s00_methodology_source_authority,
@@ -62,7 +74,9 @@ list_research_methodology_authority <- list(
         s00_cache_methodology_contract,
         s00_augmentation_methodology_contract,
         s00_model_methodology_contract,
-        s00_evaluation_methodology_contract
+        s00_evaluation_methodology_contract,
+        s00_hyperparameter_methodology_contract,
+        s00_comparison_methodology_contract
       ),
       p0_authority_spec
     ),

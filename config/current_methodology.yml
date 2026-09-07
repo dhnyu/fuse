@@ -1,0 +1,54 @@
+schema_version: "2.0.0"
+dissertation_commit: cbb824f19be8355296603f8426ac241ce587ddcc
+
+scene_split:
+  total_off_grid: 10000
+  validation: 1000
+  evaluation: 9000
+  minimum_training_center_distance_m: 50
+
+model:
+  d: 128
+  d_c: 128
+  attention_heads: 4
+  information_preservation: false
+  reconstruction_decoders: false
+
+training:
+  objective: symmetric_scene_contrastive
+  K_aug: 8
+  augmentation_intensity: 1.0
+  ema_momentum: 0.999
+  peak_learning_rate: 0.001
+
+hyperparameter_study:
+  design: shared_main_ofat
+  d: [64, 128, 256]
+  K_aug: [4, 8, 16]
+  augmentation_intensity: [0.5, 1.0, 2.0]
+  ema_momentum: [0.990, 0.999]
+  peak_learning_rate: [0.001, 0.002, 0.003, 0.005]
+
+comparison:
+  ordered_models: [FM, A1, A2, A3, A4, A5, B1, B2, B3, B4, B5, B6, B7, B8, B9, SSV, DS]
+  component_variants:
+    FM: {modalities: [relative, geometry, semantic, environmental], fusion: true, relation: heterogeneous, scene_raster: true}
+    A1: {modalities: [relative], fusion: false, relation: none, scene_raster: false}
+    A2: {modalities: [relative, geometry], fusion: true, relation: none, scene_raster: false}
+    A3: {modalities: [relative, geometry, semantic, environmental], fusion: true, relation: none, scene_raster: false}
+    A4: {modalities: [relative, geometry, semantic, environmental], fusion: true, relation: generic, scene_raster: false, edge_policy: exact_FM_directed_edges_preserve_direction_and_multiplicity}
+    A5: {modalities: [relative, geometry, semantic, environmental], fusion: true, relation: heterogeneous, scene_raster: false}
+    SSV: {modalities: [relative, semantic], fusion: true, relation: none, scene_raster: false}
+    DS: {modalities: [], fusion: false, relation: none, scene_raster: DS_multichannel}
+  source_order: [B, R, P, LC, DEM]
+  retained_sources:
+    FM: [B, R, P, LC, DEM]
+    B1: [B, R, P]
+    B2: [B, R]
+    B3: [B, P]
+    B4: [R, P]
+    B5: [B]
+    B6: [R]
+    B7: [P]
+    B8: [B, R, P, LC]
+    B9: [B, R, P, DEM]

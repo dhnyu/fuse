@@ -41,7 +41,11 @@ load_p0_authority_spec <- function(root = getwd()) {
   implementation_file <- file.path(root, "R/research_methodology_authority.R")
   implementation_relative_files <- c(
     "R/research_methodology_authority.R",
+    "R/research_methodology_current.R",
     "targets/research_methodology_authority.R",
+    "config/current_methodology.yml",
+    "python/current_methodology.py",
+    "config/schemas/current_experiment_plan.schema.json",
     unname(unlist(value$schemas, use.names = FALSE))
   )
   implementation_records <- lapply(implementation_relative_files, function(path) list(
@@ -65,10 +69,13 @@ load_p0_authority_spec <- function(root = getwd()) {
       repository_identity = dissertation$repository_identity,
       expected_branch = dissertation$expected_branch,
       expected_commit_sha = dissertation$expected_commit_sha,
-      entrypoint = dissertation$entrypoint
+      entrypoint = dissertation$entrypoint,
+      non_scientific_generated_paths = unlist(dissertation$non_scientific_generated_paths),
+      non_scientific_external_imports = unlist(dissertation$non_scientific_external_imports)
     ),
     audit = list(path = normalizePath(audit$path, mustWork = TRUE), sha256 = actual_audit_hash),
     authority_root = value$publication$authority_root,
+    supersedes = value$publication$supersedes,
     schemas = setNames(normalizePath(schema_files, mustWork = TRUE), names(schema_files))
   )
 }
@@ -141,8 +148,12 @@ p0_repository_relative_path <- function(path, repository_path) {
   if (identical(normalized, repository_path)) "." else substring(normalized, nchar(prefix) + 1L)
 }
 
-p0_resolve_reference_path <- function(value, importer_path, repository_path) {
+p0_resolve_reference_path <- function(value, importer_path, repository_path,
+                                      generated_paths = character(), external_imports = character()) {
   if (startsWith(value, "@")) {
+    if (value %in% external_imports) {
+      return(list(status = "ignored", path = NULL, reason = "non_scientific_external_import"))
+    }
     return(list(status = "unsupported", path = NULL, reason = "external_package_import"))
   }
   candidate <- if (startsWith(value, "/")) {
@@ -154,6 +165,10 @@ p0_resolve_reference_path <- function(value, importer_path, repository_path) {
   repository_normalized <- normalizePath(repository_path, winslash = "/", mustWork = TRUE)
   if (!startsWith(paste0(normalized, "/"), paste0(repository_normalized, "/"))) {
     return(list(status = "blocked", path = normalized, reason = "repository_escape"))
+  }
+  relative <- substring(normalized, nchar(paste0(repository_normalized, "/")) + 1L)
+  if (!file.exists(normalized) && basename(normalized) %in% basename(generated_paths)) {
+    return(list(status = "ignored", path = normalized, reason = "non_scientific_generated_input"))
   }
   if (!file.exists(normalized)) return(list(status = "unresolved", path = normalized, reason = "file_not_found"))
   list(status = "resolved", path = normalizePath(normalized, winslash = "/", mustWork = TRUE), reason = NULL)
@@ -172,7 +187,8 @@ p0_source_classification <- function(relative_path) {
 
 resolve_typst_source_set <- function(repository_path, entrypoint = "template/main.typ",
                                      resolver_version = "1.0.0",
-                                     resolver_implementation_sha256 = NULL) {
+                                     resolver_implementation_sha256 = NULL,
+                                     generated_paths = character(), external_imports = character()) {
   repository_path <- normalizePath(repository_path, winslash = "/", mustWork = TRUE)
   entry_path <- p0_resolve_reference_path(entrypoint, file.path(repository_path, "root.typ"), repository_path)
   if (!identical(entry_path$status, "resolved")) stop("Typst entrypoint cannot be resolved", call. = FALSE)
@@ -197,7 +213,9 @@ resolve_typst_source_set <- function(repository_path, entrypoint = "template/mai
       unsupported <<- c(unsupported, lapply(parsed$unsupported, function(item) c(list(importer = relative), item)))
     }
     for (reference in parsed$references) {
-      resolution <- p0_resolve_reference_path(reference$value, path, repository_path)
+      resolution <- p0_resolve_reference_path(reference$value, path, repository_path,
+                                              generated_paths, external_imports)
+      if (identical(resolution$status, "ignored")) next
       if (!identical(resolution$status, "resolved")) {
         record <- c(list(importer = relative, imported_expression = reference$value,
                          directive = reference$directive), reference,
@@ -311,7 +329,9 @@ p0_publish_json_component <- function(value, final_dir, basename, schema_file) {
 build_reduced_methodology_source_files <- function(spec) {
   resolved <- resolve_typst_source_set(
     spec$dissertation$repository_path, spec$dissertation$entrypoint,
-    spec$implementation_version, spec$resolver_implementation_sha256
+    spec$implementation_version, spec$resolver_implementation_sha256,
+    spec$dissertation$non_scientific_generated_paths,
+    spec$dissertation$non_scientific_external_imports
   )
   if (!identical(resolved$status, "PASS")) {
     stop("P0 Typst source resolution blocked: unresolved=", length(resolved$unresolved_imports),
@@ -337,7 +357,9 @@ build_reduced_methodology_source_set <- function(source_files, git_state_file, s
   if (!identical(git_state$verification_status, "PASS")) stop("Dissertation Git state is not accepted", call. = FALSE)
   resolved <- resolve_typst_source_set(
     spec$dissertation$repository_path, spec$dissertation$entrypoint,
-    spec$implementation_version, spec$resolver_implementation_sha256
+    spec$implementation_version, spec$resolver_implementation_sha256,
+    spec$dissertation$non_scientific_generated_paths,
+    spec$dissertation$non_scientific_external_imports
   )
   expected <- normalizePath(source_files, mustWork = TRUE)
   if (!identical(unname(resolved$ordered_paths), unname(expected))) stop("Tracked P0 source files differ from resolver output", call. = FALSE)
@@ -781,7 +803,7 @@ build_reduced_methodology_authority <- function(git_state_file, source_set_file,
   if (!identical(git_state$verification_status, "PASS")) stop("P0 Git state blocks authority publication", call. = FALSE)
   if (!identical(source_set$status, "PASS")) stop("P0 source set blocks authority publication", call. = FALSE)
   if (!identical(gate$status, "PASS") || gate$unclassified_conflict_count != 0L) stop("P0 conflict gate blocks authority publication", call. = FALSE)
-  if (!setequal(observed_modules, expected_modules) || length(modules) != 8L) stop("P0 module contract set is incomplete", call. = FALSE)
+  if (!setequal(observed_modules, expected_modules) || length(modules) != length(expected_modules)) stop("P0 module contract set is incomplete", call. = FALSE)
   if (any(vapply(modules, function(x) !identical(x$status, "PASS"), logical(1L)))) stop("A P0 module contract is not accepted", call. = FALSE)
   modules <- modules[match(expected_modules, observed_modules)]
   ordered_hashes <- lapply(source_set$ordered_files, function(file) list(path = file$path, sha256 = file$sha256))
@@ -806,6 +828,14 @@ build_reduced_methodology_authority <- function(git_state_file, source_set_file,
     conflict_gate_id = gate$conflict_gate_id, conflict_gate_status = gate$status,
     implementation_version = spec$implementation_version,
     implementation_sha256 = spec$implementation_sha256,
+    supersession = list(
+      prior_authority_id = spec$supersedes$authority_id,
+      prior_dissertation_commit = spec$supersedes$dissertation_commit,
+      new_dissertation_commit = source_set$commit_sha,
+      changed_modules = as.list(c("scene", "augmentation", "model", "training", "evaluation", "hyperparameter_study", "comparison")),
+      unchanged_modules = as.list(c("base_spatial", "original_cache", "downstream")),
+      downstream_artifact_default = "HISTORICAL_ONLY_UNTIL_EXPLICIT_PARITY"
+    ),
     downstream_scope_mapping = list(
       P1 = "scene", P2 = "base_spatial", P3 = "original_cache", P4 = "augmentation",
       P5 = "evaluation", P6 = "model", P7 = "training", P8 = "training",
@@ -825,6 +855,7 @@ build_reduced_methodology_authority <- function(git_state_file, source_set_file,
     implementation_version = spec$implementation_version,
     implementation_sha256 = spec$implementation_sha256,
     aggregate_content_sha256 = aggregate_hash,
+    supersession = scientific$supersession,
     downstream_scope_mapping = scientific$downstream_scope_mapping,
     overall_status = "PASS"
   )

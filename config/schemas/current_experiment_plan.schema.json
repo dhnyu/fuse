@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "dissertation_commit", "scene_split", "model", "training", "hyperparameter_configurations", "comparison_configurations", "plan_id", "content_sha256", "status"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "dissertation_commit": {"pattern": "^[0-9a-f]{40}$"},
+    "scene_split": {
+      "type": "object",
+      "properties": {"total_off_grid": {"const": 10000}, "validation": {"const": 1000}, "evaluation": {"const": 9000}, "minimum_training_center_distance_m": {"const": 50}},
+      "required": ["total_off_grid", "validation", "evaluation", "minimum_training_center_distance_m"],
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "properties": {"d": {"const": 128}, "d_c": {"const": 128}, "attention_heads": {"const": 4}, "information_preservation": {"const": false}, "reconstruction_decoders": {"const": false}},
+      "required": ["d", "d_c", "attention_heads", "information_preservation", "reconstruction_decoders"],
+      "additionalProperties": false
+    },
+    "training": {
+      "type": "object",
+      "properties": {"objective": {"const": "symmetric_scene_contrastive"}, "K_aug": {"const": 8}, "augmentation_intensity": {"const": 1.0}, "ema_momentum": {"const": 0.999}, "peak_learning_rate": {"const": 0.001}},
+      "required": ["objective", "K_aug", "augmentation_intensity", "ema_momentum", "peak_learning_rate"],
+      "additionalProperties": false
+    },
+    "hyperparameter_configurations": {"type": "array", "minItems": 11, "maxItems": 11},
+    "comparison_configurations": {"type": "array", "minItems": 17, "maxItems": 17},
+    "plan_id": {"pattern": "^s08plan_[0-9a-f]{24}$"},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"},
+    "status": {"const": "PASS"}
+  },
+  "additionalProperties": false
+}

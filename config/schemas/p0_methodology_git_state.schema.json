@@ -4,7 +4,7 @@
   "type": "object",
   "required": ["schema_version", "git_state_id", "repository_identity", "expected_branch", "observed_branch", "expected_commit_sha", "observed_commit_sha", "head_detached", "working_tree_dirty", "tracked_modification", "staged_modification", "untracked_files", "upstream_ref", "upstream_divergence", "verification_status", "content_sha256"],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "2.0.0"},
     "git_state_id": {"type": "string", "pattern": "^mgs_[0-9a-f]{16}$"},
     "repository_identity": {"type": "string", "minLength": 1},
     "repository_path": {"type": "string", "minLength": 1},

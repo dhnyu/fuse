@@ -193,8 +193,8 @@ test_that("actual reduced dissertation produces a complete deterministic P0 auth
   source_set <- build_reduced_methodology_source_set(source_files, git_state, spec)
   source_value <- jsonlite::read_json(source_set, simplifyVector = FALSE)
   expect_identical(source_value$status, "PASS")
-  expect_length(source_value$ordered_files, 44L)
-  expect_length(source_value$import_edges, 64L)
+  expect_length(source_value$ordered_files, 41L)
+  expect_length(source_value$import_edges, 60L)
   expect_length(source_value$unresolved_imports, 0L)
   expect_length(source_value$cycle_diagnostics, 0L)
 
@@ -205,7 +205,7 @@ test_that("actual reduced dissertation produces a complete deterministic P0 auth
   module_names <- names(p0_module_definitions())
   modules <- vapply(module_names, build_p0_module_contract, character(1L),
                     source_set_file = source_set, conflict_gate_file = gate, spec = spec)
-  expect_length(modules, 8L)
+  expect_length(modules, 10L)
   invisible(lapply(modules, validate_json_schema_file, schema_file = spec$schemas[["module_contract"]]))
 
   first <- build_reduced_methodology_authority(git_state, source_set, gate, modules, spec)
@@ -216,7 +216,7 @@ test_that("actual reduced dissertation produces a complete deterministic P0 auth
   value <- jsonlite::read_json(manifest, simplifyVector = FALSE)
   expect_identical(value$overall_status, "PASS")
   expect_identical(value$authority_id, basename(dirname(manifest)))
-  expect_length(value$module_contracts, 8L)
+  expect_length(value$module_contracts, 10L)
 })
 
 test_that("P0 target ancestry contains no P1 or later target", {
@@ -229,6 +229,7 @@ test_that("P0 target ancestry contains no P1 or later target", {
     "s00_scene_methodology_contract", "s00_spatial_methodology_contract",
     "s00_cache_methodology_contract", "s00_augmentation_methodology_contract",
     "s00_model_methodology_contract", "s00_evaluation_methodology_contract",
+    "s00_hyperparameter_methodology_contract", "s00_comparison_methodology_contract",
     "s00_methodology_authority"
   )
   commands <- setNames(manifest$command, manifest$name)

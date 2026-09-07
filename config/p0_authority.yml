@@ -1,19 +1,27 @@
-schema_version: "1.0.0"
-implementation_version: "1.0.0"
+schema_version: "2.0.0"
+implementation_version: "2.0.0"
 
 dissertation:
   repository_path: /members/dhnyu/dhnyu-masters-dissertation
   repository_identity: dhnyu-masters-dissertation
   expected_branch: reduced
-  expected_commit_sha: 109355b3d744248ca14749c5f74511537970d660
+  expected_commit_sha: cbb824f19be8355296603f8426ac241ce587ddcc
   entrypoint: template/main.typ
+  non_scientific_generated_paths:
+    - tmp/bibliography-render.bib
+    - tmp/bibliography-prime.typ
+  non_scientific_external_imports:
+    - "@preview/xarrow:0.3.1"
 
 approved_audit:
-  path: /members/dhnyu/fuse/reports/20260827_1748_reduced_methodology_read_only_audit.md
-  expected_sha256: 9283d1070d7e67f81781a86a5afc0bf46dfc231f3487f0f7a552cb049f81a8c1
+  path: /members/dhnyu/fuse/reports/20260908_0234_p0_current_methodology_prepublication_audit.md
+  expected_sha256: 2e99de4e180bdee53a1c0025adfb7260161966abcdb2fe231c2a7eab364c3e00
 
 publication:
   authority_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/authority
+  supersedes:
+    authority_id: mta_f90fecff7bc7bb5d231cc79f
+    dissertation_commit: e66d17d65e97a5e3f50fa9a111a51559db05666f
 
 schemas:
   git_state: config/schemas/p0_methodology_git_state.schema.json

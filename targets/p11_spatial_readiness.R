@@ -1,22 +1,16 @@
 list_p11_spatial_readiness <- list(
   targets::tar_target(
-    p11_c_contract,
-    "config/p11_spatial_readiness.yml",
+    s11_readiness_sources,
+    p11_readiness_source_files(),
     format = "file"
   ),
   targets::tar_target(
-    p11_c_methodology,
-    c("config/dissertation_authority_p11_transformation.json",
-      "config/p11_target_transformation_methodology.json"),
-    format = "file"
-  ),
-  targets::tar_target(
-    p11_c_acceptance,
+    s11_readiness_acceptance,
     {
-      p11_c_methodology
       status <- system2(
         "python",
-        c("scripts/p11_spatial_readiness.py", "--config", p11_c_contract),
+        c("scripts/p11_spatial_readiness.py", "--config",
+          p11_source_file(s11_readiness_sources, "p11_spatial_readiness.yml")),
         stdout = TRUE,
         stderr = TRUE,
         env = c("PYTHONPATH=python", "PYTHONDONTWRITEBYTECODE=1")

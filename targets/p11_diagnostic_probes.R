@@ -1,26 +1,16 @@
 list_p11_diagnostic_probes <- list(
   targets::tar_target(
-    p11_g_contract,
-    "config/p11_diagnostic_probe_matrix.yml",
+    s11_diagnostic_sources,
+    p11_diagnostic_source_files(),
     format = "file"
   ),
   targets::tar_target(
-    p11_g_authorized_inputs,
-    c(
-      "config/p11_ridge_evaluation_acceptance.yml",
-      "config/p11_spatial_readiness_acceptance.yml",
-      "config/p11_target_transformation_methodology.json",
-      "config/p11_downstream_dataset.yml"
-    ),
-    format = "file"
-  ),
-  targets::tar_target(
-    p11_g_acceptance,
+    s11_diagnostic_acceptance,
     {
-      p11_g_authorized_inputs
       status <- system2(
         "python",
-        c("scripts/p11_diagnostic_probes.py", "--config", p11_g_contract),
+        c("scripts/p11_diagnostic_probes.py", "--config",
+          p11_source_file(s11_diagnostic_sources, "p11_diagnostic_probe_matrix.yml")),
         stdout = TRUE,
         stderr = TRUE,
         env = c("PYTHONPATH=python", "PYTHONDONTWRITEBYTECODE=1")

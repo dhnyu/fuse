@@ -8,6 +8,7 @@ tar_option_set(
 
 source("R/p11_downstream_preprocessing.R")
 source("R/p11_living_population_rematerialization.R")
+source("R/p11_target_sources.R")
 source("targets/p11_living_population_rematerialization.R")
 
 list_p11_living_population_rematerialization

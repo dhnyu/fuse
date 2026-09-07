@@ -1,6 +1,7 @@
 library(targets)
 
-tar_option_set(packages = character(), storage = "worker")
+tar_option_set(packages = c("yaml"), storage = "worker")
+source("R/p11_target_sources.R")
 source("targets/p11_diagnostic_probes.R")
 
 list_p11_diagnostic_probes

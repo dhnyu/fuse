@@ -138,14 +138,13 @@ def test_source_inventory_is_read_only_and_repeatable(retirement_manifest):
 
 def test_active_target_graphs_expose_only_retirement_guards():
     expression = r'''
-for (script in c("_targets.R", "_targets_p9_formal.R", "_targets_p9_recovery.R")) {
-  manifest <- targets::tar_manifest(script = script)
-  p9 <- manifest$name[grepl("^p9", manifest$name)]
-  expected <- switch(script,
-    "_targets.R" = "p9_v1_main_execution_retired",
-    "_targets_p9_formal.R" = "p9_v1_formal_execution_retired",
-    "_targets_p9_recovery.R" = "p9_v1_recovery_execution_retired")
-  if (!identical(p9, expected)) stop(paste(script, paste(p9, collapse = ",")))
+manifest <- targets::tar_manifest(script = "_targets.R")
+if (any(grepl("^p9_v1_.*retired$", manifest$name))) stop("retired node remains in main DAG")
+for (script in c("_targets_p9_formal.R", "_targets_p9_recovery.R")) {
+  failed <- tryCatch({targets::tar_manifest(script = script); FALSE}, error = function(e) {
+    grepl("P9_V1_EXECUTION_RETIRED", conditionMessage(e), fixed = TRUE)
+  })
+  if (!failed) stop(paste("retired entrypoint did not fail", script))
 }
 '''
     result = subprocess.run(["Rscript", "-e", expression], cwd=ROOT, text=True, capture_output=True, timeout=30)

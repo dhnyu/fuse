@@ -3,9 +3,8 @@ test_that("P11-E graph is an isolated fixed-ridge evaluation closure", {
     readLines(file.path(fuse_test_root, "targets/p11_spatial_ridge.R"), warn = FALSE),
     collapse = "\n"
   )
-  expect_true(grepl("p11_e_contract", script, fixed = TRUE))
-  expect_true(grepl("p11_e_authorized_inputs", script, fixed = TRUE))
-  expect_true(grepl("p11_e_acceptance", script, fixed = TRUE))
+  expect_true(grepl("s11_ridge_sources", script, fixed = TRUE))
+  expect_true(grepl("s11_ridge_acceptance", script, fixed = TRUE))
   expect_true(grepl("scripts/p11_spatial_ridge.py", script, fixed = TRUE))
   expect_false(grepl("inference|fine.?tun|checkpoint|p9_|p10_.*evaluation", script, ignore.case = TRUE))
 })

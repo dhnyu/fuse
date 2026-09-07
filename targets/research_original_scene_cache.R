@@ -8,7 +8,7 @@ list_research_original_scene_cache <- list(
   ),
   targets::tar_target(
     s03_scene_serialization_plan,
-    p3_build_serialization_plan(original_cache_methodology_contract, reduced_methodology_authority,
+    p3_build_serialization_plan(s00_cache_methodology_contract, s00_methodology_authority,
                   base_spatial_acceptance,
                   base_spatial_observation_plan, base_vector_observation_shard,
                   base_raster_observation_shard, base_relation_graph_shard,

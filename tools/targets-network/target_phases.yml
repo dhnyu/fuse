@@ -222,6 +222,15 @@ exact:
     - p9v2_accepted_checkpoint
 
 rules:
+  - {phase: P0, pattern: "^s00_", future: false}
+  - {phase: P1, pattern: "^(s01_|i01_)", future: false}
+  - {phase: P3, pattern: "^(s03_|i03_)", future: false}
+  - {phase: P4, pattern: "^s04_", future: false}
+  - {phase: P5, pattern: "^(s05_|i05_)", future: false}
+  - {phase: P6, pattern: "^(s06_|i06_)", future: false}
+  - {phase: P7, pattern: "^(s07_|i07_)", future: false}
+  - {phase: P10, pattern: "^s10_", future: true}
+  - {phase: P11, pattern: "^s11_", future: true}
   - {phase: P10, pattern: "^p10_", future: true}
   - {phase: P11, pattern: "^p11_", future: true}
   - {phase: Maintenance, pattern: "^(maintenance_|seoul_data_preprocess$)", future: true}

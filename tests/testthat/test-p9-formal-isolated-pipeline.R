@@ -1,18 +1,17 @@
-testthat::test_that("isolated P9 manifest contains only the v1 retirement guard", {
+testthat::test_that("isolated P9 entrypoint fails before graph evaluation", {
   root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
   old <- getwd(); on.exit(setwd(old), add = TRUE); setwd(root)
-  manifest <- targets::tar_manifest(script = "_targets_p9_formal.R", fields = c("name", "command"))
-  testthat::expect_identical(manifest$name, "p9_v1_formal_execution_retired")
-  testthat::expect_match(manifest$command, "p9_v1_retired_stop", fixed = TRUE)
-  testthat::expect_false(any(c("p9_production_cache_materialization",
-    "s07_runtime_acceptance", "hyperparameter_configuration_matrix") %in% manifest$name))
+  testthat::expect_error(
+    targets::tar_manifest(script = "_targets_p9_formal.R"),
+    "P9_V1_EXECUTION_RETIRED.*historical/read-only"
+  )
 })
 
 testthat::test_that("corrected isolated generation preserves the failed store", {
   root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
   cfg <- yaml::read_yaml(file.path(root, "config/p9_formal_isolated_runtime.yml"))
-  testthat::expect_identical(cfg$pipeline$execution_generation_id, "p9gen_acb72f05336e09451b4ac458")
-  testthat::expect_match(cfg$pipeline$store, "fuse-p9-formal-p9gen_acb72f05336e09451b4ac458", fixed = TRUE)
+  testthat::expect_identical(cfg$pipeline$execution_generation_id, "p9gen_batchuniq_20260831")
+  testthat::expect_match(cfg$pipeline$store, "fuse-p9-formal-p9gen_batchuniq_20260831", fixed = TRUE)
   testthat::expect_identical(cfg$pipeline$preserved_failed_store,
     "/mnt/hdd002/dhnyu/fusedata/targets/fuse-p9-formal")
   testthat::expect_identical(cfg$superseded$terminal_classification, "FAILED_NONRESUMABLE")

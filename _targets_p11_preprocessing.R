@@ -10,6 +10,7 @@ tar_option_set(
 source("R/research_contracts.R")
 source("R/research_scene_index_reduced.R")
 source("R/p11_downstream_preprocessing.R")
+source("R/p11_target_sources.R")
 source("targets/p11_downstream_preprocessing.R")
 
 list_p11_downstream_preprocessing

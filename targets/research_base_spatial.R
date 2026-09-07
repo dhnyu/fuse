@@ -12,8 +12,8 @@ list_research_base_spatial <- list(
     base_spatial_prototype_membership_plan,
     p2_build_membership_plan(
       "prototype", s01_scene_index, s01_pilot_scene_index,
-      s01_scene_acceptance, s01_study_inventory_validation, reduced_methodology_authority,
-      base_spatial_methodology_contract, membership_contract_files,
+      s01_scene_acceptance, s01_study_inventory_validation, s00_methodology_authority,
+      s00_spatial_methodology_contract, membership_contract_files,
       p2_base_spatial_contract_files
     ),
     format = "rds", iteration = "list", resources = controller_05_resources
@@ -99,7 +99,7 @@ list_research_base_spatial <- list(
       base_spatial_prototype_relation_graph_shard,
       base_spatial_prototype_source_topology_shard,
       s01_scene_index, s01_pilot_scene_index,
-      reduced_methodology_authority, s01_scene_acceptance,
+      s00_methodology_authority, s01_scene_acceptance,
       i01_seoul_spatial_sources, raster_observation_contract_files,
       relation_contract_files, p2_base_spatial_contract_files
     ),
@@ -109,8 +109,8 @@ list_research_base_spatial <- list(
     base_spatial_membership_plan,
     p2_build_membership_plan(
       "production", s01_scene_index, s01_pilot_scene_index,
-      s01_scene_acceptance, s01_study_inventory_validation, reduced_methodology_authority,
-      base_spatial_methodology_contract, membership_contract_files,
+      s01_scene_acceptance, s01_study_inventory_validation, s00_methodology_authority,
+      s00_spatial_methodology_contract, membership_contract_files,
       p2_base_spatial_contract_files, base_spatial_prototype_acceptance
     ),
     format = "rds", iteration = "list", resources = controller_05_resources
@@ -194,7 +194,7 @@ list_research_base_spatial <- list(
       base_vector_observation_shard, base_raster_observation_shard,
       base_relation_graph_shard, base_source_topology_shard,
       s01_scene_index, s01_pilot_scene_index,
-      reduced_methodology_authority, s01_scene_acceptance,
+      s00_methodology_authority, s01_scene_acceptance,
       i01_seoul_spatial_sources, raster_observation_contract_files,
       relation_contract_files, p2_base_spatial_contract_files
     ),

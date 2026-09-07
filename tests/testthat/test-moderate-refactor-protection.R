@@ -50,6 +50,8 @@ test_that("merged study sources reconstruct the exact old vectors", {
     expect_identical(selected, expected)
     expect_identical(basename(selected), basename(expected))
     expect_identical(unname(tools::md5sum(selected)), unname(tools::md5sum(expected)))
+    expect_identical(vapply(selected, sha256_file, character(1L)),
+                     vapply(expected, sha256_file, character(1L)))
   }
   expect_error(select_study_source_files(rev(merged), "config"), "bundle/order mismatch")
 })

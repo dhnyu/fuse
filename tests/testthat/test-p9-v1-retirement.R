@@ -1,16 +1,13 @@
-testthat::test_that("all P9 v1 target entry points expose only retirement guards", {
+testthat::test_that("P9 v1 target nodes are absent and retired entrypoints fail immediately", {
   root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
   old <- getwd(); on.exit(setwd(old), add = TRUE); setwd(root)
-  expected <- c(
-    "_targets.R" = "p9_v1_main_execution_retired",
-    "_targets_p9_formal.R" = "p9_v1_formal_execution_retired",
-    "_targets_p9_recovery.R" = "p9_v1_recovery_execution_retired"
-  )
-  for (script in names(expected)) {
-    manifest <- targets::tar_manifest(script = script, fields = c("name", "command"))
-    p9 <- manifest[grepl("^p9", manifest$name), , drop = FALSE]
-    testthat::expect_identical(p9$name, unname(expected[[script]]))
-    testthat::expect_match(p9$command, "p9_v1_retired_stop", fixed = TRUE)
+  manifest <- targets::tar_manifest(script = "_targets.R", fields = c("name", "command"))
+  testthat::expect_false(any(grepl("^p9_v1_.*retired$", manifest$name)))
+  for (script in c("_targets_p9_formal.R", "_targets_p9_recovery.R")) {
+    testthat::expect_error(
+      targets::tar_manifest(script = script),
+      "P9_V1_EXECUTION_RETIRED.*historical/read-only"
+    )
   }
 })
 

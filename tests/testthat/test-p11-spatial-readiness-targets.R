@@ -4,9 +4,8 @@ test_that("P11-C graph materializes readiness without fitting ridge probes", {
     warn = FALSE
   )
   graph <- paste(script, collapse = "\n")
-  expect_true(grepl("p11_c_contract", graph, fixed = TRUE))
-  expect_true(grepl("p11_c_methodology", graph, fixed = TRUE))
-  expect_true(grepl("p11_c_acceptance", graph, fixed = TRUE))
+  expect_true(grepl("s11_readiness_sources", graph, fixed = TRUE))
+  expect_true(grepl("s11_readiness_acceptance", graph, fixed = TRUE))
   expect_true(grepl("scripts/p11_spatial_readiness.py", graph, fixed = TRUE))
   expect_false(grepl("ridge.*fit|oof.*predict|tar_map", graph, ignore.case = TRUE))
 })

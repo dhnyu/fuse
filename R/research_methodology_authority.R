@@ -846,3 +846,19 @@ build_reduced_methodology_authority <- function(git_state_file, source_set_file,
                      validate_json_schema_file, schema_file = spec$schemas[["module_contract"]]))
   })
 }
+p0_build_source_authority <- function(source_files, spec) {
+  git_state <- build_reduced_methodology_git_state(source_files, spec)
+  source_set <- build_reduced_methodology_source_set(source_files, git_state, spec)
+  conflict_gate <- build_reduced_methodology_conflict_gate(source_set, spec)
+  c(git_state, source_set, conflict_gate)
+}
+
+p0_build_final_authority <- function(source_authority, module_contracts, spec) {
+  training <- build_p0_module_contract("training", source_authority, source_authority, spec)
+  downstream <- build_p0_module_contract("downstream", source_authority, source_authority, spec)
+  authority <- build_reduced_methodology_authority(
+    source_authority, source_authority, source_authority,
+    c(module_contracts, training, downstream), spec
+  )
+  c(training, downstream, authority)
+}

@@ -167,6 +167,17 @@ test_that("actual reduced dissertation produces a complete deterministic P0 auth
   spec$authority_root <- temp_authority
   on.exit(unlink(temp_authority, recursive = TRUE), add = TRUE)
 
+  observed <- inspect_p0_git_state(
+    spec$dissertation$repository_path, spec$dissertation$repository_identity,
+    spec$dissertation$expected_branch, spec$dissertation$expected_commit_sha,
+    spec$schema_version
+  )
+  if (!identical(observed$observed_commit_sha, spec$dissertation$expected_commit_sha)) {
+    expect_identical(observed$verification_status, "BLOCKED_BY_REPOSITORY_STATE")
+    expect_true("commit_mismatch" %in% unlist(observed$diagnostics))
+    return(invisible(NULL))
+  }
+
   source_files <- build_reduced_methodology_source_files(spec)
   git_state <- build_reduced_methodology_git_state(source_files, spec)
   git_value <- jsonlite::read_json(git_state, simplifyVector = FALSE)
@@ -214,13 +225,11 @@ test_that("P0 target ancestry contains no P1 or later target", {
     callr_arguments = list(wd = fuse_test_root)
   )
   p0 <- c(
-    "reduced_methodology_source_files", "reduced_methodology_git_state",
-    "reduced_methodology_source_set", "reduced_methodology_conflict_gate",
-    "scene_methodology_contract", "base_spatial_methodology_contract",
-    "original_cache_methodology_contract", "augmentation_methodology_contract",
-    "model_methodology_contract", "training_methodology_contract",
-    "evaluation_methodology_contract", "downstream_methodology_contract",
-    "reduced_methodology_authority"
+    "s00_methodology_sources", "s00_methodology_source_authority",
+    "s00_scene_methodology_contract", "s00_spatial_methodology_contract",
+    "s00_cache_methodology_contract", "s00_augmentation_methodology_contract",
+    "s00_model_methodology_contract", "s00_evaluation_methodology_contract",
+    "s00_methodology_authority"
   )
   commands <- setNames(manifest$command, manifest$name)
   dependencies <- lapply(p0, function(name) intersect(all.names(parse(text = commands[[name]])[[1L]]), manifest$name))
@@ -229,7 +238,7 @@ test_that("P0 target ancestry contains no P1 or later target", {
     if (name %in% seen) return(seen)
     Reduce(function(acc, dependency) visit(dependency, acc), dependencies[[name]], init = c(seen, name))
   }
-  ancestry <- unique(visit("reduced_methodology_authority"))
+  ancestry <- unique(visit("s00_methodology_authority"))
   expect_setequal(ancestry, p0)
   expect_false(any(c("i01_seoul_spatial_sources", "s01_scene_index", "s01_pilot_scene_index") %in% ancestry))
 })

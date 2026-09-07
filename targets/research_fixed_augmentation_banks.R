@@ -6,7 +6,7 @@ list_research_fixed_augmentation_banks <- list(
   targets::tar_target(s04_bank_sources, normalizePath(p4_contract_paths(), mustWork = TRUE),
     format = "file", resources = controller_05_resources),
   targets::tar_target(s04_bank_profile_plan,
-    p4_build_profile_plan(augmentation_methodology_contract, reduced_methodology_authority, s04_bank_sources),
+    p4_build_profile_plan(s00_augmentation_methodology_contract, s00_methodology_authority, s04_bank_sources),
     format = "file", resources = controller_05_resources),
   targets::tar_target(s04_bank_road_validation,
     p4_run_smoke("road", s04_bank_profile_plan, accepted_p3_dataset_acceptance_reference, s04_bank_sources),

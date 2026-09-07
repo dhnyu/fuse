@@ -59,10 +59,10 @@ p5_build_contract <- function(evaluation_methodology_contract, augmentation_meth
   p4_index <- p5_read(effective_augmentation_bank_index, "effective_bank_index.json")
   authority <- p5_read(reduced_methodology_authority, "reduced_methodology_authority.json")
   if (evaluation$status != "PASS" || augmentation$status != "PASS" ||
-      evaluation$canonical_contract$validation$originals != 400L ||
-      evaluation$canonical_contract$validation$augmented_queries != 800L ||
-      evaluation$canonical_contract$evaluation$originals != 1600L ||
-      evaluation$canonical_contract$evaluation$augmented_queries != 3200L ||
+      evaluation$canonical_contract$validation$originals != 1000L ||
+      evaluation$canonical_contract$validation$augmented_queries != 2000L ||
+      evaluation$canonical_contract$evaluation$originals != 9000L ||
+      evaluation$canonical_contract$evaluation$augmented_queries != 18000L ||
       evaluation$canonical_contract$fixed_query_profile != 1 ||
       authority$commit_sha != cfg$dissertation_commit ||
       p4_profile$supplement_version != cfg$p4_supplement_id ||
@@ -104,7 +104,7 @@ p5_build_shard_plan <- function(fixed_query_methodology_contract, spatial_scene_
   rows <- merge(cache_index, scene_index[, c("scene_id", "split")], by = "scene_id", sort = FALSE)
   rows <- rows[rows$split %in% c("validation", "evaluation"), ]
   rows <- rows[order(rows$split, rows$scene_id, method = "radix"), ]
-  if (!identical(unname(as.integer(table(rows$split)[c("validation", "evaluation")])), c(400L, 1600L))) {
+  if (!identical(unname(as.integer(table(rows$split)[c("validation", "evaluation")])), c(1000L, 9000L))) {
     stop("P5 P1/P3 split population mismatch", call. = FALSE)
   }
   parents <- p4_parent_tar_records(original_scene_serialization_shard)
@@ -150,8 +150,8 @@ p5_build_shard_plan <- function(fixed_query_methodology_contract, spatial_scene_
   if (sum(vapply(branches, function(branch) length(branch$scene_ids), integer(1L))) != 2000L) stop("P5 plan coverage mismatch", call. = FALSE)
   plan <- list(schema_version = cfg$schema_version, status = "PASS", query_authority_id = authority_id,
                plan_id = plan_id, supplement_id = cfg$supplement_id, parent_cache_id = p3$cache_id,
-               parent_acceptance_id = p3$acceptance_id, branch_count = length(branches), scene_count = 2000L,
-               query_count = 4000L, split_counts = list(validation = 400L, evaluation = 1600L),
+               parent_acceptance_id = p3$acceptance_id, branch_count = length(branches), scene_count = 10000L,
+               query_count = 20000L, split_counts = list(validation = 1000L, evaluation = 9000L),
                scientific_fingerprint = fingerprint, implementation_hash = spec$implementation_hash,
                branches = unname(lapply(branches, function(branch) branch[c("branch_id", "namespace", "split", "parent_branch_id", "scene_ids")])))
   plan_dir <- file.path(cfg$publication_root, authority_id, "plans", plan_id)
@@ -340,7 +340,7 @@ p5_final_acceptance <- function(bundle, validation_acceptance, evaluation_accept
   spec <- p5_load_spec(contract_files)
   value <- p5_read(bundle, "fixed_query_acceptance.json")
   validate_json_schema_file(artifact_path(bundle, "fixed_query_acceptance.json"), spec$schemas[["aggregate_acceptance"]])
-  if (value$status != "PASS" || value$query_count != 4000L || value$gallery_count != 2000L) stop("P5 final acceptance rejection", call. = FALSE)
+  if (value$status != "PASS" || value$query_count != 20000L || value$gallery_count != 10000L) stop("P5 final acceptance rejection", call. = FALSE)
   bundle
 }
 

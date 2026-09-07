@@ -1,14 +1,15 @@
 schema_version: "1.0.0"
 implementation_version: "1.0.0"
+migration_status: RECOMPUTE_REQUIRED
 authority:
-  id: mta_f90fecff7bc7bb5d231cc79f
-  base_contract_id: mmc_960b3622eeef88ab
-  base_contract_hash: 960b3622eeef88abe93a600ecbfe09469cf59e299502e2502b0b1caf6c108dcf
+  id: mta_03e8d7f42fe2018237f3fcde
+  base_contract_id: mmc_b75dcec66fe442fc
+  base_contract_hash: b75dcec66fe442fc5deda2b8798d6ff5b7f4380ec66cab6e769dd8c31cb3dfa8
 p1:
-  scene_index_id: rsi_80031f1493c75163f91b7c71
-  scene_acceptance_id: sia_0a997e576367b1133517bf6a
-  prototype_id: rps_4dfda380e54a9b7f9f60ac04
-  inventory_id: rin_fc622f56cb4afdcb9a5db08b
+  scene_index_id: PENDING_CURRENT_RECOMPUTATION
+  scene_acceptance_id: PENDING_CURRENT_RECOMPUTATION
+  prototype_id: PENDING_CURRENT_RECOMPUTATION
+  inventory_id: PENDING_CURRENT_RECOMPUTATION
 publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations
 scopes:
   prototype:
@@ -17,7 +18,7 @@ scopes:
     membership_controller: controller_40
     observation_controller: controller_40
   production:
-    counts: {training: 2421, validation: 400, evaluation: 1600, total: 4421}
+    counts: {training: 2421, validation: 1000, evaluation: 9000, total: 12421}
     membership_branches: 96
     membership_controller: controller_40
     observation_controller: controller_20

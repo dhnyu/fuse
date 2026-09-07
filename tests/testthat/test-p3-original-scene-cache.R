@@ -1,8 +1,9 @@
 test_that("P3 Serialization-v3 scientific contract is fixed", {
   cfg <- yaml::read_yaml(file.path(fuse_test_root, "config/p3_original_scene_cache.yml"))
   expect_identical(cfg$schema_version, "3.0.0")
-  expect_identical(cfg$authority_id, "mta_f90fecff7bc7bb5d231cc79f")
-  expect_identical(cfg$base_spatial_acceptance_id, "bsa_e617ee0280a6edfa722994d3")
+  expect_identical(cfg$authority_id, "mta_03e8d7f42fe2018237f3fcde")
+  expect_identical(cfg$base_spatial_acceptance_id, "PENDING_CURRENT_RECOMPUTATION")
+  expect_identical(cfg$migration_status, "RECOMPUTE_REQUIRED")
   expect_identical(cfg$sharding$expected_shards, 96L)
   expect_identical(cfg$serialization$geometry_dtype, "float64_wkb")
   expect_identical(cfg$serialization$source_node_representation, "ordered_values_offsets")

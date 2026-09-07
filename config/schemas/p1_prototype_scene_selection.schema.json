@@ -7,7 +7,7 @@
     "prototype_id": {"type": "string", "pattern": "^rps_[0-9a-f]{24}$"},
     "status": {"const": "PASS"},
     "scope": {"const": "prototype"},
-    "authority_id": {"const": "mta_f90fecff7bc7bb5d231cc79f"},
+    "authority_id": {"const": "mta_03e8d7f42fe2018237f3fcde"},
     "scene_index_id": {"type": "string"},
     "row_count": {"const": 320},
     "split_counts": {"type": "object"},

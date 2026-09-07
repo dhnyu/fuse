@@ -1,11 +1,12 @@
 schema_version: "3.0.0"
 implementation_version: "1.0.0"
-authority_id: mta_f90fecff7bc7bb5d231cc79f
-original_cache_contract_id: mmc_d9d55804892f3127
-scene_index_id: rsi_80031f1493c75163f91b7c71
-scene_acceptance_id: sia_0a997e576367b1133517bf6a
-base_spatial_acceptance_id: bsa_e617ee0280a6edfa722994d3
-original_observation_id: obs_cd00016f6b5bfd960b0a6842
+migration_status: RECOMPUTE_REQUIRED
+authority_id: mta_03e8d7f42fe2018237f3fcde
+original_cache_contract_id: mmc_1989e1225beeb5f2
+scene_index_id: PENDING_CURRENT_RECOMPUTATION
+scene_acceptance_id: PENDING_CURRENT_RECOMPUTATION
+base_spatial_acceptance_id: PENDING_CURRENT_RECOMPUTATION
+original_observation_id: PENDING_CURRENT_RECOMPUTATION
 publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache
 sharding:
   algorithm: accepted_p2_scene_group_v1

@@ -28,7 +28,7 @@ p6_spec <- function(contract_files) {
   config <- yaml::read_yaml(config_path)
   full_canonical_config_sha256 <- canonical_yaml_sha256(config_path)
   if (!identical(full_canonical_config_sha256,
-                 "aade17047da6983e8cfa40b4d71a56b3cffb1b25561f64e128d4197f375ddc8c")) {
+                 "2e22d6182a5dfcf8d123dd1fa1713449ddcd749990c50dfe9df8a1698afcf953")) {
     stop("P6 committed canonical configuration checksum mismatch", call. = FALSE)
   }
   scientific <- config
@@ -176,7 +176,7 @@ p6_build_dataloader_acceptance <- function(original_scene_dataset_acceptance, au
 p6_build_cpu_smoke <- function(original_scene_dataset_acceptance, augmentation_bank_acceptance,
                                effective_augmentation_bank_index, fixed_query_acceptance,
                                reduced_methodology_authority, base_spatial_acceptance,
-                               p6_preprocessing_contract, d64_model_architecture_contract,
+                               p6_preprocessing_contract, model_architecture_contract,
                                p6_dataloader_acceptance, contract_files) {
   spec <- p6_spec(contract_files); cfg <- spec$config
   runtime_config <- p6_runtime_config(spec, reduced_methodology_authority, original_scene_dataset_acceptance,
@@ -196,14 +196,14 @@ p6_build_cpu_smoke <- function(original_scene_dataset_acceptance, augmentation_b
            "--categories", artifact_path(base_spatial_acceptance, "spatial_categories.json"),
            "--scene-stats", artifact_path(base_spatial_acceptance, "scene_spatial_statistics.parquet"),
            "--preprocessing", artifact_path(p6_preprocessing_contract, "preprocessing_contract.json"),
-           "--architecture", artifact_path(d64_model_architecture_contract, "architecture_manifest.json"), "--output", output))
+           "--architecture", artifact_path(model_architecture_contract, "architecture_manifest.json"), "--output", output))
   paths <- p6_publish_json(output, file.path(cfg$publication_root, "smoke"), "cpu_functional_smoke.json",
                            p6_contract_file(contract_files, "config/schemas/p6_cpu_smoke.schema.json"), "smoke_id")
   unlink(output); paths
 }
 
-p6_final_acceptance <- function(d64_model_architecture_contract, p6_dataloader_acceptance,
-                                d64_encoder_cpu_smoke, reduced_methodology_authority,
+p6_final_acceptance <- function(model_architecture_contract, p6_dataloader_acceptance,
+                                encoder_cpu_smoke, reduced_methodology_authority,
                                 original_scene_dataset_acceptance, augmentation_bank_acceptance,
                                 effective_augmentation_bank_index, fixed_query_acceptance,
                                 base_spatial_acceptance, contract_files) {
@@ -214,9 +214,9 @@ p6_final_acceptance <- function(d64_model_architecture_contract, p6_dataloader_a
   on.exit(unlink(runtime_config), add = TRUE)
   output <- tempfile(fileext = ".json")
   p6_run(c("scripts/p6_model_dataloader.py", "aggregate", "--config", runtime_config,
-           "--architecture", artifact_path(d64_model_architecture_contract, "architecture_manifest.json"),
+           "--architecture", artifact_path(model_architecture_contract, "architecture_manifest.json"),
            "--dataloader", artifact_path(p6_dataloader_acceptance, "dataloader_acceptance.json"),
-           "--smoke", artifact_path(d64_encoder_cpu_smoke, "cpu_functional_smoke.json"), "--output", output))
+           "--smoke", artifact_path(encoder_cpu_smoke, "cpu_functional_smoke.json"), "--output", output))
   paths <- p6_publish_json(output, file.path(cfg$publication_root, "acceptance"), "model_data_acceptance.json",
                            p6_contract_file(contract_files, "config/schemas/p6_model_data_acceptance.schema.json"),
                            "model_data_acceptance_id")

@@ -1,30 +1,31 @@
 schema_version: "1.0.0"
 implementation_version: "p6-model-dataloader-v2"
+migration_status: RECOMPUTE_REQUIRED
 publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data
 
 parents:
-  authority_id: mta_f90fecff7bc7bb5d231cc79f
-  scene_index_id: rsi_80031f1493c75163f91b7c71
-  scene_acceptance_id: sia_0a997e576367b1133517bf6a
-  observation_id: obs_cd00016f6b5bfd960b0a6842
-  base_spatial_acceptance_id: bsa_e617ee0280a6edfa722994d3
-  p3_cache_id: oscache_c89fa07e3d6cb1819a7994a6
-  p3_acceptance_id: osca_a55d2c02c3737c5f5557092a
-  p4_master_bank_id: augbank_a470cb156612cff12fb316fc
-  p4_logical_index_id: abi_f9ff792612ca86f486576491
-  p5_query_authority_id: fqa_bee6289f2531ae48c6f3a550
-  p5_acceptance_id: fqaac_ee6a31db9941031d3db650f6
+  authority_id: mta_03e8d7f42fe2018237f3fcde
+  scene_index_id: PENDING_CURRENT_RECOMPUTATION
+  scene_acceptance_id: PENDING_CURRENT_RECOMPUTATION
+  observation_id: PENDING_CURRENT_RECOMPUTATION
+  base_spatial_acceptance_id: PENDING_CURRENT_RECOMPUTATION
+  p3_cache_id: PENDING_CURRENT_RECOMPUTATION
+  p3_acceptance_id: PENDING_CURRENT_RECOMPUTATION
+  p4_master_bank_id: PENDING_CURRENT_RECOMPUTATION
+  p4_logical_index_id: PENDING_CURRENT_RECOMPUTATION
+  p5_query_authority_id: PENDING_CURRENT_RECOMPUTATION
+  p5_acceptance_id: PENDING_CURRENT_RECOMPUTATION
 
 population:
   training: 2421
-  validation_gallery: 400
-  validation_queries: 800
-  evaluation_gallery: 1600
-  evaluation_queries: 3200
+  validation_gallery: 1000
+  validation_queries: 2000
+  evaluation_gallery: 9000
+  evaluation_queries: 18000
 
 model:
-  d: 64
-  d_c: 64
+  d: 128
+  d_c: 128
   d_t: 16
   d_r: 32
   d_a: 32
@@ -33,8 +34,8 @@ model:
   landcover_embedding_dimension: 16
   relation_layers: 3
   attention_heads: 4
-  head_dimension: 16
-  ffn_dimension: 128
+  head_dimension: 32
+  ffn_dimension: 256
   dropout: 0.2
   wavelengths: {count: 16, minimum_m: 10.0, maximum_m: 1000.0, spacing: geometric}
   geometry:
@@ -47,7 +48,7 @@ model:
     landcover_classes: 22
     landcover_shape: [100, 100]
     dem_shape: [17, 17]
-    conv_channels: [32, 64, 64]
+    conv_channels: [64, 128, 128]
     group_norm_groups: 8
   entity_types: [B, R, P]
   relation_types: [SN, CNT, WIT, INT, CON]

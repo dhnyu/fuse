@@ -7,7 +7,7 @@
     "source_acceptance_id": {"type": "string", "pattern": "^osa_[0-9a-f]{24}$"},
     "status": {"const": "PASS"},
     "source_artifact_id": {"const": "ogs_19933828d3de55d16b8861d7"},
-    "row_count": {"const": 2000},
+    "row_count": {"const": 10000},
     "split_counts": {"type": "object"},
     "crs_epsg": {"const": 5186},
     "minimum_nearest_training_center_m": {"type": "number", "minimum": 50},

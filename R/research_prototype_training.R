@@ -399,7 +399,7 @@ p7_build_authority <- function(model_data_acceptance, d64_model_architecture_con
                                fixed_validation_query_acceptance, base_spatial_acceptance,
                                training_methodology_contract, contract_files) {
   training <- jsonlite::read_json(artifact_path(training_methodology_contract, "training_methodology_contract.json"), simplifyVector = FALSE)
-  if (!identical(training$status, "PASS") || !identical(training$contract_id, "mmc_3b3719e274996c7d")) {
+  if (!identical(training$status, "PASS") || !identical(training$contract_id, "mmc_1cf3f3d37e489d9a")) {
     stop("P7 accepted training methodology contract mismatch", call. = FALSE)
   }
   arguments <- c("scripts/p7_prototype_training.py", "authority",

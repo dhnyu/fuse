@@ -77,8 +77,7 @@ test_that("active P7 graph has bounded gates and aggregate acceptance", {
                     "s07_pilot_training_authority", "s07_ddp_resume_validation",
                     "s07_training_geometry_cache",
                     "s07_ddp_update_validation", "s07_training_sources",
-                    "s07_pilot_training_acceptance", "s07_pilot_training_acceptance",
-                    "s07_pilot_training_execution", "s07_pilot_training_acceptance"))
+                    "s07_pilot_training_execution"))
 })
 
 test_that("distributed joint smoke stops before every optimizer step", {

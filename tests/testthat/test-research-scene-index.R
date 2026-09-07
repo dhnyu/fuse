@@ -2,10 +2,11 @@ test_that("reduced P1 configuration fixes the approved scene population", {
   spec <- load_p1_scene_index_spec(p1_scene_index_contract_paths(fuse_test_root), fuse_test_root)
   expect_equal(spec$config$scene$processing_epsg, 5186)
   expect_equal(spec$config$scene$width_m, 500)
-  expect_equal(unlist(spec$config$scene$split_counts), c(training = 2421, validation = 400, evaluation = 1600))
-  expect_equal(spec$config$scene$total_count, 4421)
+  expect_equal(unlist(spec$config$scene$split_counts), c(training = 2421, validation = 1000, evaluation = 9000))
+  expect_equal(spec$config$scene$total_count, 12421)
   expect_equal(spec$config$off_grid_source$split_seed, 26082501)
-  expect_match(spec$config$off_grid_source$split_algorithm, "first_400_validation")
+  expect_match(spec$config$off_grid_source$split_algorithm, "first_1000_validation")
+  expect_identical(spec$config$migration_status, "RECOMPUTE_REQUIRED")
 })
 
 test_that("i01_seoul_spatial_sources tracks 12 non-empty files without maintenance dependency", {

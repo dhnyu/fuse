@@ -150,11 +150,11 @@ validate_accepted_off_grid_table <- function(source, boundary, training_xy, mini
   required <- c("off_grid_order", "center_id", "split", "split_order", "x", "y", "crs_epsg")
   missing <- setdiff(required, names(source))
   if (length(missing)) stop("Accepted off-grid source fields are missing: ", paste(missing, collapse = ", "), call. = FALSE)
-  if (nrow(source) != 2000L || anyDuplicated(source$center_id) || anyDuplicated(source[, c("x", "y")]) ||
+  if (nrow(source) != 10000L || anyDuplicated(source$center_id) || anyDuplicated(source[, c("x", "y")]) ||
       !all(is.finite(source$x)) || !all(is.finite(source$y)) || !all(source$crs_epsg == 5186L)) stop("Accepted off-grid source identity contract failed", call. = FALSE)
-  expected_split <- c(rep("validation", 400L), rep("evaluation", 1600L))
+  expected_split <- c(rep("validation", 1000L), rep("evaluation", 9000L))
   ordered <- source[order(source$off_grid_order, method = "radix"), ]
-  if (!identical(as.integer(ordered$off_grid_order), seq_len(2000L)) || !identical(as.character(ordered$split), expected_split)) stop("Accepted off-grid deterministic split contract failed", call. = FALSE)
+  if (!identical(as.integer(ordered$off_grid_order), seq_len(10000L)) || !identical(as.character(ordered$split), expected_split)) stop("Accepted off-grid deterministic split contract failed", call. = FALSE)
   points <- sf::st_as_sf(source, coords = c("x", "y"), crs = 5186, remove = FALSE)
   outside <- sum(lengths(sf::st_covered_by(points, sf::st_union(boundary))) == 0L)
   training <- sf::st_as_sf(data.frame(x = training_xy[, 1L], y = training_xy[, 2L]), coords = c("x", "y"), crs = 5186)
@@ -191,8 +191,8 @@ verify_accepted_off_grid_source <- function(study_data_inputs, scene_methodology
                      row_identity_hash = p0_scientific_sha256(as.character(check$ordered$center_id)))
   hash <- p0_scientific_sha256(scientific)
   value <- list(schema_version = "1.0.0", source_acceptance_id = paste0("osa_", substr(hash, 1L, 24L)), status = "PASS",
-                source_artifact_id = cfg$artifact_id, row_count = 2000L,
-                split_counts = list(training = 0L, validation = 400L, evaluation = 1600L), crs_epsg = 5186L,
+                source_artifact_id = cfg$artifact_id, row_count = 10000L,
+                split_counts = list(training = 0L, validation = 1000L, evaluation = 9000L), crs_epsg = 5186L,
                 minimum_nearest_training_center_m = check$minimum, files = files, scientific_hash = hash,
                 execution = list(source_paths = as.list(named)))
   final_dir <- file.path(spec$config$publication$root, "_sources", value$source_acceptance_id)
@@ -216,12 +216,12 @@ build_reduced_scene_index_plan <- function(study_data_inventory, accepted_off_gr
     input_inventory_id = inventory$inventory_id, off_grid_source_id = off$source_acceptance_id,
     official_grid_source_id = inventory$scientific$source_identity$official_grid_file_set_sha256,
     crs_epsg = 5186L, scene_width_m = 500L, scene_height_m = 500L,
-    split_counts = list(training = 2421L, validation = 400L, evaluation = 1600L, total = 4421L),
+    split_counts = list(training = 2421L, validation = 1000L, evaluation = 9000L, total = 12421L),
     deterministic_split_seed = spec$config$off_grid_source$split_seed,
     deterministic_ordering_rule = spec$config$off_grid_source$split_algorithm,
     expected_ids = list(
       scene_id_pattern = "^scn_[0-9a-f]{24}$",
-      source_identity_counts = list(official_grid = 2421L, accepted_off_grid = 2000L),
+      source_identity_counts = list(official_grid = 2421L, accepted_off_grid = 10000L),
       algorithm = "SHA256(authority_id|scene-v1|split|source_kind|source_id)"
     ),
     training_rule = "official_500m_grid_centers_within_Seoul_no_intermediate_centers",
@@ -331,7 +331,7 @@ build_reduced_spatial_scene_index <- function(study_data_inputs, accepted_off_gr
     parquet <- file.path(stage, "spatial_scene_index.parquet")
     write_geo_parquet(index, parquet)
     roundtrip <- suppressWarnings(sfarrow::st_read_parquet(parquet))
-    if (nrow(roundtrip) != 4421L || sf::st_crs(roundtrip)$epsg != 5186L) stop("Reduced scene index roundtrip failed", call. = FALSE)
+    if (nrow(roundtrip) != 12421L || sf::st_crs(roundtrip)$epsg != 5186L) stop("Reduced scene index roundtrip failed", call. = FALSE)
     manifest <- list(schema_version = "1.0.0", scene_index_id = scene_index_id, status = "PASS",
                      authority_id = p0$authority$authority_id, plan_id = plan$plan_id, row_count = nrow(index),
                      split_counts = as.list(table(index$split)), scientific_identity = scientific_identity,
@@ -343,7 +343,7 @@ build_reduced_spatial_scene_index <- function(study_data_inputs, accepted_off_gr
 
 p1_offgrid_distance_violations <- function(distance_m, minimum_m = 50) sum(!is.finite(distance_m) | distance_m < minimum_m)
 
-p1_split_count_violations <- function(split, expected = c(training = 2421L, validation = 400L, evaluation = 1600L)) {
+p1_split_count_violations <- function(split, expected = c(training = 2421L, validation = 1000L, evaluation = 9000L)) {
   actual <- table(factor(split, levels = names(expected)))
   as.integer(length(split) != sum(expected) || any(as.integer(actual) != as.integer(expected)))
 }
@@ -394,7 +394,7 @@ validate_reduced_scene_index_table <- function(index, plan, boundary, buffer, to
   data <- sf::st_drop_geometry(index)
   missing <- setdiff(required, names(data))
   split_counts <- table(data$split)
-  expected <- c(training = 2421L, validation = 400L, evaluation = 1600L)
+  expected <- c(training = 2421L, validation = 1000L, evaluation = 9000L)
   points <- sf::st_as_sf(data, coords = c("center_x", "center_y"), crs = 5186, remove = FALSE)
   training <- data$split == "training"; off <- !training
   overlap <- p1_training_overlap_count(index[training, ], tolerance_m^2)

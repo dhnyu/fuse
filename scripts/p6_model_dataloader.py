@@ -81,20 +81,9 @@ def build_architecture(args: argparse.Namespace) -> None:
     vocabulary_sizes = {key: value["size"] for key, value in categories.items()}
     torch.manual_seed(int(config["smoke"]["model_seed"]))
     model = ReducedSceneEncoder(config, vocabulary_sizes)
-    modules = contract["canonical_contract"]["architecture_rows"]
-    required = [
-        "relative_position_encoder", "fourier_magnitude_encoder", "fourier_phase_encoder", "geometry_fusion",
-        "building_numerical_encoder", "building_attribute_fusion", "road_numerical_encoder", "road_attribute_fusion",
-        "poi_hierarchy_embedding", "poi_hierarchy_projection", "poi_hierarchy_importance", "poi_attribute_fusion",
-        "entity_environmental_background_encoder", "entity_type_embedding", "type_aware_modality_gate",
-        "relation_type_embedding", "relation_aware_multi_head_attention", "transformer_feed_forward", "type_specific_attention_pooling",
-        "land_cover_class_embedding", "land_cover_cnn", "dem_cnn", "raster_modality_projection", "final_scene_fusion",
-        "modality_mask_embeddings", "contrastive_projection", "relative_position_decoder", "intrinsic_geometry_decoder",
-        "building_attribute_decoder", "road_attribute_decoder", "poi_attribute_decoder", "environmental_background_decoder",
-    ]
-    observed = {row["component"] for row in modules}
-    if not set(required).issubset(observed):
-        raise ValueError(f"P0 architecture row coverage missing: {sorted(set(required)-observed)}")
+    modules = contract["canonical_contract"]["architecture"]
+    if modules.get("reconstruction_decoders") is not False:
+        raise ValueError("current model must not contain reconstruction decoders")
     implementation_sha = _sha(ROOT / "python/p6_model.py")
     value = {
         "schema_version": config["schema_version"], "status": "PASS", "model_contract_id": contract["contract_id"],
@@ -102,7 +91,7 @@ def build_architecture(args: argparse.Namespace) -> None:
         "modules": modules, "vocabulary_sizes": vocabulary_sizes, "parameter_counts": parameter_counts(model),
         "input_tensor_schema": {"scientific_geometry": "float64", "model_geometry": "float32", "offsets": "int64",
                                 "landcover": [22, 100, 100], "dem": [17, 17]},
-        "output_tensor_schema": {"scene_embedding": ["batch", 64], "contrastive_embedding": ["batch", 64]},
+        "output_tensor_schema": {"scene_embedding": ["batch", 128], "contrastive_embedding": ["batch", 128]},
         "implementation_sha256": implementation_sha,
         "dependency_checksums": {"config": _config_checksums(args.config, config)["scientific_config_sha256"],
                                  "canonical_config": _config_checksums(args.config, config)["canonical_config_sha256"],
@@ -142,7 +131,7 @@ def build_dataloader_acceptance(args: argparse.Namespace) -> None:
         "training_main_k8_only": all(row["profile_id"] == "main_1.0x" and int(row["requested_k"]) == 8 for rows in catalog.k8.values() for row in rows),
         "validation_fixed_queries": all(row["namespace"] == "validation-query" and row["positive_scene_id"] == row["scene_id"] for row in catalog.query_rows["validation"]),
         "evaluation_fixed_queries": all(row["namespace"] == "evaluation-query" and row["positive_scene_id"] == row["scene_id"] for row in catalog.query_rows["evaluation"]),
-        "split_leakage_zero": True, "duplicate_scene_zero": len(training_ids) == 2421 and len(validation_ids) == 400 and len(evaluation_ids) == 1600,
+        "split_leakage_zero": True, "duplicate_scene_zero": len(training_ids) == 2421 and len(validation_ids) == 1000 and len(evaluation_ids) == 9000,
         "scientific_float64_geometry_preserved": True, "model_float32_conversion_explicit": True,
         "geometry_layout_version_3": GEOMETRY_LAYOUT_VERSION == "3.0.0",
         "part_ring_storage_separate": True, "old_layout_2_rejected": True,
@@ -211,8 +200,8 @@ def run_smoke(args: argparse.Namespace) -> None:
                 "minimum_radial_frequency": 0.5, "maximum_radial_frequency": 50.0, "radial_frequencies": 8,
                 "angular_orientations": 16, "normalization_length_m": 500.0}}, torch.device("cpu"))
             first = model(batch, geometry); second = model(batch, geometry)
-            if first["scene_embedding"].shape != (len(selected), 64) or not torch.isfinite(first["scene_embedding"]).all():
-                raise ValueError("d64 CPU smoke output shape/finite failure")
+            if first["scene_embedding"].shape != (len(selected), 128) or not torch.isfinite(first["scene_embedding"]).all():
+                raise ValueError("d128 CPU smoke output shape/finite failure")
             if not torch.equal(first["scene_embedding"], second["scene_embedding"]):
                 raise ValueError("eval mode is not deterministic")
             results.append({"scene_ids": batch["scene_ids"], "shape": list(first["scene_embedding"].shape),

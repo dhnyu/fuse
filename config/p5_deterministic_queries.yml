@@ -1,7 +1,7 @@
 schema_version: "1.0.0"
 supplement_id: p5-fixed-query-v2
 implementation_version: "2.0.0"
-dissertation_commit: 109355b3d744248ca14749c5f74511537970d660
+dissertation_commit: cbb824f19be8355296603f8426ac241ce587ddcc
 authority_id: dynamic_from_reduced_methodology_authority
 augmentation_contract_id: dynamic_from_augmentation_methodology_contract
 p3_cache_id: dynamic_from_original_scene_dataset_acceptance
@@ -30,14 +30,14 @@ profile:
 namespaces:
   validation:
     namespace: validation-query
-    originals: 400
-    queries: 800
-    gallery: 400
+    originals: 1000
+    queries: 2000
+    gallery: 1000
   evaluation:
     namespace: evaluation-query
-    originals: 1600
-    queries: 3200
-    gallery: 1600
+    originals: 9000
+    queries: 18000
+    gallery: 9000
 query_indices: [0, 1]
 seed:
   canonical_encoding: canonical_json_utf8_no_whitespace

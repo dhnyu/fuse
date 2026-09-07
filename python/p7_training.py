@@ -33,15 +33,6 @@ from prototype_encoder import relation_set_embedding, sinusoidal_position_featur
 SCHEMA_VERSION = "1.0.0"
 SUPPLEMENT_NAME = "p7-deterministic-training-v1"
 MODALITIES = ("relative", "geometry", "semantic", "environmental")
-DECODER_PREFIXES = (
-    "mask_embeddings", "relative_position_decoder", "geometry_decoder_shared",
-    "geometry_magnitude_head", "geometry_phase_head", "attribute_decoder_shared",
-    "building_decoder_heads", "road_decoder_heads", "poi_decoder_heads",
-    "environment_decoder_shared", "environment_composition_head",
-    "environment_continuous_head",
-)
-
-
 def canonical_digest(value: Any) -> str:
     return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
 
@@ -78,6 +69,9 @@ def validate_config(config: dict[str, Any]) -> None:
         "restart": False, "update_order": "set_before_optimizer_update",
     }:
         raise ValueError("P7 scheduler contract mismatch")
+    objective = config["objective"]
+    if set(objective) != {"contrastive_temperature", "negative_exclusion_distance_m", "directions"}:
+        raise ValueError("current P7 objective must be contrastive-only")
     numeric = config["numeric"]
     if any((numeric["backend"] != "nccl", numeric["precision"] != "float32", numeric["amp"],
             numeric["grad_scaler"], numeric["tf32_matmul"], numeric["tf32_cudnn"],
@@ -421,7 +415,6 @@ def deterministic_relation_layer(layer: nn.Module, values: torch.Tensor, edge_in
 class ForwardResult(NamedTuple):
     output: dict[str, torch.Tensor]
     modalities: dict[str, torch.Tensor]
-    reconstruction: dict[str, dict[str, Any]]
 
 
 class P7Model(nn.Module):
@@ -485,8 +478,7 @@ class P7Model(nn.Module):
             if selected.any():
                 stacked[selected, index] = self.online.mask_embeddings[index]
         output = self._finish(self.online, batch, stacked)
-        reconstruction = reconstruction_terms(self.online, batch, geometry, modalities, self.objective)
-        return ForwardResult(output, modalities, reconstruction)
+        return ForwardResult(output, modalities)
 
     def forward(self, batches: Sequence[dict[str, Any]], geometries: Sequence[tuple[torch.Tensor, torch.Tensor]],
                 assignments: Sequence[torch.Tensor]) -> list[ForwardResult]:
@@ -502,130 +494,10 @@ class P7Model(nn.Module):
     def update_target(self, coefficient: float) -> None:
         online = dict(self.online.named_parameters())
         for name, target in self.target.named_parameters():
-            if name.startswith(DECODER_PREFIXES):
-                continue
             target.mul_(coefficient).add_(online[name], alpha=1.0 - coefficient)
         online_buffers = dict(self.online.named_buffers())
         for name, target in self.target.named_buffers():
             target.copy_(online_buffers[name])
-
-
-def _zero(module: nn.Module, representation: torch.Tensor) -> torch.Tensor:
-    value = representation.sum() * 0.0
-    for parameter in module.parameters():
-        value = value + parameter.reshape(-1)[0] * 0.0
-    return value
-
-
-def _entity_means(fields: Sequence[tuple[torch.Tensor, torch.Tensor]], count: int) -> torch.Tensor:
-    if count == 0:
-        return fields[0][0].new_empty(0) if fields else torch.empty(0)
-    numerator = fields[0][0].new_zeros(count)
-    denominator = fields[0][0].new_zeros(count)
-    for values, valid in fields:
-        numerator += torch.where(valid, values, torch.zeros_like(values))
-        denominator += valid.to(values.dtype)
-    valid = denominator > 0
-    return numerator[valid] / denominator[valid]
-
-
-def reconstruction_terms(model: ReducedSceneEncoder, batch: dict[str, Any], geometry: tuple[torch.Tensor, torch.Tensor],
-                         modalities: dict[str, torch.Tensor], objective: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    entities, masks = batch["entities"], batch["category_mask_indices"]
-    delta = float(objective["huber_delta"])
-    result: dict[str, dict[str, Any]] = {"modalities": {}, "fields": {}}
-
-    def term(name: str, value: torch.Tensor, count: int | torch.Tensor, namespace: str = "fields") -> None:
-        count_tensor = (count.detach().to(device=value.device, dtype=torch.int64)
-                        if isinstance(count, torch.Tensor)
-                        else torch.tensor(int(count), device=value.device, dtype=torch.int64))
-        result[namespace][name] = {"sum": value, "count": count_tensor}
-
-    relative_prediction = model.relative_position_decoder(modalities["relative"])
-    relative_target = entities["relative_position_m"] / 500.0
-    relative_values = F.huber_loss(relative_prediction, relative_target, delta=delta, reduction="none").mean(1)
-    relative_sum = relative_values.sum() if relative_values.numel() else _zero(model.relative_position_decoder, modalities["relative"])
-    term("relative.position_xy", relative_sum, relative_values.numel()); term("relative", relative_sum, relative_values.numel(), "modalities")
-
-    geometry_rows = entities["entity_type"] != 2
-    shared = model.geometry_decoder_shared(modalities["geometry"][geometry_rows])
-    if shared.shape[0]:
-        magnitude_prediction = model.geometry_magnitude_head(shared)
-        phase_prediction = model.geometry_phase_head(shared).reshape(-1, 128, 2)
-        magnitude_target = geometry[0][geometry_rows]
-        phase_target = geometry[1][geometry_rows].reshape(-1, 128, 2)
-        magnitude_values = F.huber_loss(magnitude_prediction, magnitude_target, delta=delta, reduction="none").mean(1)
-        raw = torch.expm1(magnitude_target).clamp_min(0)
-        maximum = raw.amax(1, keepdim=True)
-        phase_valid = (maximum > 0) & (raw / maximum.clamp_min(torch.finfo(raw.dtype).tiny) >= float(objective["phase_relative_magnitude_threshold"]))
-        phase_components = 1.0 - F.cosine_similarity(phase_prediction, phase_target, dim=2)
-        valid_entity = phase_valid.any(1)
-        phase_values = torch.zeros_like(magnitude_values)
-        phase_values[valid_entity] = ((phase_components[valid_entity] * phase_valid[valid_entity]).sum(1)
-                                      / phase_valid[valid_entity].sum(1))
-        geometry_values = torch.where(valid_entity, 0.5 * (magnitude_values + phase_values), magnitude_values)
-        geometry_sum = geometry_values.sum()
-        term("geometry.magnitude", magnitude_values.sum(), magnitude_values.numel())
-        term("geometry.phase", phase_values[valid_entity].sum(), valid_entity.sum())
-    else:
-        geometry_sum = _zero(model.geometry_decoder_shared, modalities["geometry"])
-        term("geometry.magnitude", geometry_sum, 0); term("geometry.phase", geometry_sum, 0)
-    term("geometry", geometry_sum, geometry_rows.sum(), "modalities")
-
-    semantic_values: list[torch.Tensor] = []
-    for prefix, categorical_names, numerical_names in (
-        ("building", ("A9", "A11"), ("building_observed_area_m2", "building_observed_gross_floor_area_m2")),
-        ("road", ("ROAD_RANK", "ROAD_TYPE"), ("road_lanes",)),
-        ("poi", tuple(f"CLASS_L{i}" for i in range(1, 7)), ()),
-    ):
-        rows = entities[f"{prefix}_row_index"]
-        hidden = model.attribute_decoder_shared[{"building": "B", "road": "R", "poi": "P"}[prefix]](modalities["semantic"][rows])
-        fields: list[tuple[torch.Tensor, torch.Tensor]] = []
-        category = entities[f"{prefix}_category"]
-        for column, name in enumerate(categorical_names):
-            logits = (model.poi_decoder_heads[column](hidden) if prefix == "poi"
-                      else getattr(model, f"{prefix}_decoder_heads")[name](hidden))
-            target = category[:, column]
-            valid = target != masks[name]
-            values = F.cross_entropy(logits, target, reduction="none") if target.numel() else logits.sum(1)
-            fields.append((values, valid)); term(f"semantic.{prefix}.{name}", values[valid].sum(), valid.sum())
-        if numerical_names:
-            prediction = getattr(model, f"{prefix}_decoder_heads")["numerical"](hidden)
-            numerical, missing = entities[f"{prefix}_numerical"], entities[f"{prefix}_missing"].bool()
-            for column, name in enumerate(numerical_names):
-                values = F.huber_loss(prediction[:, column], numerical[:, column], delta=delta, reduction="none")
-                valid = ~missing[:, column]
-                fields.append((values, valid)); term(f"semantic.{prefix}.{name}", values[valid].sum(), valid.sum())
-        values = _entity_means(fields, rows.numel())
-        if values.numel():
-            semantic_values.append(values)
-    if semantic_values:
-        values = torch.cat(semantic_values); semantic_sum, semantic_count = values.sum(), values.numel()
-    else:
-        semantic_sum = _zero(model.attribute_decoder_shared, modalities["semantic"]); semantic_count = 0
-    term("semantic", semantic_sum, semantic_count, "modalities")
-
-    hidden = model.environment_decoder_shared(modalities["environmental"])
-    composition_logits = model.environment_composition_head(hidden)
-    continuous_prediction = model.environment_continuous_head(hidden)
-    context = entities["object_raster"]
-    composition_target = context[:, :22]
-    composition_valid = context[:, 22] > 0
-    composition_values = -(composition_target * F.log_softmax(composition_logits, 1)).sum(1)
-    continuous_target = context[:, 22:26]
-    continuous_values = F.huber_loss(continuous_prediction, continuous_target, delta=delta, reduction="none")
-    continuous_valid = torch.ones_like(continuous_target, dtype=torch.bool)
-    continuous_valid[:, 1] = context[:, 25] > 0
-    continuous_valid[:, 2] = context[:, 25] > 0
-    fields = [(composition_values, composition_valid)]
-    term("environmental.composition", composition_values[composition_valid].sum(), composition_valid.sum())
-    for index in range(4):
-        valid = continuous_valid[:, index]; values = continuous_values[:, index]
-        fields.append((values, valid)); term(f"environmental.continuous_{index}", values[valid].sum(), valid.sum())
-    environmental_values = _entity_means(fields, context.shape[0])
-    environmental_sum = environmental_values.sum() if environmental_values.numel() else _zero(model.environment_decoder_shared, modalities["environmental"])
-    term("environmental", environmental_sum, environmental_values.numel(), "modalities")
-    return result
 
 
 def local_infonce_sum(q1: torch.Tensor, q2: torch.Tensor, global_k1: torch.Tensor, global_k2: torch.Tensor,

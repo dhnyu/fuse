@@ -12,7 +12,7 @@ test_that("superseded I21 optimizer target is excluded from the active P7 graph"
 
 test_that("I21 schema keeps identity dynamic and fixes canonical direct outputs", {
   schema <- jsonlite::read_json(
-    file.path(fuse_test_root, "config/schemas/s07_pilot_training_acceptance.schema.json"),
+    file.path(fuse_test_root, "config/schemas/prototype_training_acceptance.schema.json"),
     simplifyVector = FALSE
   )
   expect_null(schema$properties$plan_id$const)

@@ -1,4 +1,4 @@
-"""Reduced-dissertation d64 scene encoder and reconstruction heads for P6."""
+"""Current reduced-dissertation scene encoder without reconstruction heads."""
 
 from __future__ import annotations
 
@@ -90,15 +90,15 @@ class RasterCNN(nn.Module):
 
 
 class ReducedSceneEncoder(nn.Module):
-    """Complete d64 encoder plus architecture-table projection/decoder modules."""
+    """Complete current encoder and contrastive projection modules."""
 
     def __init__(self, config: dict[str, Any], vocabulary_sizes: dict[str, int]) -> None:
         super().__init__()
         model = config["model"]
         d, dropout = int(model["d"]), float(model["dropout"])
-        if (d, int(model["d_c"]), int(model["d_t"]), int(model["d_r"])) != (64, 64, 16, 32):
+        if (d, int(model["d_c"]), int(model["d_t"]), int(model["d_r"])) != (128, 128, 16, 32):
             raise ValueError("reduced model dimension contract mismatch")
-        if (int(model["attention_heads"]), int(model["head_dimension"]), int(model["ffn_dimension"])) != (4, 16, 128):
+        if (int(model["attention_heads"]), int(model["head_dimension"]), int(model["ffn_dimension"])) != (4, 32, 256):
             raise ValueError("reduced attention/FFN contract mismatch")
         if dropout != 0.2:
             raise ValueError("reduced dropout contract mismatch")
@@ -107,16 +107,16 @@ class ReducedSceneEncoder(nn.Module):
             math.log10(float(wavelength["minimum_m"])), math.log10(float(wavelength["maximum_m"])),
             int(wavelength["count"]),
         ))
-        self.position_encoder = projected_block(64, 64, 64, dropout, True)
-        self.magnitude_encoder = projected_block(128, 128, 64, dropout, False)
-        self.phase_encoder = projected_block(256, 128, 64, dropout, False)
-        self.geometry_fusion = projected_block(128, 128, 64, dropout, True)
+        self.position_encoder = projected_block(64, 128, 128, dropout, True)
+        self.magnitude_encoder = projected_block(128, 128, 128, dropout, False)
+        self.phase_encoder = projected_block(256, 128, 128, dropout, False)
+        self.geometry_fusion = projected_block(256, 256, 128, dropout, True)
         non_poi = ("A9", "A11", "ROAD_RANK", "ROAD_TYPE")
         self.category_embeddings = nn.ModuleDict({name: nn.Embedding(vocabulary_sizes[name], 32) for name in non_poi})
         self.building_numerical = projected_block(4, 64, 32, dropout, False)
-        self.building_fusion = projected_block(96, 128, 64, dropout, True)
+        self.building_fusion = projected_block(96, 256, 128, dropout, True)
         self.road_numerical = nn.Sequential(nn.Linear(2, 32), nn.LayerNorm(32), nn.GELU(), nn.Linear(32, 32))
-        self.road_fusion = projected_block(96, 128, 64, dropout, True)
+        self.road_fusion = projected_block(96, 256, 128, dropout, True)
         poi_names = [f"CLASS_L{index}" for index in range(1, 7)]
         poi_dimensions = [int(value) for value in model["poi_hierarchy_dimensions"]]
         self.poi_embeddings = nn.ModuleList([
@@ -124,48 +124,31 @@ class ReducedSceneEncoder(nn.Module):
         ])
         self.poi_projections = nn.ModuleList([nn.Linear(dimension, 32) for dimension in poi_dimensions])
         self.poi_score = nn.Sequential(nn.Linear(32, 64), nn.Tanh(), nn.Linear(64, 1))
-        self.poi_fusion = projected_block(140, 128, 64, dropout, True)
-        self.object_raster_encoder = projected_block(26, 64, 64, dropout, True)
+        self.poi_fusion = projected_block(140, 256, 128, dropout, True)
+        self.object_raster_encoder = projected_block(26, 128, 128, dropout, True)
         self.type_embedding = nn.Embedding(3, 16)
         self.gates = nn.ModuleList([
-            nn.Sequential(nn.Linear(80, 64), nn.GELU(), nn.Dropout(dropout), nn.Linear(64, 64))
+            nn.Sequential(nn.Linear(144, 128), nn.GELU(), nn.Dropout(dropout), nn.Linear(128, 128))
             for _ in range(4)
         ])
-        self.entity_norm = nn.LayerNorm(64)
+        self.entity_norm = nn.LayerNorm(128)
         self.relation_embedding = nn.Embedding(5, 32)
         self.relation_layers = nn.ModuleList([
-            RelationAwareLayer(64, 4, 32, 128, dropout) for _ in range(3)
+            RelationAwareLayer(128, 4, 32, 256, dropout) for _ in range(3)
         ])
-        self.pool = nn.Sequential(nn.Linear(64, 32), nn.Tanh(), nn.Linear(32, 1))
+        self.pool = nn.Sequential(nn.Linear(128, 64), nn.Tanh(), nn.Linear(64, 1))
         self.landcover_embedding = nn.Embedding(24, 16)
         self.landcover_cnn = RasterCNN(16)
         self.dem_cnn = RasterCNN(1)
-        self.landcover_projection = projected_block(64, 128, 64, dropout, True)
-        self.dem_projection = projected_block(64, 128, 64, dropout, True)
-        self.scene_fusion = projected_block(320, 128, 64, dropout, True)
-        self.mask_embeddings = nn.Parameter(torch.empty(4, 64))
+        self.landcover_projection = projected_block(64, 256, 128, dropout, True)
+        self.dem_projection = projected_block(64, 256, 128, dropout, True)
+        self.scene_fusion = projected_block(640, 256, 128, dropout, True)
+        self.mask_embeddings = nn.Parameter(torch.empty(4, 128))
         nn.init.normal_(self.mask_embeddings, std=0.02)
-        self.contrastive_projection = nn.Sequential(nn.Linear(64, 128), nn.LayerNorm(128), nn.GELU(), nn.Linear(128, 64))
-        self.relative_position_decoder = nn.Sequential(nn.Linear(64, 64), nn.GELU(), nn.Linear(64, 2))
-        self.geometry_decoder_shared = nn.Sequential(nn.Linear(64, 128), nn.GELU())
-        self.geometry_magnitude_head = nn.Linear(128, 128)
-        self.geometry_phase_head = nn.Linear(128, 256)
-        self.attribute_decoder_shared = nn.ModuleDict({name: nn.Sequential(nn.Linear(64, 64), nn.GELU()) for name in ("B", "R", "P")})
-        self.building_decoder_heads = nn.ModuleDict({
-            "A9": nn.Linear(64, vocabulary_sizes["A9"]), "A11": nn.Linear(64, vocabulary_sizes["A11"]),
-            "numerical": nn.Linear(64, 2),
-        })
-        self.road_decoder_heads = nn.ModuleDict({
-            "ROAD_RANK": nn.Linear(64, vocabulary_sizes["ROAD_RANK"]),
-            "ROAD_TYPE": nn.Linear(64, vocabulary_sizes["ROAD_TYPE"]), "numerical": nn.Linear(64, 1),
-        })
-        self.poi_decoder_heads = nn.ModuleList([nn.Linear(64, vocabulary_sizes[name]) for name in poi_names])
-        self.environment_decoder_shared = nn.Sequential(nn.Linear(64, 64), nn.GELU())
-        self.environment_composition_head = nn.Linear(64, 22)
-        self.environment_continuous_head = nn.Linear(64, 4)
+        self.contrastive_projection = nn.Sequential(nn.Linear(128, 256), nn.LayerNorm(256), nn.GELU(), nn.Linear(256, 128))
 
     def _semantic(self, entities: dict[str, torch.Tensor]) -> torch.Tensor:
-        output = torch.zeros((entities["local_entity_id"].numel(), 64), device=entities["local_entity_id"].device)
+        output = torch.zeros((entities["local_entity_id"].numel(), 128), device=entities["local_entity_id"].device)
         building = entities["building_row_index"]
         if building.numel():
             category = entities["building_category"]
@@ -188,7 +171,7 @@ class ReducedSceneEncoder(nn.Module):
         return output
 
     def _type_pool(self, values: torch.Tensor, types: torch.Tensor, scenes: torch.Tensor, scene_count: int) -> torch.Tensor:
-        result = torch.zeros((scene_count, 3, 64), device=values.device, dtype=values.dtype)
+        result = torch.zeros((scene_count, 3, 128), device=values.device, dtype=values.dtype)
         scores = self.pool(values).squeeze(-1)
         for scene in range(scene_count):
             for entity_type in range(3):

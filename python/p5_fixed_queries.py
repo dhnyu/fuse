@@ -399,7 +399,7 @@ def aggregate(spec: dict[str, Any], output_dir: Path) -> dict[str, Any]:
     for split in ("validation", "evaluation"):
         queries = sorted(query_rows[split], key=lambda row: (row["scene_id"], row["query_index"]))
         galleries = sorted(gallery_rows[split].values(), key=lambda row: row["scene_id"])
-        expected_scenes = 400 if split == "validation" else 1600
+        expected_scenes = 1000 if split == "validation" else 9000
         if len(queries) != expected_scenes * 2 or len(galleries) != expected_scenes:
             raise ValueError(f"{split} population mismatch")
         validate_query_gallery_records(queries, galleries, split, expected_scenes, set(gallery_rows[split]))
@@ -432,7 +432,7 @@ def aggregate(spec: dict[str, Any], output_dir: Path) -> dict[str, Any]:
                   "supplement_id": SUPPLEMENT_ID, "parent_cache_id": spec["p3_cache_id"],
                   "validation_acceptance_id": split_outputs["validation"]["acceptance_id"],
                   "evaluation_acceptance_id": split_outputs["evaluation"]["acceptance_id"],
-                  "scene_count": 2000, "query_count": 4000, "gallery_count": 2000,
+                  "scene_count": 10000, "query_count": 20000, "gallery_count": 10000,
                   "branch_count": len(manifests), "total_payload_bytes": total_bytes,
                   "aggregate_content_sha256": aggregate_hash,
                   "violations": {name: 0 for name in ("population", "leakage", "duplicate", "missing", "orphan", "p4_reference", "schema", "scientific", "collision")}}

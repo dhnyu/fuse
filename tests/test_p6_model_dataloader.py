@@ -98,13 +98,13 @@ def sample(scene: str, entity_types=(0,), edges=(), relation_masks=(), source_no
 def test_reduced_dimensions_and_parameter_manifest():
     model = ReducedSceneEncoder(config(), VOCABULARY)
     assert model.relation_layers[0].heads == 4
-    assert model.relation_layers[0].head_dimension == 16
+    assert model.relation_layers[0].head_dimension == 32
     assert model.relation_layers[0].dropout.p == 0.2
-    assert parameter_counts(model)["total"] == 934420
+    assert parameter_counts(model)["total"] == 1543958
 
 
 def test_wrong_reduced_dimensions_are_blocked():
-    changed = config(); changed["model"]["d"] = 128
+    changed = config(); changed["model"]["d"] = 64
     with pytest.raises(ValueError, match="dimension contract"):
         ReducedSceneEncoder(changed, VOCABULARY)
 

@@ -1,5 +1,6 @@
 schema_version: "1.0.0"
 supplement_name: p7-deterministic-training-v1
+migration_status: RECOMPUTE_REQUIRED
 publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/prototype
 staging_root: /mnt/hdd002/dhnyu/fusedata/tmp/fuse/p7_prototype_training
 parent_roots:
@@ -7,8 +8,8 @@ parent_roots:
   methodology_authority: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/authority
 
 parents:
-  methodology_authority_id: mta_c17568508b283afd3316e925
-  training_contract_id: mmc_3b3719e274996c7d
+  methodology_authority_id: mta_03e8d7f42fe2018237f3fcde
+  training_contract_id: mmc_1cf3f3d37e489d9a
   p1_scene_index_id: rsi_80031f1493c75163f91b7c71
   prototype_selection_id: rps_4dfda380e54a9b7f9f60ac04
   p2_observation_id: obs_cd00016f6b5bfd960b0a6842
@@ -78,10 +79,6 @@ scheduler:
 objective:
   contrastive_temperature: 0.1
   negative_exclusion_distance_m: 750.0
-  information_preservation_weight: 1.0
-  huber_delta: 1.0
-  phase_relative_magnitude_threshold: 0.05
-  empty_component_rule: exclude_from_active_modality_average
   directions: [view_0_to_view_1, view_1_to_view_0]
 
 ema:
@@ -91,7 +88,7 @@ ema:
 
 queue:
   capacity: 8192
-  embedding_dimension: 64
+  embedding_dimension: 128
   initialization: empty_zero_storage
   gather_order: rank_then_local_sample_then_view
   enqueue_views: [0, 1]

@@ -367,28 +367,10 @@ def train_update(ddp: DistributedDataParallel, model: P7Model, optimizer: torch.
         float(config["objective"]["contrastive_temperature"]),
         float(config["objective"]["negative_exclusion_distance_m"]),
     )
-    global_counts = [all_reduce_tensor(torch.tensor(scene_count, dtype=torch.int64, device=device))]
-    reduced_sums: list[torch.Tensor] = []
-    local_sums: list[torch.Tensor] = []
-    ip_objective = scene_sum * 0.0
-    names = ("relative", "geometry", "semantic", "environmental")
-    for name in names:
-        local_sum = outputs[0].reconstruction["modalities"][name]["sum"] + outputs[1].reconstruction["modalities"][name]["sum"]
-        local_count = (outputs[0].reconstruction["modalities"][name]["count"] +
-                       outputs[1].reconstruction["modalities"][name]["count"])
-        global_counts.append(all_reduce_tensor(local_count.to(device=device, dtype=torch.int64)))
-        reduced_sums.append(all_reduce_tensor(local_sum))
-        local_sums.append(local_sum)
-    count_values = torch.stack(global_counts).cpu().tolist()
-    scene_count_value = int(count_values[0]); active = 0
+    global_count = all_reduce_tensor(torch.tensor(scene_count, dtype=torch.int64, device=device))
+    scene_count_value = int(global_count.cpu())
     scene_objective = scene_sum * dist.get_world_size() / scene_count_value
-    for local_sum, count in zip(local_sums, count_values[1:], strict=True):
-        if int(count):
-            ip_objective = ip_objective + local_sum * dist.get_world_size() / int(count)
-            active += 1
-    if active:
-        ip_objective = ip_objective / active
-    total = scene_objective + float(config["objective"]["information_preservation_weight"]) * ip_objective
+    total = scene_objective
     if not torch.isfinite(total):
         raise FloatingPointError("non-finite P7 total loss")
     lr = scheduler.set_for_next_update()
@@ -402,29 +384,22 @@ def train_update(ddp: DistributedDataParallel, model: P7Model, optimizer: torch.
     queue_centers = all_gather_tensor(torch.stack((batches[0]["scene_center_5186"], batches[0]["scene_center_5186"]), 1)).reshape(-1, 2)
     enqueue(queue, queue_values, queue_ids, queue_centers)
     global_scene_sum_tensor = all_reduce_tensor(scene_sum)
-    evidence = torch.cat((torch.stack([global_scene_sum_tensor, *reduced_sums]).to(torch.float64),
-                          torch.stack(global_counts).to(torch.float64),
+    evidence = torch.cat((global_scene_sum_tensor.reshape(1).to(torch.float64),
+                          global_count.reshape(1).to(torch.float64),
                           before.detach().reshape(1).to(torch.float64)))
     evidence_values = evidence.cpu().tolist()
-    sum_values = evidence_values[:5]; evidence_counts = [int(value) for value in evidence_values[5:10]]
-    global_scene_sum = float(sum_values[0]); scene_value = global_scene_sum / evidence_counts[0]
-    modality_rows = {name: {"numerator": float(sum_values[index + 1]),
-                            "denominator": evidence_counts[index + 1]}
-                     for index, name in enumerate(names)}
-    ip_value = sum(row["numerator"] / row["denominator"] for row in modality_rows.values() if row["denominator"]) / active if active else 0.0
+    global_scene_sum = float(evidence_values[0]); scene_value = global_scene_sum / int(evidence_values[1])
     global_pairs = []
     gathered_pairs: list[Any] = [None] * dist.get_world_size()
     dist.all_gather_object(gathered_pairs, local_pairs)
     for item in gathered_pairs: global_pairs.extend(item)
     return {
         "epoch": epoch, "batch_index": batch_index, "global_update": scheduler.completed_updates,
-        "learning_rate": lr, "total_loss": scene_value + float(config["objective"]["information_preservation_weight"]) * ip_value,
-        "scene_contrastive_loss": scene_value, "information_preservation_loss": ip_value,
-        "information_preservation_weight": float(config["objective"]["information_preservation_weight"]),
-        "modality_components": modality_rows, "scene_numerator": global_scene_sum,
-        "scene_denominator": evidence_counts[0], "gradient_norm_before_clip": float(evidence_values[10]),
-        "gradient_norm_after_clip": min(float(evidence_values[10]), float(config["optimizer"]["gradient_clip"]["maximum_norm"])),
-        "gradient_clip_applied": float(evidence_values[10]) > float(config["optimizer"]["gradient_clip"]["maximum_norm"]),
+        "learning_rate": lr, "total_loss": scene_value,
+        "scene_contrastive_loss": scene_value, "scene_numerator": global_scene_sum,
+        "scene_denominator": int(evidence_values[1]), "gradient_norm_before_clip": float(evidence_values[2]),
+        "gradient_norm_after_clip": min(float(evidence_values[2]), float(config["optimizer"]["gradient_clip"]["maximum_norm"])),
+        "gradient_clip_applied": float(evidence_values[2]) > float(config["optimizer"]["gradient_clip"]["maximum_norm"]),
         "queue_pointer": int(queue["pointer"]), "queue_valid_count": int(queue["valid_count"]),
         "queue_enqueue_count": int(queue["enqueue_count"]), "ema_update_count": scheduler.completed_updates,
         "batch_identity_digest": training_batch_digest(global_scenes, global_pairs),

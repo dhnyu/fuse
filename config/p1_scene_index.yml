@@ -1,8 +1,9 @@
 schema_version: "1.0.0"
 implementation_version: "1.0.0"
+migration_status: RECOMPUTE_REQUIRED
 authority:
-  expected_id: mta_f90fecff7bc7bb5d231cc79f
-  expected_manifest_sha256: 9aa9285c947c5a695ae158aa5aa6160923a9d395c77e3f3289cc2fc35fe5b35c
+  expected_id: mta_03e8d7f42fe2018237f3fcde
+  expected_manifest_sha256: 766e5b0e99f2342c19b477c8e5905124defeeccc9d7cf562640fe1b34f4994b2
 scene:
   processing_epsg: 5186
   official_grid_epsg: 5179
@@ -14,13 +15,14 @@ scene:
   official_cell_id_column: SPO_NO_CD
   split_counts:
     training: 2421
-    validation: 400
-    evaluation: 1600
-  total_count: 4421
+    validation: 1000
+    evaluation: 9000
+  total_count: 12421
 off_grid_source:
+  current_status: HISTORICAL_ONLY_REPLACEMENT_REQUIRED
   artifact_id: ogs_19933828d3de55d16b8861d7
   split_seed: 26082501
-  split_algorithm: approved_source_order_first_400_validation_remaining_1600_evaluation
+  split_algorithm: approved_source_order_first_1000_validation_remaining_9000_evaluation
   parquet:
     path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/off_grid_sources/ogs_19933828d3de55d16b8861d7/approved_off_grid_scene_centers.parquet
     size_bytes: 84309

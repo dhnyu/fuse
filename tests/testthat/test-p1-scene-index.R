@@ -1,4 +1,4 @@
-test_that("approved off-grid split is deterministic, without replacement, and disjoint", {
+test_that("historical off-grid split remains immutable and is not current-compatible", {
   config <- yaml::read_yaml(file.path(fuse_test_root, "config/p1_scene_index.yml"))
   source <- arrow::read_parquet(config$off_grid_source$parquet$path, as_data_frame = TRUE)
   ordered <- source[order(source$off_grid_order), ]
@@ -7,6 +7,7 @@ test_that("approved off-grid split is deterministic, without replacement, and di
   expect_identical(as.character(ordered$split), c(rep("validation", 400), rep("evaluation", 1600)))
   expect_equal(anyDuplicated(ordered$center_id), 0L)
   expect_length(intersect(ordered$center_id[ordered$split == "validation"], ordered$center_id[ordered$split == "evaluation"]), 0L)
+  expect_identical(config$off_grid_source$current_status, "HISTORICAL_ONLY_REPLACEMENT_REQUIRED")
 })
 
 test_that("scene identity is stable and split/source-specific", {
@@ -24,7 +25,7 @@ test_that("off-grid threshold is strict at 50 metres", {
 })
 
 test_that("count, EPSG, bounds, duplicate, and training-source drift are rejected", {
-  split <- c(rep("training", 2421), rep("validation", 400), rep("evaluation", 1600))
+  split <- c(rep("training", 2421), rep("validation", 1000), rep("evaluation", 9000))
   expect_equal(p1_split_count_violations(split), 0L)
   expect_equal(p1_split_count_violations(split[-1]), 1L)
   expect_equal(p1_epsg_violations(c(5186L, 5179L, NA_integer_)), 2L)
@@ -93,7 +94,7 @@ test_that("prototype selection uses only P1 scene-index fields and is determinis
   expect_false(grepl("membership|relation|observation", body))
 })
 
-test_that("actual accepted inputs satisfy P1 source-level contracts", {
+test_that("historical accepted input fails the current P1 population contract", {
   p1 <- yaml::read_yaml(file.path(fuse_test_root, "config/p1_scene_index.yml"))
   paths <- yaml::read_yaml(file.path(fuse_test_root, "config/research_paths.yml"))
   source <- arrow::read_parquet(p1$off_grid_source$parquet$path, as_data_frame = TRUE)
@@ -101,8 +102,10 @@ test_that("actual accepted inputs satisfy P1 source-level contracts", {
   contract <- list(crs = list(official_grid_epsg = 5179L, processing_epsg = 5186L),
                    scene = list(official_cell_id_column = "SPO_NO_CD", coordinate_precision_m = 0.001))
   training <- derive_official_training_scenes(boundary, paths$inputs$official_grid_shp, contract)$data
-  check <- validate_accepted_off_grid_table(source, boundary, as.matrix(training[, c("center_x_5186", "center_y_5186")]), 50)
   expect_equal(nrow(training), 2421L)
-  expect_equal(nrow(check$ordered), 2000L)
-  expect_gte(check$minimum, 50)
+  expect_equal(nrow(source), 2000L)
+  expect_error(
+    validate_accepted_off_grid_table(source, boundary, as.matrix(training[, c("center_x_5186", "center_y_5186")]), 50),
+    "identity contract failed"
+  )
 })

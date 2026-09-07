@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import io
 import json
 import math
@@ -91,7 +92,7 @@ class ArtifactCatalog:
             raise ValueError("P3 accepted scene index is missing or ambiguous")
         self.p3_rows = pq.read_table(p3_indices[0]).to_pylist()
         self.p3_by_scene = {row["scene_id"]: row for row in self.p3_rows}
-        if len(self.p3_by_scene) != 4421 or any(row["cache_id"] != expected["p3_cache_id"] for row in self.p3_rows):
+        if len(self.p3_by_scene) != 12421 or any(row["cache_id"] != expected["p3_cache_id"] for row in self.p3_rows):
             raise ValueError("P3 scene population/cache identity mismatch")
         acceptance_dirs = list((self.roots["p4"] / "acceptance").glob("*/augmentation_bank_acceptance.json"))
         if len(acceptance_dirs) != 1:
@@ -130,7 +131,7 @@ class ArtifactCatalog:
             galleries = pq.read_table(self.p5_acceptance_root / f"{split}_gallery.parquet").to_pylist()
             self.query_rows[split] = sorted(queries, key=lambda row: (row["scene_id"], int(row["query_index"])))
             self.gallery_rows[split] = sorted(galleries, key=lambda row: row["scene_id"])
-        if [len(self.gallery_rows[x]) for x in ("validation", "evaluation")] != [400, 1600] or [len(self.query_rows[x]) for x in ("validation", "evaluation")] != [800, 3200]:
+        if [len(self.gallery_rows[x]) for x in ("validation", "evaluation")] != [1000, 9000] or [len(self.query_rows[x]) for x in ("validation", "evaluation")] != [2000, 18000]:
             raise ValueError("P5 population mismatch")
         self._verified: set[Path] = set()
         self.verify = verify
@@ -442,6 +443,23 @@ def _poi_category_key(row: dict[str, Any], level: int, vocab: dict[str, Any]) ->
             return None
         codes.append(str(code))
     return "/".join(codes)
+
+
+def filter_scene_sources(scene: dict[str, Any], retained_sources: tuple[str, ...]) -> dict[str, Any]:
+    """Apply a B-series input-level source removal before tensorization."""
+    retained = set(retained_sources)
+    if not retained <= {"B", "R", "P", "LC", "DEM"}:
+        raise ValueError("unknown retained source")
+    result = copy.deepcopy(scene)
+    result["entities"] = [row for row in scene["entities"] if row["entity_type"] in retained]
+    identifiers = {int(row["local_entity_id"]) for row in result["entities"]}
+    result["contexts"] = {key: value for key, value in scene["contexts"].items() if int(key) in identifiers}
+    result["relations"] = [row for row in scene["relations"]
+                           if int(row["source_local_entity_id"]) in identifiers
+                           and int(row["destination_local_entity_id"]) in identifiers]
+    result["topology"] = [row for row in scene["topology"] if int(row["road_local_entity_id"]) in identifiers]
+    result["active_raster_sources"] = tuple(source for source in ("LC", "DEM") if source in retained)
+    return result
 
 
 def tensorize_scene(scene: dict[str, Any], preprocessing: dict[str, Any], vocab: dict[str, Any]) -> dict[str, Any]:

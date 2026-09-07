@@ -21,3 +21,16 @@ retrieval_source_files <- function() {
     list.files("python", pattern = "^retrieval_gallery.*[.]py$", full.names = TRUE),
     file.path("tools/retrieval_inspector", c("inspector.py", "app.js", "index.html", "style.css")))
 }
+
+retrieval_authority_bundle <- function(evidence) {
+  authority <- retrieval_stage("authority", evidence = evidence)
+  scene_index <- file.path(dirname(authority), "index/supplemental_scene_index.parquet")
+  if (!file.exists(scene_index)) stop("Supplemental scene index is missing", call. = FALSE)
+  c(authority, normalizePath(scene_index, mustWork = TRUE))
+}
+
+retrieval_acceptance_bundle <- function(inspector) {
+  validation <- retrieval_stage("validate", inspector)
+  acceptance <- retrieval_stage("accept", validation)
+  c(validation, acceptance)
+}

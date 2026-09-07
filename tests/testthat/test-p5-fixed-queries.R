@@ -17,10 +17,10 @@ testthat::test_that("P5 supplement fixes namespaces, populations and query indic
 testthat::test_that("P5 target declaration excludes P6, maintenance and GPU dependencies", {
   path <- testthat::test_path("..", "..", "targets", "research_fixed_queries.R")
   text <- paste(readLines(path, warn = FALSE), collapse = "\n")
-  expected <- c("fixed_query_methodology_contract", "fixed_validation_query_plan",
-                "fixed_evaluation_query_plan", "fixed_query_shard",
-                "fixed_query_shard_validation", "fixed_validation_query_acceptance",
-                "fixed_evaluation_query_acceptance", "fixed_query_acceptance")
+  expected <- c("s05_query_contract", "s05_query_shard_plan",
+                "s05_query_shard_plan", "fixed_query_shard",
+                "fixed_query_shard_validation", "s05_query_acceptance",
+                "s05_query_acceptance", "s05_query_acceptance")
   testthat::expect_true(all(vapply(expected, grepl, logical(1L), x = text, fixed = TRUE)))
   testthat::expect_false(grepl("controller_gpu", text, fixed = TRUE))
   testthat::expect_false(grepl("seoul_data_preprocess", text, fixed = TRUE))

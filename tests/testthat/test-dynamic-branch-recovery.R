@@ -80,7 +80,7 @@ testthat::test_that("accepted raster and serialization branches pass read-only v
   raster <- validate_raster_branch_recovery(
     targets::tar_read(prototype_observation_plan, store = store)[[1L]],
     targets::tar_read(prototype_vector_observation_shard, store = store)[[1L]],
-    targets::tar_read(study_data_inputs, store = store),
+    targets::tar_read(i01_seoul_spatial_sources, store = store),
     targets::tar_read(raster_observation_contract_files, store = store)
   )
   serialization <- validate_serialization_branch_recovery(

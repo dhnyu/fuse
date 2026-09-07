@@ -241,6 +241,38 @@ build_reduced_scene_index_plan <- function(study_data_inventory, accepted_off_gr
   })
 }
 
+select_study_source_files <- function(sources, role) {
+  canonical <- c(normalizePath(research_config_paths(), mustWork = TRUE),
+                 normalizePath(research_implementation_paths(), mustWork = TRUE))
+  sources <- normalizePath(sources, mustWork = TRUE)
+  if (!identical(sources, canonical)) stop("Study sources bundle/order mismatch", call. = FALSE)
+  expected <- switch(role,
+    config = normalizePath(research_config_paths(), mustWork = TRUE),
+    implementation = normalizePath(research_implementation_paths(), mustWork = TRUE),
+    stop("Unknown study source role: ", role, call. = FALSE)
+  )
+  selected <- sources[match(expected, sources)]
+  if (anyNA(selected) || !identical(selected, expected)) {
+    stop("Study source subset/order mismatch: ", role, call. = FALSE)
+  }
+  selected
+}
+
+build_reduced_scene_index_bundle <- function(study_data_inputs, accepted_off_grid_source,
+                                             study_data_inventory, scene_methodology_contract,
+                                             reduced_methodology_authority, contract_files,
+                                             workers = 1L, threads = 1L) {
+  plan <- build_reduced_scene_index_plan(
+    study_data_inventory, accepted_off_grid_source, scene_methodology_contract,
+    reduced_methodology_authority, contract_files
+  )
+  index <- build_reduced_spatial_scene_index(
+    study_data_inputs, accepted_off_grid_source, plan, scene_methodology_contract,
+    reduced_methodology_authority, contract_files, workers, threads
+  )
+  c(plan, index)
+}
+
 p1_scene_identity <- function(authority_id, split, source_kind, source_id) {
   tokens <- paste(authority_id, "scene-v1", split, source_kind, source_id, sep = "|")
   hashes <- vapply(tokens, digest::digest, character(1L), algo = "sha256", serialize = FALSE)

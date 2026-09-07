@@ -5,7 +5,7 @@ testthat::test_that("isolated P9 manifest contains only the v1 retirement guard"
   testthat::expect_identical(manifest$name, "p9_v1_formal_execution_retired")
   testthat::expect_match(manifest$command, "p9_v1_retired_stop", fixed = TRUE)
   testthat::expect_false(any(c("p9_production_cache_materialization",
-    "p7_cold_path_runtime_acceptance", "hyperparameter_configuration_matrix") %in% manifest$name))
+    "s07_runtime_acceptance", "hyperparameter_configuration_matrix") %in% manifest$name))
 })
 
 testthat::test_that("corrected isolated generation preserves the failed store", {

@@ -27,11 +27,11 @@ testthat::test_that("P4 profile parameters exactly reproduce Appendix B", {
 testthat::test_that("P4 target declarations use only the fixed bank interface", {
   path <- testthat::test_path("..", "..", "targets", "research_fixed_augmentation_banks.R")
   text <- paste(readLines(path, warn = FALSE), collapse = "\n")
-  expected <- c("augmentation_profile_plan", "road_link_absorption_smoke",
-                "geometry_consistency_smoke", "augmentation_bank_plan",
-                "augmentation_bank_execution", "augmentation_bank_shard",
-                "augmentation_bank_acceptance",
-                "effective_augmentation_bank_index", "augmentation_bank_benchmark")
+  expected <- c("s04_bank_profile_plan", "s04_bank_road_validation",
+                "s04_bank_geometry_validation", "s04_bank_shard_plan",
+                "s04_bank_execution", "augmentation_bank_shard",
+                "s04_bank_acceptance",
+                "s04_bank_acceptance", "s04_bank_acceptance")
   testthat::expect_true(all(vapply(expected, grepl, logical(1L), x = text, fixed = TRUE)))
   testthat::expect_false(grepl("controller_gpu", text, fixed = TRUE))
   testthat::expect_false(grepl("seoul_data_preprocess", text, fixed = TRUE))
@@ -44,7 +44,7 @@ testthat::test_that("P4 tiered execution is tracked but excluded from scientific
   targets <- paste(readLines(testthat::test_path("..", "..", "targets", "research_fixed_augmentation_banks.R"),
                              warn = FALSE), collapse = "\n")
   testthat::expect_true(grepl('relative != "scripts/run_p4_tiered_bank.py"', helper, fixed = TRUE))
-  testthat::expect_true(grepl("p4_run_tiered_bank(augmentation_bank_plan", targets, fixed = TRUE))
+  testthat::expect_true(grepl("p4_run_tiered_bank(s04_bank_shard_plan", targets, fixed = TRUE))
   testthat::expect_true(grepl("controller_05", targets, fixed = TRUE))
   testthat::expect_true(grepl("Pass A requires all 288 intended branches",
                               paste(readLines(testthat::test_path("..", "..", "scripts", "run_p4_tiered_bank.py"),

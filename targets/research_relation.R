@@ -10,7 +10,7 @@ list_research_relation <- list(
     command = build_prototype_relation_shard(
       prototype_observation_plan = prototype_observation_plan,
       prototype_vector_observation_shard = prototype_vector_observation_shard,
-      study_data_inputs = study_data_inputs,
+      study_data_inputs = i01_seoul_spatial_sources,
       prototype_runtime_inputs = prototype_runtime_inputs,
       relation_contract_files = relation_contract_files,
       workers = 1L,

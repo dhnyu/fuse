@@ -16,9 +16,9 @@ testthat::test_that("P6 config fixes reduced dimensions and populations", {
 
 testthat::test_that("P6 active targets stop at bounded CPU acceptance", {
   text <- paste(readLines(testthat::test_path("..", "..", "targets", "research_model_dataloader.R"), warn = FALSE), collapse = "\n")
-  expected <- c("p6_model_dataloader_contract_files", "d64_model_architecture_contract",
-                "p6_preprocessing_contract", "p6_dataloader_acceptance",
-                "d64_encoder_cpu_smoke", "model_data_acceptance")
+  expected <- c("s06_dataset_sources", "s06_reference_model_contract",
+                "s06_dataset_preprocessing_contract", "s06_dataset_loader_acceptance",
+                "s06_reference_encoder_validation", "s06_dataset_acceptance")
   testthat::expect_true(all(vapply(expected, grepl, logical(1L), x = text, fixed = TRUE)))
   forbidden <- c("controller_gpu", "seoul_data_preprocess", "optimizer", "checkpoint", "backward")
   testthat::expect_false(any(vapply(forbidden, grepl, logical(1L), x = text, fixed = TRUE)))

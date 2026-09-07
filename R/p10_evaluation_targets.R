@@ -42,3 +42,7 @@ p10_acceptance_readback <- function(path) {
   stopifnot(identical(value$status, "PASS"), identical(value$artifact_type, "p10_evaluation_acceptance"))
   path
 }
+
+p10_run_evaluation_with_readback <- function(contract, prepared_input, prepared_geometry) {
+  p10_acceptance_readback(p10_run_evaluation(contract, prepared_input, prepared_geometry))
+}

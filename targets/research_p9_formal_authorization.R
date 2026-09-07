@@ -112,7 +112,7 @@ list_research_p9_formal_authorization_historical <- list(
     p9_execute_reserved_formal_run(
       p9_corrected_formal_training_authority, p9_corrected_cfg_main_attempt_reservation,
       p9_production_cache_acceptance, hyperparameter_configuration_matrix,
-      p9_infrastructure_readiness, p7_cold_path_runtime_acceptance
+      p9_infrastructure_readiness, s07_runtime_acceptance
     ),
     format = "file", resources = controller_gpu_02_resources
   ),

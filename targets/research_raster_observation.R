@@ -10,12 +10,12 @@ list_research_raster_observation <- list(
     command = recover_raster_observation_branch(
       spec = prototype_observation_plan,
       vector_files = prototype_vector_observation_shard,
-      study_data_inputs = study_data_inputs,
+      study_data_inputs = i01_seoul_spatial_sources,
       raster_observation_contract_files = raster_observation_contract_files,
       compute = build_prototype_raster_observation_shard(
         prototype_observation_plan = prototype_observation_plan,
         prototype_vector_observation_shard = prototype_vector_observation_shard,
-        study_data_inputs = study_data_inputs,
+        study_data_inputs = i01_seoul_spatial_sources,
         prototype_runtime_inputs = prototype_runtime_inputs,
         raster_observation_contract_files = raster_observation_contract_files,
         workers = 1L,

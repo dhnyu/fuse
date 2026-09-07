@@ -231,5 +231,5 @@ test_that("P0 target ancestry contains no P1 or later target", {
   }
   ancestry <- unique(visit("reduced_methodology_authority"))
   expect_setequal(ancestry, p0)
-  expect_false(any(c("study_data_inputs", "spatial_scene_index", "prototype_scene_selection") %in% ancestry))
+  expect_false(any(c("i01_seoul_spatial_sources", "s01_scene_index", "s01_pilot_scene_index") %in% ancestry))
 })

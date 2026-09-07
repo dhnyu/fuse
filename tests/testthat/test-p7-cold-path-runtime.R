@@ -22,11 +22,11 @@ testthat::test_that("P7 cold-path runtime target has no training or downstream c
     callr_arguments = list(wd = fuse_test_root)
   )
   required <- c(
-    "p7_cold_path_runtime_contract_files", "p7_cold_path_runtime_contract",
-    "p7_cold_path_runtime_verification_reference", "p7_cold_path_runtime_acceptance"
+    "s07_runtime_sources", "s07_runtime_acceptance",
+    "i07_runtime_validation_sources", "s07_runtime_acceptance"
   )
   testthat::expect_true(all(required %in% manifest$name))
   commands <- manifest$command[manifest$name %in% required]
-  testthat::expect_false(any(grepl("prototype_training_run|p8|p9|evaluation|maintenance", commands,
+  testthat::expect_false(any(grepl("s07_pilot_training_execution|p8|p9|evaluation|maintenance", commands,
                                   ignore.case = TRUE)))
 })

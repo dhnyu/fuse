@@ -21,7 +21,7 @@ test_that("I24 is a read-only gate with the blueprint direct parents", {
   parents <- network$edges$from[network$edges$to == "prototype_model_acceptance"]
   parents <- intersect(parents, manifest$name)
   expect_setequal(parents, c("prototype_dataloader_smoke", "prototype_encoder_smoke",
-                             "prototype_augmentation_benchmark", "prototype_training_acceptance",
+                             "prototype_augmentation_benchmark", "s07_pilot_training_acceptance",
                              "prototype_model_validation", "prototype_model_acceptance_contract_files"))
   expect_true("full_membership_plan" %in% manifest$name)
   expect_false(any(grepl("^full_membership_shard$|^full_observation|^single_gpu_experiment|^ddp_experiment", manifest$name)))

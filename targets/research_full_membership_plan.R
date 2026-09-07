@@ -20,7 +20,7 @@ list_research_full_membership_plan <- list(
   targets::tar_target(
     name = full_membership_plan,
     command = suppressWarnings(build_full_membership_plan(
-      spatial_scene_index = spatial_scene_index,
+      spatial_scene_index = s01_scene_index,
       prototype_spatial_acceptance = prototype_spatial_acceptance,
       prototype_model_acceptance = full_membership_i24_authorization,
       prototype_membership_acceptance = prototype_membership_acceptance,

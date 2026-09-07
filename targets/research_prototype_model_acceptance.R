@@ -16,7 +16,7 @@ list_research_prototype_model_acceptance <- list(
         prototype_dataloader_smoke = prototype_dataloader_smoke,
         prototype_encoder_smoke = prototype_encoder_smoke,
         prototype_augmentation_benchmark = prototype_augmentation_benchmark,
-        prototype_training_acceptance = prototype_training_acceptance,
+        prototype_training_acceptance = s07_pilot_training_acceptance,
         prototype_model_validation = prototype_model_validation,
         prototype_model_acceptance_contract_files = prototype_model_acceptance_contract_files
       )

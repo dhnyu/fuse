@@ -8,7 +8,7 @@ test_that("reduced P1 configuration fixes the approved scene population", {
   expect_match(spec$config$off_grid_source$split_algorithm, "first_400_validation")
 })
 
-test_that("study_data_inputs tracks 12 non-empty files without maintenance dependency", {
+test_that("i01_seoul_spatial_sources tracks 12 non-empty files without maintenance dependency", {
   files <- study_input_files(research_config_paths(fuse_test_root))
   expect_length(files, 12L)
   expect_named(files, names(yaml::read_yaml(file.path(fuse_test_root, "config/research_paths.yml"))$inputs))

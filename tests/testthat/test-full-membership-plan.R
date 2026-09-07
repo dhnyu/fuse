@@ -11,7 +11,7 @@ test_that("C01 is plan-only and has declared scientific evidence", {
                                   callr_arguments = list(wd = fuse_test_root))
   parents <- network$edges$from[network$edges$to == "full_membership_plan"]
   expect_setequal(intersect(parents, manifest$name), c(
-    "spatial_scene_index", "prototype_spatial_acceptance", "full_membership_i24_authorization",
+    "s01_scene_index", "prototype_spatial_acceptance", "full_membership_i24_authorization",
     "prototype_membership_acceptance", "prototype_observation_plan", "full_membership_plan_contract_files"
   ))
   expect_false(any(grepl("^full_membership_shard$|^C02$", manifest$name)))

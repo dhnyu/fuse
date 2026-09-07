@@ -12,9 +12,9 @@ list_research_prototype_model_validation <- list(
       file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance),
                 "validation", "prototype-model", "pmv_1d5412a7b035635a4187fbf6"),
       run_prototype_model_validation(
-        prototype_training_acceptance = prototype_training_acceptance,
+        prototype_training_acceptance = s07_pilot_training_acceptance,
         prototype_training_dataset_acceptance = prototype_training_dataset_acceptance,
-        prototype_scene_selection = prototype_scene_selection,
+        prototype_scene_selection = s01_pilot_scene_index,
         prototype_model_validation_contract_files = prototype_model_validation_contract_files,
         workers = 40L,
         threads = 1L

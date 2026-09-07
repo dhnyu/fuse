@@ -21,18 +21,18 @@ testthat::test_that("P7 final target ancestry is bounded to the approved gates",
     callr_arguments = list(wd = fuse_test_root)
   )
   required <- c(
-    "p7_training_contract_files", "p7_validation_query_reference", "p7_p6_parent_reference",
-    "p7_immutable_parent_reference",
-    "p7_deterministic_training_authority",
-    "p7_geometry_feature_cache",
-    "p7_ddp_initialization_smoke", "p7_single_update_smoke",
-    "p7_ddp_reference_acceptance", "p7_resume_equivalence",
-    "prototype_training_run", "prototype_validation_retrieval",
-    "prototype_checkpoint_selection", "prototype_training_execution_record",
-    "prototype_training_acceptance"
+    "s07_training_sources", "i05_validation_query_sources", "i06_accepted_model_sources",
+    "i07_training_input_sources",
+    "s07_pilot_training_authority",
+    "s07_training_geometry_cache",
+    "s07_ddp_initialization_validation", "s07_ddp_update_validation",
+    "s07_ddp_reference_validation", "s07_ddp_resume_validation",
+    "s07_pilot_training_execution", "s07_pilot_training_acceptance",
+    "s07_pilot_training_acceptance", "s07_pilot_training_acceptance",
+    "s07_pilot_training_acceptance"
   )
   testthat::expect_true(all(required %in% manifest$name))
-  command <- manifest$command[manifest$name == "prototype_training_acceptance"]
+  command <- manifest$command[manifest$name == "s07_pilot_training_acceptance"]
   testthat::expect_length(command, 1L)
   testthat::expect_false(grepl("evaluation|maintenance|p8", command, ignore.case = TRUE))
 })

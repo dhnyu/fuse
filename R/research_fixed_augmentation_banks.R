@@ -228,3 +228,13 @@ p4_benchmark_bank <- function(bank_acceptance, effective_index, contract_files) 
   root<-file.path(spec$config$publication_root,accept$bank_id,"benchmark",value$benchmark_id)
   p1_publish_immutable_bundle(root,"augmentation_bank_benchmark.json",function(stage){path<-write_json_file(value,file.path(stage,"augmentation_bank_benchmark.json"));validate_json_schema_file(path,spec$schemas[["benchmark"]])})
 }
+
+p4_consolidated_acceptance <- function(plan, shard_files, shard_validation,
+                                       original_scene_dataset_acceptance, contract_files) {
+  bank <- p4_accept_bank(
+    plan, shard_files, shard_validation, original_scene_dataset_acceptance, contract_files
+  )
+  index <- p4_publish_effective_index(bank, contract_files)
+  benchmark <- p4_benchmark_bank(bank, index, contract_files)
+  c(bank, benchmark)
+}

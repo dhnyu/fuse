@@ -503,3 +503,16 @@ p7_final_acceptance <- function(authority, run_manifest, trace, selector, execut
   p7_publish_single_json(output, file.path(cfg$publication_root, "acceptance"),
                          "prototype_training_acceptance.json", schema, "acceptance_id")
 }
+
+p7_consolidated_acceptance <- function(authority, run_manifest, geometry_cache, gates, contract_files) {
+  trace <- p7_extract_run_artifact(run_manifest, "training_trace.json",
+                                   "config/schemas/p7_training_trace.schema.json", contract_files)
+  selector <- p7_extract_run_artifact(run_manifest, "selector_result.json",
+                                      "config/schemas/p7_selector_result.schema.json", contract_files)
+  execution <- p7_extract_run_artifact(run_manifest, "execution_record.json",
+                                       "config/schemas/p7_training_execution.schema.json", contract_files)
+  acceptance <- p7_final_acceptance(
+    authority, run_manifest, trace, selector, execution, geometry_cache, gates, contract_files
+  )
+  c(trace, selector, execution, acceptance)
+}

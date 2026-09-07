@@ -90,3 +90,14 @@ p7_cold_path_build_acceptance <- function(contract, verification, model_data_acc
                          p7_cold_path_runtime_file(files, "config/schemas/p7_cold_path_runtime_acceptance.schema.json"),
                          "acceptance_id")
 }
+
+p7_cold_path_consolidated_acceptance <- function(model_data_acceptance, training_acceptance,
+                                                  geometry_cache, verification, files) {
+  contract <- p7_cold_path_build_contract(
+    model_data_acceptance, training_acceptance, geometry_cache, files
+  )
+  acceptance <- p7_cold_path_build_acceptance(
+    contract, verification, model_data_acceptance, training_acceptance, geometry_cache, files
+  )
+  c(contract, acceptance)
+}

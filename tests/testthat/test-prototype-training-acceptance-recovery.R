@@ -4,15 +4,15 @@ test_that("superseded I21 optimizer target is excluded from the active P7 graph"
   )
   expect_false("prototype_training" %in% manifest$name)
   expect_false("prototype_training_completed_artifacts" %in% manifest$name)
-  expect_true(all(c("p7_training_contract_files", "p7_deterministic_training_authority",
-                    "prototype_training_run", "prototype_training_acceptance") %in% manifest$name))
-  run_command <- manifest$command[manifest$name == "prototype_training_run"]
+  expect_true(all(c("s07_training_sources", "s07_pilot_training_authority",
+                    "s07_pilot_training_execution", "s07_pilot_training_acceptance") %in% manifest$name))
+  run_command <- manifest$command[manifest$name == "s07_pilot_training_execution"]
   expect_match(run_command, "p7_run_production", fixed = TRUE)
 })
 
 test_that("I21 schema keeps identity dynamic and fixes canonical direct outputs", {
   schema <- jsonlite::read_json(
-    file.path(fuse_test_root, "config/schemas/prototype_training_acceptance.schema.json"),
+    file.path(fuse_test_root, "config/schemas/s07_pilot_training_acceptance.schema.json"),
     simplifyVector = FALSE
   )
   expect_null(schema$properties$plan_id$const)

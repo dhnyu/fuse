@@ -8,10 +8,10 @@ list_research_membership <- list(
   targets::tar_target(
     name = prototype_membership_plan,
     command = build_prototype_membership_plan(
-      prototype_scene_selection = prototype_scene_selection,
-      study_data_inventory = study_data_inventory,
+      prototype_scene_selection = s01_pilot_scene_index,
+      study_data_inventory = s01_study_inventory_validation,
       membership_contract_files = membership_contract_files,
-      research_config_files = research_config_files,
+      research_config_files = s01_study_sources,
       workers = 1L,
       threads = 1L
     ),
@@ -23,7 +23,7 @@ list_research_membership <- list(
     name = prototype_membership_shard,
     command = build_prototype_membership_shard(
       prototype_membership_plan = prototype_membership_plan,
-      study_data_inputs = study_data_inputs,
+      study_data_inputs = i01_seoul_spatial_sources,
       prototype_runtime_inputs = prototype_runtime_inputs,
       membership_contract_files = membership_contract_files,
       workers = 1L,
@@ -39,8 +39,8 @@ list_research_membership <- list(
     command = build_prototype_membership_acceptance(
       prototype_membership_plan = prototype_membership_plan,
       prototype_membership_shard = prototype_membership_shard,
-      prototype_scene_selection = prototype_scene_selection,
-      study_data_inventory = study_data_inventory,
+      prototype_scene_selection = s01_pilot_scene_index,
+      study_data_inventory = s01_study_inventory_validation,
       membership_contract_files = membership_contract_files,
       workers = 1L,
       threads = 1L

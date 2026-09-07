@@ -8,7 +8,7 @@ list_research_observation <- list(
   targets::tar_target(
     name = prototype_observation_plan,
     command = build_prototype_observation_plan(
-      prototype_scene_selection = prototype_scene_selection,
+      prototype_scene_selection = s01_pilot_scene_index,
       prototype_membership_acceptance = prototype_membership_acceptance,
       observation_contract_files = observation_contract_files,
       workers = 1L,
@@ -23,7 +23,7 @@ list_research_observation <- list(
     command = build_prototype_vector_observation_shard(
       prototype_observation_plan = prototype_observation_plan,
       prototype_membership_acceptance = prototype_membership_acceptance,
-      study_data_inputs = study_data_inputs,
+      study_data_inputs = i01_seoul_spatial_sources,
       prototype_runtime_inputs = prototype_runtime_inputs,
       observation_contract_files = observation_contract_files,
       workers = 1L,

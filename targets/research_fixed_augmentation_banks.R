@@ -3,71 +3,34 @@ p4_branch_resources <- targets::tar_resources(
 )
 
 list_research_fixed_augmentation_banks <- list(
-  targets::tar_target(
-    p4_deterministic_contract_files,
-    normalizePath(p4_contract_paths(), mustWork = TRUE),
-    format = "file", resources = controller_05_resources
-  ),
-  targets::tar_target(
-    augmentation_profile_plan,
-    p4_build_profile_plan(augmentation_methodology_contract, reduced_methodology_authority,
-                          p4_deterministic_contract_files),
-    format = "file", resources = controller_05_resources
-  ),
-  targets::tar_target(
-    road_link_absorption_smoke,
-    p4_run_smoke("road", augmentation_profile_plan, accepted_p3_dataset_acceptance_reference,
-                 p4_deterministic_contract_files),
-    format = "file", resources = controller_05_resources
-  ),
-  targets::tar_target(
-    geometry_consistency_smoke,
-    p4_run_smoke("geometry", augmentation_profile_plan, accepted_p3_dataset_acceptance_reference,
-                 p4_deterministic_contract_files),
-    format = "file", resources = controller_05_resources
-  ),
-  targets::tar_target(
-    augmentation_bank_plan,
-    p4_build_bank_plan(augmentation_profile_plan, road_link_absorption_smoke,
-                       geometry_consistency_smoke, accepted_p3_shard_reference,
-                       accepted_p3_dataset_acceptance_reference, p4_deterministic_contract_files),
-    format = "rds", iteration = "list", resources = controller_05_resources
-  ),
-  targets::tar_target(
-    augmentation_bank_execution,
-    p4_run_tiered_bank(augmentation_bank_plan, p4_deterministic_contract_files),
-    format = "file", resources = p4_branch_resources
-  ),
-  targets::tar_target(
-    augmentation_bank_shard,
-    p4_build_bank_shard(augmentation_bank_plan, p4_deterministic_contract_files,
-                        augmentation_bank_execution),
-    pattern = map(augmentation_bank_plan), iteration = "list", format = "file",
-    resources = p4_branch_resources, error = "continue"
-  ),
-  targets::tar_target(
-    augmentation_bank_shard_validation,
-    p4_validate_bank_shard(augmentation_bank_shard, p4_deterministic_contract_files),
+  targets::tar_target(s04_bank_sources, normalizePath(p4_contract_paths(), mustWork = TRUE),
+    format = "file", resources = controller_05_resources),
+  targets::tar_target(s04_bank_profile_plan,
+    p4_build_profile_plan(augmentation_methodology_contract, reduced_methodology_authority, s04_bank_sources),
+    format = "file", resources = controller_05_resources),
+  targets::tar_target(s04_bank_road_validation,
+    p4_run_smoke("road", s04_bank_profile_plan, accepted_p3_dataset_acceptance_reference, s04_bank_sources),
+    format = "file", resources = controller_05_resources),
+  targets::tar_target(s04_bank_geometry_validation,
+    p4_run_smoke("geometry", s04_bank_profile_plan, accepted_p3_dataset_acceptance_reference, s04_bank_sources),
+    format = "file", resources = controller_05_resources),
+  targets::tar_target(s04_bank_shard_plan,
+    p4_build_bank_plan(s04_bank_profile_plan, s04_bank_road_validation, s04_bank_geometry_validation,
+      accepted_p3_shard_reference, accepted_p3_dataset_acceptance_reference, s04_bank_sources),
+    format = "rds", iteration = "list", resources = controller_05_resources),
+  targets::tar_target(s04_bank_execution,
+    p4_run_tiered_bank(s04_bank_shard_plan, s04_bank_sources),
+    format = "file", resources = p4_branch_resources),
+  targets::tar_target(augmentation_bank_shard,
+    p4_build_bank_shard(s04_bank_shard_plan, s04_bank_sources, s04_bank_execution),
+    pattern = map(s04_bank_shard_plan), iteration = "list", format = "file",
+    resources = p4_branch_resources, error = "continue"),
+  targets::tar_target(augmentation_bank_shard_validation,
+    p4_validate_bank_shard(augmentation_bank_shard, s04_bank_sources),
     pattern = map(augmentation_bank_shard), iteration = "list", format = "rds",
-    resources = p4_branch_resources, error = "continue"
-  ),
-  targets::tar_target(
-    augmentation_bank_acceptance,
-    p4_accept_bank(augmentation_bank_plan, augmentation_bank_shard,
-                   augmentation_bank_shard_validation, accepted_p3_dataset_acceptance_reference,
-                   p4_deterministic_contract_files),
-    format = "file", resources = controller_05_resources
-  ),
-  targets::tar_target(
-    effective_augmentation_bank_index,
-    p4_publish_effective_index(augmentation_bank_acceptance,
-                               p4_deterministic_contract_files),
-    format = "rds", resources = controller_05_resources
-  ),
-  targets::tar_target(
-    augmentation_bank_benchmark,
-    p4_benchmark_bank(augmentation_bank_acceptance, effective_augmentation_bank_index,
-                      p4_deterministic_contract_files),
-    format = "file", resources = controller_05_resources
-  )
+    resources = p4_branch_resources, error = "continue"),
+  targets::tar_target(s04_bank_acceptance,
+    p4_consolidated_acceptance(s04_bank_shard_plan, augmentation_bank_shard,
+      augmentation_bank_shard_validation, accepted_p3_dataset_acceptance_reference, s04_bank_sources),
+    format = "file", resources = controller_05_resources)
 )

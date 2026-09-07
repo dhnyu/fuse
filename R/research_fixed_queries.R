@@ -293,3 +293,15 @@ p5_final_acceptance <- function(bundle, validation_acceptance, evaluation_accept
   if (value$status != "PASS" || value$query_count != 4000L || value$gallery_count != 2000L) stop("P5 final acceptance rejection", call. = FALSE)
   bundle
 }
+
+p5_consolidated_acceptance <- function(plan, shard_files, shard_validation,
+                                       fixed_query_methodology_contract,
+                                       original_scene_dataset_acceptance, contract_files) {
+  bundle <- p5_accept_queries(
+    plan, shard_files, shard_validation, fixed_query_methodology_contract,
+    original_scene_dataset_acceptance, contract_files
+  )
+  validation <- p5_select_acceptance(bundle, "validation", contract_files)
+  evaluation <- p5_select_acceptance(bundle, "evaluation", contract_files)
+  p5_final_acceptance(bundle, validation, evaluation, contract_files)
+}

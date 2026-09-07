@@ -1,0 +1,212 @@
+[
+  {
+    "name": "prototype_model_validation",
+    "command": "recover_file_target_metadata(\"prototype_model_validation\", \n     file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance), \n         \"validation\", \"prototype-model\", \"pmv_1d5412a7b035635a4187fbf6\"), \n     run_prototype_model_validation(prototype_training_acceptance = prototype_training_acceptance, \n         prototype_training_dataset_acceptance = prototype_training_dataset_acceptance, \n         prototype_scene_selection = prototype_scene_selection, \n         prototype_model_validation_contract_files = prototype_model_validation_contract_files, \n         workers = 40L, threads = 1L))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_model_acceptance",
+    "command": "recover_file_target_metadata(\"prototype_model_acceptance\", \n     file.path(dirname(dirname(dirname(dirname(prototype_dataloader_smoke[basename(prototype_dataloader_smoke) == \n         \"prototype_dataloader_smoke.json\"])))), \"acceptance\", \n         \"prototype-model\", \"pma_6282c9e9f9ebb9348484223a\"), run_prototype_model_acceptance(prototype_dataloader_smoke = prototype_dataloader_smoke, \n         prototype_encoder_smoke = prototype_encoder_smoke, prototype_augmentation_benchmark = prototype_augmentation_benchmark, \n         prototype_training_acceptance = prototype_training_acceptance, \n         prototype_model_validation = prototype_model_validation, \n         prototype_model_acceptance_contract_files = prototype_model_acceptance_contract_files))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_model_validation_contract_files",
+    "command": "normalizePath(prototype_model_validation_contract_paths(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_model_acceptance_contract_files",
+    "command": "normalizePath(prototype_model_acceptance_contract_paths(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "full_membership_plan_contract_files",
+    "command": "normalizePath(full_membership_plan_contract_paths(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "full_membership_authorization_contract",
+    "command": "normalizePath(full_membership_authorization_contract_path(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "full_membership_i24_authorization",
+    "command": "validate_full_membership_i24_authorization(full_membership_authorization_contract)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "full_membership_plan",
+    "command": "suppressWarnings(build_full_membership_plan(spatial_scene_index = spatial_scene_index, \n     prototype_spatial_acceptance = prototype_spatial_acceptance, \n     prototype_model_acceptance = full_membership_i24_authorization, \n     prototype_membership_acceptance = prototype_membership_acceptance, \n     prototype_observation_plan = prototype_observation_plan, \n     full_membership_plan_contract_files = full_membership_plan_contract_files))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "training_plan_contract_files",
+    "command": "normalizePath(training_plan_contract_paths(), mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_training_plan",
+    "command": "recover_training_plan_metadata(training_plan_contract_files, \n     build_prototype_training_plan(prototype_training_dataset_acceptance = prototype_training_dataset_acceptance, \n         prototype_dataloader_smoke = prototype_dataloader_smoke, \n         prototype_scientific_geometry_roundtrip = prototype_scientific_geometry_roundtrip, \n         prototype_encoder_smoke = prototype_encoder_smoke, prototype_augmentation_benchmark = prototype_augmentation_benchmark, \n         prototype_joint_model_smoke = prototype_joint_model_smoke, \n         prototype_distributed_joint_model_smoke = prototype_distributed_joint_model_smoke, \n         training_plan_contract_files = training_plan_contract_files, \n         workers = 1L, threads = 1L))",
+    "format": "rds",
+    "iteration": "list",
+    "pattern": null
+  },
+  {
+    "name": "augmentation_benchmark_contract_files",
+    "command": "normalizePath(augmentation_benchmark_contract_paths(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "dataloader_smoke_contract_files",
+    "command": "normalizePath(dataloader_smoke_contract_paths(), mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "joint_model_smoke_contract_files",
+    "command": "normalizePath(joint_model_smoke_contract_paths(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "encoder_smoke_contract_files",
+    "command": "normalizePath(encoder_smoke_contract_paths(), mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "serialization_shard_contract_files",
+    "command": "normalizePath(serialization_shard_contract_paths(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "runtime_mirror_contract_files",
+    "command": "normalizePath(runtime_mirror_contract_paths(), mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "serialization_plan_contract_files",
+    "command": "normalizePath(serialization_plan_contract_paths(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "training_dataset_acceptance_contract_files",
+    "command": "normalizePath(training_dataset_acceptance_contract_paths(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "distributed_joint_model_contract_files",
+    "command": "normalizePath(distributed_joint_model_contract_paths(), \n     mustWork = TRUE)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_runtime_inputs",
+    "command": "validate_runtime_mirror(runtime_mirror_contract_files)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "methodology_contract",
+    "command": "build_methodology_contract(study_data_inputs = study_data_inputs, \n     study_data_inventory = study_data_inventory, accepted_off_grid_source = accepted_off_grid_source, \n     research_config_files = research_config_files, research_implementation_files = research_implementation_files, \n     workers = 1L, threads = 1L)",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_serialization_plan",
+    "command": "{\n     base_spatial_acceptance\n     build_prototype_serialization_plan(prototype_spatial_acceptance = prototype_spatial_acceptance, \n         serialization_plan_contract_files = serialization_plan_contract_files, \n         workers = 1L, threads = 1L)\n }",
+    "format": "rds",
+    "iteration": "list",
+    "pattern": null
+  },
+  {
+    "name": "prototype_serialization_shard",
+    "command": "recover_serialization_branch(spec = prototype_serialization_plan, \n     serialization_shard_contract_files = serialization_shard_contract_files, \n     compute = run_prototype_serialization_shard(prototype_serialization_plan = prototype_serialization_plan, \n         serialization_shard_contract_files = serialization_shard_contract_files, \n         workers = 1L, threads = 1L))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": "map(prototype_serialization_plan)"
+  },
+  {
+    "name": "prototype_training_dataset_acceptance",
+    "command": "recover_training_dataset_acceptance(serialization_plan = prototype_serialization_plan, \n     serialization_branch_files = prototype_serialization_shard, \n     spatial_files = prototype_spatial_acceptance, contract_files = training_dataset_acceptance_contract_files, \n     compute = run_prototype_training_dataset_acceptance(prototype_spatial_acceptance = prototype_spatial_acceptance, \n         prototype_serialization_plan = prototype_serialization_plan, \n         prototype_serialization_shard = prototype_serialization_shard, \n         training_dataset_acceptance_contract_files = training_dataset_acceptance_contract_files, \n         workers = 1L, threads = 1L))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_dataloader_smoke",
+    "command": "recover_file_target_metadata(\"prototype_dataloader_smoke\", \n     file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance), \n         \"smoke\", \"dataloader\", \"pdl_5eb0ccb9951d1015d6d64649\"), \n     run_prototype_dataloader_smoke(prototype_training_dataset_acceptance = prototype_training_dataset_acceptance, \n         dataloader_smoke_contract_files = dataloader_smoke_contract_files, \n         workers = 1L, threads = 1L))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_encoder_smoke",
+    "command": "recover_file_target_metadata(\"prototype_encoder_smoke\", \n     file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance), \n         \"smoke\", \"encoder\", \"pea_1c66760dbc1e6c0a8d71cb91\"), \n     run_prototype_encoder_smoke(prototype_training_dataset_acceptance = prototype_training_dataset_acceptance, \n         prototype_dataloader_smoke = prototype_dataloader_smoke, \n         encoder_smoke_contract_files = encoder_smoke_contract_files, \n         workers = 1L, threads = 1L))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_scientific_geometry_roundtrip",
+    "command": "recover_file_target_metadata(\"prototype_scientific_geometry_roundtrip\", \n     file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance), \n         \"roundtrip\", \"scientific-geometry\", \"pgr_77294c825bf26bf6fce721c3\"), \n     run_scientific_geometry_roundtrip(prototype_training_dataset_acceptance = prototype_training_dataset_acceptance, \n         prototype_dataloader_smoke = prototype_dataloader_smoke, \n         augmentation_benchmark_contract_files = augmentation_benchmark_contract_files, \n         workers = 1L, threads = 1L))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_augmentation_benchmark",
+    "command": "recover_file_target_metadata(\"prototype_augmentation_benchmark\", \n     file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance), \n         \"benchmark\", \"augmentation\", \"paa_5d2b1f56119e8d5f5050a75d\"), \n     run_prototype_augmentation_benchmark(prototype_training_dataset_acceptance = prototype_training_dataset_acceptance, \n         prototype_dataloader_smoke = prototype_dataloader_smoke, \n         prototype_scientific_geometry_roundtrip = prototype_scientific_geometry_roundtrip, \n         augmentation_benchmark_contract_files = augmentation_benchmark_contract_files, \n         workers = 1L, threads = 1L))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_joint_model_smoke",
+    "command": "recover_file_target_metadata(\"prototype_joint_model_smoke\", \n     file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance), \n         \"smoke\", \"joint-model\", \"pjm_6e64c022281a7f2648f78917\"), \n     run_prototype_joint_model_smoke(prototype_training_dataset_acceptance, \n         prototype_dataloader_smoke, prototype_scientific_geometry_roundtrip, \n         prototype_encoder_smoke, prototype_augmentation_benchmark, \n         joint_model_smoke_contract_files, workers = 1L, threads = 1L))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  },
+  {
+    "name": "prototype_distributed_joint_model_smoke",
+    "command": "recover_file_target_metadata(\"prototype_distributed_joint_model_smoke\", \n     file.path(metadata_recovery_dataset_root(prototype_training_dataset_acceptance), \n         \"distributed_joint\", \"pjd_69c0bd35dac8add3280d72e2\"), \n     run_prototype_distributed_joint_model_smoke(prototype_training_dataset_acceptance, \n         prototype_joint_model_smoke, distributed_joint_model_contract_files, \n         workers = 1L, threads = 1L))",
+    "format": "file",
+    "iteration": "vector",
+    "pattern": null
+  }
+]

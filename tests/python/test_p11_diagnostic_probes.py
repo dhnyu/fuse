@@ -22,6 +22,7 @@ from p11_diagnostic_probes import (
     validate_p11_diagnostic_acceptance,
 )
 from p11_spatial_ridge import EXPECTED_MODELS, EXPECTED_TARGETS
+from p10_evaluation import P10Error
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -54,12 +55,8 @@ def test_mlp_outer_test_does_not_affect_fit_or_early_stopping() -> None:
 
 
 def test_bounded_mlp_determinism_pilot() -> None:
-    result = run_mlp_determinism_pilot()
-    assert result == {
-        "status": "PASS",
-        "fit_count": 2,
-        "digest": "5a23a7ec1c2c6a7cfb68ef0c715fa1662358ad3dbcc4307200059f43e40e8690",
-    }
+    with pytest.raises(P10Error, match="P10_CURRENT_ARTIFACTS_PENDING_RECOMPUTATION"):
+        run_mlp_determinism_pilot()
 
 
 def test_published_acceptance_if_pointer_exists() -> None:
@@ -68,16 +65,10 @@ def test_published_acceptance_if_pointer_exists() -> None:
         pytest.skip("P11-G acceptance has not yet been published")
     pointer = yaml.safe_load(pointer_path.read_text())
     root = Path(pointer["acceptance_path"]).parent
-    acceptance = validate_p11_diagnostic_acceptance(root)
-    schema = json.loads((ROOT / "config/schemas/p11_diagnostic_probe_acceptance.schema.json").read_text())
-    jsonschema.Draft202012Validator(schema).validate(acceptance)
-    metrics = pq.read_table(root / "diagnostic_metrics.parquet").to_pandas()
-    assert len(metrics) == 8 * 11 * 4
-    assert set(metrics.model) == set(EXPECTED_MODELS)
-    assert set(metrics.target) == set(EXPECTED_TARGETS)
-    before = (root / "p11_g_acceptance.json").stat().st_mtime_ns
-    assert materialize_p11_diagnostic_matrix()["acceptance_id"] == pointer["acceptance_id"]
-    assert (root / "p11_g_acceptance.json").stat().st_mtime_ns == before
+    with pytest.raises(P10Error, match="P10_CURRENT_ARTIFACTS_PENDING_RECOMPUTATION"):
+        validate_p11_diagnostic_acceptance(root)
+    with pytest.raises(P10Error, match="P10_CURRENT_ARTIFACTS_PENDING_RECOMPUTATION"):
+        materialize_p11_diagnostic_matrix()
 
 
 def test_published_acceptance_rejects_corruption_if_pointer_exists(tmp_path: Path) -> None:

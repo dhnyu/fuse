@@ -116,8 +116,13 @@ def test_historical_cfg_main_is_not_relabelled_or_rewritten() -> None:
 def test_active_v2_controller_binds_latest_authority_without_rewriting_history() -> None:
     active = yaml.safe_load((ROOT / "config/p9_v2_training_controller.yml").read_text())
     authority = _load("dissertation_authority_refresh.json")
-    assert active["source"]["dissertation_commit"] == authority["dissertation"]["commit"]
-    assert active["source"]["dissertation_authority_id"] == authority["authority_id"]
+    current_head = subprocess.check_output(
+        ["git", "-C", str(DISSERTATION), "rev-parse", "HEAD"], text=True
+    ).strip()
+    assert active["source"]["dissertation_commit"] == current_head
+    assert active["source"]["dissertation_authority_id"] == "mta_03e8d7f42fe2018237f3fcde"
+    assert active["migration_status"] == "RECOMPUTE_REQUIRED"
+    assert authority["dissertation"]["commit"] == "4adbd49b6dacab589d2fa99d88ec5be83aceb287"
     historical = yaml.safe_load((ROOT / "config/p8_formal_experiment_plan.yml").read_text())
     assert historical["methodology"]["dissertation_commit"] == (
         "ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a"

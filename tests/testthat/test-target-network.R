@@ -145,7 +145,8 @@ test_that("current graph Phase and outdated counts independently agree", {
   expect_equal(stats$edge_count, nrow(unique(edges[c("from", "to")])))
   expect_equal(unname(stats$status_counts[["outdated"]]), length(intersect(independent, snapshot$manifest$name)))
   expect_equal(length(assignments), length(unique(snapshot$manifest$name)))
-  expect_true(all(c("P8", "P9") %in% assignments))
+  expect_true("P8" %in% assignments)
+  expect_false("P9" %in% assignments)
 })
 
 test_that("repeated graph inspection preserves completed function dependencies", {

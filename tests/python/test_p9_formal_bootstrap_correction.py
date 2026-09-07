@@ -16,7 +16,7 @@ from p6_data import VOCABULARY_FIELDS, build_vocabulary, validate_vocabulary_con
 from p9_formal_execution import (FormalAttemptLock, failed_state_payload,
                                  validate_terminal_state_consistency)
 from p9_formal_training import _rank_failures, model_state
-from p9_model_families import FAMILY_NAMES, P9FM64Encoder, build_scene_encoder
+from p9_model_families import FAMILY_NAMES, P9SceneEncoder, build_scene_encoder
 
 
 CATEGORIES = Path(yaml.safe_load((ROOT / "config/p9_formal_isolated_runtime.yml").read_text())["roots"]["categories"]["path"])
@@ -53,7 +53,7 @@ def test_invalid_vocabulary_contracts_fail_closed(mutation, match):
         validate_vocabulary_contract(mutation(copy.deepcopy(canonical_vocabulary())))
 
 
-@pytest.mark.parametrize("dimension", [48, 64, 128])
+@pytest.mark.parametrize("dimension", [64, 128, 256])
 @pytest.mark.parametrize("family", FAMILY_NAMES)
 def test_every_family_and_dimension_consumes_canonical_sizes(family, dimension):
     config = yaml.safe_load((ROOT / "config/p6_model_dataloader.yml").read_text())
@@ -63,12 +63,13 @@ def test_every_family_and_dimension_consumes_canonical_sizes(family, dimension):
     assert sum(parameter.numel() for parameter in model.parameters()) > 0
 
 
-def test_cfg_main_uses_byte_compatible_p7_parameter_namespace_with_p9_interface():
+def test_current_main_uses_decoder_free_p9_interface():
     config = yaml.safe_load((ROOT / "config/p6_model_dataloader.yml").read_text())
     model = build_scene_encoder(config, validate_vocabulary_contract(canonical_vocabulary()), "FM")
-    assert isinstance(model, P9FM64Encoder)
+    assert isinstance(model, P9SceneEncoder)
     assert model.contract.name == "FM"
     assert all(not name.startswith("encoder.") for name in model.state_dict())
+    assert all("decoder" not in name for name in model.state_dict())
 
 
 @pytest.mark.parametrize("rank_case", ["rank_0", "rank_1", "both"])

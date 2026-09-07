@@ -39,11 +39,8 @@ def test_isolated_artifact_identity_and_publication_are_deterministic(tmp_path):
         atomic_publish(tmp_path / "publication", {"fixture": changed})
 
 
-def test_isolated_pipeline_never_imports_main_target_list():
+def test_isolated_pipeline_is_retired_before_graph_evaluation():
     script = (ROOT / "_targets_p9_formal.R").read_text()
-    declarations = (ROOT / "targets/research_p9_formal_execution.R").read_text()
     assert 'source("_targets.R")' not in script
-    assert "list_p9_formal_execution" in script
-    forbidden = ("p9_production_cache_materialization", "hyperparameter_configuration_matrix",
-                 "p7_cold_path_runtime_acceptance", "tar_cue(mode = \"never\")")
-    assert all(value not in declarations for value in forbidden)
+    assert "p9_v1_retired_stop" in script
+    assert "list_p9_formal_execution" not in script

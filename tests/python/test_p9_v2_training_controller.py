@@ -94,35 +94,13 @@ def test_control_plane_module_has_no_scientific_runtime_imports():
         assert prohibited not in source
 
 
-def test_real_read_only_startup_inputs_pass_for_cfg_d48_without_creating_a_run(tmp_path):
+def test_historical_controller_is_blocked_pending_current_recomputation(tmp_path):
     contract = yaml.safe_load((ROOT / "config/p9_v2_training_controller.yml").read_text())
-    contract["roots"]["writable_runs"] = str(tmp_path / "writable")
-    matrix = json.loads((Path(contract["roots"]["p8_bundle"]) / "hyperparameter_configuration_matrix.json").read_text())
-    row = next(item for item in matrix["rows"] if item["configuration_id"] == "cfg_d48")
-    parents = dict(contract["parents"]); parents["methodology_commit"] = contract["source"]["dissertation_commit"]
-    allowed = {key: parents[key] for key in PARENTS}
-    value = build_training_authority(configuration_id="cfg_d48", configuration_hash=row["scientific_hash"],
-                                     scientific_implementation_hash="d" * 64, root_seed=17, parents=allowed)
-    p8 = Path(contract["roots"]["p8_bundle"])
-    inputs = StartupInputs(
-        fuse_root=ROOT, dissertation_root=Path.home() / "dhnyu-masters-dissertation",
-        retirement_manifest=Path(contract["roots"]["immutable_publication"]) / "canonical/retirement" /
-            contract["parents"]["v1_retirement_id"] / "retirement_manifest.json",
-        p8_acceptance=p8 / "formal_experiment_plan_acceptance.json",
-        p8_matrix=p8 / "hyperparameter_configuration_matrix.json",
-        production_cache_root=Path(contract["roots"]["production_cache"]),
-        production_cache_acceptance=Path(contract["roots"]["production_cache_acceptance"]),
-        writable_root=tmp_path / "writable", immutable_root=Path(contract["roots"]["immutable_publication"]),
-        expected_dissertation_commit=contract["source"]["dissertation_commit"],
-        expected_retirement_id=contract["parents"]["v1_retirement_id"],
-        expected_p8_acceptance_id=contract["parents"]["p8_acceptance_id"],
-        expected_cache_id=contract["parents"]["production_cache_id"],
-        expected_cache_acceptance_id=contract["parents"]["production_cache_acceptance_id"],
-        expected_cache_manifest_sha256=contract["production_cache_manifest_sha256"], expected_parents=allowed,
-    )
-    result = validate_startup(value, inputs, accepted_hashes=set(),
-                              require_clean=False, cuda_devices=2)
-    assert result["status"] == "PASS" and not (tmp_path / "writable" / value["content"]["scientific_run_key"]).exists()
+    assert contract["migration_status"] == "RECOMPUTE_REQUIRED"
+    assert contract["source"]["dissertation_commit"] == "cbb824f19be8355296603f8426ac241ce587ddcc"
+    from scripts.p9_v2_training_controller import require_current_contract_ready
+    with pytest.raises(TrainingControllerError, match="CURRENT_METHODOLOGY_RECOMPUTATION_REQUIRED"):
+        require_current_contract_ready(contract)
 
 
 def test_explicit_eligibility_snapshot_blocks_all_accepted_p9_a_without_latest_lookup():

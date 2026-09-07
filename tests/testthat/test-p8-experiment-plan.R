@@ -14,7 +14,7 @@ testthat::test_that("P8 target family is exactly two static file replay targets"
   required <- c("s08_experiment_sources", "s08_experiment_plan")
   testthat::expect_setequal(grep("^s08_|^p8_", manifest$name, value = TRUE), required)
   testthat::expect_false(any(old %in% manifest$name))
-  testthat::expect_equal(nrow(manifest), 130L)
+  testthat::expect_equal(nrow(manifest), 132L)
   testthat::expect_true(all(manifest$format[manifest$name %in% required] == "file"))
   testthat::expect_true(all(is.na(manifest$pattern[manifest$name %in% required])))
   commands <- manifest$command[manifest$name %in% required]

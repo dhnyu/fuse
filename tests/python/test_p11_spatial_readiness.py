@@ -100,15 +100,7 @@ def test_acceptance_folds_embeddings_leakage_and_oof() -> None:
 
 
 def test_idempotent_rerun_and_corruption_rejection(tmp_path: Path) -> None:
-    pointer = _pointer()
-    acceptance_path = Path(pointer["acceptance_path"])
-    before = acceptance_path.stat().st_mtime_ns
-    result = materialize_p11_spatial_readiness(ROOT / "config/p11_spatial_readiness.yml")
-    assert result["readiness_id"] == pointer["readiness_id"]
-    assert acceptance_path.stat().st_mtime_ns == before
-    copied = tmp_path / "corrupt"
-    shutil.copytree(acceptance_path.parent, copied)
-    path = copied / "leakage_gates.json"
-    path.write_bytes(path.read_bytes() + b"\n")
-    with pytest.raises(P11ReadinessError, match="P11_C_ARTIFACT_CORRUPTION"):
-        validate_p11_spatial_readiness(copied)
+    from p10_evaluation import P10Error
+
+    with pytest.raises(P10Error, match="P10_CURRENT_ARTIFACTS_PENDING_RECOMPUTATION"):
+        materialize_p11_spatial_readiness(ROOT / "config/p11_spatial_readiness.yml")

@@ -41,6 +41,11 @@ def visible_gpu_count() -> int:
     return len([line for line in output.splitlines() if line.strip()])
 
 
+def require_current_contract_ready(contract: dict) -> None:
+    if contract.get("migration_status") != "READY":
+        raise TrainingControllerError("CURRENT_METHODOLOGY_RECOMPUTATION_REQUIRED")
+
+
 def startup_inputs(contract: dict) -> StartupInputs:
     p8 = Path(contract["roots"]["p8_bundle"])
     configuration_matrix = Path(
@@ -79,6 +84,7 @@ def run(args: argparse.Namespace) -> dict:
     authority = load(args.authority); validate_training_authority(authority)
     content = authority["content"]
     contract = yaml.safe_load(Path(args.contract).read_text(encoding="utf-8"))
+    require_current_contract_ready(contract)
     if args.noncanonical_pilot:
         output_root = Path(args.output).resolve()
         temporary_root = Path(tempfile.gettempdir()).resolve()
@@ -198,6 +204,7 @@ def main() -> None:
         print(json.dumps({"status": "PASS", "authority_id": authority["identity"]}, sort_keys=True))
     elif args.mode == "preflight":
         authority = load(args.authority); contract = yaml.safe_load(Path(args.contract).read_text(encoding="utf-8"))
+        require_current_contract_ready(contract)
         accepted_ids, accepted_hashes = accepted_scientific_configurations(
             Path(contract["roots"]["immutable_publication"]) / "canonical", contract["roots"]["eligibility_snapshot"])
         result = validate_startup(authority, startup_inputs(contract), accepted_hashes=accepted_hashes,

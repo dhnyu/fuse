@@ -1,4 +1,9 @@
-# P9 v2 Architecture and Migration Blueprint
+# Historical P9 v2 Architecture and Migration Blueprint
+
+This directory documents immutable lineage produced under the superseded pre-`cbb824f`
+methodology. It is read-only evidence, not a current execution specification. New runs
+require `config/current_methodology.yml` and newly published P0/P8 authorities; the current
+controller fails closed until those inputs are available.
 
 Status: `IMPLEMENTED_THROUGH_V2_I_V1_RETIREMENT`
 

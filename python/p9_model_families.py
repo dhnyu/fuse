@@ -14,37 +14,36 @@ import torch.nn.functional as F
 from torch import nn
 
 from p6_model import RasterCNN, ReducedSceneEncoder, RelationAwareLayer, projected_block
-from p7_training import DECODER_PREFIXES, P7Model, deterministic_relation_layer
+from p7_training import P7Model, deterministic_relation_layer
+from current_methodology import COMPARISON_NAMES, component_contracts, source_contracts
 from prototype_encoder import geometry_fourier_features, relation_set_embedding, sinusoidal_position_features
 
-FAMILY_NAMES = ("FM", "A1", "A2", "A3", "A4", "A5", "SSV", "DS")
+FAMILY_NAMES = COMPARISON_NAMES
 
 
 @dataclass(frozen=True)
 class FamilyContract:
     name: str
     modalities: tuple[str, ...]
-    ip_terms: tuple[str, ...]
     scene_raster: bool
     relation: str
-    lambda_ip: float | None = None
+    retained_sources: tuple[str, ...]
 
 
-FAMILY_REGISTRY = {
-    "FM": FamilyContract("FM", ("relative", "geometry", "semantic", "environmental"),
-                         ("relative", "geometry", "semantic", "environmental"), True, "heterogeneous"),
-    "A1": FamilyContract("A1", ("relative", "geometry"), ("relative", "geometry"), False, "none"),
-    "A2": FamilyContract("A2", ("relative", "geometry", "semantic"),
-                         ("relative", "geometry", "semantic"), False, "none"),
-    "A3": FamilyContract("A3", ("relative", "geometry", "semantic", "environmental"),
-                         ("relative", "geometry", "semantic", "environmental"), False, "none"),
-    "A4": FamilyContract("A4", ("relative", "geometry", "semantic", "environmental"),
-                         ("relative", "geometry", "semantic", "environmental"), True, "none"),
-    "A5": FamilyContract("A5", ("relative", "geometry", "semantic", "environmental"),
-                         ("relative", "geometry", "semantic", "environmental"), True, "generic"),
-    "SSV": FamilyContract("SSV", ("relative", "semantic"), ("relative", "semantic"), False, "none"),
-    "DS": FamilyContract("DS", (), (), True, "none", 0.0),
-}
+def _family_registry() -> dict[str, FamilyContract]:
+    components = component_contracts(); sources = source_contracts(); output = {}
+    for name in FAMILY_NAMES:
+        component = components.get(name, components["FM"])
+        retained = sources.get(name, sources["FM"])
+        modalities = tuple(component["modalities"])
+        if name.startswith("B") and not ({"LC", "DEM"} & set(retained)):
+            modalities = tuple(value for value in modalities if value != "environmental")
+        output[name] = FamilyContract(name, modalities, bool(component["scene_raster"]),
+                                      str(component["relation"]), tuple(retained))
+    return output
+
+
+FAMILY_REGISTRY = _family_registry()
 
 
 def family_contract(name: str) -> FamilyContract:
@@ -56,7 +55,7 @@ def family_contract(name: str) -> FamilyContract:
 def _dimension_contract(config: dict[str, Any]) -> tuple[int, int, float]:
     model = config["model"]
     d = int(model["d"]); heads = int(model["attention_heads"]); dropout = float(model["dropout"])
-    if d not in (48, 64, 128) or int(model["d_c"]) != d or heads != 4 or d % heads:
+    if d not in (64, 128, 256) or int(model["d_c"]) != d or heads != 4 or d % heads:
         raise ValueError("P9 d/d_c/head contract mismatch")
     if int(model["head_dimension"]) != d // heads or int(model["ffn_dimension"]) != 2 * d:
         raise ValueError("P9 relative-to-d architecture mismatch")
@@ -71,6 +70,10 @@ class P9SceneEncoder(nn.Module):
     def __init__(self, config: dict[str, Any], vocabulary_sizes: dict[str, int], family: str = "FM") -> None:
         super().__init__(); self.contract = family_contract(family)
         d, heads, dropout = _dimension_contract(config); self.dimension = d
+        self.raster_sources = (tuple(source for source in ("LC", "DEM") if source in self.contract.retained_sources)
+                               if self.contract.scene_raster else ())
+        self.environment_sources = tuple(source for source in ("LC", "DEM")
+                                         if source in self.contract.retained_sources)
         if family == "DS":
             self.ds_cnn = RasterCNN(26)
             self.ds_projection = projected_block(64, 2 * d, d, dropout, True)
@@ -102,10 +105,14 @@ class P9SceneEncoder(nn.Module):
             self.poi_score = nn.Sequential(nn.Linear(fixed, d), nn.Tanh(), nn.Linear(d, 1))
             self.poi_fusion = projected_block(sum(poi_dims) + fixed, 2 * d, d, dropout, True)
         if "environmental" in self.contract.modalities:
-            self.object_raster_encoder = projected_block(26, d, d, dropout, True)
-        self.type_embedding = nn.Embedding(3, 16)
-        self.gates = nn.ModuleDict({name: nn.Sequential(nn.Linear(d + 16, d), nn.GELU(), nn.Dropout(dropout), nn.Linear(d, d))
-                                    for name in self.contract.modalities})
+            environmental_width = (23 if "LC" in self.environment_sources else 0) + (3 if "DEM" in self.environment_sources else 0)
+            if environmental_width == 0:
+                raise ValueError("environmental modality requires at least one retained raster source")
+            self.object_raster_encoder = projected_block(environmental_width, d, d, dropout, True)
+        if len(self.contract.modalities) > 1:
+            self.type_embedding = nn.Embedding(3, 16)
+            self.gates = nn.ModuleDict({name: nn.Sequential(nn.Linear(d + 16, d), nn.GELU(), nn.Dropout(dropout), nn.Linear(d, d))
+                                        for name in self.contract.modalities})
         self.entity_norm = nn.LayerNorm(d)
         if self.contract.relation != "none":
             relation_count = 5 if self.contract.relation == "heterogeneous" else 1
@@ -113,28 +120,18 @@ class P9SceneEncoder(nn.Module):
             self.relation_layers = nn.ModuleList([RelationAwareLayer(d, heads, 32, 2 * d, dropout) for _ in range(3)])
         self.pool = nn.Sequential(nn.Linear(d, 32), nn.Tanh(), nn.Linear(32, 1))
         if self.contract.scene_raster:
-            self.landcover_embedding = nn.Embedding(24, 16)
-            self.landcover_cnn = RasterCNN(16); self.dem_cnn = RasterCNN(1)
-            self.landcover_projection = projected_block(64, 2 * d, d, dropout, True)
-            self.dem_projection = projected_block(64, 2 * d, d, dropout, True)
-        scene_inputs = 3 * d + (2 * d if self.contract.scene_raster else 0)
+            if "LC" in self.raster_sources:
+                self.landcover_embedding = nn.Embedding(24, 16)
+                self.landcover_cnn = RasterCNN(16)
+                self.landcover_projection = projected_block(64, 2 * d, d, dropout, True)
+            if "DEM" in self.raster_sources:
+                self.dem_cnn = RasterCNN(1)
+                self.dem_projection = projected_block(64, 2 * d, d, dropout, True)
+        scene_inputs = 3 * d + len(self.raster_sources) * d
         self.scene_fusion = projected_block(scene_inputs, 2 * d, d, dropout, True)
         self.mask_embeddings = nn.Parameter(torch.empty(len(self.contract.modalities), d))
         nn.init.normal_(self.mask_embeddings, std=0.02)
         self.contrastive_projection = nn.Sequential(nn.Linear(d, 2 * d), nn.LayerNorm(2 * d), nn.GELU(), nn.Linear(2 * d, d))
-        if "relative" in self.contract.ip_terms:
-            self.relative_position_decoder = nn.Sequential(nn.Linear(d, d), nn.GELU(), nn.Linear(d, 2))
-        if "geometry" in self.contract.ip_terms:
-            self.geometry_decoder_shared = nn.Sequential(nn.Linear(d, 2 * d), nn.GELU())
-            self.geometry_magnitude_head = nn.Linear(2 * d, 128); self.geometry_phase_head = nn.Linear(2 * d, 256)
-        if "semantic" in self.contract.ip_terms:
-            self.attribute_decoder_shared = nn.ModuleDict({name: nn.Sequential(nn.Linear(d, d), nn.GELU()) for name in ("B","R","P")})
-            self.building_decoder_heads = nn.ModuleDict({"A9":nn.Linear(d,vocabulary_sizes["A9"]),"A11":nn.Linear(d,vocabulary_sizes["A11"]),"numerical":nn.Linear(d,2)})
-            self.road_decoder_heads = nn.ModuleDict({"ROAD_RANK":nn.Linear(d,vocabulary_sizes["ROAD_RANK"]),"ROAD_TYPE":nn.Linear(d,vocabulary_sizes["ROAD_TYPE"]),"numerical":nn.Linear(d,1)})
-            self.poi_decoder_heads = nn.ModuleList([nn.Linear(d,vocabulary_sizes[f"CLASS_L{x}"]) for x in range(1,7)])
-        if "environmental" in self.contract.ip_terms:
-            self.environment_decoder_shared = nn.Sequential(nn.Linear(d,d),nn.GELU())
-            self.environment_composition_head = nn.Linear(d,22); self.environment_continuous_head = nn.Linear(d,4)
 
     def _semantic(self, entities: dict[str, torch.Tensor]) -> torch.Tensor:
         d = self.dimension; output = torch.zeros((entities["local_entity_id"].numel(), d), device=entities["local_entity_id"].device)
@@ -174,24 +171,40 @@ class P9SceneEncoder(nn.Module):
             scene = self.ds_projection(self.ds_cnn(ds_raster)); contrastive = F.normalize(self.contrastive_projection(scene), dim=1)
             return {"scene_embedding": scene, "contrastive_embedding": contrastive, "ds_raster": ds_raster}
         entities = batch["entities"]; values: dict[str, torch.Tensor] = {}
+        if self.contract.name.startswith("B"):
+            allowed = {index for index, source in enumerate(("B", "R", "P"))
+                       if source in self.contract.retained_sources}
+            observed = set(int(value) for value in entities["entity_type"].unique().tolist())
+            if not observed <= allowed:
+                raise ValueError("B-series input contains an excluded entity source")
         values["relative"] = self.position_encoder(sinusoidal_position_features(entities["relative_position_m"], self.wavelengths))
         if "geometry" in self.contract.modalities:
             if geometry is None: raise ValueError("active geometry modality requires Fourier features")
             values["geometry"] = self.geometry_fusion(torch.cat((self.magnitude_encoder(geometry[0]), self.phase_encoder(geometry[1])), 1))
         if "semantic" in self.contract.modalities: values["semantic"] = self._semantic(entities)
-        if "environmental" in self.contract.modalities: values["environmental"] = self.object_raster_encoder(entities["object_raster"])
+        if "environmental" in self.contract.modalities:
+            columns = []
+            if "LC" in self.environment_sources:
+                columns.append(entities["object_raster"][:, :23])
+            if "DEM" in self.environment_sources:
+                columns.append(entities["object_raster"][:, 23:26])
+            values["environmental"] = self.object_raster_encoder(torch.cat(columns, dim=1))
         stacked = torch.stack([values[name] for name in self.contract.modalities], 1)
         if assignments is not None:
             if assignments.shape != (stacked.shape[0],): raise ValueError("P9 modality assignment shape mismatch")
             for modality in range(len(self.contract.modalities)):
                 selected = assignments == modality
                 if selected.any(): stacked[selected, modality] = self.mask_embeddings[modality]
-        type_embedding = self.type_embedding(entities["entity_type"])
-        logits = torch.stack([self.gates[name](torch.cat((values[name], type_embedding), 1)) for name in self.contract.modalities], 1)
-        availability_map = {"relative": 0, "geometry": 1, "semantic": 2, "environmental": 3}
-        available = torch.stack([entities["modality_available"][:, availability_map[name]].bool() for name in self.contract.modalities], 1)[:, :, None]
-        weights = torch.softmax(logits.masked_fill(~available, -torch.inf), 1)
-        contextual = self.entity_norm((weights * stacked).sum(1))
+        if len(self.contract.modalities) == 1:
+            weights = torch.ones_like(stacked)
+            contextual = self.entity_norm(stacked[:, 0])
+        else:
+            type_embedding = self.type_embedding(entities["entity_type"])
+            logits = torch.stack([self.gates[name](torch.cat((values[name], type_embedding), 1)) for name in self.contract.modalities], 1)
+            availability_map = {"relative": 0, "geometry": 1, "semantic": 2, "environmental": 3}
+            available = torch.stack([entities["modality_available"][:, availability_map[name]].bool() for name in self.contract.modalities], 1)[:, :, None]
+            weights = torch.softmax(logits.masked_fill(~available, -torch.inf), 1)
+            contextual = self.entity_norm((weights * stacked).sum(1))
         if self.contract.relation != "none":
             if self.contract.relation == "generic":
                 relation = self.relation_embedding(torch.zeros_like(batch["edges"]["relation_mask"], dtype=torch.long))
@@ -203,13 +216,15 @@ class P9SceneEncoder(nn.Module):
         scene_parts = [type_summary.flatten(1)]
         if self.contract.scene_raster:
             rasters = batch["rasters"]; fraction = rasters["landcover_class_fraction"]
-            landcover = torch.einsum("bchw,cd->bdhw", fraction, self.landcover_embedding.weight[:22])
-            valid = rasters["landcover_valid_mask"].bool(); intentional = rasters["landcover_intentional_mask"].bool()
-            if torch.any(intentional & valid): raise ValueError("intentional land-cover mask overlaps valid support")
-            landcover = torch.where(valid[:, None], landcover, self.landcover_embedding.weight[22][None, :, None, None])
-            landcover = torch.where(intentional[:, None], self.landcover_embedding.weight[23][None, :, None, None], landcover)
-            scene_parts.extend((self.landcover_projection(self.landcover_cnn(landcover)),
-                                self.dem_projection(self.dem_cnn(rasters["dem_standardized_mean"][:, None]))))
+            if "LC" in self.raster_sources:
+                landcover = torch.einsum("bchw,cd->bdhw", fraction, self.landcover_embedding.weight[:22])
+                valid = rasters["landcover_valid_mask"].bool(); intentional = rasters["landcover_intentional_mask"].bool()
+                if torch.any(intentional & valid): raise ValueError("intentional land-cover mask overlaps valid support")
+                landcover = torch.where(valid[:, None], landcover, self.landcover_embedding.weight[22][None, :, None, None])
+                landcover = torch.where(intentional[:, None], self.landcover_embedding.weight[23][None, :, None, None], landcover)
+                scene_parts.append(self.landcover_projection(self.landcover_cnn(landcover)))
+            if "DEM" in self.raster_sources:
+                scene_parts.append(self.dem_projection(self.dem_cnn(rasters["dem_standardized_mean"][:, None])))
         scene = self.scene_fusion(torch.cat(scene_parts, 1)); contrastive = F.normalize(self.contrastive_projection(scene), dim=1)
         return {"modalities": values, "modality_weights": weights, "entity": contextual,
                 "scene_embedding": scene, "contrastive_embedding": contrastive}
@@ -224,8 +239,6 @@ class P9MomentumModel(nn.Module):
     def update_target(self, coefficient: float) -> None:
         online = dict(self.online.named_parameters())
         for name, target in self.target.named_parameters():
-            if name.startswith(DECODER_PREFIXES):
-                continue
             target.mul_(coefficient).add_(online[name], alpha=1.0 - coefficient)
         online_buffers = dict(self.online.named_buffers())
         for name, target in self.target.named_buffers():
@@ -260,8 +273,6 @@ def build_scene_encoder(config: dict[str, Any], vocabulary_sizes: dict[str, int]
     """Keep cfg_main byte-compatible with P7 while generalizing dimensions and families."""
     contract = family_contract(family)
     d, _, _ = _dimension_contract(config)
-    if contract.name == "FM" and d == 64:
-        return P9FM64Encoder(config, vocabulary_sizes)
     return P9SceneEncoder(config, vocabulary_sizes, family)
 
 
@@ -352,54 +363,3 @@ def ds_raster_from_batch(batch: dict[str, Any]) -> torch.Tensor:
 
 def active_parameter_names(model: nn.Module) -> tuple[str, ...]:
     return tuple(name for name, value in model.named_parameters() if value.requires_grad)
-
-
-def p9_reconstruction_terms(model: P9SceneEncoder, batch: dict[str, Any], geometry: tuple[torch.Tensor, torch.Tensor] | None,
-                            modalities: dict[str, torch.Tensor], masks: dict[str, int], delta: float = 1.0,
-                            phase_threshold: float = 0.05) -> dict[str, dict[str, torch.Tensor | int]]:
-    """P7 reconstruction semantics restricted exactly to the family's retained IP terms."""
-    entities=batch["entities"]; result={}; active=model.contract.ip_terms
-    if "relative" in active:
-        values=F.huber_loss(model.relative_position_decoder(modalities["relative"]),entities["relative_position_m"]/500.0,
-                            delta=delta,reduction="none").mean(1)
-        result["relative"]={"sum":values.sum(),"count":values.numel()}
-    if "geometry" in active:
-        assert geometry is not None; rows=entities["entity_type"]!=2; hidden=model.geometry_decoder_shared(modalities["geometry"][rows])
-        if hidden.shape[0]:
-            magnitude=F.huber_loss(model.geometry_magnitude_head(hidden),geometry[0][rows],delta=delta,reduction="none").mean(1)
-            target=geometry[1][rows].reshape(-1,128,2); prediction=model.geometry_phase_head(hidden).reshape(-1,128,2)
-            raw=torch.expm1(geometry[0][rows]).clamp_min(0); maximum=raw.amax(1,keepdim=True)
-            valid=(maximum>0)&(raw/maximum.clamp_min(torch.finfo(raw.dtype).tiny)>=phase_threshold)
-            phase_components=1.0-F.cosine_similarity(prediction,target,dim=2); has=valid.any(1)
-            phase=torch.zeros_like(magnitude); phase[has]=(phase_components[has]*valid[has]).sum(1)/valid[has].sum(1)
-            values=torch.where(has,0.5*(magnitude+phase),magnitude)
-        else: values=modalities["geometry"].sum().reshape(1)*0.0
-        result["geometry"]={"sum":values.sum(),"count":int(rows.sum())}
-    if "semantic" in active:
-        collected=[]
-        for prefix,names,numerical in (("building",("A9","A11"),2),("road",("ROAD_RANK","ROAD_TYPE"),1),("poi",tuple(f"CLASS_L{x}" for x in range(1,7)),0)):
-            rows=entities[f"{prefix}_row_index"]; hidden=model.attribute_decoder_shared[{"building":"B","road":"R","poi":"P"}[prefix]](modalities["semantic"][rows])
-            numerator=hidden.new_zeros(rows.numel()); denominator=hidden.new_zeros(rows.numel()); category=entities[f"{prefix}_category"]
-            for column,name in enumerate(names):
-                logits=model.poi_decoder_heads[column](hidden) if prefix=="poi" else getattr(model,f"{prefix}_decoder_heads")[name](hidden)
-                values=F.cross_entropy(logits,category[:,column],reduction="none") if rows.numel() else hidden.new_empty(0)
-                valid=category[:,column]!=int(masks[name]); numerator+=torch.where(valid,values,torch.zeros_like(values)); denominator+=valid
-            if numerical:
-                prediction=getattr(model,f"{prefix}_decoder_heads")["numerical"](hidden); target=entities[f"{prefix}_numerical"]; missing=entities[f"{prefix}_missing"].bool()
-                for column in range(numerical):
-                    values=F.huber_loss(prediction[:,column],target[:,column],delta=delta,reduction="none"); valid=~missing[:,column]
-                    numerator+=torch.where(valid,values,torch.zeros_like(values)); denominator+=valid
-            if rows.numel(): collected.append(numerator[denominator>0]/denominator[denominator>0])
-        values=torch.cat(collected) if collected else modalities["semantic"].new_empty(0)
-        result["semantic"]={"sum":values.sum(),"count":values.numel()}
-    if "environmental" in active:
-        hidden=model.environment_decoder_shared(modalities["environmental"]); context=entities["object_raster"]
-        composition=-(context[:,:22]*F.log_softmax(model.environment_composition_head(hidden),1)).sum(1); composition_valid=context[:,22]>0
-        continuous=F.huber_loss(model.environment_continuous_head(hidden),context[:,22:26],delta=delta,reduction="none")
-        valid=torch.ones_like(continuous,dtype=torch.bool); valid[:,1]=context[:,25]>0; valid[:,2]=context[:,25]>0
-        numerator=torch.where(composition_valid,composition,torch.zeros_like(composition)); denominator=composition_valid.float()
-        for index in range(4): numerator+=torch.where(valid[:,index],continuous[:,index],torch.zeros_like(numerator)); denominator+=valid[:,index]
-        values=numerator[denominator>0]/denominator[denominator>0]
-        result["environmental"]={"sum":values.sum(),"count":values.numel()}
-    if set(result)!=set(active): raise ValueError("P9 active IP loss composition mismatch")
-    return result

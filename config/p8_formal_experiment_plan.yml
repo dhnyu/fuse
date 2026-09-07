@@ -1,3 +1,5 @@
+# HISTORICAL_ONLY: immutable pre-cbb824 P8 replay contract. Active P8 uses
+# config/current_methodology.yml and must never regenerate this bundle.
 schema_version: "1.0.0"
 plan_name: p8-formal-experiment-plan-v1
 publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan

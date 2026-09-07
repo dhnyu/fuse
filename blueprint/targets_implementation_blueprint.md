@@ -1,5 +1,25 @@
 # Reduced Methodology Targets Implementation Blueprint
 
+## Current Methodology Contract (2026-09-08)
+
+The current scientific authority is dissertation `reduced` commit
+`cbb824f19be8355296603f8426ac241ce587ddcc`. Current executable contracts are
+`config/current_methodology.yml`, `R/research_methodology_current.R`, and
+`python/current_methodology.py`.
+
+- Off-grid scenes: 10,000 total, split into 1,000 validation and 9,000 evaluation scenes.
+- Final objective: symmetric scene-level contrastive loss only. Reconstruction decoders,
+  information-preservation loss, and its weight or thresholds are absent.
+- Main model: `d=d_c=128`, `K_aug=8`, intensity `1.0x`, EMA `0.999`, peak LR `1e-3`.
+- Formal study: five OFAT axes and exactly 11 unique configurations.
+- Comparison set: FM, A1-A5, B1-B9, SSV, and DS, exactly 17 configurations.
+- Existing P8/P9/P10 and prototype publications below are historical evidence where they
+  conflict with this contract. They are not eligible as current scientific outputs.
+
+The remainder records current topology together with historical publication details. Any
+older scientific value in a historical section is superseded by this contract and must not
+authorize a new run.
+
 ## 0. Document Status and Authority
 
 - **상태:** 승인된 read-only audit를 반영한 active implementation blueprint.

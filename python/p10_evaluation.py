@@ -46,6 +46,14 @@ from p10_prepared_input import (
 
 
 SCHEMA_VERSION = "1.0.0"
+CURRENT_MODEL_IDS = (
+    "FM", "A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4",
+    "B5", "B6", "B7", "B8", "B9", "SSV", "DS",
+)
+
+# Historical P10/retrieval publications use these immutable configuration IDs.
+# Keep this export for their read-only validators; current P10 uses the explicit
+# dissertation model names above.
 MODEL_IDS = (
     "cfg_d128", "cmp_a1_geometric_core", "cmp_a2_semantic_enriched",
     "cmp_a3_object_context_enriched", "cmp_a4_raster_complete_non_relational",
@@ -112,11 +120,13 @@ def publish_json(path: Path, value: Mapping[str, Any]) -> Path:
 
 def load_contract(path: str | Path) -> dict[str, Any]:
     value = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    if value.get("schema_version") != SCHEMA_VERSION or value.get("contract_name") != "p10-full-evaluation-v1":
+    if value.get("schema_version") != SCHEMA_VERSION or value.get("contract_name") != "p10-full-evaluation-v2":
         raise P10Error("P10_CONTRACT_VERSION_INVALID")
-    if tuple(item.get("configuration_id") for item in value.get("model_set", ())) != MODEL_IDS:
-        raise P10Error("P10_MODEL_SET_NOT_CLOSED_EIGHT")
-    if len({item["acceptance_id"] for item in value["model_set"]}) != 8:
+    if value.get("migration_status") == "RECOMPUTE_REQUIRED":
+        raise P10Error("P10_CURRENT_ARTIFACTS_PENDING_RECOMPUTATION")
+    if tuple(item.get("configuration_id") for item in value.get("model_set", ())) != CURRENT_MODEL_IDS:
+        raise P10Error("P10_MODEL_SET_NOT_CLOSED_SEVENTEEN")
+    if len({item["acceptance_id"] for item in value["model_set"]}) != 17:
         raise P10Error("P10_ACCEPTANCE_SET_AMBIGUOUS")
     expected = value["accepted_evaluation"]
     if (expected["split_acceptance_id"], expected["query_index_id"], expected["gallery_id"], expected["mapping_id"]) != (
@@ -185,7 +195,7 @@ def evaluation_population(contract: Mapping[str, Any]) -> tuple[list[dict[str, A
     galleries = pq.read_table(root / "evaluation_gallery.parquet").to_pylist()
     queries = sorted(queries, key=lambda row: (row["scene_id"], int(row["query_index"])))
     galleries = sorted(galleries, key=lambda row: row["scene_id"])
-    if len(queries) != 3200 or len(galleries) != 1600:
+    if len(queries) != 18000 or len(galleries) != 9000:
         raise P10Error("P10_EVALUATION_POPULATION_INVALID")
     if [row["positive_scene_id"] for row in queries] != [row["scene_id"] for row in galleries for _ in range(2)]:
         raise P10Error("P10_EVALUATION_MAPPING_INVALID")
@@ -194,7 +204,7 @@ def evaluation_population(contract: Mapping[str, Any]) -> tuple[list[dict[str, A
 
 def make_qualitative_contract(contract: Mapping[str, Any], galleries: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     scene_ids = [str(row["scene_id"]) for row in galleries]
-    if scene_ids != sorted(scene_ids) or len(scene_ids) != 1600 or len(set(scene_ids)) != 1600:
+    if scene_ids != sorted(scene_ids) or len(scene_ids) != 9000 or len(set(scene_ids)) != 9000:
         raise P10Error("P10_QUALITATIVE_POPULATION_INVALID")
     population_hash = canonical_sha256(scene_ids)
     version = contract["qualitative"]["contract_version"]
@@ -208,12 +218,12 @@ def make_qualitative_contract(contract: Mapping[str, Any], galleries: Sequence[M
     preimage = {
         "schema_version": SCHEMA_VERSION, "artifact_type": "p10_qualitative_query_contract",
         "contract_version": version, "evaluation_split_acceptance_id": contract["accepted_evaluation"]["split_acceptance_id"],
-        "ordered_population_sha256": population_hash, "population_count": 1600,
+        "ordered_population_sha256": population_hash, "population_count": 9000,
         "seed_derivation": "sha256_utf8(contract_version||evaluation_split_acceptance_id||ordered_population_sha256)",
         "seed_digest": seed_digest, "seed_unsigned_big_endian_u64_decimal": str(seed),
         "prng": "numpy.random.PCG64", "numpy_version": contract["qualitative"]["numpy_version"],
         "sampling": "choice_without_replacement_preserve_draw_order", "selected_indices": positions,
-        "selected_scene_ids": selected, "standard_candidate_count": 1599,
+        "selected_scene_ids": selected, "standard_candidate_count": 8999,
         "nonlocal_exclusion_distance_m": 2000.0,
         "reported_rank_positions": ["top", "one_third", "two_thirds", "bottom"],
     }
@@ -502,7 +512,7 @@ def revalidate_model(contract: Mapping[str, Any], authority: Mapping[str, Any], 
     records = [("validation_query", scene, view) for scene in scenes for view in (0, 1)]
     records += [("validation_gallery", scene, None) for scene in scenes]
     started = time.monotonic(); embeddings, centers = _embed(model, values, records, contract, device, prepared, None)
-    metrics, ranks = _metric(embeddings[:800], embeddings[800:], float(contract["execution"]["temperature"]))
+    metrics, ranks = _metric(embeddings[:2000], embeddings[2000:], float(contract["execution"]["temperature"]))
     loss_delta = metrics["retrieval_loss"] - binding.expected_retrieval_loss
     margin_delta = metrics["mean_source_separation_margin"] - binding.expected_margin
     gate = contract["validation_revalidation"]
@@ -582,14 +592,14 @@ def evaluate_model(contract: Mapping[str, Any], authority: Mapping[str, Any], bi
     embeddings, centers = _embed_prepared(
         model, values, contract, device, prepared_cache, "evaluation", prepared_geometry
     )
-    metrics, ranks = _metric(embeddings[:3200], embeddings[3200:], float(contract["execution"]["temperature"]))
-    gallery_embeddings = embeddings[3200:]
+    metrics, ranks = _metric(embeddings[:18000], embeddings[18000:], float(contract["execution"]["temperature"]))
+    gallery_embeddings = embeddings[18000:]
     mask_scenes, masks = prepared_cache.nonlocal_masks()
     gallery_scenes = [row["scene_id"] for row in galleries]
     if mask_scenes != gallery_scenes:
         raise P10Error("P10_PREPARED_NONLOCAL_SCENE_MISMATCH")
     qualitative_result = _qualitative(
-        binding, gallery_embeddings, centers[3200:], gallery_scenes, qualitative, masks
+        binding, gallery_embeddings, centers[18000:], gallery_scenes, qualitative, masks
     )
     # Fixed descriptive analyses. HDBSCAN is fitted in original representation space.
     import hdbscan
@@ -680,7 +690,7 @@ def record_interrupted_execution(contract: Mapping[str, Any]) -> dict[str, Any]:
     authority = _read_json(publication / "authorities" / f"{reexecution['authority_id']}.json")
     consumption = _read_json(publication / "consumption" / f"{reexecution['consumption_id']}.json")
     completed = []
-    for configuration_id in MODEL_IDS:
+    for configuration_id in CURRENT_MODEL_IDS:
         path = publication / "evaluations" / authority["authority_id"] / configuration_id / "evaluation.json"
         if path.is_file():
             completed.append({"configuration_id": configuration_id, "sha256": sha256_file(path)})
@@ -697,7 +707,7 @@ def record_interrupted_execution(contract: Mapping[str, Any]) -> dict[str, Any]:
         "tmux_session": reexecution["interrupted_tmux_session"],
         "reason": reexecution["interruption_reason"],
         "completed_model_evaluations": completed,
-        "incomplete_models": [name for name in MODEL_IDS if name not in expected_completed],
+        "incomplete_models": [name for name in CURRENT_MODEL_IDS if name not in expected_completed],
         "training_count": 0,
         "optimizer_update_count": 0,
         "checkpoint_write_count": 0,

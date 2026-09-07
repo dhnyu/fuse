@@ -1,7 +1,7 @@
 # P8 is a plan-only gate. It cannot construct an optimizer or consume evaluation queries.
 
-# Replay preserves the accepted experimental-setup/hyperparameter-study evidence.
-# Fresh generation helpers below are deliberately not reachable from this path.
+# Historical replay helpers below validate the immutable pre-migration P8 bundle.
+# The active target uses the current dissertation contract functions at the end.
 p8_replay_sources <- function(root = ".", contract = "config/p8_refactor_replay.yml") {
   anchor <- yaml::read_yaml(file.path(root, contract))
   config <- yaml::read_yaml(file.path(root, "config/p8_formal_experiment_plan.yml"))
@@ -132,4 +132,41 @@ p8_bundle_artifact <- function(bundle, name, dependency = NULL) {
   path <- bundle[basename(bundle) == paste0(name, ".json")]
   if (length(path) != 1L) stop("P8 bundle artifact lookup mismatch: ", name, call. = FALSE)
   normalizePath(path, mustWork = TRUE)
+}
+
+p8_current_sources <- function(root = ".", dissertation_root = path.expand("~/dhnyu-masters-dissertation")) {
+  local <- c("config/current_methodology.yml", "python/current_methodology.py",
+             "config/schemas/current_experiment_plan.schema.json",
+             "R/research_p8_experiment_plan.R", "targets/research_p8_experiment_plan.R")
+  dissertation <- c(
+    "template/sections/chapters/results/01-experimental-setup.typ",
+    "template/sections/chapters/results/05-hyperparameter-study.typ",
+    "template/sections/chapters/04-methodology-training.typ",
+    "template/materials/tables/results-02-model-dimension-table.typ",
+    "template/materials/tables/results-04-training-configuration-table.typ",
+    "template/materials/tables/results-05-model-architecture-table.typ"
+  )
+  normalizePath(c(file.path(root, local), file.path(dissertation_root, dissertation)), mustWork = TRUE)
+}
+
+p8_build_current_plan <- function(sources, root = ".") {
+  expected <- p8_current_sources(root)
+  if (!identical(normalizePath(sources, mustWork = TRUE), expected)) stop("Current P8 source tracking mismatch", call. = FALSE)
+  cfg <- yaml::read_yaml(file.path(root, "config/current_methodology.yml"))
+  dissertation_head <- system2("git", c("-C", path.expand("~/dhnyu-masters-dissertation"), "rev-parse", "HEAD"), stdout = TRUE)
+  if (!identical(dissertation_head[[1L]], cfg$dissertation_commit)) stop("Current P8 dissertation commit mismatch", call. = FALSE)
+  final_dir <- file.path("/mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan",
+                         paste0("current_", substr(cfg$dissertation_commit, 1L, 16L)))
+  output <- publish_deterministic_directory(final_dir, "current_experiment_plan.json", function(stage) {
+    path <- file.path(stage, "current_experiment_plan.json")
+    status <- system2(research_python_executable(), c("-B", "python/current_methodology.py",
+      "--config", shQuote(normalizePath(file.path(root,"config/current_methodology.yml"),mustWork=TRUE)),
+      "--output", shQuote(path)))
+    if (!identical(status, 0L) || !file.exists(path)) stop("Current P8 plan construction failed", call. = FALSE)
+  })
+  value <- jsonlite::read_json(output, simplifyVector=FALSE)
+  validate_json_schema_file(output, file.path(root, "config/schemas/current_experiment_plan.schema.json"))
+  if (!identical(value$status,"PASS") || length(value$hyperparameter_configurations)!=11L ||
+      length(value$comparison_configurations)!=17L) stop("Current P8 plan validation failed", call. = FALSE)
+  normalizePath(output, mustWork=TRUE)
 }

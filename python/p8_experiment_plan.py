@@ -1,4 +1,7 @@
-"""P8 plan-only scientific configuration and comparison-template contracts."""
+"""Historical P8 plan-only configuration and comparison-template contracts.
+
+The active reduced methodology is implemented by current_methodology.py.
+"""
 
 from __future__ import annotations
 

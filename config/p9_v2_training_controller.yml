@@ -1,9 +1,10 @@
 schema_version: "2.0.0"
 contract_name: p9-v2-production-training-controller-v1
+migration_status: RECOMPUTE_REQUIRED
 source:
   required_branch: reduced
-  dissertation_commit: 4adbd49b6dacab589d2fa99d88ec5be83aceb287
-  dissertation_authority_id: disauth_60a514578f57b9397ce71ee6
+  dissertation_commit: cbb824f19be8355296603f8426ac241ce587ddcc
+  dissertation_authority_id: mta_03e8d7f42fe2018237f3fcde
 parents:
   p8_acceptance_id: p8acc_c9f16a07275aadfae928d329
   p8_hyperparameter_matrix_id: p8hm_f34f1666b62255babab0ae08
@@ -41,7 +42,7 @@ execution:
   exact_resume: committed_checkpoint_only
   scientific_divergence_code: SCIENTIFIC_DIVERGENCE
 non_training_pilot:
-  configuration_id: cfg_d48
+  configuration_id: PENDING_CURRENT_PLAN
   production_batches: 1
   backward_passes: 0
   optimizer_updates: 0

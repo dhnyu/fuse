@@ -33,7 +33,7 @@ from p7_training import (
 )
 from p9_infrastructure import P9ExactScheduler, materialize_hyperparameter_configuration
 from p9_model_families import (
-    P9MomentumModel, family_contract, p9_reconstruction_terms,
+    P9MomentumModel, family_contract,
 )
 from p9_v2_canonical import (
     canonical_json_line, canonical_sha256, deterministic_id, parse_canonical_json,
@@ -205,18 +205,7 @@ def training_update(ddp: DistributedDataParallel, state: WorkerState, values: di
         float(values["config"]["objective"]["negative_exclusion_distance_m"]))
     count = torch.tensor(scene_count, dtype=torch.int64, device=device); dist.all_reduce(count)
     scene_objective = scene_sum * dist.get_world_size() / int(count)
-    reconstruction = [p9_reconstruction_terms(ddp.module, batch, geometry, output.get("modalities", {}),
-                      values["vocabulary_masks"]) for batch, geometry, output in zip(batches, geometries, outputs, strict=True)]
-    information = scene_sum * 0.0
-    active = family_contract(values["family"]).ip_terms
-    for name in active:
-        numerator = reconstruction[0][name]["sum"] + reconstruction[1][name]["sum"]
-        denominator = torch.tensor(sum(int(item[name]["count"]) for item in reconstruction), device=device)
-        dist.all_reduce(denominator)
-        information = information + numerator * dist.get_world_size() / int(denominator)
-    if active:
-        information = information / len(active)
-    total = scene_objective + float(values["row"]["scientific"]["lambda_ip"]) * information
+    total = scene_objective
     if not torch.isfinite(total):
         raise FloatingPointError("SCIENTIFIC_DIVERGENCE")
     pairs_by_rank: list[Any] = [None] * dist.get_world_size(); dist.all_gather_object(pairs_by_rank, pairs)
@@ -233,9 +222,7 @@ def training_update(ddp: DistributedDataParallel, state: WorkerState, values: di
     return {
         "epoch": epoch, "batch_index": batch_index, "global_update": state.scheduler.completed_updates,
         "learning_rate": learning_rate, "total_loss": float(total.detach()),
-        "scene_loss": float(scene_objective.detach()), "ip_loss": float(information.detach()),
-        "weighted_ip_loss": float((float(values["row"]["scientific"]["lambda_ip"])
-                                   * information).detach()),
+        "scene_loss": float(scene_objective.detach()),
         "gradient_norm": float(norm),
         "queue_pointer": int(state.queue["pointer"]), "queue_count": int(state.queue["valid_count"]),
         "batch_identity_digest": training_batch_digest(scenes, [item for group in pairs_by_rank for item in group]),
@@ -248,34 +235,35 @@ def full_validation(state: WorkerState, values: dict[str, Any], device: torch.de
     records = [("validation_query", scene, index) for scene in values["data"].validation_scenes for index in (0, 1)]
     records += [("validation_gallery", scene, None) for scene in values["data"].validation_scenes]
     vectors, indices = [], []
+    local_records = list(enumerate(records))[rank::2]
     with torch.inference_mode():
-        for start in range(0, 1200, 8):
-            if (start // 8) % 2 != rank: continue
-            selected = records[start:start + 8]
+        for start in range(0, len(local_records), 8):
+            selected_pairs = local_records[start:start + 8]
+            selected = [row for _, row in selected_pairs]
             cpu = collate([values["data"].sample(*row) for row in selected], values["vocabulary"])
             role = selected[0][0]
             ds = values["ds_raster_cache"].batch(cpu, role, device) if values["family"] == "DS" else None
             batch = to_device(cpu, device)
             geometry = None if "geometry" not in family_contract(values["family"]).modalities else values["geometry_cache"].batch(batch, role, device)
             vectors.append(torch.nn.functional.normalize(state.model.online(batch, geometry, ds)["scene_embedding"], dim=1))
-            indices.extend(range(start, start + len(selected)))
+            indices.extend(index for index, _ in selected_pairs)
     vector = torch.cat(vectors); index = torch.tensor(indices, device=device, dtype=torch.int64)
     all_vectors = [torch.empty_like(vector) for _ in range(2)]; all_indices = [torch.empty_like(index) for _ in range(2)]
     dist.all_gather(all_vectors, vector); dist.all_gather(all_indices, index)
     combined_i = torch.cat(all_indices).cpu(); order = torch.argsort(combined_i)
     combined = torch.cat(all_vectors).cpu()[order]
-    if combined_i[order].tolist() != list(range(1200)):
+    if combined_i[order].tolist() != list(range(3000)):
         raise ScienceWorkerError("VALIDATION_COVERAGE_MISMATCH")
-    queries, galleries = combined[:800], combined[800:]; positive = torch.arange(400).repeat_interleave(2)
+    queries, galleries = combined[:2000], combined[2000:]; positive = torch.arange(1000).repeat_interleave(2)
     similarities = queries @ galleries.T
     loss = torch.nn.functional.cross_entropy(similarities / float(values["config"]["objective"]["contrastive_temperature"]), positive)
-    positive_values = similarities[torch.arange(800), positive]; masked = similarities.clone()
-    masked[torch.arange(800), positive] = -torch.inf
+    positive_values = similarities[torch.arange(2000), positive]; masked = similarities.clone()
+    masked[torch.arange(2000), positive] = -torch.inf
     diagnostics = retrieval_rank_diagnostics(similarities, positive)
     result = {"completed_epoch": epoch, "validation_retrieval_loss": float(loss),
               "mean_source_separation_margin": float((positive_values - masked.max(1).values).mean()),
               **diagnostics,
-              "query_count": 800, "gallery_count": 400, "evaluation_consumption_count": 0}
+              "query_count": 2000, "gallery_count": 1000, "evaluation_consumption_count": 0}
     shared = [result if rank == 0 else None]; dist.broadcast_object_list(shared, src=0)
     state.model.online.train(); return shared[0]
 

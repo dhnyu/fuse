@@ -20,7 +20,7 @@ from canonical_config import canonical_json_bytes  # noqa: E402
 from p7_training import collate, selected_view_pair, to_device  # noqa: E402
 from p7_prototype_training import configure_process, geometry  # noqa: E402
 from p9_model_families import (FAMILY_NAMES, P9SceneEncoder, ds_raster_from_batch,
-                               family_contract, p9_reconstruction_terms)  # noqa: E402
+                               family_contract)  # noqa: E402
 from p9_bounded_main_pilot import values_and_authority  # noqa: E402
 
 
@@ -67,17 +67,13 @@ def worker(args: argparse.Namespace) -> None:
     output = ddp(batch, geometry=geometry_value,
                  ds_raster=ds_raster.to(device) if ds_raster is not None else None,
                  assignments=assignments)
-    reconstruction = {} if args.family == "DS" else p9_reconstruction_terms(
-        model, batch, geometry_value, output["modalities"], batch["category_mask_indices"])
     loss = output["scene_embedding"].square().sum() + output["contrastive_embedding"].square().sum()
-    for value in reconstruction.values():
-        loss = loss + value["sum"]
     loss.backward()
     missing = [name for name, value in model.named_parameters() if value.requires_grad and value.grad is None]
     local = {
         "rank": rank, "family": args.family, "dimension": args.dimension,
         "scene_ids": scenes, "loss": float(loss.detach().cpu()),
-        "missing_gradients": missing, "active_ip_terms": list(reconstruction),
+        "missing_gradients": missing,
         "edge_instances_preserved": bool(torch.equal(before_edges, batch["edges"]["edge_index"])),
         "ds_shape": list(ds_raster.shape) if ds_raster is not None else None,
         "peak_vram_bytes": int(torch.cuda.max_memory_allocated(device)),
@@ -98,7 +94,7 @@ def worker(args: argparse.Namespace) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--family", choices=FAMILY_NAMES, required=True)
-    parser.add_argument("--dimension", choices=(48, 64, 128), type=int, required=True)
+    parser.add_argument("--dimension", choices=(64, 128, 256), type=int, required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args(); worker(args)
 

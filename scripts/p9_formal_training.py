@@ -47,7 +47,7 @@ from p9_formal_execution import (FormalAttemptLock, SelectionState, atomic_json,
                                  verify_execution_tree)  # noqa: E402
 from p9_identity_diagnostics import assemble_rank_manifest  # noqa: E402
 from p9_infrastructure import P9ExactScheduler, materialize_hyperparameter_configuration  # noqa: E402
-from p9_model_families import P9MomentumModel, ds_raster_from_batch, family_contract, p9_reconstruction_terms  # noqa: E402
+from p9_model_families import P9MomentumModel, ds_raster_from_batch, family_contract  # noqa: E402
 from rotating_padding_sampler import logical_groups, rotating_padding_state  # noqa: E402
 
 

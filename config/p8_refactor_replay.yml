@@ -1,0 +1,65 @@
+# Frozen anchor: reports/20260907_2200_targets_refactor_blueprint.md
+# Replay is not a new scientific approval under the current Git HEAD.
+schema_version: "1.0.0"
+policy: fail_closed_read_only_no_fallback
+scientific_config_sha256: bd6e899511c0e63f65c480cb8d4e5799eb42bb61c17f79b5a6ed0e925e51c07d
+bundle_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/p8a_3cb1c49084529987f0244a93/p8acc_c9f16a07275aadfae928d329
+source_commit: f3db91dec04381c9c9bc7342038d8d3f953e1c2b
+dissertation_commit: ad8c8b5c17c5ca72dce7f30c2eb283f6041dbc9a
+authority_id: p8a_3cb1c49084529987f0244a93
+acceptance_id: p8acc_c9f16a07275aadfae928d329
+artifacts:
+  - basename: methodology_compatibility.json
+    size: 978
+    sha256: 352966160f0041368a476e66558461e50b194ccae7b566f9a4d45bef15762581
+    schema: config/schemas/p8_methodology_compatibility.schema.json
+    identity_field: compatibility_id
+    identity: p8mc_d4bc6c3909ea2dbb716702bc
+  - basename: hyperparameter_configuration_matrix.json
+    size: 16913
+    sha256: 3d769843aa807630eb8e108554f57adab8ee3932cdf2feb37012b6e3abc63d6e
+    schema: config/schemas/p8_hyperparameter_configuration_matrix.schema.json
+    identity_field: matrix_id
+    identity: p8hm_f34f1666b62255babab0ae08
+  - basename: a5_generic_relation_mapping_contract.json
+    size: 715
+    sha256: 65a4542f880ff6c7ad98182a61bf8d29e160d640d6c17df945336ab90b28d5fa
+    schema: config/schemas/p8_a5_generic_relation_mapping_contract.schema.json
+    identity_field: contract_id
+    identity: p8a5_497d83d2e948107488b44397
+  - basename: ds_raster_materialization_contract.json
+    size: 1232
+    sha256: e0065e6d259474f109b2c5304dbb4b5e8d7b0c4986515bfbeea2805f69ad6920
+    schema: config/schemas/p8_ds_raster_materialization_contract.schema.json
+    identity_field: contract_id
+    identity: p8ds_73137985bd6b172f6711a062
+  - basename: comparison_variant_template_matrix.json
+    size: 9700
+    sha256: cd839bd66bf802f71f11c966ee425e412c2b553986b243e2b4d083bf3e65a4f2
+    schema: config/schemas/p8_comparison_variant_template_matrix.schema.json
+    identity_field: matrix_id
+    identity: p8cm_cd7d0f45dd41a7c351ea4d78
+  - basename: experiment_augmentation_bank_index.json
+    size: 365
+    sha256: 93facdae8cd93ab07df8ca64d2b7b49548d7758a56f1a9cb637295754e0a3903
+    schema: config/schemas/p8_experiment_augmentation_bank_index.schema.json
+    identity_field: index_id
+    identity: p8bi_2e492527089bf5ce9d00a933
+  - basename: formal_hyperparameter_experiment_plan.json
+    size: 2013
+    sha256: 345d0272607372b6d46658f74b0f45c4cd7c5d46569739ccc83502adfa437b7f
+    schema: config/schemas/p8_formal_hyperparameter_experiment_plan.schema.json
+    identity_field: plan_id
+    identity: p8hp_8be2a3f54b3e0b5f9d1b809d
+  - basename: comparison_variant_materialization_template.json
+    size: 688
+    sha256: 8e07dc1a9e9b84aaa5e95eb822d9eaae6b66d8294b0f8b8c637bb627aa59ad41
+    schema: config/schemas/p8_comparison_variant_materialization_template.schema.json
+    identity_field: template_id
+    identity: p8mt_164c590de990f27bcf1d4b3c
+  - basename: formal_experiment_plan_acceptance.json
+    size: 4098
+    sha256: 9e63729631e08ad4c6abd0bff57f3657294b27dfbbfdbfb8737b34c625466e4e
+    schema: config/schemas/p8_formal_experiment_plan_acceptance.schema.json
+    identity_field: acceptance_id
+    identity: p8acc_c9f16a07275aadfae928d329

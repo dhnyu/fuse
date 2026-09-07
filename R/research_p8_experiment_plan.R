@@ -1,5 +1,41 @@
 # P8 is a plan-only gate. It cannot construct an optimizer or consume evaluation queries.
 
+# Replay preserves the accepted experimental-setup/hyperparameter-study evidence.
+# Fresh generation helpers below are deliberately not reachable from this path.
+p8_replay_sources <- function(root = ".", contract = "config/p8_refactor_replay.yml") {
+  anchor <- yaml::read_yaml(file.path(root, contract))
+  config <- yaml::read_yaml(file.path(root, "config/p8_formal_experiment_plan.yml"))
+  local <- c(contract, "config/p8_formal_experiment_plan.yml",
+             "R/research_p8_experiment_plan.R", "R/research_contracts.R",
+             "targets/research_p8_experiment_plan.R", "python/p8_plan_replay.py",
+             vapply(anchor$artifacts, `[[`, character(1L), "schema"))
+  payload <- file.path(anchor$bundle_root, vapply(anchor$artifacts, `[[`, character(1L), "basename"))
+  normalizePath(c(file.path(root, local), unlist(config$parent_artifacts, use.names = FALSE),
+                  payload), mustWork = TRUE)
+}
+
+p8_replay_bundle <- function(sources, root = ".", contract = "config/p8_refactor_replay.yml") {
+  required <- p8_replay_sources(root, contract)
+  if (!identical(normalizePath(sources, mustWork = TRUE), required)) {
+    stop("P8 replay required source files/order mismatch", call. = FALSE)
+  }
+  p8_validate_parent_lineage(file.path(root, "config/p8_formal_experiment_plan.yml"))
+  output <- suppressWarnings(system2(research_python_executable(), c(
+    "-B", shQuote(file.path(root, "python/p8_plan_replay.py")),
+    "--root", shQuote(normalizePath(root, mustWork = TRUE)),
+    "--contract", shQuote(contract)
+  ), stdout = TRUE, stderr = TRUE))
+  status <- attr(output, "status")
+  if (!is.null(status) && status != 0L) {
+    stop("P8 replay validation failed: ", paste(output, collapse = "\n"), call. = FALSE)
+  }
+  paths <- jsonlite::fromJSON(paste(output, collapse = "\n"))
+  anchor <- yaml::read_yaml(file.path(root, contract))
+  expected <- file.path(anchor$bundle_root, vapply(anchor$artifacts, `[[`, character(1L), "basename"))
+  if (!identical(paths, expected)) stop("P8 replay output paths/order mismatch", call. = FALSE)
+  paths
+}
+
 p8_contract_names <- function() {
   c(
     "config/p8_formal_experiment_plan.yml",

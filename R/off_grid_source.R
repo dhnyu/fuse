@@ -105,6 +105,14 @@ validate_current_off_grid_table <- function(value, boundary, training, settings)
        minimum_nearest_training_center_m = min(distance), crs_epsg = 5186L)
 }
 
+p1_require_official_training_count <- function(training) {
+  count <- nrow(training)
+  if (is.null(count) || !identical(as.integer(count), 2421L)) {
+    stop("Official training-center count is not 2,421", call. = FALSE)
+  }
+  invisible(training)
+}
+
 publish_current_off_grid_source <- function(study_data_inputs, scene_methodology_contract,
                                             reduced_methodology_authority,
                                             p1_scene_index_contract_files, workers = 1L, threads = 1L) {
@@ -122,7 +130,7 @@ publish_current_off_grid_source <- function(study_data_inputs, scene_methodology
   training_contract <- list(crs = list(official_grid_epsg = 5179L, processing_epsg = 5186L),
                             scene = list(official_cell_id_column = "SPO_NO_CD", coordinate_precision_m = 0.001))
   training <- derive_official_training_scenes(boundary, inputs[["official_grid_shp"]], training_contract)$data
-  if (nrow(training) != 2421L) stop("Official training-center count is not 2,421", call. = FALSE)
+  p1_require_official_training_count(training)
   generated <- build_current_off_grid_table(boundary, training, settings)
   official_roles <- c("official_grid_shp", "official_grid_shx", "official_grid_dbf", "official_grid_prj")
   source_identity <- list(

@@ -82,7 +82,7 @@ p1_read_authority <- function(reduced_methodology_authority, scene_methodology_c
     identical(as.integer(canonical$crs_epsg), as.integer(fixed$processing_epsg)),
     identical(as.integer(canonical$scene_width_m), as.integer(fixed$width_m)),
     identical(as.integer(canonical$scene_height_m), as.integer(fixed$height_m)),
-    identical(as.integer(canonical$training_scene_count), as.integer(fixed$split_counts$training)),
+    identical(canonical$training_center_source, "official_500m_grid_centers"),
     identical(as.integer(canonical$validation_scene_count), as.integer(fixed$split_counts$validation)),
     identical(as.integer(canonical$evaluation_scene_count), as.integer(fixed$split_counts$evaluation)),
     identical(as.integer(canonical$off_grid_minimum_distance_m), 50L),

@@ -17,6 +17,75 @@ test_that("current off-grid publisher is deterministic on a disposable fixture",
   expect_error(validate_current_off_grid_table(first$data[-1, ], boundary, training, settings), "row_count")
 })
 
+test_that("P1 accepts the current P0 training-center rule without a realized count", {
+  root <- tempfile("p1-authority-")
+  dir.create(root, recursive = TRUE)
+  on.exit(unlink(root, recursive = TRUE), add = TRUE)
+
+  authority <- list(
+    authority_id = "mta_current", overall_status = "PASS", source_set_id = "mss_current"
+  )
+  canonical <- list(
+    crs_epsg = 5186L,
+    scene_width_m = 500L,
+    scene_height_m = 500L,
+    observation_window = "Seoul_boundary_centered",
+    source_coverage_buffer_m = 400L,
+    training_center_source = "official_500m_grid_centers",
+    validation_scene_count = 1000L,
+    evaluation_scene_count = 9000L,
+    total_off_grid_scene_count = 10000L,
+    off_grid_minimum_distance_m = 50L,
+    intermediate_training_centers = FALSE,
+    training_sliding_stride_m = NULL,
+    field_origins = list(train_grid = "official_500m_grid_centers_inside_Seoul")
+  )
+  expect_false("training_scene_count" %in% names(canonical))
+  expect_false(identical(as.integer(canonical$training_scene_count), 2421L))
+  scene <- list(status = "PASS", source_set_id = "mss_current", canonical_contract = canonical)
+  authority_path <- write_json_file(authority, file.path(root, "reduced_methodology_authority.json"))
+  scene_path <- write_json_file(scene, file.path(root, "scene_methodology_contract.json"))
+  spec <- list(config = list(
+    authority = list(expected_id = "mta_current", expected_manifest_sha256 = sha256_file(authority_path)),
+    scene = list(processing_epsg = 5186L, width_m = 500L, height_m = 500L,
+                 split_counts = list(training = 2421L, validation = 1000L, evaluation = 9000L))
+  ))
+
+  expect_no_error(p1_read_authority(authority_path, scene_path, spec))
+
+  canonical$training_scene_count <- 999L
+  scene$canonical_contract <- canonical
+  historical_dir <- file.path(root, "historical-count")
+  dir.create(historical_dir)
+  historical_path <- write_json_file(scene, file.path(historical_dir, "scene_methodology_contract.json"))
+  expect_no_error(p1_read_authority(authority_path, historical_path, spec))
+
+  reject <- function(field, value) {
+    changed <- canonical
+    changed[[field]] <- value
+    scene$canonical_contract <- changed
+    changed_dir <- tempfile("scene-contract-", tmpdir = root)
+    dir.create(changed_dir)
+    path <- write_json_file(scene, file.path(changed_dir, "scene_methodology_contract.json"))
+    expect_error(p1_read_authority(authority_path, path, spec), "differs from P1")
+  }
+  reject("training_center_source", "derived_250m_lattice")
+  reject("intermediate_training_centers", TRUE)
+  reject("training_sliding_stride_m", 250L)
+  reject("crs_epsg", 5179L)
+  reject("scene_width_m", 499L)
+  reject("scene_height_m", 501L)
+  reject("validation_scene_count", 999L)
+  reject("evaluation_scene_count", 9001L)
+  reject("off_grid_minimum_distance_m", 49L)
+})
+
+test_that("realized official-grid count remains independently fail-closed", {
+  expect_silent(p1_require_official_training_count(data.frame(id = seq_len(2421L))))
+  expect_error(p1_require_official_training_count(data.frame(id = seq_len(2420L))), "not 2,421")
+  expect_error(p1_require_official_training_count(data.frame(id = seq_len(2422L))), "not 2,421")
+})
+
 test_that("scene identity is stable and split/source-specific", {
   first <- p1_scene_identity("mta_test", c("training", "validation"), c("official_500m_grid", "accepted_off_grid"), c("A", "A"))
   second <- p1_scene_identity("mta_test", c("training", "validation"), c("official_500m_grid", "accepted_off_grid"), c("A", "A"))

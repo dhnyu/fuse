@@ -103,6 +103,12 @@ def test_supplement_does_not_reference_p4_membership():
     assert "logical K8" not in config
 
 
+def test_tiered_runner_uses_current_build_cli():
+    runner = (ROOT / "scripts" / "run_fixed_queries.py").read_text()
+    assert 'root / "scripts/build_fixed_queries.py"' in runner
+    assert 'root / "scripts/fixed_queries.py"' not in runner
+
+
 def _records():
     galleries = [
         {"gallery_id": "g0", "scene_id": "s0"},

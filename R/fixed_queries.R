@@ -7,7 +7,7 @@ p5_contract_paths <- function(root = getwd()) {
     canonical_r = file.path(root, "R/canonical_config.R"),
     canonical_python = file.path(root, "python/canonical_config.py"),
     python = file.path(root, "python/fixed_queries.py"),
-    cli = file.path(root, "scripts/fixed_queries.py"),
+    cli = file.path(root, "scripts/build_fixed_queries.py"),
     runner = file.path(root, "scripts/run_fixed_queries.py"),
     targets = file.path(root, "targets/s05_fixed_queries.R"))
 }
@@ -198,7 +198,7 @@ p5_run_tiered_queries <- function(plan, contract_files) {
   attempt_id <- paste0(format(Sys.time(), "%Y%m%d_%H%M%S"), "_", Sys.getpid())
   execution_root <- file.path(authority_root, "executions", paste0("tiered_", attempt_id))
   dir.create(execution_root, recursive = TRUE, showWarnings = FALSE)
-  runner <- spec$files[basename(spec$files) == "run_fixed_queries.py"]
+  runner <- spec$files[["runner"]]
   previous_ledger <- NULL; ledgers <- character(); logs <- character()
   passes <- list(A = 40L, B = 10L, C = 5L)
   for (pass_name in names(passes)) {
@@ -258,7 +258,7 @@ p5_validate_query_shard <- function(shard_files, plan_branch, contract_files) {
   config_json <- tempfile(fileext = ".json"); output <- tempfile(fileext = ".json")
   write_json_file(plan_branch$config, config_json)
   result <- system2(research_python_executable(), c(
-    spec$files[basename(spec$files) == "fixed_queries.py" & grepl("/scripts/", spec$files)],
+    spec$files[["cli"]],
     "validate", "--manifest", artifact_path(shard_files, "branch_manifest.json"),
     "--config-json", config_json, "--output", output), stdout = TRUE, stderr = TRUE)
   unlink(config_json)
@@ -331,7 +331,7 @@ p5_accept_queries <- function(plan, shard_files, shard_validation, fixed_query_m
                        p3_cache_id = p3$cache_id, manifests = unname(manifests),
                        validations = unname(shard_validation)), temp_spec)
   result <- system2(research_python_executable(), c(
-    spec$files[basename(spec$files) == "fixed_queries.py" & grepl("/scripts/", spec$files)],
+    spec$files[["cli"]],
     "aggregate", "--spec", temp_spec, "--output-dir", file.path(temp_output, "bundle")), stdout = TRUE, stderr = TRUE)
   unlink(temp_spec)
   if ((attr(result, "status") %||% 0L) != 0L) stop("P5 aggregate acceptance failed: ", paste(result, collapse = " | "), call. = FALSE)

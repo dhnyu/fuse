@@ -39,6 +39,37 @@ testthat::test_that("P5 target declaration excludes P6, maintenance and GPU depe
   testthat::expect_false(grepl("fixed_query_shard_validation", text, fixed = TRUE))
 })
 
+testthat::test_that("P5 source registry resolves current library, build, and runner roles", {
+  paths <- p5_contract_paths(fuse_test_root)
+  expected <- c(
+    python = "python/fixed_queries.py",
+    cli = "scripts/build_fixed_queries.py",
+    runner = "scripts/run_fixed_queries.py"
+  )
+
+  testthat::expect_length(paths, 13L)
+  testthat::expect_true(all(file.exists(paths)))
+  testthat::expect_true(all(file.info(paths)$size > 0))
+  testthat::expect_identical(
+    unname(paths[names(expected)]),
+    unname(normalizePath(file.path(fuse_test_root, expected), mustWork = TRUE))
+  )
+  testthat::expect_false(any(endsWith(paths, "scripts/fixed_queries.py")))
+
+  schema_paths <- paths[grepl("^config/schemas/.*[.]json$", sub(
+    paste0("^", normalizePath(fuse_test_root, mustWork = TRUE), "/"), "", paths
+  ))]
+  testthat::expect_length(schema_paths, 5L)
+  testthat::expect_true(all(vapply(schema_paths, function(path) {
+    is.list(jsonlite::read_json(path, simplifyVector = FALSE))
+  }, logical(1L))))
+  testthat::expect_true(is.list(yaml::read_yaml(paths[["config"]])))
+
+  runner <- paste(readLines(paths[["runner"]], warn = FALSE), collapse = "\n")
+  testthat::expect_true(grepl('root / "scripts/build_fixed_queries.py"', runner, fixed = TRUE))
+  testthat::expect_false(grepl('root / "scripts/fixed_queries.py"', runner, fixed = TRUE))
+})
+
 testthat::test_that("P5 scientific implementation hash excludes execution environment", {
   helper <- paste(readLines(testthat::test_path("..", "..", "R", "fixed_queries.R"), warn = FALSE), collapse = "\n")
   testthat::expect_true(grepl("implementation_hash", helper, fixed = TRUE))

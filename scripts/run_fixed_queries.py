@@ -163,7 +163,7 @@ def main() -> None:
     started = time.time(); peak_concurrency = peak_rss_sum = peak_rss_worker = 0
     results: list[dict[str, object]] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
-        pending = {pool.submit(run_branch, path, staging_root, root / "scripts/fixed_queries.py",
+        pending = {pool.submit(run_branch, path, staging_root, root / "scripts/build_fixed_queries.py",
                                args.pass_name, args.workers): path for path in specs}
         while pending:
             done, _ = concurrent.futures.wait(pending, timeout=1, return_when=concurrent.futures.FIRST_COMPLETED)

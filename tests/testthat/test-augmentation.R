@@ -58,9 +58,91 @@ testthat::test_that("P4 tiered execution is tracked but excluded from scientific
   targets <- paste(readLines(testthat::test_path("..", "..", "targets", "s04_augmentation.R"),
                              warn = FALSE), collapse = "\n")
   testthat::expect_true(grepl('relative != "scripts/run_augmentation_bank.py"', helper, fixed = TRUE))
-  testthat::expect_true(grepl("p4_run_tiered_bank(s04_bank_shard_plan", targets, fixed = TRUE))
+  testthat::expect_true(grepl("p4_run_tiered_bank_current(s04_bank_shard_plan", targets, fixed = TRUE))
   testthat::expect_true(grepl("controller_05", targets, fixed = TRUE))
+  testthat::expect_true(grepl("seconds_timeout = 21600", targets, fixed = TRUE))
   testthat::expect_true(grepl("Pass A requires all 288 intended branches",
                               paste(readLines(testthat::test_path("..", "..", "scripts", "run_augmentation_bank.py"),
                                               warn = FALSE), collapse = "\n"), fixed = TRUE))
+})
+
+testthat::test_that("P4 tiered execution summary is deterministic and fail-closed", {
+  ledger <- function(statuses) {
+    branches <- Map(function(id, status) list(branch_id = id, status = status),
+                    sprintf("ab_%02d", seq_along(statuses)), statuses)
+    levels <- p4_tiered_status_levels()
+    list(
+      pass = "A", branches = branches,
+      status_counts = setNames(lapply(levels, function(x) sum(statuses == x)), levels)
+    )
+  }
+  pass <- ledger(rep("COMPLETED", 3L))
+  first <- p4_summarize_tiered_execution(pass, "bank", "plan", "pass_a_ledger.json",
+                                         c("ab_01", "ab_02", "ab_03"))
+  second <- p4_summarize_tiered_execution(pass, "bank", "plan", "pass_a_ledger.json",
+                                          c("ab_01", "ab_02", "ab_03"))
+  testthat::expect_identical(first, second)
+  testthat::expect_identical(first$status, "PASS")
+  testthat::expect_identical(first$final_completed, 3L)
+  testthat::expect_error(
+    p4_summarize_tiered_execution(ledger(c("COMPLETED", "FAILED_SCIENTIFIC")),
+                                  "bank", "plan", "pass_a_ledger.json", c("ab_01", "ab_02")),
+    "ab_02"
+  )
+  testthat::expect_error(
+    p4_summarize_tiered_execution(list(pass = "A", branches = list(), status_counts = list()),
+                                  "bank", "plan", character(), "ab_01"),
+    "no branch results"
+  )
+})
+
+testthat::test_that("P4 runner status must agree with the published ledger", {
+  statuses <- c("COMPLETED", "FAILED_RESOURCE")
+  levels <- p4_tiered_status_levels()
+  ledger <- list(
+    branches = Map(function(id, status) list(branch_id = id, status = status),
+                   c("ab_01", "ab_02"), statuses),
+    status_counts = setNames(lapply(levels, function(x) sum(statuses == x)), levels)
+  )
+  testthat::expect_silent(p4_assert_tiered_pass(ledger, 1L, "A", "fixture.log"))
+  testthat::expect_error(p4_assert_tiered_pass(ledger, 0L, "A", "fixture.log"),
+                         "exit status disagrees")
+  failed <- ledger
+  failed$branches[[2L]]$status <- "FAILED_SCIENTIFIC"
+  failed$status_counts <- setNames(lapply(levels, function(x) {
+    sum(vapply(failed$branches, function(row) row$status == x, logical(1L)))
+  }), levels)
+  testthat::expect_error(p4_assert_tiered_pass(failed, 2L, "A", "fixture.log"), "ab_02")
+})
+
+testthat::test_that("P4 existing canonical branch inspection is read-only", {
+  root <- tempfile("p4-existing-")
+  dir.create(root)
+  branch <- list(branch_id = "ab_fixture", bank_id = "bank_fixture", output_directory = root)
+  payload <- file.path(root, "ab_fixture.tar")
+  writeBin(charToRaw("fixture-payload"), payload)
+  write_json_file(list(
+    branch_id = branch$branch_id, bank_id = branch$bank_id,
+    payload = list(filename = basename(payload), size_bytes = unname(file.info(payload)$size),
+                   sha256 = sha256_file(payload)),
+    validation = list(schema = "PASS", writer = "PASS", global_invariants = "PASS")
+  ), file.path(root, "branch_manifest.json"))
+  write_json_file(list(pass = "A", pid = 1L, requested_workers = 40L, threads = 1L,
+                       wall_seconds = 1), file.path(root, "execution.json"))
+  before <- vapply(list.files(root, full.names = TRUE), sha256_file, character(1L))
+  state <- p4_existing_bank_branch_state(branch)
+  after <- vapply(list.files(root, full.names = TRUE), sha256_file, character(1L))
+  testthat::expect_identical(state$status, "VALID")
+  testthat::expect_identical(before, after)
+  unlink(payload)
+  testthat::expect_identical(p4_existing_bank_branch_state(branch)$status, "INCOMPLETE")
+})
+
+testthat::test_that("P4 operational execution changes do not alter scientific implementation identity", {
+  old <- setwd(fuse_test_root)
+  on.exit(setwd(old), add = TRUE)
+  base <- p4_contract_paths(getwd())
+  operational <- c(base, file.path(fuse_test_root, "R/bank_execution.R"))
+  testthat::expect_identical(p4_load_spec(base, getwd())$implementation_hash,
+                             p4_load_spec(operational, getwd())$implementation_hash)
 })

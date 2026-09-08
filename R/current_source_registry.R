@@ -7,7 +7,7 @@ current_research_source_files <- function() {
     "R/spatial_membership.R", "R/vector_observations.R",
     "R/raster_observations.R", "R/spatial_relations.R",
     "R/spatial_observations.R", "R/spatial_relation_execution.R",
-    "R/scene_cache.R", "R/augmentation.R",
+    "R/scene_cache.R", "R/augmentation.R", "R/bank_execution.R",
     "R/fixed_queries.R", "R/model_inputs.R",
     "R/experiment_plan.R"
   )

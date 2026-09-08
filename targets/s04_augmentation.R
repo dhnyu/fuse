@@ -1,9 +1,14 @@
+p4_execution_resources <- targets::tar_resources(
+  crew = targets::tar_resources_crew(controller = "controller_05", seconds_timeout = 21600)
+)
+
 p4_branch_resources <- targets::tar_resources(
   crew = targets::tar_resources_crew(controller = "controller_05", seconds_timeout = 7200)
 )
 
 list_s04_augmentation <- list(
-  targets::tar_target(s04_bank_sources, normalizePath(p4_contract_paths(), mustWork = TRUE),
+  targets::tar_target(s04_bank_sources,
+    normalizePath(c(p4_contract_paths(), file.path(getwd(), "R/bank_execution.R")), mustWork = TRUE),
     format = "file", resources = controller_05_resources),
   targets::tar_target(s04_bank_profile_plan,
     p4_build_profile_plan(s00_augmentation_methodology_contract, s00_methodology_authority, s04_bank_sources),
@@ -19,8 +24,8 @@ list_s04_augmentation <- list(
       s03_scene_serialization_shard, s03_scene_dataset_acceptance, s04_bank_sources),
     format = "rds", iteration = "list", resources = controller_05_resources),
   targets::tar_target(s04_bank_execution,
-    p4_run_tiered_bank(s04_bank_shard_plan, s04_bank_sources),
-    format = "file", resources = p4_branch_resources),
+    p4_run_tiered_bank_current(s04_bank_shard_plan, s04_bank_sources),
+    format = "file", resources = p4_execution_resources),
   targets::tar_target(s04_bank_validated_shard,
     p4_validated_bank_shard(s04_bank_shard_plan, s04_bank_sources, s04_bank_execution),
     pattern = map(s04_bank_shard_plan), iteration = "list", format = "file",

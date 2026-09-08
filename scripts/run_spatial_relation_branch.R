@@ -10,10 +10,9 @@ frozen <- jsonlite::read_json(manifest_path, simplifyVector = FALSE)
 index <- match(branch_id, vapply(frozen$branches, `[[`, character(1L), "branch_id"))
 if (is.na(index)) stop("Unknown P2 relation branch: ", branch_id, call. = FALSE)
 branch <- frozen$branches[[index]]
-store <- frozen$research_store
-plans <- targets::tar_read(base_spatial_observation_plan, store = store)
-spec <- plans[[as.integer(branch$ordinal)]]
-vector_paths <- targets::tar_read_raw(branch$vector_target, store = store)
+spec <- jsonlite::read_json(branch$plan_spec_path, simplifyVector = FALSE)
+spec$.path <- branch$plan_spec_path
+vector_paths <- vapply(branch$vector_inputs, `[[`, character(1L), "path")
 stage_root <- file.path(dirname(manifest_path), "staging", pass_id, branch_id)
 result_dir <- file.path(dirname(manifest_path), "results", pass_id)
 dir.create(result_dir, recursive = TRUE, showWarnings = FALSE)
@@ -61,9 +60,9 @@ write_result <- function(value) {
 
 status <- tryCatch({
   outputs <- p2_build_relation_shard(spec, vector_paths,
-    targets::tar_read(study_data_inputs, store = store),
-    targets::tar_read(study_data_inputs, store = store),
-    relation_contract_paths(), 1L, 1L)
+    unlist(frozen$study_data_inputs, use.names = FALSE),
+    unlist(frozen$study_data_inputs, use.names = FALSE),
+    unlist(frozen$relation_contract_files, use.names = FALSE), 1L, 1L)
   manifest <- jsonlite::read_json(outputs[basename(outputs) == "branch_manifest.json"], simplifyVector = FALSE)
   if (!identical(manifest$status_final, "PASS") || !identical(manifest$branch_id, branch_id)) {
     stop("Relation branch manifest validation failed", call. = FALSE)

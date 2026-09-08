@@ -1,12 +1,15 @@
 schema_version: "3.0.0"
-implementation_version: "1.0.0"
+implementation_version: "1.1.0"
 migration_status: RECOMPUTE_REQUIRED
 authority_id: mta_7875c4ba4587e4877ba0be1d
 original_cache_contract_id: mmc_1989e1225beeb5f2
-scene_index_id: PENDING_CURRENT_RECOMPUTATION
-scene_acceptance_id: PENDING_CURRENT_RECOMPUTATION
-base_spatial_acceptance_id: PENDING_CURRENT_RECOMPUTATION
-original_observation_id: PENDING_CURRENT_RECOMPUTATION
+parents:
+  scene_schema_version: "1.0.0"
+  scene_acceptance_schema_version: "1.0.0"
+  spatial_acceptance_schema_version: "1.0.0"
+  expected_scene_count: 12421
+  split_counts: {training: 2421, validation: 1000, evaluation: 9000}
+  expected_spatial_relations: [SN, CNT, WIT, INT, CON]
 publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache
 sharding:
   algorithm: accepted_p2_scene_group_v1

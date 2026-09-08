@@ -24,6 +24,19 @@ testthat::test_that("P4 profile parameters exactly reproduce Appendix B", {
   testthat::expect_identical(observed, expected)
 })
 
+testthat::test_that("P4 provenance is bound to the current scientifically identical authority", {
+  config <- yaml::read_yaml(file.path(fuse_test_root, "config/p4_deterministic_augmentation.yml"))
+  authority_path <- "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/authority/mta_7875c4ba4587e4877ba0be1d/reduced_methodology_authority.json"
+  module_path <- "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/authority/mta_7875c4ba4587e4877ba0be1d/augmentation_methodology_contract.json"
+  authority <- jsonlite::read_json(authority_path, simplifyVector = FALSE)
+  module <- jsonlite::read_json(module_path, simplifyVector = FALSE)
+  expect_invisible(p4_assert_current_augmentation_contract(authority, module, config))
+  stale <- config; stale$dissertation_commit <- "109355b3d744248ca14749c5f74511537970d660"
+  expect_error(p4_assert_current_augmentation_contract(authority, module, stale), "scientifically identical")
+  expect_identical(config$dissertation_commit, "cbb824f19be8355296603f8426ac241ce587ddcc")
+  expect_identical(config$provenance_reconciliation$scientific_change, FALSE)
+})
+
 testthat::test_that("P4 target declarations use only the fixed bank interface", {
   path <- testthat::test_path("..", "..", "targets", "s04_augmentation.R")
   text <- paste(readLines(path, warn = FALSE), collapse = "\n")

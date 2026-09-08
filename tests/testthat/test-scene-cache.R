@@ -2,7 +2,9 @@ test_that("P3 Serialization-v3 scientific contract is fixed", {
   cfg <- yaml::read_yaml(file.path(fuse_test_root, "config/p3_original_scene_cache.yml"))
   expect_identical(cfg$schema_version, "3.0.0")
   expect_identical(cfg$authority_id, "mta_7875c4ba4587e4877ba0be1d")
-  expect_identical(cfg$base_spatial_acceptance_id, "PENDING_CURRENT_RECOMPUTATION")
+  expect_identical(cfg$parents$expected_scene_count, 12421L)
+  expect_identical(unname(as.integer(unlist(cfg$parents$split_counts))), c(2421L, 1000L, 9000L))
+  expect_false(any(grepl("PENDING_CURRENT_RECOMPUTATION", unlist(cfg), fixed = TRUE)))
   expect_identical(cfg$migration_status, "RECOMPUTE_REQUIRED")
   expect_identical(cfg$sharding$expected_shards, 96L)
   expect_identical(cfg$serialization$geometry_dtype, "float64_wkb")
@@ -14,6 +16,27 @@ test_that("P3 offsets reject truncation and malformed boundaries", {
   expect_error(p3_validate_offsets(c(0, 2, 4), 5), "invalid")
   expect_error(p3_validate_offsets(c(0, 3, 2, 5), 5), "invalid")
   expect_error(p3_validate_offsets(c(1, 2, 5), 5), "invalid")
+})
+
+test_that("P3 binds runtime current P1 and P2 identities without placeholders", {
+  fixture <- current_parent_fixture(); on.exit(unlink(fixture$root, recursive = TRUE), add = TRUE)
+  config <- yaml::read_yaml(file.path(fuse_test_root, "config/p3_original_scene_cache.yml"))
+  contract <- list(status = "PASS", authority_id = config$authority_id)
+  scene <- jsonlite::read_json(fixture$scene, simplifyVector = FALSE)
+  p2 <- jsonlite::read_json(fixture$p2, simplifyVector = FALSE)
+  membership <- jsonlite::read_json(fixture$membership, simplifyVector = FALSE)
+  expect_no_error(p3_assert_current_parents(contract, scene, fixture$index[[1L]], fixture$index[[2L]], p2, membership, config))
+  historical <- p2; historical$authority_id <- "mta_historical"
+  expect_error(p3_assert_current_parents(contract, scene, fixture$index[[1L]], fixture$index[[2L]], historical, membership, config), "current P1/P2")
+  mismatched <- p2; mismatched$original_observation_id <- "obs_historical"
+  plans <- replicate(96L, list(branch_id = "", original_observation_id = p2$original_observation_id,
+                               scene_index_id = p2$scene_index_id, scene_ids = list("")), simplify = FALSE)
+  for (i in seq_along(plans)) {
+    plans[[i]]$branch_id <- sprintf("branch-%03d", i)
+    plans[[i]]$scene_ids <- list(sprintf("scene-%03d", i))
+  }
+  expect_no_error(p3_assert_current_observation_plans(plans, p2, config))
+  expect_error(p3_assert_current_observation_plans(plans, mismatched, config), "observation-plan parent")
 })
 
 test_that("P3 adversarial mutations are blocked", {

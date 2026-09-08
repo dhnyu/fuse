@@ -1,13 +1,20 @@
-test_that("historical off-grid split remains immutable and is not current-compatible", {
-  config <- yaml::read_yaml(file.path(fuse_test_root, "config/p1_scene_index.yml"))
-  source <- arrow::read_parquet(config$off_grid_source$parquet$path, as_data_frame = TRUE)
-  ordered <- source[order(source$off_grid_order), ]
-  expect_equal(nrow(ordered), 2000L)
-  expect_identical(as.integer(ordered$off_grid_order), 1:2000)
-  expect_identical(as.character(ordered$split), c(rep("validation", 400), rep("evaluation", 1600)))
-  expect_equal(anyDuplicated(ordered$center_id), 0L)
-  expect_length(intersect(ordered$center_id[ordered$split == "validation"], ordered$center_id[ordered$split == "evaluation"]), 0L)
-  expect_identical(config$off_grid_source$current_status, "HISTORICAL_ONLY_REPLACEMENT_REQUIRED")
+test_that("current off-grid publisher is deterministic on a disposable fixture", {
+  boundary <- sf::st_sf(geometry = sf::st_sfc(sf::st_polygon(list(matrix(
+    c(0, 0, 100, 0, 100, 100, 0, 100, 0, 0), ncol = 2, byrow = TRUE
+  ))), crs = 5186))
+  training <- data.frame(center_x_5186 = 50, center_y_5186 = 50)
+  settings <- list(total_count = 20L, validation_count = 5L, evaluation_count = 15L,
+    minimum_training_center_distance_m = 5, candidate_batch_size = 32L,
+    split_seed = 26082501L, sampling_algorithm_version = "fixture-v1",
+    rng_kind = "Mersenne-Twister", normal_kind = "Inversion", sample_kind = "Rejection", rng_version = "4.0.0")
+  first <- build_current_off_grid_table(boundary, training, settings)
+  second <- build_current_off_grid_table(boundary, training, settings)
+  expect_identical(first$data, second$data)
+  expect_identical(off_grid_content_checksum(first$data), off_grid_content_checksum(second$data))
+  expect_identical(as.character(first$data$split), c(rep("validation", 5), rep("evaluation", 15)))
+  expect_equal(anyDuplicated(first$data$center_id), 0L)
+  expect_equal(anyDuplicated(first$data[, c("x", "y")]), 0L)
+  expect_error(validate_current_off_grid_table(first$data[-1, ], boundary, training, settings), "row_count")
 })
 
 test_that("scene identity is stable and split/source-specific", {
@@ -84,18 +91,12 @@ test_that("P1 immutable publication accepts identity and blocks collision", {
   expect_error(p1_publish_immutable_bundle(root, "value.txt", writer("different")), "collision")
 })
 
-test_that("historical accepted input fails the current P1 population contract", {
-  p1 <- yaml::read_yaml(file.path(fuse_test_root, "config/p1_scene_index.yml"))
-  paths <- yaml::read_yaml(file.path(fuse_test_root, "config/research_paths.yml"))
-  source <- arrow::read_parquet(p1$off_grid_source$parquet$path, as_data_frame = TRUE)
-  boundary <- sf::st_read(paths$inputs$boundary, paths$layers$boundary, quiet = TRUE)
-  contract <- list(crs = list(official_grid_epsg = 5179L, processing_epsg = 5186L),
-                   scene = list(official_cell_id_column = "SPO_NO_CD", coordinate_precision_m = 0.001))
-  training <- derive_official_training_scenes(boundary, paths$inputs$official_grid_shp, contract)$data
-  expect_equal(nrow(training), 2421L)
-  expect_equal(nrow(source), 2000L)
-  expect_error(
-    validate_accepted_off_grid_table(source, boundary, as.matrix(training[, c("center_x_5186", "center_y_5186")]), 50),
-    "identity contract failed"
-  )
+test_that("active P1 graph publishes current off-grid input without historical fallback", {
+  text <- paste(readLines(file.path(fuse_test_root, "targets/s01_scene_index.R")), collapse = "\n")
+  config <- yaml::read_yaml(file.path(fuse_test_root, "config/p1_scene_index.yml"))
+  expect_match(text, "s01_offgrid_scene_source", fixed = TRUE)
+  expect_match(text, "publish_current_off_grid_source", fixed = TRUE)
+  expect_false(grepl("i01_offgrid_scene_sources|verify_accepted_off_grid_source", text))
+  expect_identical(as.integer(unlist(config$off_grid_source[c("total_count", "validation_count", "evaluation_count")])), c(10000L, 1000L, 9000L))
+  expect_false(any(grepl("/scene_data/v1/", unlist(config), fixed = TRUE)))
 })

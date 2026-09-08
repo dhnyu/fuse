@@ -11,7 +11,7 @@ parents:
   methodology_authority_id: PENDING_OPERATIONAL_SUPERSESSION
   training_contract_id: mmc_1cf3f3d37e489d9a
   p1_scene_index_id: rsi_80031f1493c75163f91b7c71
-  scene_index_id: PENDING_CURRENT_RECOMPUTATION
+  scene_index_id: dynamic_from_current_model_data_acceptance
   p2_observation_id: obs_cd00016f6b5bfd960b0a6842
   p2_acceptance_id: bsa_e617ee0280a6edfa722994d3
   p3_cache_id: oscache_c89fa07e3d6cb1819a7994a6

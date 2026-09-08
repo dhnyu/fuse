@@ -47,7 +47,12 @@ list_s02_spatial_observations <- list(
       i01_seoul_spatial_sources, i01_seoul_spatial_sources, s02_raster_sources, 1L, 1L),
     pattern = map(s02_observation_plan, s02_vector_observation_shard), iteration = "list", format = "file", resources = controller_20_resources
   ),
-  targets::tar_target(s02_relation_execution, p2_relation_tiered_acceptance_path(s02_observation_plan), format = "file", resources = controller_05_resources),
+  targets::tar_target(
+    s02_relation_execution,
+    p2_run_relation_tiered_execution(s02_observation_plan, s02_vector_observation_shard,
+      i01_seoul_spatial_sources, s02_relation_sources),
+    format = "file", resources = controller_05_resources
+  ),
   targets::tar_target(
     s02_relation_shard,
     p2_register_tiered_relation_shard(s02_observation_plan, s02_vector_observation_shard, s02_relation_execution),

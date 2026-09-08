@@ -6,8 +6,8 @@ readiness_pointer: config/p11_spatial_readiness_acceptance.yml
 transformation_methodology: config/p11_target_transformation_methodology.json
 downstream_dataset_pointer: config/p11_downstream_dataset.yml
 p10_contract: config/evaluation.yml
-p10_acceptance: PENDING_CURRENT_RECOMPUTATION
-p10_acceptance_id: PENDING_CURRENT_RECOMPUTATION
+p10_acceptance: dynamic_from_current_evaluation_acceptance
+p10_acceptance_id: dynamic_from_current_evaluation_acceptance
 parallel_workers: 8
 blas_threads_per_worker: 1
 ridge:

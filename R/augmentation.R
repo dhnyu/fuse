@@ -21,7 +21,7 @@ p4_load_spec <- function(files, root = getwd()) {
   cfg <- yaml::read_yaml(files[basename(files) == "p4_deterministic_augmentation.yml"])
   schemas <- setNames(vapply(cfg$schemas, function(x) files[basename(files) == basename(x)][[1L]], character(1L)), names(cfg$schemas))
   relative <- sub(paste0("^", normalizePath(root, mustWork = TRUE), "/"), "", files)
-  scientific <- grepl("^(config/p4_|config/schemas/p4_|python/(p4_|canonical_config)|scripts/p4_|R/canonical_config)", relative) &
+  scientific <- grepl("^(config/p4_|config/schemas/p4_|python/(augmentation_|canonical_config)|scripts/(build_augmentation|validate_augmentation|aggregate_augmentation|smoke_test_augmentation)|R/(augmentation|canonical_config))", relative) &
     relative != "scripts/run_augmentation_bank.py"
   canonical_config_sha256 <- canonical_yaml_sha256(files[basename(files) == "p4_deterministic_augmentation.yml"],
                                                     c("publication_root", "execution"))
@@ -35,15 +35,41 @@ p4_load_spec <- function(files, root = getwd()) {
 
 p4_read <- function(paths, name) jsonlite::read_json(artifact_path(paths, name), simplifyVector = FALSE)
 
+p4_assert_current_augmentation_contract <- function(authority, module, cfg) {
+  contract <- module$canonical_contract
+  checks <- c(
+    identical(authority$overall_status, "PASS"),
+    identical(authority$authority_id, cfg$provenance_reconciliation$current_authority_id),
+    identical(authority$commit_sha, cfg$dissertation_commit), identical(module$status, "PASS"),
+    identical(contract$bank$scene_specific, TRUE), identical(contract$bank$pre_generated, TRUE),
+    identical(contract$bank$fixed_during_training, TRUE), identical(as.integer(contract$bank$main_k_aug), 8L),
+    identical(as.integer(contract$bank$physical_master_k), 16L),
+    identical(as.numeric(unlist(contract$bank$profiles)), c(0.5, 1, 2)),
+    identical(contract$online_scene_level_augmentation, "prohibited"),
+    identical(contract$dependent_removal$building_removes_hosted_poi, TRUE),
+    identical(contract$dependent_removal$dependent_poi_not_primary_count, TRUE),
+    identical(contract$geometry$protect_all_retained_source_network_nodes, TRUE),
+    identical(contract$geometry$protect_internal_absorbed_nodes, TRUE),
+    identical(unlist(contract$geometry$preserved_relation_sets), c("CNT", "WIT", "INT", "CON")),
+    identical(as.integer(contract$geometry$maximum_attempts_per_entity), 10L),
+    identical(contract$geometry$failure_keeps_original_geometry, TRUE),
+    identical(contract$geometry$sn_reconstructed_from_final_geometry, TRUE),
+    identical(unlist(contract$operation_order), unlist(cfg$operation_order)),
+    identical(contract$raster_perturbation$land_cover$method, "eight_neighbor_round_robin_block_growth"),
+    identical(as.integer(contract$raster_perturbation$land_cover$maximum_active_fronts), 4L),
+    identical(contract$raster_perturbation$dem$gaussian_noise, TRUE),
+    identical(as.integer(cfg$banks$default_k), 8L),
+    identical(cfg$provenance_reconciliation$scientific_change, FALSE)
+  )
+  if (!all(checks)) stop("P4 configuration is not scientifically identical to current augmentation authority", call. = FALSE)
+  invisible(TRUE)
+}
+
 p4_build_profile_plan <- function(augmentation_methodology_contract, reduced_methodology_authority, contract_files) {
   spec <- p4_load_spec(contract_files); cfg <- spec$config
   authority <- p4_read(reduced_methodology_authority, "reduced_methodology_authority.json")
   module <- p4_read(augmentation_methodology_contract, "augmentation_methodology_contract.json")
-  if (authority$commit_sha != cfg$dissertation_commit || authority$overall_status != "PASS" ||
-      module$status != "PASS" ||
-      module$canonical_contract$geometry$maximum_attempts_per_entity != 10L ||
-      !isTRUE(module$canonical_contract$geometry$failure_keeps_original_geometry))
-    stop("P4 authority supplement conflicts with immutable methodology", call. = FALSE)
+  p4_assert_current_augmentation_contract(authority, module, cfg)
   expected <- list(
     weak_0.5x = c(.5,.05,.10,.5,.5,.05,.05,.05,.05,.5),
     main_1.0x = c(1,.10,.20,1,1,.10,.10,.10,.10,1),

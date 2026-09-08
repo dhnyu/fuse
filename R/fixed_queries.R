@@ -44,6 +44,27 @@ p5_load_spec <- function(files, root = getwd()) {
 
 p5_read <- function(paths, name) jsonlite::read_json(artifact_path(paths, name), simplifyVector = FALSE)
 
+p5_validate_population_contract <- function(scene_id, split, config) {
+  split <- as.character(split); scene_id <- as.character(scene_id)
+  levels <- c("validation", "evaluation")
+  counts <- as.integer(table(factor(split, levels = levels)))
+  expected_originals <- vapply(levels, function(name) as.integer(config$namespaces[[name]]$originals), integer(1L))
+  expected_queries <- vapply(levels, function(name) as.integer(config$namespaces[[name]]$queries), integer(1L))
+  expected_gallery <- vapply(levels, function(name) as.integer(config$namespaces[[name]]$gallery), integer(1L))
+  query_count <- expected_originals * length(config$query_indices)
+  checks <- c(
+    identical(unname(expected_originals), c(1000L, 9000L)), identical(sum(expected_originals), 10000L),
+    identical(unname(expected_queries), c(2000L, 18000L)), identical(sum(expected_queries), 20000L),
+    identical(unname(expected_gallery), c(1000L, 9000L)), identical(query_count, expected_queries),
+    identical(as.integer(config$query_indices), c(0L, 1L)), identical(counts, unname(expected_originals)),
+    length(scene_id) == 10000L, !anyDuplicated(scene_id),
+    !length(intersect(scene_id[split == "validation"], scene_id[split == "evaluation"]))
+  )
+  if (!all(checks)) stop("P5 current validation/evaluation population contract failed", call. = FALSE)
+  list(originals = setNames(as.list(counts), levels), queries = setNames(as.list(query_count), levels),
+       galleries = setNames(as.list(expected_gallery), levels))
+}
+
 p5_build_contract <- function(evaluation_methodology_contract, augmentation_methodology_contract,
                               original_scene_dataset_acceptance, augmentation_profile_plan,
                               augmentation_bank_plan, augmentation_bank_acceptance,
@@ -104,9 +125,7 @@ p5_build_shard_plan <- function(fixed_query_methodology_contract, spatial_scene_
   rows <- merge(cache_index, scene_index[, c("scene_id", "split")], by = "scene_id", sort = FALSE)
   rows <- rows[rows$split %in% c("validation", "evaluation"), ]
   rows <- rows[order(rows$split, rows$scene_id, method = "radix"), ]
-  if (!identical(unname(as.integer(table(rows$split)[c("validation", "evaluation")])), c(1000L, 9000L))) {
-    stop("P5 P1/P3 split population mismatch", call. = FALSE)
-  }
+  populations <- p5_validate_population_contract(rows$scene_id, rows$split, cfg)
   parents <- p4_parent_tar_records(original_scene_serialization_shard)
   parent_map <- setNames(parents, vapply(parents, `[[`, character(1L), "branch_id"))
   p4_plan <- augmentation_bank_plan[[1L]]
@@ -147,11 +166,11 @@ p5_build_shard_plan <- function(fixed_query_methodology_contract, spatial_scene_
          config = runtime_config)
   }))
   branches <- branches[order(vapply(branches, `[[`, character(1L), "branch_id"), method = "radix")]
-  if (sum(vapply(branches, function(branch) length(branch$scene_ids), integer(1L))) != 2000L) stop("P5 plan coverage mismatch", call. = FALSE)
+  if (sum(vapply(branches, function(branch) length(branch$scene_ids), integer(1L))) != 10000L) stop("P5 plan coverage mismatch", call. = FALSE)
   plan <- list(schema_version = cfg$schema_version, status = "PASS", query_authority_id = authority_id,
                plan_id = plan_id, supplement_id = cfg$supplement_id, parent_cache_id = p3$cache_id,
                parent_acceptance_id = p3$acceptance_id, branch_count = length(branches), scene_count = 10000L,
-               query_count = 20000L, split_counts = list(validation = 1000L, evaluation = 9000L),
+               query_count = sum(unlist(populations$queries)), split_counts = populations$originals,
                scientific_fingerprint = fingerprint, implementation_hash = spec$implementation_hash,
                branches = unname(lapply(branches, function(branch) branch[c("branch_id", "namespace", "split", "parent_branch_id", "scene_ids")])))
   plan_dir <- file.path(cfg$publication_root, authority_id, "plans", plan_id)

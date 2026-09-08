@@ -42,7 +42,7 @@
       "type": "object"
     },
     "dissertation_commit": {
-      "const": "109355b3d744248ca14749c5f74511537970d660"
+      "const": "cbb824f19be8355296603f8426ac241ce587ddcc"
     },
     "execution": {
       "additionalProperties": true,

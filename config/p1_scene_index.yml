@@ -1,5 +1,5 @@
 schema_version: "1.0.0"
-implementation_version: "1.0.0"
+implementation_version: "1.1.0"
 migration_status: RECOMPUTE_REQUIRED
 authority:
   expected_id: mta_7875c4ba4587e4877ba0be1d
@@ -19,27 +19,26 @@ scene:
     evaluation: 9000
   total_count: 12421
 off_grid_source:
-  current_status: HISTORICAL_ONLY_REPLACEMENT_REQUIRED
-  artifact_id: ogs_19933828d3de55d16b8861d7
+  contract_version: current-off-grid-v1
   split_seed: 26082501
   split_algorithm: approved_source_order_first_1000_validation_remaining_9000_evaluation
-  parquet:
-    path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/off_grid_sources/ogs_19933828d3de55d16b8861d7/approved_off_grid_scene_centers.parquet
-    size_bytes: 84309
-    sha256: 77c035505a2a0d22fb3aefff845c65b505d69b9ca89b5fda9ef36cc2e90177e4
-  manifest:
-    path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/off_grid_sources/ogs_19933828d3de55d16b8861d7/approved_off_grid_scene_source_manifest.json
-    size_bytes: 3640
-    sha256: e8c51e120e15376658b9fd7bd659b8a02677be1881c23c09745bbd978833e26a
-  qc:
-    path: /mnt/hdd002/dhnyu/fusedata/scene_data/v1/off_grid_sources/ogs_19933828d3de55d16b8861d7/approved_off_grid_scene_source_qc.json
-    size_bytes: 495
-    sha256: 50bd3f0d927bde08b2ac52e0b9199299b3c5b100c3bd749897480f5c0089eaab
+  total_count: 10000
+  validation_count: 1000
+  evaluation_count: 9000
+  minimum_training_center_distance_m: 50
+  candidate_batch_size: 8192
+  sampling_algorithm: bbox_rejection_with_exact_boundary_and_nearest_training_distance
+  sampling_algorithm_version: current-off-grid-v1
+  rng_kind: Mersenne-Twister
+  normal_kind: Inversion
+  sample_kind: Rejection
+  rng_version: "4.0.0"
 publication:
   root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index
 schemas:
   inventory: config/schemas/p1_study_data_inventory.schema.json
   off_grid: config/schemas/p1_off_grid_source.schema.json
+  off_grid_manifest: config/schemas/p1_off_grid_population_manifest.schema.json
   plan: config/schemas/p1_scene_index_plan.schema.json
   index: config/schemas/p1_scene_index_manifest.schema.json
   acceptance: config/schemas/p1_scene_index_acceptance.schema.json

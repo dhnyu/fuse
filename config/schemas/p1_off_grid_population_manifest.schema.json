@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "artifact_id", "status", "methodology_authority_id", "content_checksum", "row_count", "split_counts", "crs_epsg", "minimum_training_center_distance_m", "scientific_identity", "files"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "artifact_id": {"type": "string", "pattern": "^ogs_[0-9a-f]{24}$"},
+    "status": {"const": "PASS"},
+    "methodology_authority_id": {"type": "string", "pattern": "^mta_[0-9a-f]{24}$"},
+    "content_checksum": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "row_count": {"const": 10000},
+    "split_counts": {"type": "object"},
+    "crs_epsg": {"const": 5186},
+    "minimum_training_center_distance_m": {"const": 50},
+    "scientific_identity": {"type": "object"},
+    "files": {"type": "object"}
+  },
+  "additionalProperties": false
+}

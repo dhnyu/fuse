@@ -9,6 +9,7 @@ p1_scene_index_contract_paths <- function(root = getwd()) {
     config = p1_scene_index_config_file(root),
     vapply(config$schemas, function(path) file.path(root, path), character(1L)),
     implementation_helper = file.path(root, "R/scene_index.R"),
+    off_grid_helper = file.path(root, "R/off_grid_source.R"),
     target_declaration = file.path(root, "targets/s01_scene_index.R")
   )
 }
@@ -22,7 +23,7 @@ load_p1_scene_index_spec <- function(contract_files, root = getwd()) {
   missing <- setdiff(schema_names, names(by_name))
   if (length(missing)) stop("P1 schema file is absent: ", paste(missing, collapse = ", "), call. = FALSE)
   implementation_rel <- c(
-    "R/scene_index.R", "targets/s01_scene_index.R",
+    "R/scene_index.R", "R/off_grid_source.R", "targets/s01_scene_index.R",
     "config/p1_scene_index.yml", unname(unlist(config$schemas, use.names = FALSE))
   )
   implementation_files <- file.path(root, implementation_rel)
@@ -164,42 +165,6 @@ validate_accepted_off_grid_table <- function(source, boundary, training_xy, mini
   if (outside || violations) stop("Accepted off-grid source spatial contract failed", call. = FALSE)
   distance_by_id <- setNames(distances, source$center_id)
   list(ordered = ordered, distances = distance_by_id, outside = outside, violations = violations, minimum = min(distances))
-}
-
-verify_accepted_off_grid_source <- function(study_data_inputs, scene_methodology_contract,
-                                            p1_scene_index_contract_files, workers = 1L, threads = 1L) {
-  fuse_parallel_spec(workers, threads)
-  spec <- load_p1_scene_index_spec(p1_scene_index_contract_files)
-  cfg <- spec$config$off_grid_source
-  named <- c(parquet = cfg$parquet$path, manifest = cfg$manifest$path, qc = cfg$qc$path)
-  expected <- list(parquet = cfg$parquet, manifest = cfg$manifest, qc = cfg$qc)
-  for (role in names(named)) if (!file.exists(named[[role]]) || file.info(named[[role]])$size != expected[[role]]$size_bytes || !identical(sha256_file(named[[role]]), expected[[role]]$sha256)) stop("Accepted off-grid source mismatch: ", role, call. = FALSE)
-  manifest <- jsonlite::read_json(named[["manifest"]], simplifyVector = FALSE)
-  qc <- jsonlite::read_json(named[["qc"]], simplifyVector = FALSE)
-  if (!identical(manifest$artifact_id, cfg$artifact_id) || !identical(manifest$status, "PASS") || !identical(qc$status, "PASS")) stop("Accepted off-grid manifest/QC is not PASS", call. = FALSE)
-  paths <- yaml::read_yaml(file.path(spec$root, "config/research_paths.yml"))
-  inputs <- setNames(normalizePath(study_data_inputs, mustWork = TRUE), names(paths$inputs))
-  boundary <- sf::st_read(inputs[["boundary"]], paths$layers$boundary, quiet = TRUE)
-  contract <- jsonlite::read_json(artifact_path(scene_methodology_contract, "scene_methodology_contract.json"), simplifyVector = FALSE)
-  training_contract <- list(crs = list(official_grid_epsg = 5179L, processing_epsg = 5186L), scene = list(official_cell_id_column = "SPO_NO_CD", coordinate_precision_m = 0.001))
-  training <- derive_official_training_scenes(boundary, inputs[["official_grid_shp"]], training_contract)$data
-  source <- arrow::read_parquet(named[["parquet"]], as_data_frame = TRUE)
-  check <- validate_accepted_off_grid_table(source, boundary, as.matrix(training[, c("center_x_5186", "center_y_5186")]), contract$canonical_contract$off_grid_minimum_distance_m)
-  files <- lapply(names(named), function(role) p1_artifact_record(named[[role]], role))
-  scientific <- list(source_artifact_id = cfg$artifact_id, source_content_checksum = manifest$content_checksum,
-                     split_seed = cfg$split_seed, split_algorithm = cfg$split_algorithm, files = files,
-                     row_identity_hash = p0_scientific_sha256(as.character(check$ordered$center_id)))
-  hash <- p0_scientific_sha256(scientific)
-  value <- list(schema_version = "1.0.0", source_acceptance_id = paste0("osa_", substr(hash, 1L, 24L)), status = "PASS",
-                source_artifact_id = cfg$artifact_id, row_count = 10000L,
-                split_counts = list(training = 0L, validation = 1000L, evaluation = 9000L), crs_epsg = 5186L,
-                minimum_nearest_training_center_m = check$minimum, files = files, scientific_hash = hash,
-                execution = list(source_paths = as.list(named)))
-  final_dir <- file.path(spec$config$publication$root, "_sources", value$source_acceptance_id)
-  p1_publish_immutable_bundle(final_dir, "accepted_off_grid_source.json", function(stage) {
-    path <- write_json_file(value, file.path(stage, "accepted_off_grid_source.json"))
-    validate_json_schema_file(path, spec$schemas[["off_grid"]])
-  })
 }
 
 build_reduced_scene_index_plan <- function(study_data_inventory, accepted_off_grid_source,

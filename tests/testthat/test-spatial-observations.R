@@ -8,6 +8,56 @@ test_that("P2 deterministic LPT covers every scene once", {
   expect_true(all(lengths(first) <= 8L))
 })
 
+test_that("P2 binds runtime current P1 identities and exact content hashes", {
+  fixture <- current_parent_fixture(); on.exit(unlink(fixture$root, recursive = TRUE), add = TRUE)
+  config <- yaml::read_yaml(file.path(fuse_test_root, "config/p2_base_spatial.yml"))
+  spec <- list(config = config)
+  expect_no_error(p2_assert_upstream(fixture$authority, fixture$contract, fixture$index,
+                                     fixture$scene, fixture$inventory, spec))
+  scene <- jsonlite::read_json(fixture$scene, simplifyVector = FALSE)
+  scene$artifact_checksums[[1L]]$sha256 <- paste(rep("0", 64), collapse = "")
+  write_json_file(scene, fixture$scene)
+  expect_error(p2_assert_upstream(fixture$authority, fixture$contract, fixture$index,
+                                  fixture$scene, fixture$inventory, spec), "identity or acceptance")
+  scene$artifact_checksums[[1L]]$sha256 <- sha256_file(fixture$index[basename(fixture$index) == "spatial_scene_index.parquet"])
+  scene$authority_id <- "mta_historical"
+  write_json_file(scene, fixture$scene)
+  expect_error(p2_assert_upstream(fixture$authority, fixture$contract, fixture$index,
+                                  fixture$scene, fixture$inventory, spec), "identity or acceptance")
+  expect_false(any(grepl("PENDING_CURRENT_RECOMPUTATION", unlist(config), fixed = TRUE)))
+})
+
+test_that("P2 relation execution is owned by current target names", {
+  target_text <- paste(readLines(file.path(fuse_test_root, "targets/s02_spatial_observations.R")), collapse = "\n")
+  helper_text <- paste(readLines(file.path(fuse_test_root, "R/spatial_relation_execution.R")), collapse = "\n")
+  worker_text <- paste(readLines(file.path(fuse_test_root, "scripts/run_spatial_relation_branch.R")), collapse = "\n")
+  expect_match(target_text, "p2_run_relation_tiered_execution(s02_observation_plan, s02_vector_observation_shard", fixed = TRUE)
+  retired <- c("base_spatial_observation_plan", "base_vector_observation_shard", "targets::tar_read(study_data_inputs")
+  expect_false(any(vapply(retired, grepl, logical(1L), x = paste(helper_text, worker_text), fixed = TRUE)))
+})
+
+test_that("disposable targets store reaches current P2 relation acceptance", {
+  skip_if_not_installed("targets")
+  root <- tempfile("p2-fixture-store-"); dir.create(root)
+  on.exit(unlink(root, recursive = TRUE), add = TRUE)
+  script <- file.path(root, "_targets.R"); store <- file.path(root, "store")
+  acceptance <- file.path(root, "fixture_spatial_acceptance.json")
+  lines <- c(
+    "library(targets)",
+    sprintf("root <- %s", deparse(root)),
+    "list(",
+    "tar_target(s02_observation_plan, list(list(branch_id = 'branch-current'))),",
+    "tar_target(s02_vector_observation_shard, list(list(branch_id = s02_observation_plan[[1]]$branch_id))),",
+    "tar_target(s02_relation_execution, {stopifnot(s02_vector_observation_shard[[1]]$branch_id == s02_observation_plan[[1]]$branch_id); p <- file.path(root, 'fixture_relation_acceptance.json'); jsonlite::write_json(list(status='PASS'), p, auto_unbox=TRUE); p}, format='file'),",
+    sprintf("tar_target(s02_spatial_acceptance, {stopifnot(file.exists(s02_relation_execution)); p <- %s; jsonlite::write_json(list(status='PASS', lineage='current'), p, auto_unbox=TRUE); p}, format='file')", deparse(acceptance)),
+    ")"
+  )
+  writeLines(lines, script)
+  targets::tar_make(names = s02_spatial_acceptance, script = script, store = store,
+                    callr_function = NULL, reporter = "silent")
+  expect_identical(jsonlite::read_json(acceptance, simplifyVector = FALSE)$lineage, "current")
+})
+
 test_that("P2 observation identity excludes execution layout", {
   scientific <- list(authority = "mta", index = "rsi", schemas = c("a", "b"), implementation = "hash")
   expect_identical(p2_original_observation_id(scientific), p2_original_observation_id(scientific))

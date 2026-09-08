@@ -14,6 +14,19 @@ testthat::test_that("P5 supplement fixes namespaces, populations and query indic
   testthat::expect_identical(config$p4_logical_index_id, "dynamic_from_effective_augmentation_bank_index")
 })
 
+testthat::test_that("P5 enforces exact current split, query, gallery, and identity counts", {
+  config <- yaml::read_yaml(file.path(fuse_test_root, "config/p5_deterministic_queries.yml"))
+  ids <- sprintf("scene-%05d", seq_len(10000L))
+  split <- c(rep("validation", 1000L), rep("evaluation", 9000L))
+  expect_silent(p5_validate_population_contract(ids, split, config))
+  expect_error(p5_validate_population_contract(ids[1:2000], c(rep("validation", 400), rep("evaluation", 1600)), config), "population contract")
+  expect_error(p5_validate_population_contract(ids, c(rep("validation", 999), rep("evaluation", 9001)), config), "population contract")
+  bad_queries <- config; bad_queries$namespaces$evaluation$queries <- 17999L
+  expect_error(p5_validate_population_contract(ids, split, bad_queries), "population contract")
+  duplicate <- ids; duplicate[[1001L]] <- duplicate[[1L]]
+  expect_error(p5_validate_population_contract(duplicate, split, config), "population contract")
+})
+
 testthat::test_that("P5 target declaration excludes P6, maintenance and GPU dependencies", {
   path <- testthat::test_path("..", "..", "targets", "s05_fixed_queries.R")
   text <- paste(readLines(path, warn = FALSE), collapse = "\n")

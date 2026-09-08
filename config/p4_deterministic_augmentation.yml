@@ -1,7 +1,12 @@
 schema_version: "1.0.0"
 supplement_version: p4-augmentation-v2
-implementation_version: "2.0.0"
-dissertation_commit: 109355b3d744248ca14749c5f74511537970d660
+implementation_version: "2.1.0"
+dissertation_commit: cbb824f19be8355296603f8426ac241ce587ddcc
+provenance_reconciliation:
+  status: SCIENTIFICALLY_IDENTICAL
+  prior_dissertation_commit: 109355b3d744248ca14749c5f74511537970d660
+  current_authority_id: mta_7875c4ba4587e4877ba0be1d
+  scientific_change: false
 authority_id: dynamic_from_reduced_methodology_authority
 augmentation_contract_id: dynamic_from_augmentation_methodology_contract
 original_cache_id: dynamic_from_original_scene_dataset_acceptance

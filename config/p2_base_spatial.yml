@@ -1,14 +1,16 @@
 schema_version: "1.0.0"
-implementation_version: "1.0.0"
+implementation_version: "1.1.0"
 migration_status: RECOMPUTE_REQUIRED
 authority:
   id: mta_7875c4ba4587e4877ba0be1d
   base_contract_id: mmc_b75dcec66fe442fc
   base_contract_hash: b75dcec66fe442fc5deda2b8798d6ff5b7f4380ec66cab6e769dd8c31cb3dfa8
 p1:
-  scene_index_id: PENDING_CURRENT_RECOMPUTATION
-  scene_acceptance_id: PENDING_CURRENT_RECOMPUTATION
-  inventory_id: PENDING_CURRENT_RECOMPUTATION
+  scene_index_schema_version: "1.0.0"
+  scene_acceptance_schema_version: "1.0.0"
+  inventory_schema_version: "1.0.0"
+  split_counts: {training: 2421, validation: 1000, evaluation: 9000}
+  total_count: 12421
 publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations
 scopes:
   production:

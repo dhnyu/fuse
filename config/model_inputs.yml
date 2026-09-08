@@ -5,16 +5,16 @@ publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data
 
 parents:
   authority_id: mta_7875c4ba4587e4877ba0be1d
-  scene_index_id: PENDING_CURRENT_RECOMPUTATION
-  scene_acceptance_id: PENDING_CURRENT_RECOMPUTATION
-  observation_id: PENDING_CURRENT_RECOMPUTATION
-  base_spatial_acceptance_id: PENDING_CURRENT_RECOMPUTATION
-  p3_cache_id: PENDING_CURRENT_RECOMPUTATION
-  p3_acceptance_id: PENDING_CURRENT_RECOMPUTATION
-  p4_master_bank_id: PENDING_CURRENT_RECOMPUTATION
-  p4_logical_index_id: PENDING_CURRENT_RECOMPUTATION
-  p5_query_authority_id: PENDING_CURRENT_RECOMPUTATION
-  p5_acceptance_id: PENDING_CURRENT_RECOMPUTATION
+  scene_index_id: dynamic_from_current_p2_acceptance
+  scene_acceptance_id: dynamic_from_current_p2_acceptance
+  observation_id: dynamic_from_current_p2_acceptance
+  base_spatial_acceptance_id: dynamic_from_current_p2_acceptance
+  p3_cache_id: dynamic_from_current_p3_acceptance
+  p3_acceptance_id: dynamic_from_current_p3_acceptance
+  p4_master_bank_id: dynamic_from_current_p4_acceptance
+  p4_logical_index_id: dynamic_from_current_p4_acceptance
+  p5_query_authority_id: dynamic_from_current_p5_acceptance
+  p5_acceptance_id: dynamic_from_current_p5_acceptance
 
 population:
   training: 2421

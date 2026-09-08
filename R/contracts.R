@@ -49,6 +49,15 @@ short_hash_id <- function(prefix, value, characters = 24L) {
   paste0(prefix, substr(canonical_sha256(value), 1L, as.integer(characters)))
 }
 
+artifact_path <- function(paths, basename_required) {
+  values <- unlist(paths, recursive = TRUE, use.names = FALSE)
+  matches <- values[basename(values) == basename_required]
+  if (length(matches) != 1L) {
+    stop("Artifact lookup requires exactly one ", basename_required, call. = FALSE)
+  }
+  normalizePath(matches[[1L]], mustWork = TRUE)
+}
+
 write_json_file <- function(value, path) {
   jsonlite::write_json(
     value, path, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = NA

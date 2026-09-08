@@ -30,34 +30,35 @@ p2_relation_expected_paths <- function(final_dir) {
   file.path(final_dir, relation_output_names())
 }
 
-p2_relation_vector_branch_names <- function(store) {
-  meta <- targets::tar_meta(store = store)
-  plan_row <- meta[meta$name == "base_spatial_observation_plan", ]
-  if (nrow(plan_row) != 1L || !length(plan_row$children[[1L]])) {
-    stop("Production observation-plan branches are unavailable", call. = FALSE)
+p2_prepare_relation_tiered_manifest <- function(observation_plans, vector_shards,
+                                                study_data_inputs, relation_contract_files,
+                                                aborted_record = NULL) {
+  plans <- observation_plans
+  if (is.list(plans) && !is.null(plans$branch_id)) plans <- list(plans)
+  if (!length(plans) || length(plans) != length(vector_shards)) {
+    stop("Plan/vector branch cardinality mismatch", call. = FALSE)
   }
-  pattern_name_branches <- get("pattern_name_branches", asNamespace("targets"))
-  pattern_name_branches("base_vector_observation_shard", list(plan_row$children[[1L]]))
-}
-
-p2_prepare_relation_tiered_manifest <- function(store, aborted_record = NULL) {
-  plans <- targets::tar_read(base_spatial_observation_plan, store = store)
-  vector_targets <- p2_relation_vector_branch_names(store)
-  if (length(plans) != length(vector_targets)) stop("Plan/vector branch cardinality mismatch", call. = FALSE)
-  study <- targets::tar_read(study_data_inputs, store = store)
-  road_path <- runtime_mirror_path(study, "road")
+  vector_by_id <- setNames(vector_shards, vapply(vector_shards, function(paths) {
+    manifest <- jsonlite::read_json(artifact_path(paths, "branch_manifest.json"), simplifyVector = FALSE)
+    manifest$branch_id
+  }, character(1L)))
+  ordered_ids <- vapply(plans, `[[`, character(1L), "branch_id")
+  if (!setequal(names(vector_by_id), ordered_ids)) stop("Plan/vector branch identity mismatch", call. = FALSE)
+  vector_shards <- unname(vector_by_id[ordered_ids])
+  study <- normalizePath(study_data_inputs, mustWork = TRUE)
+  road_path <- relation_road_path(study)
   road_record <- list(
     path = plans[[1L]]$sources$road$path,
     artifact_id = plans[[1L]]$sources$road$source_artifact_id,
     sha256 = sha256_file(road_path), size_bytes = unname(file.info(road_path)$size),
     links_layer = "links", nodes_layer = "nodes"
   )
-  config <- load_relation_config(relation_contract_paths())
+  config <- load_relation_config(relation_contract_files)
   root <- p2_relation_tiered_root(plans)
   dir.create(root, recursive = TRUE, showWarnings = FALSE)
   branches <- lapply(seq_along(plans), function(i) {
     spec <- plans[[i]]
-    vector_paths <- targets::tar_read_raw(vector_targets[[i]], store = store)
+    vector_paths <- normalizePath(vector_shards[[i]], mustWork = TRUE)
     vector <- read_i10_branch_context(spec, vector_paths)
     relation_id <- relation_dataset_identity(spec, vector, road_record, config)
     final_dir <- file.path(dirname(dirname(dirname(dirname(spec$output$directory)))), relation_id,
@@ -72,7 +73,7 @@ p2_prepare_relation_tiered_manifest <- function(store, aborted_record = NULL) {
       observation_dataset_id = spec$observation_dataset_id,
       original_observation_id = spec$original_observation_id,
       scene_index_id = spec$scene_index_id,
-      vector_target = vector_targets[[i]],
+      plan_spec_path = normalizePath(spec$.path, mustWork = TRUE),
       vector_inputs = lapply(vector_paths, function(path) list(
         path = normalizePath(path, mustWork = TRUE), size_bytes = unname(file.info(path)$size),
         sha256 = sha256_file(path)
@@ -101,9 +102,12 @@ p2_prepare_relation_tiered_manifest <- function(store, aborted_record = NULL) {
       "ordinal", "branch_id", "scene_ids", "observation_dataset_id", "relation_dataset_id"
     )] |> c(list(vector_input_sha256 = lapply(x$vector_inputs, `[[`, "sha256"))))
   )
+  scientific_identity_sha256 <- p0_scientific_sha256(scientific)
   value <- list(
     schema_version = "1.0.0", policy_version = p2_relation_tiered_policy_version(),
-    status = "FROZEN", research_store = normalizePath(store, mustWork = TRUE),
+    status = "FROZEN", study_data_inputs = as.list(study),
+    relation_contract_files = as.list(normalizePath(relation_contract_files, mustWork = TRUE)),
+    relation_attempt_id = paste0("rte_", substr(scientific_identity_sha256, 1L, 24L)),
     branch_count = length(branches), configured_passes = list(
       pass_a_40 = list(workers = 40L, input = "ALL"),
       pass_b_10 = list(workers = 10L, input = "PASS_A_NATIVE_RESOURCE_UNATTEMPTED"),
@@ -114,7 +118,7 @@ p2_prepare_relation_tiered_manifest <- function(store, aborted_record = NULL) {
       "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS", "GDAL_NUM_THREADS",
       "ARROW_NUM_THREADS", "PYTHONDONTWRITEBYTECODE"
     ))),
-    scientific_identity_sha256 = p0_scientific_sha256(scientific),
+    scientific_identity_sha256 = scientific_identity_sha256,
     branches = branches, aborted_policy_order_run = aborted_record,
     generated_at = kst_now()
   )
@@ -124,9 +128,55 @@ p2_prepare_relation_tiered_manifest <- function(store, aborted_record = NULL) {
     if (!identical(prior$scientific_identity_sha256, value$scientific_identity_sha256)) {
       stop("Frozen P2 relation branch manifest collision", call. = FALSE)
     }
+    return(normalizePath(path, mustWork = TRUE))
   }
   write_json_file(value, path)
   normalizePath(path, mustWork = TRUE)
+}
+
+p2_run_relation_tiered_execution <- function(observation_plans, vector_shards,
+                                             study_data_inputs, relation_contract_files) {
+  manifest <- p2_prepare_relation_tiered_manifest(
+    observation_plans, vector_shards, study_data_inputs, relation_contract_files
+  )
+  acceptance <- p2_relation_tiered_acceptance_path(observation_plans)
+  if (file.exists(acceptance)) {
+    current <- jsonlite::read_json(acceptance, simplifyVector = FALSE)
+    frozen <- jsonlite::read_json(manifest, simplifyVector = FALSE)
+    if (identical(current$status, "PASS") &&
+        identical(current$intended_branch_manifest_sha256, sha256_file(manifest)) &&
+        identical(current$policy_version, frozen$policy_version)) {
+      return(normalizePath(c(manifest, acceptance, unlist(lapply(current$pass_summaries, `[[`, "path"))), mustWork = TRUE))
+    }
+    stop("Existing P2 relation execution acceptance does not match the current manifest", call. = FALSE)
+  }
+  runner <- normalizePath(file.path(getwd(), "scripts/run_spatial_relations.py"), mustWork = TRUE)
+  passes <- c(pass_a_40 = 40L, pass_b_10 = 10L, pass_c_5 = 5L)
+  previous <- NULL; summaries <- character()
+  for (pass_id in names(passes)) {
+    if (!is.null(previous)) {
+      prior <- jsonlite::read_json(previous, simplifyVector = FALSE)
+      statuses <- vapply(prior$records, `[[`, character(1L), "status")
+      retryable <- grepl("^FAILED_(NATIVE|RESOURCE)|^UNATTEMPTED", statuses)
+      if (!any(retryable)) break
+    }
+    summary <- file.path(dirname(manifest), "passes", pass_id, "summary.json")
+    if (!file.exists(summary)) {
+      args <- c(runner, "--manifest", manifest, "--pass-id", pass_id,
+                "--workers", as.character(passes[[pass_id]]))
+      if (!is.null(previous)) args <- c(args, "--previous-summary", previous)
+      output <- system2(research_python_executable(), args, stdout = TRUE, stderr = TRUE)
+      if ((attr(output, "status") %||% 0L) != 0L && !file.exists(summary)) {
+        stop("P2 relation pass failed before publishing its summary: ", paste(output, collapse = " | "), call. = FALSE)
+      }
+    }
+    current <- jsonlite::read_json(summary, simplifyVector = FALSE)
+    statuses <- vapply(current$records, `[[`, character(1L), "status")
+    if (any(grepl("^FAILED_SCIENTIFIC", statuses))) stop("P2 relation scientific failure in ", pass_id, call. = FALSE)
+    summaries <- c(summaries, summary); previous <- summary
+  }
+  accepted <- p2_finalize_relation_tiered(manifest)
+  normalizePath(c(manifest, accepted, summaries), mustWork = TRUE)
 }
 
 p2_validate_registered_relation_bundle <- function(branch, result) {
@@ -153,7 +203,9 @@ p2_validate_registered_relation_bundle <- function(branch, result) {
 
 p2_register_tiered_relation_shard <- function(observation_plan, vector_shard,
                                                 tiered_acceptance_file) {
-  acceptance <- jsonlite::read_json(tiered_acceptance_file, simplifyVector = FALSE)
+  acceptance <- jsonlite::read_json(
+    artifact_path(tiered_acceptance_file, "tiered_relation_acceptance.json"), simplifyVector = FALSE
+  )
   if (!identical(acceptance$status, "PASS")) stop("Tiered relation acceptance is not PASS", call. = FALSE)
   branch <- acceptance$branches[[observation_plan$branch_id]]
   if (is.null(branch) || !identical(branch$final_status, "COMPLETED")) {
@@ -214,7 +266,8 @@ p2_finalize_relation_tiered <- function(manifest_path) {
     scientific_identity_sha256 = p0_scientific_sha256(scientific),
     intended_branch_manifest = manifest_path,
     intended_branch_manifest_sha256 = sha256_file(manifest_path),
-    policy_version = frozen$policy_version, branch_count = length(final),
+    policy_version = frozen$policy_version, relation_attempt_id = frozen$relation_attempt_id,
+    branch_count = length(final),
     pass_summaries = lapply(names(summaries), function(name) list(
       pass = name, path = normalizePath(pass_paths[[name]], mustWork = TRUE),
       sha256 = sha256_file(pass_paths[[name]]), status_counts = summaries[[name]]$status_counts,

@@ -1,9 +1,9 @@
 current_research_source_files <- function() {
   c(
     "R/config_paths.R", "R/io_spatial.R", "R/contracts.R",
-    "R/canonical_config.R", "R/immutable_inputs.R", "R/tracked_sources.R",
+    "R/canonical_config.R", "R/tracked_sources.R",
     "R/methodology_authority.R", "R/current_methodology.R",
-    "R/scene_index_support.R", "R/scene_index.R",
+    "R/scene_index_support.R", "R/off_grid_source.R", "R/scene_index.R",
     "R/spatial_membership.R", "R/vector_observations.R",
     "R/raster_observations.R", "R/spatial_relations.R",
     "R/spatial_observations.R", "R/spatial_relation_execution.R",

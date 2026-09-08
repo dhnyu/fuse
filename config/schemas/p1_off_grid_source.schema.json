@@ -6,7 +6,7 @@
     "schema_version": {"const": "1.0.0"},
     "source_acceptance_id": {"type": "string", "pattern": "^osa_[0-9a-f]{24}$"},
     "status": {"const": "PASS"},
-    "source_artifact_id": {"const": "ogs_19933828d3de55d16b8861d7"},
+    "source_artifact_id": {"type": "string", "pattern": "^ogs_[0-9a-f]{24}$"},
     "row_count": {"const": 10000},
     "split_counts": {"type": "object"},
     "crs_epsg": {"const": 5186},

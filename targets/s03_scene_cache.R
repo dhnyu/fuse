@@ -9,6 +9,7 @@ list_s03_scene_cache <- list(
   targets::tar_target(
     s03_scene_serialization_plan,
     p3_build_serialization_plan(s00_cache_methodology_contract, s00_methodology_authority,
+                  s01_scene_index, s01_scene_acceptance,
                   s02_spatial_acceptance,
                   s02_observation_plan, s02_vector_observation_shard,
                   s02_raster_observation_shard, s02_relation_shard,

@@ -53,21 +53,35 @@ p2_load_spec <- function(contract_files, root = getwd()) {
 }
 
 p2_assert_upstream <- function(reduced_methodology_authority, base_spatial_methodology_contract,
-                               scene_index_acceptance, study_data_inventory, spec) {
+                               spatial_scene_index, scene_index_acceptance, study_data_inventory, spec) {
   authority <- jsonlite::read_json(artifact_path(reduced_methodology_authority, "reduced_methodology_authority.json"), simplifyVector = FALSE)
   contract <- jsonlite::read_json(artifact_path(base_spatial_methodology_contract, "base_spatial_methodology_contract.json"), simplifyVector = FALSE)
   scene <- jsonlite::read_json(artifact_path(scene_index_acceptance, "scene_index_acceptance.json"), simplifyVector = FALSE)
   inventory <- jsonlite::read_json(artifact_path(study_data_inventory, "study_data_inventory.json"), simplifyVector = FALSE)
+  index_path <- artifact_path(spatial_scene_index, "spatial_scene_index.parquet")
+  manifest_path <- artifact_path(spatial_scene_index, "spatial_scene_index_manifest.json")
+  manifest <- jsonlite::read_json(manifest_path, simplifyVector = FALSE)
   cfg <- spec$config
+  expected_counts <- as.integer(unlist(cfg$p1$split_counts[c("training", "validation", "evaluation")]))
+  scene_counts <- as.integer(unlist(scene$split_counts[c("training", "validation", "evaluation")]))
+  manifest_counts <- as.integer(unlist(manifest$split_counts[c("training", "validation", "evaluation")]))
+  records <- setNames(scene$artifact_checksums, vapply(scene$artifact_checksums, `[[`, character(1L), "role"))
   checks <- c(
-    authority$authority_id == cfg$authority$id, authority$overall_status == "PASS",
-    contract$contract_id == cfg$authority$base_contract_id, contract$module_content_sha256 == cfg$authority$base_contract_hash,
-    contract$status == "PASS", scene$acceptance_id == cfg$p1$scene_acceptance_id, scene$status == "PASS",
-    scene$scene_index_id == cfg$p1$scene_index_id, inventory$inventory_id == cfg$p1$inventory_id,
-    inventory$status == "PASS", inventory$authority_id == cfg$authority$id
+    identical(authority$authority_id, cfg$authority$id), identical(authority$overall_status, "PASS"),
+    identical(contract$contract_id, cfg$authority$base_contract_id), identical(contract$module_content_sha256, cfg$authority$base_contract_hash),
+    identical(contract$status, "PASS"), identical(scene$status, "PASS"),
+    identical(scene$schema_version, cfg$p1$scene_acceptance_schema_version),
+    identical(manifest$schema_version, cfg$p1$scene_index_schema_version),
+    identical(inventory$schema_version, cfg$p1$inventory_schema_version),
+    identical(scene$authority_id, cfg$authority$id), identical(manifest$authority_id, cfg$authority$id),
+    identical(inventory$authority_id, cfg$authority$id), identical(scene$scene_index_id, manifest$scene_index_id),
+    identical(scene_counts, expected_counts), identical(manifest_counts, expected_counts),
+    identical(as.integer(manifest$row_count), as.integer(cfg$p1$total_count)),
+    identical(records[["spatial_scene_index"]]$sha256, sha256_file(index_path)),
+    identical(records[["spatial_scene_index_manifest"]]$sha256, sha256_file(manifest_path))
   )
   if (!all(checks)) stop("P2 upstream P0/P1 identity or acceptance mismatch", call. = FALSE)
-  list(authority = authority, contract = contract, scene = scene, inventory = inventory)
+  list(authority = authority, contract = contract, scene = scene, inventory = inventory, manifest = manifest)
 }
 
 p2_scene_scope <- function(spatial_scene_index, spec) {
@@ -154,7 +168,7 @@ p2_build_membership_plan <- function(spatial_scene_index, scene_index_acceptance
                                      membership_contract_files, p2_base_spatial_contract_files) {
   scope <- "production"
   spec <- p2_load_spec(p2_base_spatial_contract_files)
-  upstream <- p2_assert_upstream(reduced_methodology_authority, base_spatial_methodology_contract, scene_index_acceptance, study_data_inventory, spec)
+  upstream <- p2_assert_upstream(reduced_methodology_authority, base_spatial_methodology_contract, spatial_scene_index, scene_index_acceptance, study_data_inventory, spec)
   scenes <- p2_scene_scope(spatial_scene_index, spec)
   membership <- load_membership_config(membership_contract_files)
   sources <- p2_source_contract(upstream$inventory, membership, spec$root)
@@ -178,8 +192,8 @@ p2_build_membership_plan <- function(spatial_scene_index, scene_index_acceptance
     records <- lapply(index, function(i) list(scene_id = scenes$scene_id[[i]], scene_footprint_id = scenes$scene_id[[i]], split = scenes$split[[i]],
       center_x = scenes$center_x[[i]], center_y = scenes$center_y[[i]], xmin = boxes[i, 1L], ymin = boxes[i, 2L], xmax = boxes[i, 3L], ymax = boxes[i, 4L], estimated_cost = proxy$estimated_cost[[i]]))
     list(spec_schema_version = "1.0.0", scope = scope, branch_id = branch_id, membership_dataset_id = dataset_id,
-         scope_id = "production", scene_index_id = spec$config$p1$scene_index_id,
-         authority_id = spec$config$authority$id, scene_acceptance_id = spec$config$p1$scene_acceptance_id,
+         scope_id = "production", scene_index_id = upstream$scene$scene_index_id,
+         authority_id = upstream$authority$authority_id, scene_acceptance_id = upstream$scene$acceptance_id,
          scene_ids = as.list(ids), scenes = records,
          split_counts = as.list(table(factor(scenes$split[index], levels = c("training", "validation", "evaluation")))),
          estimated_counts = list(building = sum(proxy$building[index]), road = sum(proxy$road[index]), poi = sum(proxy$poi[index])),
@@ -194,8 +208,8 @@ p2_build_membership_plan <- function(spatial_scene_index, scene_index_acceptance
   basenames <- c("membership_plan.json", vapply(branches, function(x) paste0("spec-", x$branch_id, ".json"), character(1L)))
   paths <- p1_publish_immutable_bundle(plan_dir, basenames, function(stage) {
     plan <- list(schema_version = "1.0.0", scope = scope, plan_id = plan_id, membership_dataset_id = dataset_id,
-                 authority_id = spec$config$authority$id, scene_index_id = spec$config$p1$scene_index_id,
-                 scene_acceptance_id = spec$config$p1$scene_acceptance_id, inventory_id = spec$config$p1$inventory_id,
+                 authority_id = upstream$authority$authority_id, scene_index_id = upstream$scene$scene_index_id,
+                 scene_acceptance_id = upstream$scene$acceptance_id, inventory_id = upstream$inventory$inventory_id,
                  base_contract_id = spec$config$authority$base_contract_id, scientific_fingerprint = scientific_hash,
                  branch_specs = lapply(branches, function(x) list(branch_id = x$branch_id, scene_ids = x$scene_ids, estimated_cost = x$estimated_cost)),
                  execution = list(algorithm = spec$config$branching$algorithm, branch_count = length(branches), controller = spec$config$scopes[[scope]]$membership_controller, workers_per_branch = 1L, threads_per_worker = 1L))
@@ -265,7 +279,7 @@ p2_accept_membership <- function(membership_plan, membership_shard, spatial_scen
     stats <- combined[, .(membership_count = .N), by = .(scene_id, entity_type)][order(scene_id, entity_type)]
     arrow::write_parquet(stats, file.path(stage, "membership_statistics.parquet"), compression = "zstd")
     value <- list(schema_version = "1.0.0", scope = scope, acceptance_id = id, status = "PASS", authority_id = spec$config$authority$id,
-                  scene_index_id = spec$config$p1$scene_index_id, membership_dataset_id = plans[[1L]]$membership_dataset_id, scene_count = nrow(scenes),
+                  scene_index_id = plans[[1L]]$scene_index_id, membership_dataset_id = plans[[1L]]$membership_dataset_id, scene_count = nrow(scenes),
                   split_counts = as.list(table(factor(scenes$split, levels = c("training", "validation", "evaluation")))), entity_counts = entity_counts,
                   branch_ids = as.list(planned), membership_parquets = as.list(sort(parquets)),
                   parity = list(sample_count = nrow(sample), false_positive = 0L, false_negative = 0L, independent_source_read = TRUE), scientific_hash = hash)
@@ -283,7 +297,7 @@ p2_build_observation_plan <- function(membership_plan, membership_acceptance, sp
   scenes <- p2_scene_scope(spatial_scene_index, spec); plans <- membership_plan
   membership <- data.table::rbindlist(lapply(unlist(acceptance$membership_parquets), arrow::read_parquet), use.names = TRUE)
   scientific <- list(scope = scope, authority_id = spec$config$authority$id, base_contract_hash = spec$config$authority$base_contract_hash,
-                     scene_index_id = spec$config$p1$scene_index_id, scene_acceptance_id = spec$config$p1$scene_acceptance_id,
+                     scene_index_id = plans[[1L]]$scene_index_id, scene_acceptance_id = plans[[1L]]$scene_acceptance_id,
                      membership_acceptance_id = acceptance$acceptance_id, vector_hash = vector_cfg$scientific_hash,
                      raster_hash = raster_cfg$scientific_hash, relation_hash = relation_cfg$scientific_hash,
                      topology = spec$config$topology, implementation_hash = spec$implementation_hash)
@@ -297,7 +311,7 @@ p2_build_observation_plan <- function(membership_plan, membership_acceptance, sp
       estimated_cost = x$estimated_cost, entity_count = sum(rows$scene_id == x$scene_id), coordinate_count = 0L, source_geometry_bytes = 0L))
     list(spec_schema_version = "1.0.0", scope = scope, branch_id = plan$branch_id, observation_dataset_id = vector_dataset_id,
          original_observation_id = observation_id, scope_id = plan$scope_id, membership_dataset_id = acceptance$membership_dataset_id,
-         scene_index_id = spec$config$p1$scene_index_id, scene_ids = plan$scene_ids, scenes = records, split_counts = plan$split_counts,
+         scene_index_id = plan$scene_index_id, scene_ids = plan$scene_ids, scenes = records, split_counts = plan$split_counts,
          estimated_counts = list(building = unname(counts[[1L]]), road = unname(counts[[2L]]), poi = unname(counts[[3L]]), total = nrow(rows)),
          estimated_geometry = list(coordinate_count = 0L, component_count = 0L, source_geometry_bytes = 0L, estimated_cost = plan$estimated_cost, dense_singleton = FALSE),
          shared_grouping = list(grouping_version = "1.0.0", aligned_stages = c("vector", "raster", "relation", "topology"), immutable_scene_group = TRUE),
@@ -312,7 +326,7 @@ p2_build_observation_plan <- function(membership_plan, membership_acceptance, sp
   plan_dir <- file.path(root, "plans", plan_id); basenames <- c("observation_plan.json", vapply(branches, function(x) paste0("spec-", x$branch_id, ".json"), character(1L)))
   paths <- p1_publish_immutable_bundle(plan_dir, basenames, function(stage) {
     value <- list(schema_version = "1.0.0", scope = scope, plan_id = plan_id, original_observation_id = observation_id,
-                  authority_id = spec$config$authority$id, scene_index_id = spec$config$p1$scene_index_id, membership_acceptance_id = acceptance$acceptance_id,
+                  authority_id = spec$config$authority$id, scene_index_id = plans[[1L]]$scene_index_id, membership_acceptance_id = acceptance$acceptance_id,
                   scientific_fingerprint = hash, branch_specs = lapply(branches, function(x) list(branch_id = x$branch_id, scene_ids = x$scene_ids)),
                   execution = list(branch_count = length(branches), controller = spec$config$scopes[[scope]]$observation_controller, workers_per_branch = 1L, threads_per_worker = 1L))
     path <- write_json_file(value, file.path(stage, basenames[[1L]])); validate_json_schema_file(path, spec$schemas[["observation_plan"]])
@@ -322,21 +336,21 @@ p2_build_observation_plan <- function(membership_plan, membership_acceptance, sp
   lapply(branches, function(value) { value$.path <- paths[basename(paths) == paste0("spec-", value$branch_id, ".json")]; value$.plan_path <- plan_path; value })
 }
 
-p2_build_vector_shard <- function(base_spatial_observation_plan, membership_acceptance, study_data_inputs,
+p2_build_vector_shard <- function(s02_observation_plan, membership_acceptance, study_data_inputs,
                                   tracked_inputs, observation_contract_files, workers = 1L, threads = 1L) {
-  build_vector_observation_shard(base_spatial_observation_plan, membership_acceptance, study_data_inputs,
+  build_vector_observation_shard(s02_observation_plan, membership_acceptance, study_data_inputs,
                                            tracked_inputs, observation_contract_files, workers, threads)
 }
 
-p2_build_raster_shard <- function(base_spatial_observation_plan, vector_shard, study_data_inputs,
+p2_build_raster_shard <- function(s02_observation_plan, vector_shard, study_data_inputs,
                                   tracked_inputs, raster_observation_contract_files, workers = 1L, threads = 1L) {
-  build_raster_observation_shard(base_spatial_observation_plan, vector_shard, study_data_inputs,
+  build_raster_observation_shard(s02_observation_plan, vector_shard, study_data_inputs,
                                            tracked_inputs, raster_observation_contract_files, workers, threads)
 }
 
-p2_build_relation_shard <- function(base_spatial_observation_plan, vector_shard, study_data_inputs,
+p2_build_relation_shard <- function(s02_observation_plan, vector_shard, study_data_inputs,
                                     tracked_inputs, relation_contract_files, workers = 1L, threads = 1L) {
-  build_relation_shard(base_spatial_observation_plan, vector_shard, study_data_inputs,
+  build_relation_shard(s02_observation_plan, vector_shard, study_data_inputs,
                                  tracked_inputs, relation_contract_files, workers, threads)
 }
 
@@ -347,10 +361,10 @@ p2_observed_vertex_index <- function(geometry, x, y, tolerance) {
   if (min(distance) > tolerance) NA_integer_ else as.integer(which.min(distance) - 1L)
 }
 
-p2_build_topology_shard <- function(base_spatial_observation_plan, vector_shard, tracked_inputs,
+p2_build_topology_shard <- function(s02_observation_plan, vector_shard, tracked_inputs,
                                     p2_base_spatial_contract_files, workers = 1L, threads = 1L,
                                     output_directory = NULL, manifest_schema = NULL) {
-  fuse_parallel_spec(workers, threads); spec_cfg <- p2_load_spec(p2_base_spatial_contract_files); branch <- base_spatial_observation_plan
+  fuse_parallel_spec(workers, threads); spec_cfg <- p2_load_spec(p2_base_spatial_contract_files); branch <- s02_observation_plan
   vector <- read_i10_branch_context(branch, vector_shard); roads <- read_standard_geoparquet(vector$files[["road"]])
   road_path <- tracked_source_path(tracked_inputs, "road")
   node_positions <- read_relation_node_positions(road_path, c(roads$F_NODE, roads$T_NODE))

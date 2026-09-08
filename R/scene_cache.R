@@ -92,26 +92,66 @@ p3_output_groups <- function(branch_id, vector, raster, relation, topology, memb
   groups
 }
 
-p3_build_plan <- function(original_scene_cache_contract, base_spatial_acceptance,
-                          base_spatial_observation_plan, base_vector_observation_shard,
-                          base_raster_observation_shard, base_relation_graph_shard,
-                          base_source_topology_shard, base_spatial_membership_acceptance,
+p3_assert_current_parents <- function(contract, scene, index_path, index_manifest_path,
+                                      p2, membership, config) {
+  index_manifest <- jsonlite::read_json(index_manifest_path, simplifyVector = FALSE)
+  expected_scene_count <- sum(as.integer(unlist(p2$split_counts, use.names = FALSE)))
+  expected_counts <- as.integer(unlist(config$parents$split_counts[c("training", "validation", "evaluation")]))
+  scene_records <- setNames(scene$artifact_checksums, vapply(scene$artifact_checksums, `[[`, character(1L), "role"))
+  checks <- c(
+    identical(contract$status, "PASS"), identical(contract$authority_id, config$authority_id),
+    identical(p2$status, "PASS"), identical(p2$authority_id, config$authority_id),
+    identical(scene$status, "PASS"), identical(scene$authority_id, config$authority_id),
+    identical(scene$schema_version, config$parents$scene_acceptance_schema_version),
+    identical(index_manifest$schema_version, config$parents$scene_schema_version),
+    identical(p2$schema_version, config$parents$spatial_acceptance_schema_version),
+    identical(p2$scene_index_id, scene$scene_index_id), identical(index_manifest$scene_index_id, scene$scene_index_id),
+    identical(p2$scene_acceptance_id, scene$acceptance_id),
+    identical(as.integer(p2$scene_count), as.integer(config$parents$expected_scene_count)),
+    identical(as.integer(expected_scene_count), as.integer(config$parents$expected_scene_count)),
+    identical(as.integer(unlist(p2$split_counts[c("training", "validation", "evaluation")])), expected_counts),
+    identical(scene_records[["spatial_scene_index"]]$sha256, sha256_file(index_path)),
+    identical(scene_records[["spatial_scene_index_manifest"]]$sha256, sha256_file(index_manifest_path)),
+    identical(membership$scene_index_id, scene$scene_index_id),
+    identical(membership$authority_id, config$authority_id)
+  )
+  if (!all(checks)) stop("P3 accepted current P1/P2 parent mismatch", call. = FALSE)
+  invisible(TRUE)
+}
+
+p3_assert_current_observation_plans <- function(plans, p2, config) {
+  checks <- c(
+    length(plans) == as.integer(config$sharding$expected_shards),
+    all(vapply(plans, function(plan) identical(plan$original_observation_id, p2$original_observation_id), logical(1L))),
+    all(vapply(plans, function(plan) identical(plan$scene_index_id, p2$scene_index_id), logical(1L))),
+    !anyDuplicated(vapply(plans, `[[`, character(1L), "branch_id")),
+    !anyDuplicated(unlist(lapply(plans, `[[`, "scene_ids"), use.names = FALSE))
+  )
+  if (!all(checks)) stop("P3 current observation-plan parent mismatch", call. = FALSE)
+  invisible(TRUE)
+}
+
+p3_build_plan <- function(original_scene_cache_contract, spatial_scene_index, scene_index_acceptance,
+                          base_spatial_acceptance,
+                          observation_plan, vector_observation_shard,
+                          raster_observation_shard, relation_graph_shard,
+                          source_topology_shard, spatial_membership_acceptance,
                           contract_files) {
   spec <- p3_load_spec(contract_files); cfg <- spec$config
   contract <- p3_json(original_scene_cache_contract, "original_scene_cache_contract.json")
   p2 <- p3_json(base_spatial_acceptance, "base_spatial_acceptance.json")
-  membership <- p3_json(base_spatial_membership_acceptance, "aggregate_membership_manifest.json")
-  expected_scene_count <- sum(as.integer(unlist(p2$split_counts, use.names = FALSE)))
-  checks <- c(contract$status == "PASS", p2$status == "PASS", p2$acceptance_id == cfg$base_spatial_acceptance_id,
-              p2$original_observation_id == cfg$original_observation_id, p2$scene_count == expected_scene_count,
-              length(base_spatial_observation_plan) == cfg$sharding$expected_shards)
-  if (!all(checks)) stop("P3 accepted P2 parent mismatch", call. = FALSE)
-  plans <- base_spatial_observation_plan[order(vapply(base_spatial_observation_plan, `[[`, character(1L), "branch_id"), method = "radix")]
+  scene <- p3_json(scene_index_acceptance, "scene_index_acceptance.json")
+  index_path <- artifact_path(spatial_scene_index, "spatial_scene_index.parquet")
+  index_manifest_path <- artifact_path(spatial_scene_index, "spatial_scene_index_manifest.json")
+  membership <- p3_json(spatial_membership_acceptance, "aggregate_membership_manifest.json")
+  p3_assert_current_parents(contract, scene, index_path, index_manifest_path, p2, membership, cfg)
+  plans <- observation_plan[order(vapply(observation_plan, `[[`, character(1L), "branch_id"), method = "radix")]
+  p3_assert_current_observation_plans(plans, p2, cfg)
   parent_records <- lapply(plans, function(x) list(branch_id = x$branch_id, scene_ids = x$scene_ids,
     scene_spec_sha256 = sha256_file(x$.path)))
   scientific <- list(schema_version = cfg$schema_version, authority_id = cfg$authority_id,
     contract_id = contract$contract_id, contract_hash = contract$content_sha256,
-    scene_index_id = cfg$scene_index_id, scene_acceptance_id = cfg$scene_acceptance_id,
+    scene_index_id = scene$scene_index_id, scene_acceptance_id = scene$acceptance_id,
     base_spatial_acceptance_id = p2$acceptance_id, base_spatial_acceptance_sha256 = sha256_file(artifact_path(base_spatial_acceptance, "base_spatial_acceptance.json")),
     original_observation_id = p2$original_observation_id, sharding = cfg$sharding,
     ordered_branches = parent_records, implementation_hash = spec$implementation_hash)
@@ -120,8 +160,8 @@ p3_build_plan <- function(original_scene_cache_contract, base_spatial_acceptance
   root <- file.path(cfg$publication_root, cache_id)
   branches <- lapply(seq_along(plans), function(i) {
     x <- plans[[i]]; branch_id <- x$branch_id
-    groups <- p3_output_groups(branch_id, base_vector_observation_shard, base_raster_observation_shard,
-                               base_relation_graph_shard, base_source_topology_shard,
+    groups <- p3_output_groups(branch_id, vector_observation_shard, raster_observation_shard,
+                               relation_graph_shard, source_topology_shard,
                                unlist(membership$membership_parquets), x$.path)
     list(schema_version = cfg$schema_version, cache_id = cache_id, plan_id = plan_id, branch_id = branch_id,
          shard_ordinal = i - 1L, scene_ids = x$scene_ids, split_counts = x$split_counts,
@@ -199,22 +239,25 @@ p3_build_roundtrip <- function(plan, shard_files, shard_validation, contract_fil
 
 p3_build_serialization_plan <- function(original_cache_methodology_contract,
                                         reduced_methodology_authority,
+                                        spatial_scene_index,
+                                        scene_index_acceptance,
                                         base_spatial_acceptance,
-                                        base_spatial_observation_plan,
-                                        base_vector_observation_shard,
-                                        base_raster_observation_shard,
-                                        base_relation_graph_shard,
-                                        base_source_topology_shard,
-                                        base_spatial_membership_acceptance,
+                                        observation_plan,
+                                        vector_observation_shard,
+                                        raster_observation_shard,
+                                        relation_graph_shard,
+                                        source_topology_shard,
+                                        spatial_membership_acceptance,
                                         contract_files) {
   contract <- p3_build_contract(
     original_cache_methodology_contract, reduced_methodology_authority, contract_files
   )
   p3_build_plan(
-    contract, base_spatial_acceptance, base_spatial_observation_plan,
-    base_vector_observation_shard, base_raster_observation_shard,
-    base_relation_graph_shard, base_source_topology_shard,
-    base_spatial_membership_acceptance, contract_files
+    contract, spatial_scene_index, scene_index_acceptance,
+    base_spatial_acceptance, observation_plan,
+    vector_observation_shard, raster_observation_shard,
+    relation_graph_shard, source_topology_shard,
+    spatial_membership_acceptance, contract_files
   )
 }
 
@@ -255,7 +298,7 @@ p3_build_cache_manifest <- function(plan, shard_files, index, roundtrip, base_sp
   ordered<-manifests[order(vapply(manifests,`[[`,character(1L),"branch_id"),method="radix")]
   aggregate<-p0_scientific_sha256(list(cache_id=plan[[1L]]$cache_id,shards=lapply(ordered,function(x)list(branch_id=x$branch_id,payload=x$payload$sha256,logical=x$logical_content_sha256)),index=idx$content_sha256,roundtrip=rt$logical_content_sha256))
   value<-list(schema_version=spec$config$schema_version,status="PASS",cache_id=plan[[1L]]$cache_id,authority_id=spec$config$authority_id,
-    scene_index_id=spec$config$scene_index_id,scene_acceptance_id=spec$config$scene_acceptance_id,base_spatial_acceptance_id=p2$acceptance_id,
+    scene_index_id=plan[[1L]]$scene_index_id,scene_acceptance_id=plan[[1L]]$scene_acceptance_id,base_spatial_acceptance_id=p2$acceptance_id,
     original_observation_id=p2$original_observation_id,scene_count=p2$scene_count,split_counts=p2$split_counts,
     shard_count=length(ordered),shards=lapply(ordered,function(x)list(branch_id=x$branch_id,scene_ids=x$scene_ids,payload=x$payload,logical_content_sha256=x$logical_content_sha256)),
     index_id=idx$index_id,roundtrip_status=rt$status,total_payload_bytes=sum(vapply(ordered,function(x)x$payload$size_bytes,numeric(1L))),aggregate_content_sha256=aggregate)

@@ -4,7 +4,7 @@
   "properties": {
     "schema_version": {"const": "1.0.0"}, "scope": {"const": "production"},
     "acceptance_id": {"pattern": "^bma_[0-9a-f]{24}$"}, "status": {"const": "PASS"},
-    "authority_id": {"const": "mta_7875c4ba4587e4877ba0be1d"}, "scene_index_id": {"pattern": "^rsi_[0-9a-f]{24}$"},
+    "authority_id": {"const": "mta_2142a2914bc5c43ea8d6e312"}, "scene_index_id": {"pattern": "^rsi_[0-9a-f]{24}$"},
     "membership_dataset_id": {"pattern": "^bmd_[0-9a-f]{24}$"}, "scene_count": {"type": "integer"},
     "split_counts": {"type": "object"}, "entity_counts": {"type": "object"}, "branch_ids": {"type": "array", "minItems": 1},
     "membership_parquets": {"type": "array", "minItems": 3}, "parity": {"type": "object"}, "scientific_hash": {"pattern": "^[0-9a-f]{64}$"}

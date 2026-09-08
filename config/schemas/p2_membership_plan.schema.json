@@ -4,7 +4,7 @@
   "properties": {
     "schema_version": {"const": "1.0.0"}, "scope": {"const": "production"},
     "plan_id": {"pattern": "^bmp_[0-9a-f]{24}$"}, "membership_dataset_id": {"pattern": "^bmd_[0-9a-f]{24}$"},
-    "authority_id": {"const": "mta_7875c4ba4587e4877ba0be1d"}, "scene_index_id": {"pattern": "^rsi_[0-9a-f]{24}$"},
+    "authority_id": {"const": "mta_2142a2914bc5c43ea8d6e312"}, "scene_index_id": {"pattern": "^rsi_[0-9a-f]{24}$"},
     "scene_acceptance_id": {"pattern": "^sia_[0-9a-f]{24}$"}, "inventory_id": {"pattern": "^rin_[0-9a-f]{24}$"},
     "base_contract_id": {"const": "mmc_b75dcec66fe442fc"}, "scientific_fingerprint": {"pattern": "^[0-9a-f]{64}$"},
     "branch_specs": {"type": "array", "minItems": 1}, "execution": {"type": "object"}

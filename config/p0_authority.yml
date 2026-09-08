@@ -1,5 +1,5 @@
 schema_version: "2.0.0"
-implementation_version: "2.1.0"
+implementation_version: "2.2.0"
 
 dissertation:
   repository_path: /members/dhnyu/dhnyu-masters-dissertation
@@ -20,10 +20,10 @@ approved_audit:
 publication:
   authority_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/authority
   supersedes:
-    authority_id: mta_03e8d7f42fe2018237f3fcde
+    authority_id: mta_5840e2e2958fd1bc99b22c81
     dissertation_commit: cbb824f19be8355296603f8426ac241ce587ddcc
     migration_kind: OPERATIONAL_ONLY
-    reason: source_tree_cleanup_and_filename_normalization
+    reason: P0 module publication identity separation for operational provenance
     changed_modules: []
     unchanged_modules:
       - scene

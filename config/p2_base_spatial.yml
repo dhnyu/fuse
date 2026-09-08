@@ -2,7 +2,7 @@ schema_version: "1.0.0"
 implementation_version: "1.1.0"
 migration_status: RECOMPUTE_REQUIRED
 authority:
-  id: mta_7875c4ba4587e4877ba0be1d
+  id: mta_2142a2914bc5c43ea8d6e312
   base_contract_id: mmc_b75dcec66fe442fc
   base_contract_hash: b75dcec66fe442fc5deda2b8798d6ff5b7f4380ec66cab6e769dd8c31cb3dfa8
 p1:

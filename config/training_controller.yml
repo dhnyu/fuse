@@ -4,9 +4,9 @@ migration_status: RECOMPUTE_REQUIRED
 source:
   required_branch: reduced
   dissertation_commit: cbb824f19be8355296603f8426ac241ce587ddcc
-  dissertation_authority_id: mta_7875c4ba4587e4877ba0be1d
+  dissertation_authority_id: mta_2142a2914bc5c43ea8d6e312
 parents:
-  methodology_authority_id: mta_7875c4ba4587e4877ba0be1d
+  methodology_authority_id: mta_2142a2914bc5c43ea8d6e312
   experiment_plan_id: PENDING_CURRENT_PLAN
   dataset_acceptance_id: PENDING_CURRENT_DATASET
   query_acceptance_id: PENDING_CURRENT_QUERIES

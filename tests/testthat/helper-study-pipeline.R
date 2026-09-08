@@ -21,7 +21,7 @@ current_parent_fixture <- function(root = tempfile("current-parent-")) {
     if (is.null(text)) write_json_file(value, path) else writeLines(text, path, useBytes = TRUE)
     path
   }
-  authority_id <- "mta_7875c4ba4587e4877ba0be1d"
+  authority_id <- "mta_2142a2914bc5c43ea8d6e312"
   index_dir <- file.path(root, "index")
   index <- put(index_dir, "spatial_scene_index.parquet", text = "fixture-index")
   manifest <- put(index_dir, "spatial_scene_index_manifest.json", list(

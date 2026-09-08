@@ -368,6 +368,73 @@ p0_publish_json_component <- function(value, final_dir, basename, schema_file) {
   })
 }
 
+p0_module_publication_identity <- function(value) {
+  if (any(c("publication_id", "publication_identity_sha256") %in% names(value))) {
+    stop("P0 module payload cannot contain its self-referential publication identity", call. = FALSE)
+  }
+  serialized <- tempfile("p0-module-publication-", fileext = ".json")
+  on.exit(unlink(serialized), add = TRUE)
+  write_json_file(value, serialized)
+  identity_sha256 <- sha256_file(serialized)
+  list(
+    publication_id = paste0("mmp_", identity_sha256),
+    publication_identity_sha256 = identity_sha256
+  )
+}
+
+p0_read_module_publication <- function(path, schema_file = NULL) {
+  path <- normalizePath(path, mustWork = TRUE)
+  value <- p0_read_single_json(path)
+  file_sha256 <- sha256_file(path)
+  publication_id <- paste0("mmp_", file_sha256)
+  current_layout <- identical(basename(dirname(path)), publication_id) &&
+    identical(basename(dirname(dirname(path))), "publications")
+  if (current_layout && !identical(file_sha256, p0_module_publication_identity(value)$publication_identity_sha256)) {
+    stop("P0 module publication bytes are not deterministic: ", path, call. = FALSE)
+  }
+  if (!current_layout && identical(basename(dirname(dirname(path))), "publications")) {
+    stop("P0 module publication path does not match its publication identity: ", path, call. = FALSE)
+  }
+  if (current_layout && !is.null(schema_file)) validate_json_schema_file(path, schema_file)
+  list(
+    layout = if (current_layout) "publication_v1" else "legacy_read_only",
+    publication_id = publication_id,
+    publication_identity_sha256 = file_sha256,
+    path = path,
+    value = value
+  )
+}
+
+p0_predecessor_module_publication <- function(spec, module_name, contract_id, scientific_sha256) {
+  prior_authority <- spec$predecessor_authority_file
+  if (!file.exists(prior_authority)) return(NULL)
+  authority <- p0_read_single_json(prior_authority)
+  records <- Filter(function(record) identical(record$module_name, module_name), authority$module_contracts)
+  prior_path <- file.path(dirname(prior_authority), paste0(module_name, "_methodology_contract.json"))
+  if (!file.exists(prior_path)) return(NULL)
+  prior <- p0_read_module_publication(prior_path)
+  if (!identical(prior$value$contract_id, contract_id) ||
+      !identical(prior$value$module_content_sha256, scientific_sha256)) return(NULL)
+  if (length(records) == 1L && !is.null(records[[1L]]$publication_id)) {
+    prior$publication_id <- records[[1L]]$publication_id
+    prior$publication_identity_sha256 <- records[[1L]]$publication_identity_sha256
+  }
+  prior
+}
+
+p0_publish_module_contract <- function(value, spec) {
+  identity <- p0_module_publication_identity(value)
+  final_dir <- p0_component_dir(
+    spec,
+    file.path("modules", value$module_name, value$contract_id, "publications"),
+    identity$publication_id
+  )
+  p0_publish_json_component(
+    value, final_dir, paste0(value$module_name, "_methodology_contract.json"),
+    spec$schemas[["module_contract"]]
+  )
+}
+
 build_reduced_methodology_source_files <- function(spec) {
   resolved <- resolve_typst_source_set(
     spec$dissertation$repository_path, spec$dissertation$entrypoint,
@@ -451,12 +518,14 @@ p0_read_single_json <- function(path) {
 p0_authority_id <- function(schema_version, dissertation_commit_sha,
                             ordered_source_hashes, module_contract_hashes,
                             conflict_gate_result, implementation_version,
-                            implementation_sha256, environment = NULL) {
+                            implementation_sha256, module_publications = list(),
+                            environment = NULL) {
   identity_inputs <- list(
     schema_version = schema_version,
     dissertation_commit_sha = dissertation_commit_sha,
     ordered_source_hashes = ordered_source_hashes,
     module_contract_hashes = module_contract_hashes,
+    module_publications = module_publications,
     conflict_gate_result = conflict_gate_result,
     implementation_version = implementation_version,
     implementation_sha256 = implementation_sha256
@@ -470,7 +539,9 @@ build_reduced_methodology_authority <- function(git_state_file, source_set_file,
   git_state <- p0_read_single_json(git_state_file)
   source_set <- p0_read_single_json(source_set_file)
   gate <- p0_read_single_json(conflict_gate_file)
-  modules <- lapply(module_contract_files, p0_read_single_json)
+  publications <- lapply(module_contract_files, p0_read_module_publication,
+                         schema_file = spec$schemas[["module_contract"]])
+  modules <- lapply(publications, `[[`, "value")
   expected_modules <- names(p0_module_definitions())
   observed_modules <- vapply(modules, `[[`, character(1L), "module_name")
   if (!identical(git_state$verification_status, "PASS")) stop("P0 Git state blocks authority publication", call. = FALSE)
@@ -478,11 +549,17 @@ build_reduced_methodology_authority <- function(git_state_file, source_set_file,
   if (!identical(gate$status, "PASS") || gate$unclassified_conflict_count != 0L) stop("P0 conflict gate blocks authority publication", call. = FALSE)
   if (!setequal(observed_modules, expected_modules) || length(modules) != length(expected_modules)) stop("P0 module contract set is incomplete", call. = FALSE)
   if (any(vapply(modules, function(x) !identical(x$status, "PASS"), logical(1L)))) stop("A P0 module contract is not accepted", call. = FALSE)
-  modules <- modules[match(expected_modules, observed_modules)]
+  order <- match(expected_modules, observed_modules)
+  modules <- modules[order]
+  publications <- publications[order]
   ordered_hashes <- lapply(source_set$ordered_files, function(file) list(path = file$path, sha256 = file$sha256))
-  module_records <- lapply(modules, function(module) list(
-    module_name = module$module_name, contract_id = module$contract_id,
-    sha256 = module$module_content_sha256
+  module_records <- lapply(seq_along(modules), function(index) list(
+    module_name = modules[[index]]$module_name,
+    contract_id = modules[[index]]$contract_id,
+    sha256 = modules[[index]]$module_content_sha256,
+    publication_id = publications[[index]]$publication_id,
+    publication_identity_sha256 = publications[[index]]$publication_identity_sha256,
+    publication_file_sha256 = sha256_file(publications[[index]]$path)
   ))
   module_records <- unname(module_records)
   p0_assert_operational_supersession(module_records, source_set, spec)
@@ -491,7 +568,12 @@ build_reduced_methodology_authority <- function(git_state_file, source_set_file,
     spec$schema_version, source_set$commit_sha, ordered_hashes,
     lapply(module_records, function(x) list(module_name = x$module_name, sha256 = x$sha256)),
     list(id = gate$conflict_gate_id, status = gate$status, content_sha256 = gate$content_sha256),
-    spec$implementation_version, spec$implementation_sha256
+    spec$implementation_version, spec$implementation_sha256,
+    lapply(module_records, function(x) list(
+      module_name = x$module_name, publication_id = x$publication_id,
+      publication_identity_sha256 = x$publication_identity_sha256,
+      publication_file_sha256 = x$publication_file_sha256
+    ))
   )
   scientific <- list(
     schema_version = spec$schema_version, authority_id = authority_id,

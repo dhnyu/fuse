@@ -4,7 +4,7 @@ migration_status: RECOMPUTE_REQUIRED
 publication_root: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data
 
 parents:
-  authority_id: mta_7875c4ba4587e4877ba0be1d
+  authority_id: mta_2142a2914bc5c43ea8d6e312
   scene_index_id: dynamic_from_current_p2_acceptance
   scene_acceptance_id: dynamic_from_current_p2_acceptance
   observation_id: dynamic_from_current_p2_acceptance

@@ -27,7 +27,7 @@ p6_spec <- function(contract_files) {
   config <- yaml::read_yaml(config_path)
   full_canonical_config_sha256 <- canonical_yaml_sha256(config_path)
   if (!identical(full_canonical_config_sha256,
-                 "4e094f41ae9ede6b8cb55db53caff252630415bb77befe42c8dc24b5f482cdd8")) {
+                 "c105bbb1c013d3351501400409dd127524b145e3d39157a6ec843b254835e489")) {
     stop("P6 committed canonical configuration checksum mismatch", call. = FALSE)
   }
   scientific <- config

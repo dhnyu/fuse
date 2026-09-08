@@ -6,7 +6,7 @@
     "schema_version": {"const": "1.0.0"},
     "plan_id": {"type": "string", "pattern": "^rsp_[0-9a-f]{24}$"},
     "status": {"const": "PASS"},
-    "methodology_authority_id": {"const": "mta_7875c4ba4587e4877ba0be1d"},
+    "methodology_authority_id": {"const": "mta_2142a2914bc5c43ea8d6e312"},
     "scene_contract_id": {"type": "string"},
     "input_inventory_id": {"type": "string"},
     "off_grid_source_id": {"type": "string"},

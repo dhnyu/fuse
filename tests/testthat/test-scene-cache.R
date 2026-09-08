@@ -1,7 +1,7 @@
 test_that("P3 Serialization-v3 scientific contract is fixed", {
   cfg <- yaml::read_yaml(file.path(fuse_test_root, "config/p3_original_scene_cache.yml"))
   expect_identical(cfg$schema_version, "3.0.0")
-  expect_identical(cfg$authority_id, "mta_7875c4ba4587e4877ba0be1d")
+  expect_identical(cfg$authority_id, "mta_2142a2914bc5c43ea8d6e312")
   expect_identical(cfg$parents$expected_scene_count, 12421L)
   expect_identical(unname(as.integer(unlist(cfg$parents$split_counts))), c(2421L, 1000L, 9000L))
   expect_false(any(grepl("PENDING_CURRENT_RECOMPUTATION", unlist(cfg), fixed = TRUE)))

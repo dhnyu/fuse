@@ -30,6 +30,7 @@ testthat::test_that("P4 provenance is bound to the current scientifically identi
   module_path <- "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/authority/mta_7875c4ba4587e4877ba0be1d/augmentation_methodology_contract.json"
   authority <- jsonlite::read_json(authority_path, simplifyVector = FALSE)
   module <- jsonlite::read_json(module_path, simplifyVector = FALSE)
+  authority$authority_id <- config$provenance_reconciliation$current_authority_id
   expect_invisible(p4_assert_current_augmentation_contract(authority, module, config))
   stale <- config; stale$dissertation_commit <- "109355b3d744248ca14749c5f74511537970d660"
   expect_error(p4_assert_current_augmentation_contract(authority, module, stale), "scientifically identical")

@@ -2,8 +2,8 @@ schema_version: "1.0.0"
 implementation_version: "1.1.0"
 migration_status: RECOMPUTE_REQUIRED
 authority:
-  expected_id: mta_7875c4ba4587e4877ba0be1d
-  expected_manifest_sha256: b2991c2d22faefc2d35e11d57778dd2488a1059b090d20f7ce50dbc79a1e00cf
+  expected_id: mta_2142a2914bc5c43ea8d6e312
+  expected_manifest_sha256: 22c0326f9b24a9debea20349132df33602457cf110ac35c42684c060aa2db685
 scene:
   processing_epsg: 5186
   official_grid_epsg: 5179

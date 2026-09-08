@@ -1,7 +1,7 @@
 schema_version: "3.0.0"
 implementation_version: "1.1.0"
 migration_status: RECOMPUTE_REQUIRED
-authority_id: mta_7875c4ba4587e4877ba0be1d
+authority_id: mta_2142a2914bc5c43ea8d6e312
 original_cache_contract_id: mmc_1989e1225beeb5f2
 parents:
   scene_schema_version: "1.0.0"

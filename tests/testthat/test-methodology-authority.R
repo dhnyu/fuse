@@ -137,6 +137,100 @@ test_that("immutable artifact collisions are rejected", {
   )
 })
 
+p0_module_publication_fixture <- function(source_set_id = "mss_0123456789abcdef",
+                                           implementation_sha256 = paste(rep("a", 64L), collapse = ""),
+                                           contract = list(value = 1L),
+                                           supersedes_publication_id = NULL) {
+  scientific_sha256 <- p0_scientific_sha256(list(
+    schema_version = "2.0.0", module_name = "scene", canonical_contract = contract
+  ))
+  list(
+    schema_version = "2.0.0", publication_schema_version = "1.0.0",
+    contract_id = paste0("mmc_", substr(scientific_sha256, 1L, 16L)), module_name = "scene",
+    authoritative_source_citations = list(list(
+      path = "template/main.typ", selector = "anchored_semantic_block", anchor = "fixture",
+      end_anchor = NULL, required_tokens = list(), forbidden_tokens = list(),
+      evidence_sha256 = paste(rep("b", 64L), collapse = "")
+    )),
+    canonical_contract = contract, source_set_id = source_set_id,
+    extraction_validation_implementation_sha256 = implementation_sha256,
+    unresolved_fields = list(), conflicting_fields = list(), status = "PASS",
+    module_content_sha256 = scientific_sha256,
+    supersedes_publication_id = supersedes_publication_id
+  )
+}
+
+test_that("module publication identity separates science from operational provenance", {
+  spec <- load_p0_authority_spec(fuse_test_root)
+  spec$authority_root <- tempfile("p0-publications-")
+  on.exit(unlink(spec$authority_root, recursive = TRUE), add = TRUE)
+
+  first_value <- p0_module_publication_fixture()
+  first <- p0_publish_module_contract(first_value, spec)
+  first_again <- p0_publish_module_contract(first_value, spec)
+  first_read <- p0_read_module_publication(first, spec$schemas[["module_contract"]])
+  expect_identical(first, first_again)
+
+  changed_provenance <- p0_module_publication_fixture(
+    source_set_id = "mss_fedcba9876543210",
+    implementation_sha256 = paste(rep("c", 64L), collapse = ""),
+    supersedes_publication_id = first_read$publication_id
+  )
+  second <- p0_publish_module_contract(changed_provenance, spec)
+  second_read <- p0_read_module_publication(second, spec$schemas[["module_contract"]])
+  expect_identical(first_read$value$contract_id, second_read$value$contract_id)
+  expect_identical(first_read$value$module_content_sha256, second_read$value$module_content_sha256)
+  expect_false(identical(first_read$publication_id, second_read$publication_id))
+  expect_true(all(file.exists(c(first, second))))
+
+  changed_science <- p0_publish_module_contract(
+    p0_module_publication_fixture(contract = list(value = 2L)), spec
+  )
+  changed_read <- p0_read_module_publication(changed_science, spec$schemas[["module_contract"]])
+  expect_false(identical(first_read$value$contract_id, changed_read$value$contract_id))
+  expect_false(identical(first_read$publication_id, changed_read$publication_id))
+})
+
+test_that("legacy module publications are read-only predecessors", {
+  root <- tempfile("p0-legacy-publication-")
+  dir.create(root, recursive = TRUE)
+  path <- file.path(root, "scene_methodology_contract.json")
+  legacy <- p0_module_publication_fixture()
+  legacy$publication_schema_version <- NULL
+  legacy$supersedes_publication_id <- NULL
+  write_json_file(legacy, path)
+  before <- sha256_file(path)
+  read <- p0_read_module_publication(path)
+  expect_identical(read$layout, "legacy_read_only")
+  expect_match(read$publication_id, "^mmp_[0-9a-f]{64}$")
+
+  spec <- load_p0_authority_spec(fuse_test_root)
+  spec$authority_root <- file.path(root, "new")
+  current <- p0_module_publication_fixture(
+    source_set_id = "mss_fedcba9876543210",
+    supersedes_publication_id = read$publication_id
+  )
+  published <- p0_publish_module_contract(current, spec)
+  expect_true(file.exists(published))
+  expect_identical(sha256_file(path), before)
+  unlink(root, recursive = TRUE)
+})
+
+test_that("module publication collision fails closed", {
+  spec <- load_p0_authority_spec(fuse_test_root)
+  spec$authority_root <- tempfile("p0-publication-collision-")
+  on.exit(unlink(spec$authority_root, recursive = TRUE), add = TRUE)
+  value <- p0_module_publication_fixture()
+  identity <- p0_module_publication_identity(value)
+  final_dir <- p0_component_dir(
+    spec, file.path("modules", value$module_name, value$contract_id, "publications"),
+    identity$publication_id
+  )
+  dir.create(final_dir, recursive = TRUE)
+  writeLines("corrupt", file.path(final_dir, "scene_methodology_contract.json"))
+  expect_error(p0_publish_module_contract(value, spec), "non-deterministic")
+})
+
 test_that("actual reduced dissertation produces a complete deterministic P0 authority", {
   spec <- load_p0_authority_spec(fuse_test_root)
   temp_authority <- tempfile("p0-authority-integration-")
@@ -193,6 +287,8 @@ test_that("actual reduced dissertation produces a complete deterministic P0 auth
   expect_identical(value$overall_status, "PASS")
   expect_identical(value$authority_id, basename(dirname(manifest)))
   expect_length(value$module_contracts, 10L)
+  expect_true(all(vapply(value$module_contracts, function(x) grepl("^mmp_[0-9a-f]{64}$", x$publication_id), logical(1L))))
+  expect_true(all(vapply(value$module_contracts, function(x) grepl("^[0-9a-f]{64}$", x$publication_file_sha256), logical(1L))))
   expect_identical(
     value$scientific_contract_sha256,
     p0_scientific_contract_sha256(value$module_contracts)

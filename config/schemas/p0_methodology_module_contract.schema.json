@@ -2,9 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://fuse.local/schemas/p0_methodology_module_contract.schema.json",
   "type": "object",
-  "required": ["schema_version", "contract_id", "module_name", "authoritative_source_citations", "canonical_contract", "source_set_id", "module_content_sha256", "extraction_validation_implementation_sha256", "unresolved_fields", "conflicting_fields", "status"],
+  "required": ["schema_version", "publication_schema_version", "contract_id", "module_name", "authoritative_source_citations", "canonical_contract", "source_set_id", "module_content_sha256", "extraction_validation_implementation_sha256", "supersedes_publication_id", "unresolved_fields", "conflicting_fields", "status"],
   "properties": {
     "schema_version": {"const": "2.0.0"},
+    "publication_schema_version": {"const": "1.0.0"},
     "contract_id": {"type": "string", "pattern": "^mmc_[0-9a-f]{16}$"},
     "module_name": {"enum": ["scene", "base_spatial", "original_cache", "augmentation", "model", "training", "evaluation", "hyperparameter_study", "comparison", "downstream"]},
     "authoritative_source_citations": {
@@ -15,6 +16,7 @@
     "source_set_id": {"type": "string", "pattern": "^mss_[0-9a-f]{16}$"},
     "module_content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "extraction_validation_implementation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "supersedes_publication_id": {"type": ["string", "null"], "pattern": "^mmp_[0-9a-f]{24}([0-9a-f]{40})?$"},
     "unresolved_fields": {"type": "array", "items": {"type": "string"}},
     "conflicting_fields": {"type": "array", "items": {"type": "string"}},
     "status": {"enum": ["PASS", "BLOCKED_BY_DISSERTATION_CONFLICT", "BLOCKED_BY_MISSING_EVIDENCE"]}

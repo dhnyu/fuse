@@ -6,7 +6,7 @@
     "schema_version": {"const": "1.0.0"},
     "inventory_id": {"type": "string", "pattern": "^rin_[0-9a-f]{24}$"},
     "status": {"const": "PASS"},
-    "authority_id": {"const": "mta_7875c4ba4587e4877ba0be1d"},
+    "authority_id": {"const": "mta_2142a2914bc5c43ea8d6e312"},
     "scientific": {"type": "object"},
     "scientific_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "execution": {"type": "object"}

@@ -299,10 +299,18 @@ build_p0_module_contract <- function(module_name, source_set_file, conflict_gate
     module_name = module_name,
     canonical_contract = definition$contract
   ))
-  value <- c(list(schema_version=spec$schema_version, contract_id=paste0("mmc_",substr(content_hash,1L,16L)), module_name=module_name),
-             scientific[setdiff(names(scientific),c("schema_version","module_name"))], list(module_content_sha256=content_hash))
-  p0_publish_json_component(value, p0_component_dir(spec,file.path("modules",module_name),value$contract_id),
-                            paste0(module_name,"_methodology_contract.json"), spec$schemas[["module_contract"]])
+  contract_id <- paste0("mmc_", substr(content_hash, 1L, 16L))
+  predecessor <- p0_predecessor_module_publication(spec, module_name, contract_id, content_hash)
+  value <- c(list(
+    schema_version = spec$schema_version,
+    publication_schema_version = "1.0.0",
+    contract_id = contract_id,
+    module_name = module_name
+  ), scientific[setdiff(names(scientific), c("schema_version", "module_name"))], list(
+    module_content_sha256 = content_hash,
+    supersedes_publication_id = if (is.null(predecessor)) NULL else predecessor$publication_id
+  ))
+  p0_publish_module_contract(value, spec)
 }
 
 build_reduced_methodology_conflict_gate <- function(source_set_file, spec) {

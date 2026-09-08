@@ -3,9 +3,9 @@ p6_contract_names <- function() {
     "config/model_inputs.yml",
     "config/spatial_acceptance_aliases.yml",
     "config/schemas/p6_architecture_manifest.schema.json",
-    "config/schemas/model_dataloader_acceptance.schema.json",
+    "config/schemas/p6_dataloader_acceptance.schema.json",
     "config/schemas/p6_cpu_smoke.schema.json",
-    "config/schemas/scene_model_data_acceptance.schema.json",
+    "config/schemas/p6_model_data_acceptance.schema.json",
     "R/canonical_config.R", "python/canonical_config.py",
     "python/model_data.py", "python/scene_model.py", "scripts/build_model_inputs.py"
   )
@@ -167,7 +167,7 @@ p6_build_dataloader_acceptance <- function(original_scene_dataset_acceptance, au
            "--categories", artifact_path(base_spatial_acceptance, "spatial_categories.json"),
            "--preprocessing", artifact_path(p6_preprocessing_contract, "preprocessing_contract.json"), "--output", output))
   paths <- p6_publish_json(output, file.path(cfg$publication_root, "dataloader"), "dataloader_acceptance.json",
-                           p6_contract_file(contract_files, "config/schemas/model_dataloader_acceptance.schema.json"),
+                           p6_contract_file(contract_files, "config/schemas/p6_dataloader_acceptance.schema.json"),
                            "dataloader_acceptance_id")
   unlink(output); paths
 }
@@ -217,7 +217,7 @@ p6_final_acceptance <- function(model_architecture_contract, model_dataloader_ac
            "--dataloader", artifact_path(model_dataloader_acceptance, "dataloader_acceptance.json"),
            "--smoke", artifact_path(encoder_cpu_smoke, "cpu_functional_smoke.json"), "--output", output))
   paths <- p6_publish_json(output, file.path(cfg$publication_root, "acceptance"), "model_data_acceptance.json",
-                           p6_contract_file(contract_files, "config/schemas/scene_model_data_acceptance.schema.json"),
+                           p6_contract_file(contract_files, "config/schemas/p6_model_data_acceptance.schema.json"),
                            "model_data_acceptance_id")
   unlink(output); paths
 }

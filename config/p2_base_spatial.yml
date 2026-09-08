@@ -20,7 +20,7 @@ scopes:
     observation_controller: controller_20
 branching:
   algorithm: deterministic_bbox_proxy_lpt_v1
-  maximum_scenes_per_branch: 64
+  maximum_scenes_per_branch: 130
   proxy_weights: {building: 8.0, road: 4.0, poi: 1.0}
   controller: controller_40
   workers_per_branch: 1

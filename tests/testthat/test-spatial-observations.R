@@ -8,6 +8,43 @@ test_that("P2 deterministic LPT covers every scene once", {
   expect_true(all(lengths(first) <= 8L))
 })
 
+test_that("P2 current membership capacity covers 12,421 scenes in 96 aligned groups", {
+  ids <- sprintf("scene-%05d", seq_len(12421L))
+  costs <- as.double((seq_along(ids) * 7919L) %% 1009L)
+  first <- p2_lpt_bins(ids, costs, 96L, 130L)
+  second <- p2_lpt_bins(ids, costs, 96L, 130L)
+
+  expect_length(first, 96L)
+  expect_identical(first, second)
+  expect_identical(sort(unlist(first)), seq_along(ids))
+  expect_equal(anyDuplicated(unlist(first)), 0L)
+  expect_true(all(lengths(first) <= 130L))
+  expect_setequal(ids[unlist(first)], ids)
+})
+
+test_that("P2 membership packing fails closed when configured capacity is insufficient", {
+  ids <- sprintf("scene-%05d", seq_len(12421L))
+  expect_error(
+    p2_lpt_bins(ids, seq_along(ids), 96L, 64L),
+    paste0(
+      "P2 membership packing capacity is insufficient for current scene population: ",
+      "total scenes=12421, branch count=96, max scenes per branch=64, ",
+      "total capacity=6144, minimum required capacity per branch=130"
+    ),
+    fixed = TRUE
+  )
+})
+
+test_that("P2 membership packing accepts exact and minimum per-branch capacity boundaries", {
+  exact <- p2_lpt_bins(sprintf("scene-%02d", 1:12), rep(1, 12), 3L, 4L)
+  minimum <- p2_lpt_bins(sprintf("scene-%05d", seq_len(12421L)), rep(1, 12421L), 96L, 130L)
+
+  expect_equal(lengths(exact), rep(4L, 3L))
+  expect_length(minimum, 96L)
+  expect_true(all(lengths(minimum) <= 130L))
+  expect_identical(sort(unlist(minimum)), seq_len(12421L))
+})
+
 test_that("P2 binds runtime current P1 identities and exact content hashes", {
   fixture <- current_parent_fixture(); on.exit(unlink(fixture$root, recursive = TRUE), add = TRUE)
   config <- yaml::read_yaml(file.path(fuse_test_root, "config/p2_base_spatial.yml"))

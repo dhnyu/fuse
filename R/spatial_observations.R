@@ -126,11 +126,34 @@ p2_bbox_proxy <- function(scenes, sources, spec) {
 }
 
 p2_lpt_bins <- function(scene_ids, costs, target_branches, maximum_scenes) {
-  target_branches <- min(as.integer(target_branches), length(scene_ids))
+  scene_count <- length(scene_ids)
+  if (length(costs) != scene_count || anyNA(scene_ids) || anyNA(costs) || any(!is.finite(costs))) {
+    stop("P2 membership packing inputs are invalid", call. = FALSE)
+  }
+  if (length(target_branches) != 1L || is.na(target_branches) || target_branches < 1L ||
+      length(maximum_scenes) != 1L || is.na(maximum_scenes) || maximum_scenes < 1L) {
+    stop("P2 membership packing branch limits must be positive scalar integers", call. = FALSE)
+  }
+  target_branches <- min(as.integer(target_branches), scene_count)
+  maximum_scenes <- as.integer(maximum_scenes)
+  if (!scene_count) return(list())
+  total_capacity <- as.double(target_branches) * as.double(maximum_scenes)
+  minimum_capacity <- ceiling(scene_count / target_branches)
+  if (total_capacity < scene_count) {
+    stop(sprintf(
+      paste0(
+        "P2 membership packing capacity is insufficient for current scene population: ",
+        "total scenes=%d, branch count=%d, max scenes per branch=%d, ",
+        "total capacity=%.0f, minimum required capacity per branch=%d"
+      ),
+      scene_count, target_branches, maximum_scenes, total_capacity, minimum_capacity
+    ), call. = FALSE)
+  }
   order_index <- order(-costs, scene_ids, method = "radix")
   bins <- vector("list", target_branches); loads <- numeric(target_branches)
   for (i in order_index) {
     eligible <- which(lengths(bins) < maximum_scenes)
+    if (!length(eligible)) stop("P2 membership packing exhausted validated capacity", call. = FALSE)
     chosen <- eligible[order(loads[eligible], lengths(bins)[eligible], eligible)[[1L]]]
     bins[[chosen]] <- c(bins[[chosen]], i); loads[[chosen]] <- loads[[chosen]] + costs[[i]]
   }

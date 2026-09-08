@@ -77,7 +77,7 @@ test_that("Typst cycles, unresolved imports, dynamic imports, and escapes block"
   expect_true(any(vapply(escape$unresolved_imports, function(x) identical(x$reason, "repository_escape"), logical(1L))))
 })
 
-test_that("Git state rejects branch, commit, and dirty mismatches", {
+test_that("Git state blocks topology violations but records content drift", {
   fixture <- p0_init_git_fixture()
   on.exit(unlink(fixture$root, recursive = TRUE), add = TRUE)
   accepted <- inspect_p0_git_state(fixture$root, "fixture", "reduced", fixture$sha)
@@ -90,14 +90,39 @@ test_that("Git state rejects branch, commit, and dirty mismatches", {
   expect_true("branch_mismatch" %in% unlist(branch$diagnostics))
 
   commit <- inspect_p0_git_state(fixture$root, "fixture", "reduced", paste(rep("0", 40L), collapse = ""))
-  expect_identical(commit$verification_status, "BLOCKED_BY_REPOSITORY_STATE")
-  expect_true("commit_mismatch" %in% unlist(commit$diagnostics))
+  expect_identical(commit$verification_status, "PASS")
+  expect_true("commit_drift" %in% unlist(commit$diagnostics))
 
   writeLines("dirty", file.path(fixture$root, "template/main.typ"))
   dirty <- inspect_p0_git_state(fixture$root, "fixture", "reduced", fixture$sha)
-  expect_identical(dirty$verification_status, "BLOCKED_BY_REPOSITORY_STATE")
+  expect_identical(dirty$verification_status, "PASS")
   expect_true(dirty$working_tree_dirty)
   expect_true(dirty$source_files_locally_modified)
+  expect_true("working_tree_drift" %in% unlist(dirty$diagnostics))
+})
+
+test_that("dissertation prose and bibliography drift is non-blocking", {
+  paths <- c(
+    "template/sections/chapters/02-literature-review.typ",
+    "template/sections/chapters/03-methodology-model.typ",
+    "template/sections/chapters/04-methodology-training.typ",
+    "template/sections/chapters/05-results.typ",
+    "template/bibliography/references.bib"
+  )
+  for (path in paths) {
+    fixture <- p0_init_git_fixture()
+    on.exit(unlink(fixture$root, recursive = TRUE), add = TRUE)
+    p0_write_fixture(fixture$root, path, "baseline prose")
+    system2("git", c("-C", fixture$root, "add", path))
+    system2("git", c("-C", fixture$root, "commit", "-q", "-m", "add-source"))
+    accepted_sha <- system2("git", c("-C", fixture$root, "rev-parse", "HEAD"), stdout = TRUE)[[1L]]
+    p0_write_fixture(fixture$root, path, "edited prose or citation")
+    system2("git", c("-C", fixture$root, "add", path))
+    system2("git", c("-C", fixture$root, "commit", "-q", "-m", "edit-source"))
+    observed <- inspect_p0_git_state(fixture$root, "fixture", "reduced", accepted_sha)
+    expect_identical(observed$verification_status, "PASS", info = path)
+    expect_true("commit_drift" %in% unlist(observed$diagnostics), info = path)
+  }
 })
 
 test_that("source and canonical contract hashes are deterministic", {
@@ -114,7 +139,7 @@ test_that("source and canonical contract hashes are deterministic", {
   )
 })
 
-test_that("authority identity excludes environment-specific fields", {
+test_that("authority publication identity excludes environment-specific fields", {
   args <- list(
     schema_version = "1.0.0", dissertation_commit_sha = paste(rep("a", 40L), collapse = ""),
     ordered_source_hashes = list(list(path = "main.typ", sha256 = paste(rep("b", 64L), collapse = ""))),
@@ -231,70 +256,59 @@ test_that("module publication collision fails closed", {
   expect_error(p0_publish_module_contract(value, spec), "non-deterministic")
 })
 
-test_that("actual reduced dissertation produces a complete deterministic P0 authority", {
+test_that("explicit revision selects the existing scientific authority", {
   spec <- load_p0_authority_spec(fuse_test_root)
-  temp_authority <- tempfile("p0-authority-integration-")
-  spec$authority_root <- temp_authority
-  on.exit(unlink(temp_authority, recursive = TRUE), add = TRUE)
-
-  observed <- inspect_p0_git_state(
-    spec$dissertation$repository_path, spec$dissertation$repository_identity,
-    spec$dissertation$expected_branch, spec$dissertation$expected_commit_sha,
-    spec$schema_version
-  )
-  if (!identical(observed$observed_commit_sha, spec$dissertation$expected_commit_sha)) {
-    expect_identical(observed$verification_status, "BLOCKED_BY_REPOSITORY_STATE")
-    expect_true("commit_mismatch" %in% unlist(observed$diagnostics))
-    return(invisible(NULL))
-  }
-
-  source_files <- build_reduced_methodology_source_files(spec)
-  git_state <- build_reduced_methodology_git_state(source_files, spec)
-  git_value <- jsonlite::read_json(git_state, simplifyVector = FALSE)
-  if (!identical(git_value$observed_commit_sha, spec$dissertation$expected_commit_sha)) {
-    # P8-only methodology revisions are bound by the scoped P8 compatibility
-    # record and must not silently republish the repository-wide P0 authority.
-    expect_identical(git_value$verification_status, "BLOCKED_BY_REPOSITORY_STATE")
-    expect_true("commit_mismatch" %in% unlist(git_value$diagnostics))
-    expect_error(build_reduced_methodology_source_set(source_files, git_state, spec),
-                 "Dissertation Git state is not accepted")
-    return(invisible(NULL))
-  }
-  source_set <- build_reduced_methodology_source_set(source_files, git_state, spec)
-  source_value <- jsonlite::read_json(source_set, simplifyVector = FALSE)
-  expect_identical(source_value$status, "PASS")
-  expect_length(source_value$ordered_files, 41L)
-  expect_length(source_value$import_edges, 60L)
-  expect_length(source_value$unresolved_imports, 0L)
-  expect_length(source_value$cycle_diagnostics, 0L)
-
-  gate <- build_reduced_methodology_conflict_gate(source_set, spec)
-  gate_value <- jsonlite::read_json(gate, simplifyVector = FALSE)
-  expect_identical(gate_value$status, "PASS")
-
-  module_names <- names(p0_module_definitions())
-  modules <- vapply(module_names, build_p0_module_contract, character(1L),
-                    source_set_file = source_set, conflict_gate_file = gate, spec = spec)
-  expect_length(modules, 10L)
-  invisible(lapply(modules, validate_json_schema_file, schema_file = spec$schemas[["module_contract"]]))
-
-  first <- build_reduced_methodology_authority(git_state, source_set, gate, modules, spec)
-  second <- build_reduced_methodology_authority(git_state, source_set, gate, modules, spec)
-  expect_identical(first, second)
-  manifest <- first[grepl("reduced_methodology_authority[.]json$", first)]
-  validate_json_schema_file(manifest, spec$schemas[["authority"]])
-  value <- jsonlite::read_json(manifest, simplifyVector = FALSE)
-  expect_identical(value$overall_status, "PASS")
-  expect_identical(value$authority_id, basename(dirname(manifest)))
-  expect_length(value$module_contracts, 10L)
-  expect_true(all(vapply(value$module_contracts, function(x) grepl("^mmp_[0-9a-f]{64}$", x$publication_id), logical(1L))))
-  expect_true(all(vapply(value$module_contracts, function(x) grepl("^[0-9a-f]{64}$", x$publication_file_sha256), logical(1L))))
+  accepted <- p0_read_accepted_authority(spec)
+  expect_identical(accepted$value$authority_id, "mta_2142a2914bc5c43ea8d6e312")
   expect_identical(
-    value$scientific_contract_sha256,
-    p0_scientific_contract_sha256(value$module_contracts)
+    accepted$value$scientific_contract_sha256,
+    "426b2b6ce011794335d2e6f052e56ef463a7f0022f5733784c60eae9f85425ca"
   )
-  expect_identical(value$supersession$migration_kind, "OPERATIONAL_ONLY")
-  expect_length(value$supersession$changed_modules, 0L)
+  expect_length(accepted$value$module_contracts, 10L)
+  expect_identical(
+    accepted$value$scientific_contract_sha256,
+    p0_scientific_contract_sha256(accepted$value$module_contracts)
+  )
+  expect_identical(
+    vapply(accepted$value$module_contracts, `[[`, character(1L), "sha256"),
+    vapply(p0_expected_module_records(spec), `[[`, character(1L), "sha256")
+  )
+
+  sources <- p0_scientific_revision_source_files(spec)
+  expect_false(any(grepl("[.](typ|bib|pdf)$", sources)))
+  source_authority <- p0_resolve_accepted_source_authority(sources, spec)
+  active_names <- c(
+    "scene", "base_spatial", "original_cache", "augmentation",
+    "model", "evaluation", "hyperparameter_study", "comparison"
+  )
+  modules <- vapply(
+    active_names, p0_resolve_accepted_module_contract, character(1L),
+    source_authority = source_authority, spec = spec
+  )
+  resolved <- p0_resolve_accepted_authority(source_authority, modules, spec)
+  expect_length(resolved, 16L)
+  expect_true(all(file.exists(resolved)))
+  expect_identical(
+    normalizePath(resolved[grepl("reduced_methodology_authority[.]json$", resolved)], mustWork = TRUE),
+    normalizePath(accepted$path, mustWork = TRUE)
+  )
+})
+
+test_that("explicit methodology revision changes invalidate the accepted path", {
+  spec <- load_p0_authority_spec(fuse_test_root)
+  original <- p0_read_scientific_revision(spec)
+  changed_file <- tempfile("p0-scientific-revision-", fileext = ".yml")
+  on.exit(unlink(changed_file), add = TRUE)
+  changed <- original
+  changed$revision_token <- "mrev_material_change"
+  changed$material_revision_declared <- TRUE
+  yaml::write_yaml(changed, changed_file)
+  spec$revision_file <- changed_file
+  expect_error(
+    p0_read_scientific_revision(spec),
+    "not an accepted current declaration|revision token"
+  )
+  expect_error(p0_read_accepted_authority(spec))
 })
 
 test_that("operational supersession fails closed on scientific drift", {

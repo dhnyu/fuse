@@ -1,0 +1,6 @@
+schema_version: "1.0.0"
+revision_token: mrev_426b2b6ce0117943
+material_revision_declared: false
+accepted_authority_id: mta_2142a2914bc5c43ea8d6e312
+accepted_scientific_contract_sha256: 426b2b6ce011794335d2e6f052e56ef463a7f0022f5733784c60eae9f85425ca
+invalidation_policy: explicit_revision_only

@@ -24,7 +24,10 @@ load_p0_authority_spec <- function(root = getwd()) {
   root <- normalizePath(root, mustWork = TRUE)
   config_file <- p0_authority_config_file(root)
   value <- yaml::read_yaml(config_file)
-  required <- c("schema_version", "implementation_version", "dissertation", "approved_audit", "publication", "schemas")
+  required <- c(
+    "schema_version", "implementation_version", "scientific_revision",
+    "dissertation", "approved_audit", "publication", "schemas"
+  )
   missing <- setdiff(required, names(value))
   if (length(missing)) stop("P0 authority config is incomplete: ", paste(missing, collapse = ", "), call. = FALSE)
   dissertation <- value$dissertation
@@ -39,6 +42,8 @@ load_p0_authority_spec <- function(root = getwd()) {
   missing_schemas <- schema_files[!file.exists(schema_files)]
   if (length(missing_schemas)) stop("P0 schema file is absent: ", paste(missing_schemas, collapse = ", "), call. = FALSE)
   implementation_file <- file.path(root, "R/methodology_authority.R")
+  revision_file <- file.path(root, value$scientific_revision$contract_file)
+  if (!file.exists(revision_file)) stop("P0 scientific revision contract is absent", call. = FALSE)
   implementation_relative_files <- c(
     "R/methodology_authority.R",
     "R/current_methodology.R",
@@ -62,6 +67,7 @@ load_p0_authority_spec <- function(root = getwd()) {
     root = root,
     config_file = normalizePath(config_file, mustWork = TRUE),
     config_sha256 = sha256_file(config_file),
+    revision_file = normalizePath(revision_file, mustWork = TRUE),
     implementation_file = normalizePath(implementation_file, mustWork = TRUE),
     resolver_implementation_sha256 = sha256_file(implementation_file),
     implementation_sha256 = implementation_sha256,
@@ -85,6 +91,195 @@ load_p0_authority_spec <- function(root = getwd()) {
   )
 }
 
+p0_revision_token <- function(scientific_contract_sha256) {
+  if (!grepl("^[0-9a-f]{64}$", scientific_contract_sha256)) {
+    stop("P0 scientific contract SHA-256 is invalid", call. = FALSE)
+  }
+  paste0("mrev_", substr(scientific_contract_sha256, 1L, 16L))
+}
+
+p0_expected_module_records <- function(spec) {
+  definitions <- p0_module_definitions()
+  lapply(names(definitions), function(module_name) {
+    hash <- p0_scientific_sha256(list(
+      schema_version = spec$schema_version,
+      module_name = module_name,
+      canonical_contract = definitions[[module_name]]$contract
+    ))
+    list(
+      module_name = module_name,
+      contract_id = paste0("mmc_", substr(hash, 1L, 16L)),
+      sha256 = hash
+    )
+  })
+}
+
+p0_read_scientific_revision <- function(spec) {
+  value <- yaml::read_yaml(spec$revision_file)
+  required <- c(
+    "schema_version", "revision_token", "material_revision_declared",
+    "accepted_authority_id", "accepted_scientific_contract_sha256",
+    "invalidation_policy"
+  )
+  missing <- setdiff(required, names(value))
+  if (length(missing)) {
+    stop("P0 scientific revision contract is incomplete: ", paste(missing, collapse = ", "), call. = FALSE)
+  }
+  if (!identical(value$schema_version, "1.0.0") ||
+      !identical(value$invalidation_policy, "explicit_revision_only") ||
+      !isFALSE(value$material_revision_declared) ||
+      !grepl("^mta_[0-9a-f]{24}$", value$accepted_authority_id) ||
+      !grepl("^[0-9a-f]{64}$", value$accepted_scientific_contract_sha256)) {
+    stop("P0 scientific revision contract is not an accepted current declaration", call. = FALSE)
+  }
+  expected_token <- p0_revision_token(value$accepted_scientific_contract_sha256)
+  if (!identical(value$revision_token, expected_token)) {
+    stop("P0 methodology revision token does not match the accepted scientific contract", call. = FALSE)
+  }
+  value
+}
+
+p0_current_authority_file <- function(spec, revision = p0_read_scientific_revision(spec)) {
+  file.path(spec$authority_root, revision$accepted_authority_id, "reduced_methodology_authority.json")
+}
+
+p0_read_accepted_authority <- function(spec) {
+  revision <- p0_read_scientific_revision(spec)
+  path <- p0_current_authority_file(spec, revision)
+  if (!file.exists(path)) stop("Accepted P0 methodology authority is absent", call. = FALSE)
+  validate_json_schema_file(path, spec$schemas[["authority"]])
+  authority <- p0_read_single_json(path)
+  if (!identical(authority$authority_id, revision$accepted_authority_id) ||
+      !identical(authority$scientific_contract_sha256, revision$accepted_scientific_contract_sha256)) {
+    stop("Accepted P0 authority disagrees with the explicit scientific revision", call. = FALSE)
+  }
+  expected <- p0_expected_module_records(spec)
+  expected_hashes <- setNames(vapply(expected, `[[`, character(1L), "sha256"),
+                              vapply(expected, `[[`, character(1L), "module_name"))
+  observed_hashes <- setNames(vapply(authority$module_contracts, `[[`, character(1L), "sha256"),
+                              vapply(authority$module_contracts, `[[`, character(1L), "module_name"))
+  if (!identical(observed_hashes[sort(names(observed_hashes))], expected_hashes[sort(names(expected_hashes))]) ||
+      !identical(p0_scientific_contract_sha256(authority$module_contracts),
+                 revision$accepted_scientific_contract_sha256)) {
+    stop("Current implementation differs from the explicitly accepted P0 scientific revision", call. = FALSE)
+  }
+  list(path = normalizePath(path, mustWork = TRUE), value = authority, revision = revision)
+}
+
+p0_scientific_revision_source_files <- function(spec) {
+  p0_read_accepted_authority(spec)
+  normalizePath(c(
+    spec$revision_file,
+    spec$config_file,
+    file.path(spec$root, "config/current_methodology.yml")
+  ), mustWork = TRUE)
+}
+
+p0_resolve_accepted_source_authority <- function(revision_sources, spec) {
+  if (!length(revision_sources) || any(!file.exists(revision_sources))) {
+    stop("P0 explicit revision sources are unavailable", call. = FALSE)
+  }
+  accepted <- p0_read_accepted_authority(spec)
+  authority <- accepted$value
+  components <- c(
+    file.path(spec$authority_root, "_components", "git_state", authority$git_state_id,
+              "methodology_git_state.json"),
+    file.path(spec$authority_root, "_components", "source_set", authority$source_set_id,
+              "methodology_source_set.json"),
+    file.path(spec$authority_root, "_components", "conflict_gate", authority$conflict_gate_id,
+              "methodology_conflict_gate.json")
+  )
+  schemas <- spec$schemas[c("git_state", "source_set", "conflict_gate")]
+  if (any(!file.exists(components))) stop("Accepted P0 source-authority component is absent", call. = FALSE)
+  invisible(Map(validate_json_schema_file, components, schemas))
+  normalizePath(components, mustWork = TRUE)
+}
+
+p0_accepted_module_publication_path <- function(module_name, accepted, spec) {
+  records <- Filter(function(record) identical(record$module_name, module_name),
+                    accepted$value$module_contracts)
+  if (length(records) != 1L) stop("Accepted P0 module record is missing or duplicated: ", module_name, call. = FALSE)
+  record <- records[[1L]]
+  path <- file.path(
+    spec$authority_root, "_components", "modules", module_name, record$contract_id,
+    "publications", record$publication_id, paste0(module_name, "_methodology_contract.json")
+  )
+  publication <- p0_read_module_publication(path, spec$schemas[["module_contract"]])
+  if (!identical(publication$publication_id, record$publication_id) ||
+      !identical(publication$publication_identity_sha256, record$publication_identity_sha256) ||
+      !identical(sha256_file(path), record$publication_file_sha256) ||
+      !identical(publication$value$module_content_sha256, record$sha256)) {
+    stop("Accepted P0 module publication identity mismatch: ", module_name, call. = FALSE)
+  }
+  publication$path
+}
+
+p0_resolve_accepted_module_contract <- function(module_name, source_authority, spec) {
+  if (length(source_authority) != 3L || any(!file.exists(source_authority))) {
+    stop("Accepted P0 source authority is incomplete", call. = FALSE)
+  }
+  p0_accepted_module_publication_path(module_name, p0_read_accepted_authority(spec), spec)
+}
+
+p0_resolve_accepted_authority <- function(source_authority, module_contracts, spec) {
+  accepted <- p0_read_accepted_authority(spec)
+  expected_source_authority <- p0_resolve_accepted_source_authority(
+    p0_scientific_revision_source_files(spec), spec
+  )
+  if (!identical(normalizePath(source_authority, mustWork = TRUE), expected_source_authority)) {
+    stop("Active P0 source-authority targets do not match the accepted authority", call. = FALSE)
+  }
+  expected_active <- c("scene", "base_spatial", "original_cache", "augmentation",
+                       "model", "evaluation", "hyperparameter_study", "comparison")
+  expected_paths <- vapply(
+    expected_active, p0_accepted_module_publication_path, character(1L),
+    accepted = accepted, spec = spec
+  )
+  if (!identical(normalizePath(module_contracts, mustWork = TRUE), unname(expected_paths))) {
+    stop("Active P0 module targets do not match the accepted scientific authority", call. = FALSE)
+  }
+  training <- p0_accepted_module_publication_path("training", accepted, spec)
+  downstream <- p0_accepted_module_publication_path("downstream", accepted, spec)
+  authority_dir <- dirname(accepted$path)
+  copied_components <- file.path(authority_dir, c(
+    "reduced_methodology_authority.json", "methodology_git_state.json",
+    "methodology_source_set.json", "methodology_conflict_gate.json",
+    paste0(names(p0_module_definitions()), "_methodology_contract.json")
+  ))
+  if (any(!file.exists(copied_components))) stop("Accepted P0 authority bundle is incomplete", call. = FALSE)
+  c(training, downstream, normalizePath(copied_components, mustWork = TRUE))
+}
+
+p0_dissertation_provenance_snapshot <- function(spec) {
+  revision <- p0_read_scientific_revision(spec)
+  git_state <- inspect_p0_git_state(
+    spec$dissertation$repository_path, spec$dissertation$repository_identity,
+    spec$dissertation$expected_branch, spec$dissertation$expected_commit_sha,
+    spec$schema_version
+  )
+  resolved <- resolve_typst_source_set(
+    spec$dissertation$repository_path, spec$dissertation$entrypoint,
+    spec$implementation_version, spec$resolver_implementation_sha256,
+    spec$dissertation$non_scientific_generated_paths,
+    spec$dissertation$non_scientific_external_imports
+  )
+  list(
+    schema_version = "1.0.0",
+    status = if (identical(resolved$status, "PASS")) "INFORMATIONAL" else resolved$status,
+    scientific_revision_token = revision$revision_token,
+    accepted_authority_id = revision$accepted_authority_id,
+    accepted_scientific_contract_sha256 = revision$accepted_scientific_contract_sha256,
+    authority_provenance_commit = spec$dissertation$expected_commit_sha,
+    observed_commit = git_state$observed_commit_sha,
+    observed_branch = git_state$observed_branch,
+    working_tree_dirty = git_state$working_tree_dirty,
+    source_drift = !identical(git_state$observed_commit_sha, spec$dissertation$expected_commit_sha) ||
+      isTRUE(git_state$working_tree_dirty),
+    resolved_source_hashes = lapply(resolved$ordered_files, function(file) file[c("path", "sha256")]),
+    blocking = FALSE
+  )
+}
+
 p0_scientific_contract_sha256 <- function(module_records) {
   records <- lapply(module_records, function(record) list(
     module_name = record$module_name,
@@ -101,10 +296,6 @@ p0_assert_operational_supersession <- function(module_records, source_set, spec)
   prior_path <- spec$predecessor_authority_file
   if (!file.exists(prior_path)) stop("Operational supersession predecessor is absent", call. = FALSE)
   prior <- p0_read_single_json(prior_path)
-  if (!identical(prior$commit_sha, source_set$commit_sha) ||
-      !identical(prior$commit_sha, supersedes$dissertation_commit)) {
-    stop("Operational supersession changed the dissertation commit", call. = FALSE)
-  }
   prior_hashes <- setNames(
     vapply(prior$module_contracts, `[[`, character(1L), "sha256"),
     vapply(prior$module_contracts, `[[`, character(1L), "module_name")
@@ -332,11 +523,12 @@ inspect_p0_git_state <- function(repository_path, repository_identity,
     counts <- as.integer(strsplit(trimws(counts), "[[:space:]]+")[[1L]])
     divergence <- list(ahead = counts[[1L]], behind = counts[[2L]])
   }
-  diagnostics <- character()
-  if (!identical(branch, expected_branch)) diagnostics <- c(diagnostics, "branch_mismatch")
-  if (!identical(commit, expected_commit_sha)) diagnostics <- c(diagnostics, "commit_mismatch")
-  if (detached) diagnostics <- c(diagnostics, "detached_head")
-  if (length(porcelain)) diagnostics <- c(diagnostics, "working_tree_dirty")
+  blocking_diagnostics <- character()
+  provenance_diagnostics <- character()
+  if (!identical(branch, expected_branch)) blocking_diagnostics <- c(blocking_diagnostics, "branch_mismatch")
+  if (detached) blocking_diagnostics <- c(blocking_diagnostics, "detached_head")
+  if (!identical(commit, expected_commit_sha)) provenance_diagnostics <- c(provenance_diagnostics, "commit_drift")
+  if (length(porcelain)) provenance_diagnostics <- c(provenance_diagnostics, "working_tree_drift")
   scientific <- list(
     schema_version = schema_version, repository_identity = repository_identity,
     expected_branch = expected_branch, observed_branch = branch,
@@ -345,14 +537,14 @@ inspect_p0_git_state <- function(repository_path, repository_identity,
     tracked_modification = length(tracked) > 0L,
     staged_modification = length(staged) > 0L,
     untracked_files = untracked, source_files_locally_modified = length(tracked) > 0L || length(staged) > 0L,
-    verification_status = if (length(diagnostics)) "BLOCKED_BY_REPOSITORY_STATE" else "PASS"
+    verification_status = if (length(blocking_diagnostics)) "BLOCKED_BY_REPOSITORY_STATE" else "PASS"
   )
   content_hash <- p0_scientific_sha256(scientific)
   c(scientific, list(
     git_state_id = paste0("mgs_", substr(content_hash, 1L, 16L)),
     repository_path = normalizePath(repository_path, mustWork = TRUE),
     upstream_ref = upstream, upstream_divergence = divergence,
-    diagnostics = as.list(diagnostics), content_sha256 = content_hash
+    diagnostics = as.list(c(blocking_diagnostics, provenance_diagnostics)), content_sha256 = content_hash
   ))
 }
 

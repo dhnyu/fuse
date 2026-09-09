@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
 from model_data import (GEOMETRY_LAYOUT_VERSION, DeterministicSceneSampler,
-                     _poi_category_key, ragged_collate, validate_geometry_layout)
+                     _poi_category_key, normalize_modality_available, ragged_collate,
+                     validate_geometry_layout)
 from scene_model import ReducedSceneEncoder, RelationAwareLayer, parameter_counts
 
 
@@ -39,7 +40,8 @@ def sample(scene: str, entity_types=(0,), edges=(), relation_masks=(), source_no
         "geometry_layout_version": GEOMETRY_LAYOUT_VERSION,
         "positive_scene_id": scene, "lineage": {"parent": "fixture"},
         "entities": {
-            "local_entity_id": torch.arange(count), "entity_type": torch.tensor(entity_types),
+            "local_entity_id": torch.arange(count),
+            "entity_type": torch.tensor(entity_types, dtype=torch.int64),
             "relative_position_m": torch.zeros((count, 2)), "object_raster": torch.zeros((count, 26)),
             "modality_available": torch.ones((count, 4), dtype=torch.uint8),
             "building_row_index": torch.tensor(rows[0], dtype=torch.int64),
@@ -164,6 +166,63 @@ def test_poi_terminal_dash_is_missing_after_augmentation_delta():
 def test_collator_rejects_empty_batch():
     with pytest.raises(ValueError, match="empty batch"):
         ragged_collate([])
+
+
+def test_unbatched_one_entity_availability_is_normalized():
+    fixture = sample("one")
+    fixture["entities"]["modality_available"] = torch.ones(4, dtype=torch.uint8)
+    batch = ragged_collate([fixture])
+    assert batch["entities"]["modality_available"].shape == (1, 4)
+
+
+def test_empty_scene_preserves_the_modality_axis():
+    batch = ragged_collate([sample("empty", ())])
+    assert batch["entities"]["modality_available"].shape == (0, 4)
+    model = ReducedSceneEncoder(config(), VOCABULARY).eval()
+    with torch.no_grad():
+        output = model(batch, (torch.empty((0, 128)), torch.empty((0, 256))))
+    assert output["scene_embedding"].shape == (1, 128)
+    assert torch.isfinite(output["scene_embedding"]).all()
+
+
+def test_batched_availability_retains_ragged_entity_alignment():
+    batch = ragged_collate([sample("first", (0, 1)), sample("second", (2,))])
+    assert batch["entities"]["modality_available"].shape == (3, 4)
+    assert batch["entity_scene_index"].tolist() == [0, 0, 1]
+
+
+@pytest.mark.parametrize("shape", [(2,), (1, 2, 4)])
+def test_modality_availability_wrong_rank_or_length_fails(shape):
+    fixture = sample("bad")
+    fixture["entities"]["modality_available"] = torch.ones(shape, dtype=torch.uint8)
+    with pytest.raises(ValueError, match="modality_available"):
+        ragged_collate([fixture])
+
+
+def test_modality_availability_entity_count_mismatch_fails():
+    with pytest.raises(ValueError, match="shape mismatch"):
+        normalize_modality_available(torch.ones((2, 4), dtype=torch.uint8), 1)
+
+
+def test_model_rejects_batch_and_mask_misalignment_without_broadcasting():
+    model = ReducedSceneEncoder(config(), VOCABULARY).eval()
+    batch = ragged_collate([sample("bad-mask", (0, 1))])
+    batch["entities"]["modality_available"] = torch.ones((1, 4), dtype=torch.uint8)
+    with pytest.raises(ValueError, match="modality_available"):
+        model(batch, (torch.zeros((2, 128)), torch.zeros((2, 256))))
+
+    batch = ragged_collate([sample("bad-batch", (0,))])
+    batch["entity_scene_index"] = torch.tensor([1])
+    with pytest.raises(ValueError, match="outside the batch"):
+        model(batch, (torch.zeros((1, 128)), torch.zeros((1, 256))))
+
+
+def test_model_rejects_entity_without_an_available_modality():
+    model = ReducedSceneEncoder(config(), VOCABULARY).eval()
+    batch = ragged_collate([sample("unavailable")])
+    batch["entities"]["modality_available"].zero_()
+    with pytest.raises(ValueError, match="no available modality"):
+        model(batch, (torch.zeros((1, 128)), torch.zeros((1, 256))))
 
 
 def test_batch_input_is_not_mutated():

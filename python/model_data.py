@@ -24,6 +24,7 @@ from torch.utils.data import Dataset, Sampler
 RELATION_BITS = {"SN": 1, "CNT": 2, "WIT": 4, "INT": 8, "CON": 16}
 TYPE_CODES = {"B": 0, "R": 1, "P": 2}
 GEOMETRY_LAYOUT_VERSION = "3.0.0"
+ENTITY_MODALITY_COUNT = 4
 
 
 def geometry_parts(geometry: Any) -> tuple[list[np.ndarray], list[tuple[np.ndarray, bool]], list[int]]:
@@ -580,7 +581,9 @@ def tensorize_scene(scene: dict[str, Any], preprocessing: dict[str, Any], vocab:
         "entities": {
             "local_entity_id": torch.tensor(local_ids), "entity_type": torch.tensor(types),
             "relative_position_m": torch.tensor(relative), "object_raster": torch.tensor(background),
-            "modality_available": torch.tensor([[1, int(kind != 2), 1, 1] for kind in types], dtype=torch.uint8),
+            "modality_available": torch.tensor(
+                [[1, int(kind != 2), 1, 1] for kind in types], dtype=torch.uint8
+            ).reshape((-1, ENTITY_MODALITY_COUNT)),
             "building_row_index": torch.tensor(building_rows, dtype=torch.int64), "building_category": torch.tensor(building_category, dtype=torch.int64).reshape((-1, 2)),
             "building_numerical": torch.tensor(building_num, dtype=torch.float32).reshape((-1, 2)), "building_missing": torch.tensor(building_missing, dtype=torch.uint8).reshape((-1, 2)),
             "road_row_index": torch.tensor(road_rows, dtype=torch.int64), "road_category": torch.tensor(road_category, dtype=torch.int64).reshape((-1, 2)),
@@ -662,6 +665,27 @@ def validate_geometry_layout(value: dict[str, Any]) -> None:
             raise ValueError("ring intervals are not contiguous")
 
 
+def normalize_modality_available(value: torch.Tensor, entity_count: int) -> torch.Tensor:
+    """Return the canonical ragged entity-by-modality availability matrix."""
+    if not isinstance(value, torch.Tensor):
+        raise ValueError("modality_available must be a tensor")
+    if value.ndim == 1:
+        if value.numel() == 0 and entity_count == 0:
+            value = value.reshape((0, ENTITY_MODALITY_COUNT))
+        elif value.numel() == ENTITY_MODALITY_COUNT and entity_count == 1:
+            value = value.reshape((1, ENTITY_MODALITY_COUNT))
+        else:
+            raise ValueError("one-dimensional modality_available does not match one entity")
+    elif value.ndim != 2:
+        raise ValueError("modality_available must have rank 1 or 2 before collation")
+    expected = (entity_count, ENTITY_MODALITY_COUNT)
+    if tuple(value.shape) != expected:
+        raise ValueError(
+            f"modality_available shape mismatch: expected {expected}, got {tuple(value.shape)}"
+        )
+    return value
+
+
 def ragged_collate(samples: Sequence[dict[str, Any]]) -> dict[str, Any]:
     if not samples: raise ValueError("cannot collate empty batch")
     for sample in samples:
@@ -677,8 +701,12 @@ def ragged_collate(samples: Sequence[dict[str, Any]]) -> dict[str, Any]:
     scene_ptr, part_coordinate_ptr, ring_coordinate_ptr, part_ptr, ring_ptr, chain_ptr, source_node_ptr = map(
         ptr, (node_counts, part_coordinate_counts, ring_coordinate_counts, part_counts, ring_counts, chain_counts, source_node_counts))
     entities = {}
-    for key in ("local_entity_id", "entity_type", "relative_position_m", "object_raster", "modality_available"):
+    for key in ("local_entity_id", "entity_type", "relative_position_m", "object_raster"):
         entities[key] = torch.cat([sample["entities"][key] for sample in samples])
+    entities["modality_available"] = torch.cat([
+        normalize_modality_available(sample["entities"]["modality_available"], node_counts[index])
+        for index, sample in enumerate(samples)
+    ])
     for prefix in ("building", "road", "poi"):
         row_key = f"{prefix}_row_index"
         entities[row_key] = torch.cat([sample["entities"][row_key] + scene_ptr[index] for index, sample in enumerate(samples)])

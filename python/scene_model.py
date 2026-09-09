@@ -180,7 +180,34 @@ class ReducedSceneEncoder(nn.Module):
                     result[scene, entity_type] = (torch.softmax(scores[index], 0)[:, None] * values[index]).sum(0)
         return result
 
+    @staticmethod
+    def _validate_entity_batch(batch: dict[str, Any]) -> None:
+        entities = batch["entities"]
+        entity_count = int(entities["local_entity_id"].numel())
+        expected = {
+            "local_entity_id": (entity_count,),
+            "entity_type": (entity_count,),
+            "relative_position_m": (entity_count, 2),
+            "object_raster": (entity_count, 26),
+            "modality_available": (entity_count, 4),
+        }
+        for key, shape in expected.items():
+            value = entities.get(key)
+            if not isinstance(value, torch.Tensor) or tuple(value.shape) != shape:
+                observed = None if not isinstance(value, torch.Tensor) else tuple(value.shape)
+                raise ValueError(f"P6 entity tensor shape mismatch for {key}: expected {shape}, got {observed}")
+        scene_index = batch.get("entity_scene_index")
+        scene_count = len(batch.get("scene_ids", []))
+        if not isinstance(scene_index, torch.Tensor) or tuple(scene_index.shape) != (entity_count,):
+            raise ValueError("P6 entity_scene_index shape mismatch")
+        if entity_count and (scene_count == 0 or bool(((scene_index < 0) | (scene_index >= scene_count)).any())):
+            raise ValueError("P6 entity_scene_index is outside the batch")
+        available = entities["modality_available"].bool()
+        if entity_count and not bool(available.any(dim=1).all()):
+            raise ValueError("P6 entity has no available modality")
+
     def forward(self, batch: dict[str, Any], precomputed_geometry: tuple[torch.Tensor, torch.Tensor] | None = None) -> dict[str, torch.Tensor]:
+        self._validate_entity_batch(batch)
         entities, edges, rasters = batch["entities"], batch["edges"], batch["rasters"]
         position = self.position_encoder(sinusoidal_position_features(entities["relative_position_m"], self.wavelengths))
         magnitude, phase = precomputed_geometry or geometry_fourier_features(batch, {"geometry": {

@@ -3,7 +3,7 @@ p5_branch_resources <- targets::tar_resources(
 )
 
 list_s05_fixed_queries <- list(
-  targets::tar_target(s05_query_sources, normalizePath(p5_contract_paths(), mustWork = TRUE),
+  targets::tar_target(s05_query_sources, p5_normalize_contract_files(p5_contract_paths()),
     format = "file", resources = controller_05_resources),
   targets::tar_target(s05_query_contract,
     p5_build_contract(s00_evaluation_methodology_contract, s00_augmentation_methodology_contract,

@@ -70,6 +70,74 @@ testthat::test_that("P5 source registry resolves current library, build, and run
   testthat::expect_false(grepl('root / "scripts/fixed_queries.py"', runner, fixed = TRUE))
 })
 
+testthat::test_that("P5 path normalization preserves source roles and order", {
+  paths <- p5_contract_paths(fuse_test_root)
+  normalized <- p5_normalize_contract_files(paths, fuse_test_root)
+
+  testthat::expect_identical(names(normalized), names(paths))
+  testthat::expect_identical(
+    unname(normalized),
+    unname(normalizePath(paths, mustWork = TRUE))
+  )
+  testthat::expect_identical(
+    normalized[["python"]],
+    normalizePath(file.path(fuse_test_root, "python/fixed_queries.py"), mustWork = TRUE)
+  )
+  testthat::expect_identical(
+    normalized[["cli"]],
+    normalizePath(file.path(fuse_test_root, "scripts/build_fixed_queries.py"), mustWork = TRUE)
+  )
+  testthat::expect_identical(
+    normalized[["runner"]],
+    normalizePath(file.path(fuse_test_root, "scripts/run_fixed_queries.py"), mustWork = TRUE)
+  )
+})
+
+testthat::test_that("P5 source role validation fails closed", {
+  paths <- p5_contract_paths(fuse_test_root)
+
+  testthat::expect_error(
+    p5_normalize_contract_files(unname(paths), fuse_test_root),
+    "requires named source roles"
+  )
+  testthat::expect_error(
+    p5_normalize_contract_files(paths[names(paths) != "runner"], fuse_test_root),
+    "missing required roles: runner"
+  )
+  duplicate <- paths
+  names(duplicate)[names(duplicate) == "cli"] <- "runner"
+  testthat::expect_error(
+    p5_normalize_contract_files(duplicate, fuse_test_root),
+    "duplicate source roles"
+  )
+  stale <- paths
+  stale[["runner"]] <- file.path(fuse_test_root, "scripts/fixed_queries.py")
+  testthat::expect_error(
+    p5_normalize_contract_files(stale, fuse_test_root),
+    "retired scripts/fixed_queries.py"
+  )
+})
+
+testthat::test_that("P5 loaded spec retains executable role lookups", {
+  withr::local_dir(fuse_test_root)
+  paths <- p5_contract_paths(fuse_test_root)
+  spec <- p5_load_spec(paths, fuse_test_root)
+  representative_branch <- list(
+    branch_id = "fqb_fixture", query_authority_id = "fqa_fixture",
+    implementation_hash = spec$implementation_hash
+  )
+
+  testthat::expect_identical(names(spec$files), names(paths))
+  testthat::expect_identical(basename(spec$files[["python"]]), "fixed_queries.py")
+  testthat::expect_identical(basename(spec$files[["cli"]]), "build_fixed_queries.py")
+  testthat::expect_identical(basename(spec$files[["runner"]]), "run_fixed_queries.py")
+  testthat::expect_identical(representative_branch$implementation_hash, spec$implementation_hash)
+  testthat::expect_identical(
+    spec$implementation_hash,
+    "7bf8b45dd687d33aa6bd9d42cd2bad1b447d008577f3eebd73ce1cbe86489c82"
+  )
+})
+
 testthat::test_that("P5 scientific implementation hash excludes execution environment", {
   helper <- paste(readLines(testthat::test_path("..", "..", "R", "fixed_queries.R"), warn = FALSE), collapse = "\n")
   testthat::expect_true(grepl("implementation_hash", helper, fixed = TRUE))

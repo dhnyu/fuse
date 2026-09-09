@@ -12,8 +12,46 @@ p5_contract_paths <- function(root = getwd()) {
     targets = file.path(root, "targets/s05_fixed_queries.R"))
 }
 
+p5_normalize_contract_files <- function(files, root = getwd()) {
+  roles <- names(files)
+  if (is.null(roles) || any(!nzchar(roles))) {
+    stop("P5 source registry requires named source roles", call. = FALSE)
+  }
+  if (anyDuplicated(roles)) {
+    stop("P5 source registry contains duplicate source roles", call. = FALSE)
+  }
+  required <- c("python", "cli", "runner")
+  missing <- setdiff(required, roles)
+  if (length(missing)) {
+    stop("P5 source registry is missing required roles: ", paste(missing, collapse = ", "), call. = FALSE)
+  }
+  if (any(endsWith(files, "scripts/fixed_queries.py"))) {
+    stop("P5 source registry contains retired scripts/fixed_queries.py", call. = FALSE)
+  }
+  missing_paths <- files[!file.exists(files)]
+  if (length(missing_paths)) {
+    stop("P5 source registry contains missing paths: ", paste(missing_paths, collapse = ", "), call. = FALSE)
+  }
+  empty_paths <- files[is.na(file.info(files)$size) | file.info(files)$size <= 0]
+  if (length(empty_paths)) {
+    stop("P5 source registry contains empty paths: ", paste(empty_paths, collapse = ", "), call. = FALSE)
+  }
+  files[] <- normalizePath(files, mustWork = TRUE)
+  root <- normalizePath(root, mustWork = TRUE)
+  expected <- c(
+    python = file.path(root, "python/fixed_queries.py"),
+    cli = file.path(root, "scripts/build_fixed_queries.py"),
+    runner = file.path(root, "scripts/run_fixed_queries.py")
+  )
+  wrong <- required[files[required] != expected]
+  if (length(wrong)) {
+    stop("P5 source registry has incorrect paths for roles: ", paste(wrong, collapse = ", "), call. = FALSE)
+  }
+  files
+}
+
 p5_load_spec <- function(files, root = getwd()) {
-  files <- normalizePath(files, mustWork = TRUE)
+  files <- p5_normalize_contract_files(files, root)
   cfg <- yaml::read_yaml(files[basename(files) == "p5_deterministic_queries.yml"])
   schemas <- setNames(vapply(cfg$schemas, function(path) {
     files[basename(files) == basename(path)][[1L]]
@@ -26,16 +64,18 @@ p5_load_spec <- function(files, root = getwd()) {
   scientific_config$execution <- NULL
   canonical_config_sha256 <- canonical_yaml_sha256(files[basename(files) == "p5_deterministic_queries.yml"],
                                                     c("publication_root", "execution"))
+  scientific_indices <- unname(which(scientific))
+  scientific_indices <- scientific_indices[order(relative[scientific_indices], method = "radix")]
   implementation_hash <- p0_scientific_sha256(list(
     version = cfg$implementation_version,
-    files = lapply(which(scientific)[order(relative[scientific], method = "radix")], function(index) {
+    files = unname(lapply(scientific_indices, function(index) {
       sha256 <- if (identical(relative[[index]], "config/p5_deterministic_queries.yml")) {
         canonical_config_sha256
       } else {
         sha256_file(files[[index]])
       }
       list(path = relative[[index]], sha256 = sha256)
-    })
+    }))
   ))
   list(config = cfg, files = files, schemas = schemas, implementation_hash = implementation_hash,
        canonical_config_sha256 = canonical_config_sha256,

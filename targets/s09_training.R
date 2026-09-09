@@ -1,47 +1,76 @@
+# Current S09 formal campaign. Cache/authority targets are CPU-only; run targets launch DDP.
 list_s09_training <- list(
-  targets::tar_target(
-    s09_training_contract,
-    s09_training_contract_path(),
-    format = "file"
-  ),
-  targets::tar_target(
-    s09_training_authority,
-    s09_training_authority_path(),
-    format = "file"
-  ),
-  targets::tar_target(
-    s09_startup_preflight,
-    s09_controller_preflight(s09_training_authority, s09_training_contract),
-    format = "file"
-  ),
-  targets::tar_target(
-    s09_closed_ledger,
-    s09_controller_run(s09_training_authority, s09_training_contract, s09_startup_preflight),
-    format = "file"
-  ),
-  targets::tar_target(
-    s09_run_bundle,
-    s09_bundle(s09_closed_ledger, s09_training_authority, s09_training_contract),
-    format = "file"
-  ),
-  targets::tar_target(
-    s09_finalization_result,
-    s09_finalize(s09_run_bundle, s09_training_authority, s09_training_contract),
-    format = "file"
-  ),
-  targets::tar_target(
-    s09_acceptance_commit,
-    s09_accept(s09_finalization_result, s09_training_authority, s09_training_contract),
-    format = "file"
-  ),
-  targets::tar_target(
-    s09_eligibility_snapshot,
-    s09_eligibility(s09_acceptance_commit, s09_training_authority, s09_training_contract),
-    format = "file"
-  ),
-  targets::tar_target(
-    s09_accepted_checkpoint,
-    s09_resolve_accepted_checkpoint(s09_eligibility_snapshot, s09_training_authority, s09_training_contract),
-    format = "file"
-  )
+  targets::tar_target(s09_training_sources, s09_training_source_files(), format = "file"),
+  targets::tar_target(s09_training_contract, s09_training_contract_path(), format = "file"),
+  targets::tar_target(s09_current_experiment_plan, s09_experiment_plan_path(s09_training_contract), format = "file"),
+  targets::tar_target(s09_prepared_cache_acceptance,
+    s09_build_prepared_cache(s09_training_contract, s09_current_experiment_plan, s09_training_sources), format = "file"),
+  targets::tar_target(s09_resolved_contract,
+    s09_resolve_contract(s09_training_contract, s09_current_experiment_plan, s09_prepared_cache_acceptance), format = "file"),
+  targets::tar_target(s09_ofat_authorities,
+    s09_publish_ofat_authorities(s09_current_experiment_plan, s09_resolved_contract,
+                                 s09_prepared_cache_acceptance), format = "file"),
+  targets::tar_target(s09_ofat_authority, s09_ofat_authorities, pattern = map(s09_ofat_authorities), format = "file"),
+  targets::tar_target(s09_ofat_preflight,
+    s09_controller_preflight(s09_ofat_authority, s09_resolved_contract), pattern = map(s09_ofat_authority), format = "file"),
+  targets::tar_target(s09_ofat_closed_ledger,
+    s09_controller_run(s09_ofat_authority, s09_resolved_contract, s09_ofat_preflight),
+    pattern = map(s09_ofat_authority, s09_ofat_preflight), format = "file"),
+  targets::tar_target(s09_ofat_run_bundle,
+    s09_bundle(s09_ofat_closed_ledger, s09_ofat_authority, s09_resolved_contract),
+    pattern = map(s09_ofat_closed_ledger, s09_ofat_authority), format = "file"),
+  targets::tar_target(s09_ofat_finalization,
+    s09_finalize(s09_ofat_run_bundle, s09_ofat_authority, s09_resolved_contract),
+    pattern = map(s09_ofat_run_bundle, s09_ofat_authority), format = "file"),
+  targets::tar_target(s09_ofat_acceptance,
+    s09_accept(s09_ofat_finalization, s09_ofat_authority, s09_resolved_contract),
+    pattern = map(s09_ofat_finalization, s09_ofat_authority), format = "file"),
+  targets::tar_target(s09_ofat_eligibility,
+    s09_eligibility(s09_ofat_acceptance, s09_ofat_authority, s09_resolved_contract),
+    pattern = map(s09_ofat_acceptance, s09_ofat_authority), format = "file"),
+  targets::tar_target(s09_ofat_accepted_checkpoint,
+    s09_resolve_accepted_checkpoint(s09_ofat_eligibility, s09_ofat_authority, s09_resolved_contract),
+    pattern = map(s09_ofat_eligibility, s09_ofat_authority), format = "file"),
+  targets::tar_target(s09_ofat_result,
+    s09_training_result(s09_ofat_finalization, s09_ofat_acceptance, s09_ofat_accepted_checkpoint,
+      s09_ofat_authority, s09_resolved_contract),
+    pattern = map(s09_ofat_finalization, s09_ofat_acceptance, s09_ofat_accepted_checkpoint,
+      s09_ofat_authority), format = "file"),
+  targets::tar_target(s09_ofat_winner,
+    s09_select_winner(s09_current_experiment_plan, s09_resolved_contract,
+                      s09_prepared_cache_acceptance, s09_ofat_result), format = "file"),
+  targets::tar_target(s09_comparison_authorities,
+    s09_publish_comparison_authorities(s09_current_experiment_plan, s09_resolved_contract,
+      s09_prepared_cache_acceptance, s09_ofat_winner), format = "file"),
+  targets::tar_target(s09_comparison_authority, s09_comparison_authorities,
+    pattern = map(s09_comparison_authorities), format = "file"),
+  targets::tar_target(s09_comparison_preflight,
+    s09_controller_preflight(s09_comparison_authority, s09_resolved_contract),
+    pattern = map(s09_comparison_authority), format = "file"),
+  targets::tar_target(s09_comparison_closed_ledger,
+    s09_controller_run(s09_comparison_authority, s09_resolved_contract, s09_comparison_preflight),
+    pattern = map(s09_comparison_authority, s09_comparison_preflight), format = "file"),
+  targets::tar_target(s09_comparison_run_bundle,
+    s09_bundle(s09_comparison_closed_ledger, s09_comparison_authority, s09_resolved_contract),
+    pattern = map(s09_comparison_closed_ledger, s09_comparison_authority), format = "file"),
+  targets::tar_target(s09_comparison_finalization,
+    s09_finalize(s09_comparison_run_bundle, s09_comparison_authority, s09_resolved_contract),
+    pattern = map(s09_comparison_run_bundle, s09_comparison_authority), format = "file"),
+  targets::tar_target(s09_comparison_acceptance,
+    s09_accept(s09_comparison_finalization, s09_comparison_authority, s09_resolved_contract),
+    pattern = map(s09_comparison_finalization, s09_comparison_authority), format = "file"),
+  targets::tar_target(s09_comparison_eligibility,
+    s09_eligibility(s09_comparison_acceptance, s09_comparison_authority, s09_resolved_contract),
+    pattern = map(s09_comparison_acceptance, s09_comparison_authority), format = "file"),
+  targets::tar_target(s09_comparison_accepted_checkpoint,
+    s09_resolve_accepted_checkpoint(s09_comparison_eligibility, s09_comparison_authority, s09_resolved_contract),
+    pattern = map(s09_comparison_eligibility, s09_comparison_authority), format = "file"),
+  targets::tar_target(s09_comparison_result,
+    s09_training_result(s09_comparison_finalization, s09_comparison_acceptance,
+      s09_comparison_accepted_checkpoint, s09_comparison_authority, s09_resolved_contract),
+    pattern = map(s09_comparison_finalization, s09_comparison_acceptance,
+      s09_comparison_accepted_checkpoint, s09_comparison_authority), format = "file"),
+  targets::tar_target(s09_campaign_acceptance,
+    s09_accept_campaign(s09_current_experiment_plan, s09_ofat_winner, s09_comparison_result,
+                        s09_prepared_cache_acceptance, s09_resolved_contract), format = "file")
 )

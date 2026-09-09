@@ -6,24 +6,29 @@
   "required": ["schema_version", "identity", "content_sha256", "content"],
   "properties": {
     "schema_version": {"const": "2.0.0"},
-    "identity": {"type": "string", "pattern": "^p9authv2_[0-9a-f]{24}$"},
+    "identity": {"type": "string", "pattern": "^s09auth_[0-9a-f]{24}$"},
     "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "content": {
       "type": "object",
       "required": ["authority_kind", "scope", "scientific_run_key", "scientific", "parents", "parent_hashes", "execution_policy"],
       "properties": {
-        "authority_kind": {"const": "FUTURE_FORMAL_TRAINING"},
-        "scope": {"const": "ONE_NEW_FORMAL_CONFIGURATION"},
+        "authority_kind": {"enum": ["CURRENT_FORMAL_TRAINING", "FUTURE_FORMAL_TRAINING"]},
+        "scope": {"enum": ["CAMPAIGN_CONFIGURATION", "ONE_NEW_FORMAL_CONFIGURATION"]},
         "scientific_run_key": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "scientific": {
           "type": "object",
-          "required": ["configuration_id", "configuration_hash", "plan_configuration_hash", "scientific_implementation_hash", "selection_contract_id", "root_seed", "evaluation_ancestry"],
+          "required": ["configuration_id", "configuration_hash", "plan_configuration_hash", "scientific_implementation_hash", "selection_contract_id", "selection_contract_hash", "prepared_cache_id", "phase", "model_id", "hyperparameters", "root_seed", "evaluation_ancestry"],
           "properties": {
-            "configuration_id": {"type": "string", "pattern": "^(main|ofat_[a-z0-9_.-]+|cmp_[a-z0-9_]+)$"},
+            "configuration_id": {"type": "string", "pattern": "^(main|ofat_[A-Za-z0-9_.-]+|cmp_[A-Za-z0-9_.-]+)$"},
             "configuration_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
             "plan_configuration_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
             "scientific_implementation_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
             "selection_contract_id": {"const": "current-training-selection-v1.0.0"},
+            "selection_contract_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "prepared_cache_id": {"type": "string", "minLength": 1},
+            "phase": {"enum": ["OFAT", "COMPARISON"]},
+            "model_id": {"type": "string", "pattern": "^(FM|A[1-5]|B[1-9]|SSV|DS)$"},
+            "hyperparameters": {"type": "object"},
             "root_seed": {"type": "integer", "minimum": 0},
             "evaluation_ancestry": {"const": false}
           },
@@ -31,14 +36,17 @@
         },
         "parents": {
           "type": "object",
-          "required": ["methodology_commit", "methodology_authority_id", "experiment_plan_id", "dataset_acceptance_id", "query_acceptance_id", "bank_acceptance_id", "scene_cache_acceptance_id", "production_cache_id", "production_cache_acceptance_id", "retirement_id"],
+          "required": ["methodology_authority_id", "experiment_plan_id", "dataset_acceptance_id", "query_acceptance_id", "bank_acceptance_id", "scene_cache_acceptance_id", "scene_cache_id", "scientific_revision_token", "production_cache_id", "production_cache_acceptance_id", "retirement_id"],
           "properties": {
             "methodology_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
             "methodology_authority_id": {"type": "string", "minLength": 1}, "experiment_plan_id": {"type": "string", "minLength": 1},
             "dataset_acceptance_id": {"type": "string", "minLength": 1}, "query_acceptance_id": {"type": "string", "minLength": 1},
             "bank_acceptance_id": {"type": "string", "minLength": 1}, "scene_cache_acceptance_id": {"type": "string", "minLength": 1},
+            "scene_cache_id": {"type": "string", "minLength": 1},
+            "scientific_revision_token": {"type": "string", "pattern": "^mrev_[0-9a-f]{16}$"},
             "production_cache_id": {"type": "string", "minLength": 1}, "production_cache_acceptance_id": {"type": "string", "minLength": 1},
-            "retirement_id": {"type": "string", "pattern": "^p9ret_[0-9a-f]{24}$"}
+            "retirement_id": {"type": "string", "pattern": "^p9ret_[0-9a-f]{24}$"},
+            "ofat_winner_id": {"type": "string", "pattern": "^s09winner_[0-9a-f]{24}$"}
           },
           "additionalProperties": false
         },

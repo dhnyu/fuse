@@ -26,6 +26,7 @@ SCHEMA_FILES = {
     "acceptance_eligibility": "training_acceptance_eligibility.schema.json",
     "v1_retirement_manifest": "p9_v1_retirement_manifest.schema.json",
     "training_authority": "training_training_authority.schema.json",
+    "prepared_cache_acceptance": "s09_prepared_cache_acceptance.schema.json",
     "checkpoint_commit": "training_checkpoint_commit.schema.json",
     "worker_ipc": "training_worker_ipc.schema.json",
 }

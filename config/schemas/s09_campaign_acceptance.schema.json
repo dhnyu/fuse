@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/s09_campaign_acceptance.schema.json",
+  "title": "S09 current training campaign acceptance",
+  "type": "object",
+  "required": ["schema_version", "status", "experiment_plan_id", "prepared_cache_acceptance_id", "winner_id", "comparison_acceptance_records", "training_runs", "evaluation_runs", "content_sha256", "campaign_acceptance_id"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "experiment_plan_id": {"type": "string", "pattern": "^s08plan_[0-9a-f]{24}$"},
+    "prepared_cache_acceptance_id": {"type": "string", "pattern": "^s09ca_[0-9a-f]{24}$"},
+    "winner_id": {"type": "string", "pattern": "^s09winner_[0-9a-f]{24}$"},
+    "comparison_acceptance_records": {"type": "array", "minItems": 17, "maxItems": 17, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "training_runs": {"const": 28},
+    "evaluation_runs": {"const": 0},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "campaign_acceptance_id": {"type": "string", "pattern": "^s09camp_[0-9a-f]{24}$"}
+  },
+  "additionalProperties": false
+}

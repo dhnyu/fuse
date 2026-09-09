@@ -13,6 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
+import training_worker as training_worker_module  # noqa: E402
+from training_campaign import s08_selection_document  # noqa: E402
 from training_worker import ControllerClient, run_worker, utc_now  # noqa: E402
 
 
@@ -25,6 +27,9 @@ def main() -> None:
     parser.add_argument("--stop-after-schedule-index", type=int)
     args = parser.parse_args()
     authority = json.loads(Path(args.authority).read_text(encoding="utf-8"))
+    matrix = json.loads(Path(args.matrix).read_text(encoding="utf-8"))
+    selection = s08_selection_document(matrix)
+    training_worker_module.make_selection_contract = lambda: selection
     spec = {"matrix": args.matrix, "configuration_id": args.configuration_id,
             "cache_root": args.cache_root, "categories": args.categories,
             "training_config": args.training_config, "model_config": args.model_config}

@@ -34,7 +34,7 @@ class TrainingLifecycleError(RuntimeError):
 
 SCIENTIFIC_KEYS = (
     "configuration_id", "d", "d_c", "K_aug", "augmentation_intensity",
-    "ema_momentum", "peak_learning_rate",
+    "ema_momentum", "peak_learning_rate", "model_family",
 )
 
 
@@ -69,7 +69,7 @@ def native_bundle_inputs(
     scientific = make_bound_document(row["configuration_id"], scientific_content)
     if scientific["content_sha256"] != authority["content"]["scientific"]["configuration_hash"]:
         raise TrainingLifecycleError("SCIENTIFIC_CONFIGURATION_HASH_MISMATCH")
-    if scientific_row_hash(dict(row)) != authority["content"]["scientific"]["plan_configuration_hash"]:
+    if row.get("plan_configuration_hash") != authority["content"]["scientific"]["plan_configuration_hash"]:
         raise TrainingLifecycleError("EXPERIMENT_PLAN_CONFIGURATION_HASH_MISMATCH")
     cache_raw = json.loads(Path(cache_acceptance_path).read_text(encoding="utf-8"))
     cache = make_bound_document(cache_raw["acceptance_id"], cache_raw)

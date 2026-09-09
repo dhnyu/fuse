@@ -15,7 +15,7 @@ from artifact_protocol import sha256_file
 
 
 DS_CACHE_SCHEMA_VERSION = "1.0.0"
-DS_RASTER_CONTRACT_ID = "PENDING_CURRENT_DS_RASTER_CONTRACT"
+DS_RASTER_CONTRACT_ID = "s09ds_66f73c744aa1d73ce80ab1a6"
 DS_RASTER_SHAPE = (26, 100, 100)
 DS_RASTER_DTYPE = "torch.float32"
 
@@ -65,6 +65,12 @@ class ProductionPreparedData:
 
     def __init__(self, root: str | Path, profile: str, logical_k: int):
         self.root = Path(root)
+        acceptance = json.loads((self.root / "acceptance.json").read_text(encoding="utf-8"))
+        manifest_path = self.root / "production_cache_manifest.json"
+        if (acceptance.get("status") != "PASS"
+                or acceptance.get("cache_id") != self.root.name
+                or acceptance.get("manifest_sha256") != sha256_file(manifest_path)):
+            raise PreparedCacheError("PRODUCTION_CACHE_ACCEPTANCE_INVALID")
         plan = json.loads((self.root / "canonical_cache_plan.json").read_text(encoding="utf-8"))
         if int(plan["entry_count"]) != 80_472 or len(plan["entries"]) != 80_472:
             raise PreparedCacheError("PRODUCTION_CACHE_ENTRY_COUNT_MISMATCH")

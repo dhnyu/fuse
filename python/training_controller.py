@@ -60,7 +60,11 @@ def build_training_authority(*, configuration_id: str, configuration_hash: str,
                              scientific_implementation_hash: str, root_seed: int,
                              parents: dict[str, str],
                              parent_hashes: dict[str, str] | None = None,
-                             plan_configuration_hash: str | None = None) -> dict[str, Any]:
+                             plan_configuration_hash: str | None = None,
+                             phase: str = "OFAT", model_id: str = "FM",
+                             selection_contract_hash: str | None = None,
+                             prepared_cache_id: str | None = None,
+                             hyperparameters: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build, but do not publish, one content-addressed formal-run authority."""
     if configuration_id == "cfg_main":
         raise TrainingControllerError("CFG_MAIN_ALREADY_CANONICALLY_ACCEPTED")
@@ -70,6 +74,12 @@ def build_training_authority(*, configuration_id: str, configuration_hash: str,
         "plan_configuration_hash": plan_configuration_hash or configuration_hash,
         "scientific_implementation_hash": scientific_implementation_hash,
         "selection_contract_id": "current-training-selection-v1.0.0",
+        "selection_contract_hash": selection_contract_hash or canonical_sha256({
+            "selection_contract_id": "current-training-selection-v1.0.0"}),
+        "prepared_cache_id": prepared_cache_id or parents.get("production_cache_id", "fixture-cache"),
+        "phase": phase,
+        "model_id": model_id,
+        "hyperparameters": hyperparameters or {},
         "root_seed": int(root_seed),
         "evaluation_ancestry": False,
     }
@@ -80,8 +90,8 @@ def build_training_authority(*, configuration_id: str, configuration_hash: str,
         raise TrainingControllerError("PARENT_HASH_KEYS_MISMATCH")
     run_key = canonical_sha256({"scientific": scientific, "parents": parents, "parent_hashes": hashes})
     content = {
-        "authority_kind": "FUTURE_FORMAL_TRAINING",
-        "scope": "ONE_NEW_FORMAL_CONFIGURATION",
+        "authority_kind": "CURRENT_FORMAL_TRAINING",
+        "scope": "CAMPAIGN_CONFIGURATION",
         "scientific_run_key": run_key,
         "scientific": scientific,
         "parents": dict(sorted(parents.items())),
@@ -96,7 +106,7 @@ def build_training_authority(*, configuration_id: str, configuration_hash: str,
         },
     }
     authority_hash = canonical_sha256(content)
-    authority = {"schema_version": SCHEMA_VERSION, "identity": "p9authv2_" + authority_hash[:24],
+    authority = {"schema_version": SCHEMA_VERSION, "identity": "s09auth_" + authority_hash[:24],
                  "content_sha256": authority_hash, "content": content}
     validate_instance("training_authority", authority)
     return authority
@@ -123,7 +133,7 @@ def latest_checkpoint_boundary(events: list[dict[str, Any]] | tuple[dict[str, An
 def validate_training_authority(authority: dict[str, Any]) -> None:
     validate_instance("training_authority", authority)
     observed = canonical_sha256(authority["content"])
-    if observed != authority["content_sha256"] or authority["identity"] != "p9authv2_" + observed[:24]:
+    if observed != authority["content_sha256"] or authority["identity"] != "s09auth_" + observed[:24]:
         raise TrainingControllerError("TRAINING_AUTHORITY_IDENTITY_MISMATCH")
 
 
@@ -137,7 +147,7 @@ class StartupInputs:
     production_cache_acceptance: Path
     writable_root: Path
     immutable_root: Path
-    expected_dissertation_commit: str
+    expected_dissertation_commit: str | None
     expected_retirement_id: str
     expected_experiment_plan_id: str
     expected_cache_id: str
@@ -160,7 +170,8 @@ def validate_startup(authority: dict[str, Any], inputs: StartupInputs, *, accept
     if _git(inputs.fuse_root, "branch", "--show-current") != "reduced": failures.append("FUSE_BRANCH_NOT_REDUCED")
     if require_clean and _git(inputs.fuse_root, "status", "--porcelain"): failures.append("FUSE_TREE_DIRTY")
     if _git(inputs.dissertation_root, "branch", "--show-current") != "reduced": failures.append("DISSERTATION_BRANCH_NOT_REDUCED")
-    if _git(inputs.dissertation_root, "rev-parse", "HEAD") != inputs.expected_dissertation_commit: failures.append("METHODOLOGY_COMMIT_MISMATCH")
+    # Dissertation HEAD is provenance-only. Scientific currentness is bound by
+    # the explicit methodology revision token in expected_parents.
     if _git(inputs.dissertation_root, "status", "--porcelain"): failures.append("DISSERTATION_TREE_DIRTY")
     retirement = json.loads(inputs.retirement_manifest.read_text(encoding="utf-8"))
     try:
@@ -173,10 +184,15 @@ def validate_startup(authority: dict[str, Any], inputs: StartupInputs, *, accept
         failures.append("EXPERIMENT_PLAN_INVALID")
     rows = plan.get("hyperparameter_configurations", [])
     content = authority["content"]
-    row = next((item for item in rows
-                if item.get("configuration_id") == content["scientific"]["configuration_id"]), None)
-    if row is None or scientific_row_hash(row) != content["scientific"]["plan_configuration_hash"]:
-        failures.append("EXPERIMENT_CONFIGURATION_INVALID")
+    if content["scientific"]["phase"] == "OFAT":
+        row = next((item for item in rows
+                    if item.get("configuration_id") == content["scientific"]["configuration_id"]), None)
+        valid_configuration = row is not None and scientific_row_hash(row) == content["scientific"]["plan_configuration_hash"]
+    else:
+        model = next((item for item in plan.get("comparison_configurations", [])
+                      if item.get("name") == content["scientific"]["model_id"]), None)
+        valid_configuration = model is not None and canonical_sha256(model) == content["scientific"]["plan_configuration_hash"]
+    if not valid_configuration: failures.append("EXPERIMENT_CONFIGURATION_INVALID")
     if content["parents"] != inputs.expected_parents: failures.append("SCIENTIFIC_PARENT_MISMATCH")
     if content["scientific"]["configuration_hash"] in accepted_hashes: failures.append("SCIENTIFIC_CONFIGURATION_ALREADY_ACCEPTED")
     if content["scientific"]["configuration_id"] in (accepted_configuration_ids or set()): failures.append("SCIENTIFIC_CONFIGURATION_ALREADY_ACCEPTED")
@@ -202,7 +218,10 @@ def validate_startup(authority: dict[str, Any], inputs: StartupInputs, *, accept
 
 def accepted_scientific_configurations(canonical_root: str | Path, eligibility_path: str | Path) -> tuple[set[str], set[str]]:
     """Resolve explicitly eligible bundle configs; never enumerate a latest acceptance."""
-    canonical = Path(canonical_root); eligibility = json.loads(Path(eligibility_path).read_text(encoding="utf-8"))
+    canonical = Path(canonical_root); eligibility_path = Path(eligibility_path)
+    if not eligibility_path.is_file():
+        return set(), set()
+    eligibility = json.loads(eligibility_path.read_text(encoding="utf-8"))
     validate_instance("acceptance_eligibility", eligibility)
     identifiers: set[str] = set(); hashes: set[str] = set()
     for entry in eligibility["entries"]:

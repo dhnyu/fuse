@@ -1,24 +1,24 @@
-schema_version: "2.0.0"
-contract_name: current-production-training-controller-v1
-migration_status: RECOMPUTE_REQUIRED
+schema_version: "3.0.0"
+contract_name: current-production-training-campaign-v1
+migration_status: READY
 source:
   required_branch: reduced
-  dissertation_commit: cbb824f19be8355296603f8426ac241ce587ddcc
+  dissertation_commit_provenance: f7642315ac5e289dc49868cf8cd24bc58b85ba99
   dissertation_authority_id: mta_2142a2914bc5c43ea8d6e312
+  scientific_revision_token: mrev_426b2b6ce0117943
+  scientific_contract_sha256: 426b2b6ce011794335d2e6f052e56ef463a7f0022f5733784c60eae9f85425ca
 parents:
   methodology_authority_id: mta_2142a2914bc5c43ea8d6e312
-  experiment_plan_id: PENDING_CURRENT_PLAN
-  dataset_acceptance_id: PENDING_CURRENT_DATASET
-  query_acceptance_id: PENDING_CURRENT_QUERIES
-  bank_acceptance_id: PENDING_CURRENT_BANK
-  scene_cache_acceptance_id: PENDING_CURRENT_SCENE_CACHE
-  production_cache_id: PENDING_CURRENT_PRODUCTION_CACHE
-  production_cache_acceptance_id: PENDING_CURRENT_PRODUCTION_CACHE
+  experiment_plan_id: s08plan_7cd58ffb65db3d43fd3fa234
+  dataset_acceptance_id: mda_562e20d21638acc6fff84874
+  query_acceptance_id: fqaac_6f602ec684002aa47217978e
+  bank_acceptance_id: aba_9ef3f4f67cd72a86a4519355
+  scene_cache_acceptance_id: osca_c177810e2c5165326a328b56
+  scene_cache_id: oscache_75a543f656ab777aada74fbd
   retirement_id: p9ret_246eaf97570f115d4faaf3d1
 roots:
   experiment_plan: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/current_cbb824f19be83552/current_experiment_plan.json
-  production_cache: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/current_production_cache
-  production_cache_acceptance: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/current_production_cache/acceptance.json
+  production_cache: /mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/prepared_cache
   immutable_publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/training
   canonical_publication: /mnt/hdd002/dhnyu/fusedata/models/reduced/training/canonical
   eligibility_snapshot: /mnt/hdd002/dhnyu/fusedata/models/reduced/training/canonical/eligibility/current.json
@@ -26,9 +26,16 @@ roots:
   writable_runs: /mnt/hdd002/dhnyu/fusedata/runtime/training_runs
   execution_locks: /mnt/hdd002/dhnyu/fusedata/runtime/training_locks
   lifecycle_records: /mnt/hdd002/dhnyu/fusedata/runtime/training_lifecycle
-  categories: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_cd00016f6b5bfd960b0a6842/production/acceptance/bsa_e617ee0280a6edfa722994d3/spatial_categories.json
+  categories: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_ee28248872c4ab0ce8b3ea4f/production/acceptance/bsa_bd504b7e871945a5a6207664/spatial_categories.json
+  p3: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_75a543f656ab777aada74fbd
+  p4: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/augmentation_banks/augbank_f0c7083cca57c1426e710351
+  p5: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/fixed_queries/fqa_a8a814267b8afb7ca2bebc7a
+  preprocessing: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data/preprocessing/ppc_603236bfd673bda81a56d7c3/preprocessing_contract.json
 selection_contract_id: current-training-selection-v1.0.0
-production_cache_manifest_sha256: PENDING_CURRENT_PRODUCTION_CACHE
+campaign:
+  ofat_count: 11
+  comparison_count: 17
+  ordering: OFAT_THEN_WINNER_THEN_COMPARISON
 execution:
   world_size: 2
   backend: nccl
@@ -38,3 +45,6 @@ execution:
   early_stopping_patience_events: 4
   exact_resume: committed_checkpoint_only
   scientific_divergence_code: SCIENTIFIC_DIVERGENCE
+  selected_gpu_indices: [0, 1]
+  gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
+  gpu_lock_timeout_seconds: 120

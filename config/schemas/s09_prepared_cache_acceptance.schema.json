@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fuse.local/schemas/s09_prepared_cache_acceptance.schema.json",
+  "title": "S09 current-lineage prepared cache acceptance",
+  "type": "object",
+  "required": ["schema_version", "status", "cache_id", "acceptance_id", "content_sha256", "manifest_sha256", "parents", "entry_count", "optimizer_updates", "training_runs", "fixture_only"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "PASS"},
+    "cache_id": {"type": "string", "pattern": "^s09cache_[0-9a-f]{24}$"},
+    "acceptance_id": {"type": "string", "pattern": "^s09ca_[0-9a-f]{24}$"},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "parents": {
+      "type": "object",
+      "required": ["methodology_authority_id", "experiment_plan_id", "dataset_acceptance_id", "query_acceptance_id", "bank_acceptance_id", "scene_cache_acceptance_id", "scene_cache_id", "scientific_revision_token", "cache_implementation_sha256"],
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "entry_count": {"type": "integer", "minimum": 0},
+    "optimizer_updates": {"const": 0},
+    "training_runs": {"const": 0},
+    "fixture_only": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

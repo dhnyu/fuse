@@ -41,7 +41,11 @@ uses a separate store.
 
 ## Dedicated execution entrypoints
 
-- `_targets_training.R`: current generalized s09 training lifecycle.
+- `_targets_training.R`: current s09 campaign lifecycle in the dedicated
+  `/mnt/hdd002/dhnyu/fusedata/targets/fuse-training-s09` store. Its explicit
+  operator is `Rscript scripts/run_training_targets.R campaign`; the graph
+  builds the accepted CPU prepared cache, executes 11 OFAT runs, publishes the
+  validation-selected winner, and only then enables 17 comparison runs.
 - `_targets_evaluation.R`: current s10 evaluation preparation and acceptance.
 
 The previous s11 downstream implementation is retired pending a from-scratch

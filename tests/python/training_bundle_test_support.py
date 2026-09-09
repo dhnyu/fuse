@@ -87,7 +87,7 @@ def _documents(config_variant: str = "base", selection_variant: str = "base") ->
         "selection_contract_id": selection["identity"],
         "selection_contract_hash": selection["content_sha256"],
     }
-    authority = make_bound_document("p9authv2_" + "7" * 24, authority_content)
+    authority = make_bound_document("s09auth_" + "7" * 24, authority_content)
     return {
         "authority": authority,
         "scientific_configuration": configuration,

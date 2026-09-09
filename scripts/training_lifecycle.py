@@ -21,6 +21,9 @@ from checkpoint_resolution import (  # noqa: E402
     AcceptedCheckpointResolver, load_acceptance_eligibility, make_acceptance_eligibility,
     publish_acceptance_eligibility,
 )
+import training_finalization as finalization_module  # noqa: E402
+import training_lifecycle as lifecycle_module  # noqa: E402
+from training_campaign import s08_selection_document  # noqa: E402
 from training_finalization import finalize_run_bundle, make_selection_contract, validate_finalization_result  # noqa: E402
 from training_lifecycle import build_publish_native_bundle  # noqa: E402
 
@@ -46,10 +49,21 @@ def locator_roots(bundle_record: dict) -> dict[str, Path]:
     return {bundle_record["checkpoint_namespace"]: Path(bundle_record["checkpoint_root"])}
 
 
+def configure_current_selection(matrix_path: str | Path) -> dict:
+    global make_selection_contract
+    selection = s08_selection_document(load(matrix_path))
+    provider = lambda: selection
+    make_selection_contract = provider
+    finalization_module.make_selection_contract = provider
+    lifecycle_module.make_selection_contract = provider
+    return selection
+
+
 def command_bundle(args: argparse.Namespace) -> dict:
     execution, authority = load(args.execution), load(args.authority)
     contract = yaml.safe_load(Path(args.contract).read_text(encoding="utf-8"))
-    matrix = contract["roots"]["experiment_plan"]
+    matrix = args.matrix or contract["roots"]["experiment_plan"]
+    configure_current_selection(matrix)
     sources = [
         args.authority, args.contract, matrix,
         contract["roots"]["production_cache_acceptance"], "config/training.yml",
@@ -64,11 +78,13 @@ def command_bundle(args: argparse.Namespace) -> dict:
     namespace, checkpoint_root = next(iter(roots.items()))
     return {"schema_version": "2.0.0", "artifact_type": "training_native_bundle_handoff",
             "bundle_id": bundle.bundle_id, "bundle_path": str(bundle.path),
-            "checkpoint_namespace": namespace, "checkpoint_root": str(checkpoint_root)}
+            "checkpoint_namespace": namespace, "checkpoint_root": str(checkpoint_root),
+            "matrix_path": str(Path(matrix).resolve())}
 
 
 def command_finalize(args: argparse.Namespace) -> dict:
     bundle = load(args.bundle_record); roots = locator_roots(bundle)
+    configure_current_selection(bundle["matrix_path"])
     result = finalize_run_bundle(bundle["bundle_path"], roots,
                                  selection_contract_hash=make_selection_contract()["content_sha256"])
     valid, reason = validate_finalization_result(result, bundle["bundle_path"], roots)
@@ -94,12 +110,16 @@ def command_accept(args: argparse.Namespace) -> dict:
 
 def command_eligibility(args: argparse.Namespace) -> dict:
     handoff, authority = load(args.acceptance_record), load(args.authority)
-    existing = load_acceptance_eligibility(args.existing_eligibility)
+    existing = (load_acceptance_eligibility(args.existing_eligibility)
+                if Path(args.existing_eligibility).is_file() else {"entries": []})
     entries = [entry for entry in existing["entries"] if entry["acceptance_id"] != handoff["acceptance_id"]]
     entries.append({"acceptance_id": handoff["acceptance_id"], "eligibility": "ELIGIBLE",
                     "authority_id": authority["identity"], "authority_hash": authority["content_sha256"]})
     value = make_acceptance_eligibility(entries, namespace=args.namespace)
     path = publish_acceptance_eligibility(value, Path(args.publication_root) / "eligibility")
+    current = Path(args.existing_eligibility); current.parent.mkdir(parents=True, exist_ok=True)
+    temporary = current.with_name(f".{current.name}.{os.getpid()}.tmp")
+    temporary.write_bytes(canonical_json_bytes(value)); os.replace(temporary, current)
     return {**handoff, "schema_version": "2.0.0", "artifact_type": "training_native_eligibility_handoff",
             "eligibility_id": value["eligibility_id"], "eligibility_path": str(path)}
 
@@ -121,7 +141,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(); parser.add_argument("mode", choices=("bundle", "finalize", "accept", "eligibility", "resolve"))
     parser.add_argument("--result", required=True); parser.add_argument("--publication-root", default="")
     parser.add_argument("--execution"); parser.add_argument("--authority"); parser.add_argument("--contract")
-    parser.add_argument("--bundle-record"); parser.add_argument("--finalization-record")
+    parser.add_argument("--bundle-record"); parser.add_argument("--finalization-record"); parser.add_argument("--matrix")
     parser.add_argument("--acceptance-record"); parser.add_argument("--eligibility-record")
     parser.add_argument("--existing-eligibility"); parser.add_argument("--namespace", default="current-training")
     args = parser.parse_args()

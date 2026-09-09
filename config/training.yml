@@ -1,6 +1,6 @@
 schema_version: "1.0.0"
 supplement_name: current-deterministic-training-v1
-migration_status: RECOMPUTE_REQUIRED
+migration_status: READY
 publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/training
 staging_root: /mnt/hdd002/dhnyu/fusedata/tmp/fuse/training
 parent_roots:
@@ -8,25 +8,25 @@ parent_roots:
   methodology_authority: /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/authority
 
 parents:
-  methodology_authority_id: PENDING_OPERATIONAL_SUPERSESSION
+  methodology_authority_id: mta_2142a2914bc5c43ea8d6e312
   training_contract_id: mmc_1cf3f3d37e489d9a
-  p1_scene_index_id: rsi_80031f1493c75163f91b7c71
-  scene_index_id: dynamic_from_current_model_data_acceptance
-  p2_observation_id: obs_cd00016f6b5bfd960b0a6842
-  p2_acceptance_id: bsa_e617ee0280a6edfa722994d3
-  p3_cache_id: oscache_c89fa07e3d6cb1819a7994a6
-  p3_acceptance_id: osca_a55d2c02c3737c5f5557092a
+  p1_scene_index_id: rsi_55ccb6d830dac6767b822f16
+  scene_index_id: rsi_55ccb6d830dac6767b822f16
+  p2_observation_id: obs_ee28248872c4ab0ce8b3ea4f
+  p2_acceptance_id: bsa_bd504b7e871945a5a6207664
+  p3_cache_id: oscache_75a543f656ab777aada74fbd
+  p3_acceptance_id: osca_c177810e2c5165326a328b56
   p4_supplement_id: p4-augmentation-v2
-  p4_master_bank_id: augbank_252ce67e6d74679b02871e57
-  p4_acceptance_id: aba_39de6c260a8e427767bc01d6
-  p4_logical_index_id: abi_66dfe52602ffe442336685e0
-  p5_query_authority_id: fqa_89741b3e7b3ff7e44597ca67
-  p5_acceptance_id: fqaac_9151e9e0a34525ac8ecdb444
-  scene_model_authority_id: dma_d1b7fb09b063740c38fdb7ac
-  p6_preprocessing_id: ppc_d09fd3a54fcef0e58769e894
-  model_dataloader_acceptance_id: dla_d7bcbaab25a9666256ce38ae
-  p6_cpu_smoke_id: dcs_c07e56c3c7fba40543aea7d4
-  p6_aggregate_acceptance_id: mda_b07032bd970d101ec1da7a4b
+  p4_master_bank_id: augbank_f0c7083cca57c1426e710351
+  p4_acceptance_id: aba_9ef3f4f67cd72a86a4519355
+  p4_logical_index_id: abi_be8af63a0d8c7d43430d87c3
+  p5_query_authority_id: fqa_a8a814267b8afb7ca2bebc7a
+  p5_acceptance_id: fqaac_6f602ec684002aa47217978e
+  scene_model_authority_id: dma_32cbb803cef175d64b534c6a
+  p6_preprocessing_id: ppc_603236bfd673bda81a56d7c3
+  model_dataloader_acceptance_id: dla_f4f51be31667d1509f3e517b
+  p6_cpu_smoke_id: dcs_92c74ef572a31397baabd3ef
+  p6_aggregate_acceptance_id: mda_562e20d21638acc6fff84874
 
 supersession:
   training_authority_id: p7a_ee0cafa07978d7d2b168ef27

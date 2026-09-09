@@ -25,6 +25,7 @@ from training_controller import (  # noqa: E402
     accepted_scientific_configurations, validate_startup, validate_training_authority,
     latest_checkpoint_boundary, validate_worker_message, worker_response,
 )
+from training_campaign import gpu_pair_environment  # noqa: E402
 
 
 def now() -> str:
@@ -46,9 +47,11 @@ def require_current_contract_ready(contract: dict) -> None:
         raise TrainingControllerError("CURRENT_METHODOLOGY_RECOMPUTATION_REQUIRED")
 
 
-def startup_inputs(contract: dict) -> StartupInputs:
+def startup_inputs(contract: dict, authority: dict | None = None) -> StartupInputs:
     parents = dict(contract["parents"])
-    parents["methodology_commit"] = contract["source"]["dissertation_commit"]
+    parents["scientific_revision_token"] = contract["source"]["scientific_revision_token"]
+    if authority is not None and authority["content"]["scientific"]["phase"] == "COMPARISON":
+        parents["ofat_winner_id"] = authority["content"]["parents"].get("ofat_winner_id")
     return StartupInputs(
         fuse_root=ROOT, dissertation_root=Path.home() / "dhnyu-masters-dissertation",
         retirement_manifest=Path(contract["roots"]["retirement_manifest"]),
@@ -57,7 +60,7 @@ def startup_inputs(contract: dict) -> StartupInputs:
         production_cache_acceptance=Path(contract["roots"]["production_cache_acceptance"]),
         writable_root=Path(contract["roots"]["writable_runs"]),
         immutable_root=Path(contract["roots"]["immutable_publication"]),
-        expected_dissertation_commit=contract["source"]["dissertation_commit"],
+        expected_dissertation_commit=contract["source"].get("dissertation_commit_provenance"),
         expected_retirement_id=contract["parents"]["retirement_id"],
         expected_experiment_plan_id=contract["parents"]["experiment_plan_id"],
         expected_cache_id=contract["parents"]["production_cache_id"],
@@ -80,7 +83,7 @@ def run(args: argparse.Namespace) -> dict:
     else:
         accepted_ids, accepted_hashes = accepted_scientific_configurations(
             Path(contract["roots"]["immutable_publication"]) / "canonical", contract["roots"]["eligibility_snapshot"])
-        validate_startup(authority, startup_inputs(contract), accepted_hashes=accepted_hashes,
+        validate_startup(authority, startup_inputs(contract, authority), accepted_hashes=accepted_hashes,
                          accepted_configuration_ids=accepted_ids, cuda_devices=visible_gpu_count())
     run_root = Path(args.output) / content["scientific_run_key"]
     lock_root = run_root.parent / ".pilot-locks" if args.noncanonical_pilot else Path(contract["roots"]["execution_locks"])
@@ -130,25 +133,32 @@ def run(args: argparse.Namespace) -> dict:
         })
         stderr_path = run_root / "science_worker.stderr.log"
         stderr_stream = stderr_path.open("ab")
-        process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                   stderr=stderr_stream, env=environment)
-        controller.append("RUN_STARTED", {"process_id": str(process.pid), "world_size": 2,
-                                           "runtime_digest": authority["content_sha256"]}, occurred_at=now())
-        assert process.stdout is not None and process.stdin is not None
-        for raw in process.stdout:
-            request = None
-            try:
-                request = parse_canonical_json(raw, json_line=True)
-                validate_worker_message(request)
-                response = controller.handle_worker_request(
-                    request, staging_root=staging_root, checkpoint_root=checkpoint_root)
-            except Exception as error:
-                request_id = request.get("request_id", "p9req_" + "0" * 24) if isinstance(request, dict) else "p9req_" + "0" * 24
-                response = worker_response(request_id, status="REJECTED",
-                                           error_code=type(error).__name__, message=str(error)[:512])
-            process.stdin.write(canonical_json_line(response)); process.stdin.flush()
-            if response["message_type"] == "NACK": process.kill(); break
-        process.stdin.close(); code = process.wait(); stderr_stream.close()
+        devices = contract["execution"]["selected_gpu_indices"]
+        with gpu_pair_environment(devices, contract["execution"]["gpu_lock_root"],
+                                  contract["execution"]["gpu_lock_timeout_seconds"]) as locked_environment:
+            environment.update(locked_environment)
+            if environment.get("CUDA_VISIBLE_DEVICES") != ",".join(map(str, devices)):
+                raise TrainingControllerError("S09_GPU_DEVICE_ENVIRONMENT_MISMATCH")
+            process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                       stderr=stderr_stream, env=environment)
+            controller.append("RUN_STARTED", {"process_id": str(process.pid), "world_size": 2,
+                                               "runtime_digest": authority["content_sha256"]}, occurred_at=now())
+            assert process.stdout is not None and process.stdin is not None
+            for raw in process.stdout:
+                request = None
+                try:
+                    request = parse_canonical_json(raw, json_line=True)
+                    validate_worker_message(request)
+                    response = controller.handle_worker_request(
+                        request, staging_root=staging_root, checkpoint_root=checkpoint_root)
+                except Exception as error:
+                    request_id = request.get("request_id", "p9req_" + "0" * 24) if isinstance(request, dict) else "p9req_" + "0" * 24
+                    response = worker_response(request_id, status="REJECTED",
+                                               error_code=type(error).__name__, message=str(error)[:512])
+                process.stdin.write(canonical_json_line(response)); process.stdin.flush()
+                if response["message_type"] == "NACK": process.kill(); break
+            process.stdin.close(); code = process.wait()
+        stderr_stream.close()
         stderr = stderr_path.read_text(encoding="utf-8", errors="replace")
         state = controller.replay()
         if code != 0:
@@ -194,7 +204,7 @@ def main() -> None:
         require_current_contract_ready(contract)
         accepted_ids, accepted_hashes = accepted_scientific_configurations(
             Path(contract["roots"]["immutable_publication"]) / "canonical", contract["roots"]["eligibility_snapshot"])
-        result = validate_startup(authority, startup_inputs(contract), accepted_hashes=accepted_hashes,
+        result = validate_startup(authority, startup_inputs(contract, authority), accepted_hashes=accepted_hashes,
                                   accepted_configuration_ids=accepted_ids, cuda_devices=visible_gpu_count())
         print(json.dumps({"status": "PASS", "authority_id": authority["identity"], **result}, sort_keys=True))
     else:

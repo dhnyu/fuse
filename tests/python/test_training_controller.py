@@ -21,13 +21,14 @@ from training_controller import (  # noqa: E402
 
 
 PARENTS = {
-    "methodology_commit": "a" * 40,
     "methodology_authority_id": "mta_fixture",
     "experiment_plan_id": "s08plan_fixture",
     "dataset_acceptance_id": "dataset_fixture",
     "query_acceptance_id": "query_fixture",
     "bank_acceptance_id": "bank_fixture",
     "scene_cache_acceptance_id": "scene_cache_fixture",
+    "scene_cache_id": "oscache_fixture",
+    "scientific_revision_token": "mrev_" + "a" * 16,
     "production_cache_id": "p9cache_fixture",
     "production_cache_acceptance_id": "p9ca_fixture",
     "retirement_id": "p9ret_" + "b" * 24,
@@ -92,22 +93,22 @@ def test_control_plane_module_has_no_scientific_runtime_imports():
         assert prohibited not in source
 
 
-def test_historical_controller_is_blocked_pending_current_recomputation(tmp_path):
+def test_current_controller_is_ready_and_dissertation_commit_is_provenance_only(tmp_path):
     contract = yaml.safe_load((ROOT / "config/training_controller.yml").read_text())
-    assert contract["migration_status"] == "RECOMPUTE_REQUIRED"
-    assert contract["source"]["dissertation_commit"] == "cbb824f19be8355296603f8426ac241ce587ddcc"
+    assert contract["migration_status"] == "READY"
+    assert contract["source"]["dissertation_commit_provenance"] == "f7642315ac5e289dc49868cf8cd24bc58b85ba99"
     import runpy
     require_current_contract_ready = runpy.run_path(
         str(ROOT / "scripts/training_controller.py")
     )["require_current_contract_ready"]
-    with pytest.raises(TrainingControllerError, match="CURRENT_METHODOLOGY_RECOMPUTATION_REQUIRED"):
-        require_current_contract_ready(contract)
+    require_current_contract_ready(contract)
 
 
-def test_historical_eligibility_is_not_the_current_training_contract():
+def test_current_training_contract_has_no_placeholders():
     contract = yaml.safe_load((ROOT / "config/training_controller.yml").read_text())
-    assert contract["migration_status"] == "RECOMPUTE_REQUIRED"
-    assert contract["parents"]["experiment_plan_id"] == "PENDING_CURRENT_PLAN"
+    assert contract["migration_status"] == "READY"
+    assert not any("PENDING" in str(value) for value in contract["parents"].values())
+    assert contract["parents"]["experiment_plan_id"] == "s08plan_7cd58ffb65db3d43fd3fa234"
     assert "p8_bundle" not in contract["roots"]
     assert "selected_fm_acceptance_id" not in contract["parents"]
 

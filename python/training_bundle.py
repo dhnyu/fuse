@@ -389,7 +389,7 @@ def _verify_document_linkage(
     if not starts or starts[-1]["payload"]["runtime_digest"] != documents["runtime"]["content_sha256"]:
         _fail("RUNTIME_MISMATCH", "run-start event does not bind runtime digest")
     authority = documents["authority"]["content"]
-    if authority.get("authority_kind") == "FUTURE_FORMAL_TRAINING":
+    if authority.get("authority_kind") in {"CURRENT_FORMAL_TRAINING", "FUTURE_FORMAL_TRAINING"}:
         try:
             validate_instance("training_authority", documents["authority"])
         except TrainingSchemaError as error:

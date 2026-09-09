@@ -20,7 +20,9 @@ its independent targets store.
 
 Dedicated current entrypoints are:
 
-- `_targets_training.R` for s09 training.
+- `_targets_training.R` for the s09 campaign in the dedicated
+  `/mnt/hdd002/dhnyu/fusedata/targets/fuse-training-s09` store. The guarded
+  operator command is `Rscript scripts/run_training_targets.R campaign`.
 - `_targets_evaluation.R` for s10 evaluation.
 
 The previous s11 downstream implementation is retired pending a from-scratch

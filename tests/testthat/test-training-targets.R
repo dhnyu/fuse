@@ -14,6 +14,7 @@ test_that("current training graph is isolated and contains executable lifecycle 
   ))
   expect_false(any(grepl("p9_b|p10|p11|evaluation|maintenance|recovery|reservation|attempt", names)))
   manifest <- targets::tar_manifest(script = "_targets_training.R", fields = c("name", "command"))
+  expect_silent(targets::tar_validate(script = "_targets_training.R"))
   command <- manifest$command[manifest$name == "s09_accepted_checkpoint"]
   expect_match(command, "s09_resolve_accepted_checkpoint")
   commands <- paste(manifest$command, collapse = "\n")

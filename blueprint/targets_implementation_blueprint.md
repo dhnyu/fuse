@@ -43,19 +43,17 @@ uses a separate store.
 
 - `_targets_training.R`: current generalized s09 training lifecycle.
 - `_targets_evaluation.R`: current s10 evaluation preparation and acceptance.
-- `_targets_s11_diagnostics.R`: downstream diagnostic acceptance.
-- `_targets_s11_downstream.R`: downstream dataset preparation.
-- `_targets_s11_readiness.R`: downstream readiness validation.
-- `_targets_s11_ridge.R`: spatial ridge evaluation.
 
-`_targets_p9_formal.R` and `_targets_p9_recovery.R` are fail-closed retirement
-guards, not executable target graphs.
+The previous s11 downstream implementation is retired pending a from-scratch
+redesign; no active s11 target graph or entrypoint is retained. P9 v1 remains
+fail-closed through the centralized R/Python retirement registry and operator
+CLI guards; obsolete root retirement entrypoints are absent.
 
 ## Source layout
 
 - `R/`: reusable methodology and orchestration helpers.
 - `targets/`: thin declarative stage definitions.
-- `python/`: current model, training, evaluation, and downstream libraries.
+- `python/`: current model, training, and evaluation libraries.
 - `scripts/`: current operator-facing commands plus explicit retirement guards.
 - `config/`: current contracts and immutable historical references needed for validation.
 - `tests/`: current unit/contract tests and minimal retirement-guard tests.

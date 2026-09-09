@@ -7,7 +7,7 @@ pipeline. The dissertation `reduced` branch is the scientific authority.
 
 - `R/`: reusable R methodology and pipeline-support functions.
 - `targets/`: thin stage-oriented target declarations.
-- `python/`: current model, training, evaluation, and downstream libraries.
+- `python/`: current model, training, and evaluation libraries.
 - `scripts/`: operator-facing entrypoints and explicit retirement guards.
 - `config/`: current scientific, runtime, and schema contracts.
 - `tests/`: current unit/contract tests and minimal fail-closed guard tests.
@@ -22,11 +22,12 @@ Dedicated current entrypoints are:
 
 - `_targets_training.R` for s09 training.
 - `_targets_evaluation.R` for s10 evaluation.
-- `_targets_s11_diagnostics.R`, `_targets_s11_downstream.R`,
-  `_targets_s11_readiness.R`, and `_targets_s11_ridge.R` for downstream work.
 
-`_targets_p9_formal.R` and `_targets_p9_recovery.R` are intentional immediate
-retirement guards. They do not define executable historical graphs.
+The previous s11 downstream implementation is retired pending a from-scratch
+redesign; no active s11 target entrypoint is retained. P9 v1 execution remains
+fail-closed through the centralized R/Python retirement guards and the
+operator-facing retirement CLIs. Obsolete root retirement entrypoints are not
+retained as executable files.
 
 ## Current scientific contract
 

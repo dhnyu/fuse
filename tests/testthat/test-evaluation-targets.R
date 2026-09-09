@@ -6,3 +6,15 @@ test_that("evaluation target graph is closed and downstream/training-free", {
   expect_true(grepl("s10_evaluation_acceptance", names, fixed = TRUE))
   expect_false(grepl("p11|optimizer|training|checkpoint", names, ignore.case = TRUE))
 })
+
+test_that("evaluation entrypoint manifest and validation remain direct", {
+  skip_if_not_installed("targets")
+  root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
+  old <- getwd(); on.exit(setwd(old), add = TRUE); setwd(root)
+  manifest <- targets::tar_manifest(
+    script = "_targets_evaluation.R",
+    fields = c("name", "command")
+  )
+  expect_length(manifest$name, 5L)
+  expect_silent(targets::tar_validate(script = "_targets_evaluation.R"))
+})

@@ -14,10 +14,12 @@ from p9_v1_retirement import (
     FORMAL_AUTHORITY_IDS,
     HISTORICAL_STORE_NAMES,
     RECOVERY_AUTHORITY_IDS,
+    RETIRED_ENTRY_POINTS,
     RETIREMENT_ERROR_CODE,
     build_retirement_manifest,
     inspect_retirement_sources,
     publish_retirement_manifest,
+    reject_v1_execution,
 )
 from training_schema import validate_instance
 
@@ -59,17 +61,23 @@ def test_retirement_publication_is_idempotent_and_collision_safe(tmp_path):
         publish_retirement_manifest(corrupt, tmp_path)
 
 
-def test_retired_target_entrypoints_fail_closed():
+def test_retired_target_entrypoints_are_absent_and_central_guards_fail_closed():
     expression = r'''
 manifest <- targets::tar_manifest(script = "_targets.R")
 if (any(grepl("^p9_v1_.*retired$", manifest$name))) stop("retired node remains")
 for (script in c("_targets_p9_formal.R", "_targets_p9_recovery.R")) {
-  failed <- tryCatch({targets::tar_manifest(script = script); FALSE}, error = function(e) {
-    grepl("TRAINING_V1_EXECUTION_RETIRED", conditionMessage(e), fixed = TRUE)
-  })
-  if (!failed) stop(script)
+  if (file.exists(script)) stop(script)
 }
+source("R/training_retirement_guard.R")
+failed <- tryCatch({retired_training_stop("synthetic-v1-entry"); FALSE}, error = function(e) {
+  grepl("TRAINING_V1_EXECUTION_RETIRED", conditionMessage(e), fixed = TRUE)
+})
+if (!failed) stop("central R retirement guard did not fail closed")
 '''
     result = subprocess.run(["Rscript", "-e", expression], cwd=ROOT,
                             text=True, capture_output=True, timeout=30)
     assert result.returncode == 0, result.stderr
+    assert "_targets_p9_formal.R" in RETIRED_ENTRY_POINTS
+    assert "_targets_p9_recovery.R" in RETIRED_ENTRY_POINTS
+    with pytest.raises(RuntimeError, match=RETIREMENT_ERROR_CODE):
+        reject_v1_execution("synthetic-v1-entry")

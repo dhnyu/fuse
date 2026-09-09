@@ -9,7 +9,6 @@ source(file.path(fuse_test_root, "R/process_rasters.R"))
 source(file.path(fuse_test_root, "R/validate_outputs.R"))
 source(file.path(fuse_test_root, "R/output_manifest.R"))
 source(file.path(fuse_test_root, "R/pipeline_seoul_data_preprocess.R"))
-source(file.path(fuse_test_root, "R/downstream_sources.R"))
 source(file.path(fuse_test_root, "R/current_source_registry.R"))
 source_current_research_files(fuse_test_root, environment())
 

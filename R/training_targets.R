@@ -32,6 +32,7 @@ s09_training_source_files <- function() {
     "config/schemas/s09_campaign_acceptance.schema.json",
     "python/training_campaign.py", "python/training_configuration.py",
     "python/training_controller.py", "python/training_finalization.py",
+    "python/training_progress.py",
     "python/training_prepared_cache.py", "python/training_worker.py",
     "scripts/prepare_training_cache.py", "scripts/training_campaign.py",
     "scripts/training_controller.py", "scripts/training_lifecycle.py", "scripts/training_worker.py"
@@ -171,7 +172,8 @@ s09_finalize <- function(bundle, authority, contract) {
 s09_accept <- function(finalization, authority, contract) {
   cfg <- yaml::read_yaml(contract)
   result <- s09_run_cli(c("scripts/training_lifecycle.py", "accept", "--finalization-record", finalization,
-    "--authority", authority, "--publication-root", cfg$roots$canonical_publication,
+    "--authority", authority, "--contract", contract,
+    "--publication-root", cfg$roots$canonical_publication,
     "--result", s09_record_path(contract, authority, "acceptance")))
   normalizePath(result$result, mustWork = TRUE)
 }
@@ -236,6 +238,8 @@ s09_accept_campaign <- function(plan, winner, comparison_results, cache, contrac
   value$content_sha256 <- s09_digest(value)
   value$campaign_acceptance_id <- paste0("s09camp_", substr(value$content_sha256, 1L, 24L))
   cfg <- yaml::read_yaml(contract)
-  s09_write_json(value, file.path(cfg$roots$canonical_publication, "campaign", value$campaign_acceptance_id,
-                                  "campaign_acceptance.json"))
+  path <- s09_write_json(value, file.path(cfg$roots$canonical_publication, "campaign",
+                                         value$campaign_acceptance_id, "campaign_acceptance.json"))
+  s09_campaign_cli("campaign-accepted", plan, contract, cache, path, winner)
+  path
 }

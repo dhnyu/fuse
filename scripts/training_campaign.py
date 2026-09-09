@@ -18,6 +18,7 @@ from training_campaign import (  # noqa: E402
     comparison_authorities, current_lineage, ofat_authorities, publish_documents,
     scientific_implementation_hash, select_ofat_winner,
 )
+from training_progress import CampaignProgress, configured_log_root  # noqa: E402
 
 
 def load(path: str):
@@ -25,11 +26,13 @@ def load(path: str):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(); parser.add_argument("mode", choices=("ofat", "winner", "comparison"))
+    parser = argparse.ArgumentParser(); parser.add_argument(
+        "mode", choices=("ofat", "winner", "comparison", "campaign-accepted"))
     parser.add_argument("--plan", required=True); parser.add_argument("--contract", required=True)
     parser.add_argument("--cache-acceptance", required=True); parser.add_argument("--output", required=True)
     parser.add_argument("--results", nargs="*"); args = parser.parse_args()
     plan = load(args.plan); contract = yaml.safe_load(Path(args.contract).read_text())
+    progress = CampaignProgress(configured_log_root(ROOT, contract), create=True)
     lineage = current_lineage(plan, contract); cache = load(args.cache_acceptance)
     parents = {**lineage, "production_cache_id": cache["cache_id"],
                "production_cache_acceptance_id": cache["acceptance_id"],
@@ -40,6 +43,8 @@ def main() -> None:
     output = Path(args.output)
     if args.mode == "ofat":
         paths = publish_documents(ofat_authorities(plan, training, model, parents, implementation), output)
+        progress.append_campaign("OFAT_AUTHORITIES_READY", phase="OFAT",
+                                 config_or_model="all_ofat_authorities")
         print(json.dumps({"status": "PASS", "paths": paths}, sort_keys=True)); return
     if args.mode == "winner":
         winner = select_ofat_winner(plan, [load(path) for path in args.results or []])
@@ -47,9 +52,22 @@ def main() -> None:
         payload = canonical_json_bytes(winner)
         if output.exists() and output.read_bytes() != payload: raise FileExistsError("S09_WINNER_COLLISION")
         if not output.exists(): output.write_bytes(payload)
+        progress.append_campaign("WINNER_SELECTED", config_or_model=winner["selected_configuration_id"],
+                                 winner_configuration=winner["selected_configuration_id"])
+        print(json.dumps({"status": "PASS", "path": str(output)}, sort_keys=True)); return
+    if args.mode == "campaign-accepted":
+        winner = load((args.results or [""])[0])
+        acceptance = load(output)
+        progress.append_campaign(
+            "CAMPAIGN_ACCEPTED", config_or_model=acceptance["campaign_acceptance_id"],
+            winner_configuration=winner["selected_configuration_id"],
+            prepared_cache_status="PREPARED_CACHE_READY", campaign_status="CAMPAIGN_ACCEPTED")
         print(json.dumps({"status": "PASS", "path": str(output)}, sort_keys=True)); return
     winner = load((args.results or [""])[0])
     paths = publish_documents(comparison_authorities(plan, winner, training, model, parents, implementation), output)
+    progress.append_campaign("COMPARISON_AUTHORITIES_READY", phase="COMPARISON",
+                             config_or_model="all_comparison_authorities",
+                             winner_configuration=winner["selected_configuration_id"])
     print(json.dumps({"status": "PASS", "paths": paths}, sort_keys=True))
 
 

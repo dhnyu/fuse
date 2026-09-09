@@ -23,9 +23,10 @@ from training_ledger import read_ledger  # noqa: E402
 from training_controller import (  # noqa: E402
     StartupInputs, TrainingController, TrainingControllerError, TrainingRunLock,
     accepted_scientific_configurations, validate_startup, validate_training_authority,
-    latest_checkpoint_boundary, validate_worker_message, worker_response,
+    latest_checkpoint_boundary, training_run_id, validate_worker_message, worker_response,
 )
 from training_campaign import gpu_pair_environment  # noqa: E402
+from training_progress import RunProgress, configured_log_root, validation_progress  # noqa: E402
 
 
 def now() -> str:
@@ -45,6 +46,46 @@ def visible_gpu_count() -> int:
 def require_current_contract_ready(contract: dict) -> None:
     if contract.get("migration_status") != "READY":
         raise TrainingControllerError("CURRENT_METHODOLOGY_RECOMPUTATION_REQUIRED")
+
+
+def progress_logger(authority: dict, contract: dict, *, require_existing: bool = False) -> RunProgress:
+    scientific = authority["content"]["scientific"]
+    phase = scientific["phase"]
+    config_or_model = (scientific["configuration_id"] if phase == "OFAT"
+                       else scientific["model_id"])
+    execution = contract["execution"]
+    return RunProgress(
+        configured_log_root(ROOT, contract), phase=phase,
+        config_or_model=config_or_model,
+        authority_id=authority["identity"], run_id=training_run_id(authority),
+        patience_limit=int(execution["early_stopping_patience_events"]),
+        epoch_limit=int(execution["maximum_epochs"]),
+        update_limit=int(execution["maximum_updates"]), create=True,
+        require_existing=require_existing,
+    )
+
+
+def log_committed_worker_event(progress: RunProgress, request: dict) -> None:
+    if request["message_type"] != "EVENT_PROPOSAL":
+        return
+    body = request["body"]; event_type = body["event_type"]; payload = body["payload"]
+    if event_type == "EPOCH_STARTED":
+        progress.append("TRAINING", epoch=payload["epoch"], update=payload["starting_optimizer_update"])
+    elif event_type == "PROGRESS_SUMMARY_COMMITTED":
+        if any(key not in payload for key in
+               ("mean_training_loss", "ending_learning_rate", "epoch_wall_seconds")):
+            raise TrainingControllerError("S09_EPOCH_PROGRESS_METRICS_MISSING")
+        progress.append("TRAINING", epoch=payload["ending_epoch"], update=payload["last_update"],
+                        training_loss=payload["mean_training_loss"],
+                        learning_rate=payload["ending_learning_rate"])
+    elif event_type == "EARLY_STOPPING_UPDATED":
+        progress.append("TRAINING", patience_used=payload["events_without_improvement"],
+                        best_checkpoint_id=payload.get("best_checkpoint_id"))
+    elif event_type == "TRAINING_COMPLETED":
+        status = "EARLY_STOPPED" if payload["reason"] == "EARLY_STOPPING_PATIENCE" else "COMPLETED"
+        progress.append(status, epoch=payload["completed_epoch"], update=payload["optimizer_update"])
+    elif event_type == "TRAINING_FAILED":
+        progress.append("FAILED")
 
 
 def startup_inputs(contract: dict, authority: dict | None = None) -> StartupInputs:
@@ -75,6 +116,9 @@ def run(args: argparse.Namespace) -> dict:
     content = authority["content"]
     contract = yaml.safe_load(Path(args.contract).read_text(encoding="utf-8"))
     require_current_contract_ready(contract)
+    progress = progress_logger(authority, contract)
+    had_progress_history = progress.run_path.is_file()
+    progress.append("AUTHORITY_READY")
     if args.noncanonical_pilot:
         output_root = Path(args.output).resolve()
         temporary_root = Path(tempfile.gettempdir()).resolve()
@@ -96,6 +140,7 @@ def run(args: argparse.Namespace) -> dict:
                 "parent_identities": content["parents"], "duplicate_run_key": content["scientific_run_key"],
             }, occurred_at=now())
         state = controller.replay()
+        reconciliation_resume = False
         if state.operational_state == "RUNNING":
             events = read_ledger(controller.ledger_root).events
             latest = next((event for event in reversed(events)
@@ -108,9 +153,13 @@ def run(args: argparse.Namespace) -> dict:
                 "resume_policy": "EXACT_RESUME" if latest is not None else "RESTART",
                 "interruption_reason": "CONTROLLER_RESTART_RECONCILIATION",
             }, occurred_at=now())
+            progress.append("INTERRUPTED", epoch=boundary["completed_epoch"],
+                            update=boundary["optimizer_update"],
+                            latest_checkpoint_id=None if latest is None else latest["payload"]["checkpoint_id"])
             state = controller.replay()
         if state.operational_state == "INTERRUPTED_RESUMABLE" and not controller.resume_allowed():
             raise TrainingControllerError("EXACT_RESUME_EVIDENCE_REQUIRED")
+        reconciliation_resume = state.operational_state == "INTERRUPTED_RESUMABLE"
         if state.operational_state not in {"AUTHORIZED", "INTERRUPTED_RESUMABLE"}:
             raise TrainingControllerError("RUN_NOT_STARTABLE_FROM_REPLAY_STATE")
         controller.append("RUN_STARTING", {
@@ -122,6 +171,15 @@ def run(args: argparse.Namespace) -> dict:
         staging_root.mkdir(parents=True, exist_ok=True); checkpoint_root.mkdir(parents=True, exist_ok=True)
         latest = next((event for event in reversed(read_ledger(controller.ledger_root).events)
                        if event["event_type"] == "VALIDATION_CHECKPOINT_COMMITTED"), None)
+        if reconciliation_resume:
+            if latest is None:
+                raise TrainingControllerError("S09_RESUME_CHECKPOINT_REQUIRED")
+            if not had_progress_history:
+                raise TrainingControllerError("S09_RESUME_PROGRESS_LOG_REQUIRED")
+            progress.append("RESUMING", epoch=latest["payload"]["completed_epoch"],
+                            update=latest["payload"]["optimizer_update"],
+                            latest_checkpoint_id=latest["payload"]["checkpoint_id"],
+                            latest_checkpoint_path=str(checkpoint_root / latest["payload"]["checkpoint_id"] / "checkpoint.pt"))
         environment = os.environ.copy()
         environment.update({
             "FUSE_TRAINING_RUN_ID": controller.run_id,
@@ -131,38 +189,62 @@ def run(args: argparse.Namespace) -> dict:
                 str(checkpoint_root / latest["payload"]["checkpoint_id"] / "checkpoint.pt"),
             "FUSE_TRAINING_RESUME_CHECKPOINT_ID": "" if latest is None else latest["payload"]["checkpoint_id"],
         })
-        stderr_path = run_root / "science_worker.stderr.log"
-        stderr_stream = stderr_path.open("ab")
+        stdout_stream = progress.stdout_path.open("ab")
+        stderr_stream = progress.stderr_path.open("ab")
         devices = contract["execution"]["selected_gpu_indices"]
-        with gpu_pair_environment(devices, contract["execution"]["gpu_lock_root"],
-                                  contract["execution"]["gpu_lock_timeout_seconds"]) as locked_environment:
-            environment.update(locked_environment)
-            if environment.get("CUDA_VISIBLE_DEVICES") != ",".join(map(str, devices)):
-                raise TrainingControllerError("S09_GPU_DEVICE_ENVIRONMENT_MISMATCH")
-            process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                       stderr=stderr_stream, env=environment)
-            controller.append("RUN_STARTED", {"process_id": str(process.pid), "world_size": 2,
-                                               "runtime_digest": authority["content_sha256"]}, occurred_at=now())
-            assert process.stdout is not None and process.stdin is not None
-            for raw in process.stdout:
-                request = None
-                try:
-                    request = parse_canonical_json(raw, json_line=True)
-                    validate_worker_message(request)
-                    response = controller.handle_worker_request(
-                        request, staging_root=staging_root, checkpoint_root=checkpoint_root)
-                except Exception as error:
-                    request_id = request.get("request_id", "p9req_" + "0" * 24) if isinstance(request, dict) else "p9req_" + "0" * 24
-                    response = worker_response(request_id, status="REJECTED",
-                                               error_code=type(error).__name__, message=str(error)[:512])
-                process.stdin.write(canonical_json_line(response)); process.stdin.flush()
-                if response["message_type"] == "NACK": process.kill(); break
-            process.stdin.close(); code = process.wait()
-        stderr_stream.close()
-        stderr = stderr_path.read_text(encoding="utf-8", errors="replace")
+        progress.append("WAITING_FOR_GPU")
+        try:
+            with gpu_pair_environment(devices, contract["execution"]["gpu_lock_root"],
+                                      contract["execution"]["gpu_lock_timeout_seconds"]) as locked_environment:
+                progress.append("PREPARING")
+                environment.update(locked_environment)
+                if environment.get("CUDA_VISIBLE_DEVICES") != ",".join(map(str, devices)):
+                    raise TrainingControllerError("S09_GPU_DEVICE_ENVIRONMENT_MISMATCH")
+                process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                           stderr=stderr_stream, env=environment)
+                controller.append("RUN_STARTED", {"process_id": str(process.pid), "world_size": 2,
+                                                   "runtime_digest": authority["content_sha256"]}, occurred_at=now())
+                progress.append("TRAINING")
+                assert process.stdout is not None and process.stdin is not None
+                for raw in process.stdout:
+                    stdout_stream.write(raw); stdout_stream.flush(); os.fsync(stdout_stream.fileno())
+                    request = None
+                    try:
+                        request = parse_canonical_json(raw, json_line=True)
+                        validate_worker_message(request)
+                        if request["message_type"] == "CHECKPOINT_COMMIT_REQUEST":
+                            body = request["body"]
+                            progress.append("VALIDATING", epoch=body["completed_epoch"],
+                                            update=body["optimizer_update"],
+                                            validation_loss=body["validation_retrieval_loss"],
+                                            validation_margin=body["mean_source_separation_margin"])
+                        response = controller.handle_worker_request(
+                            request, staging_root=staging_root, checkpoint_root=checkpoint_root)
+                        if request["message_type"] == "CHECKPOINT_COMMIT_REQUEST":
+                            progress.append("CHECKPOINT_COMMITTED",
+                                            **validation_progress(request["body"], response["body"], checkpoint_root))
+                        elif request["message_type"] == "FAILURE_REPORT":
+                            progress.append("FAILED")
+                        else:
+                            log_committed_worker_event(progress, request)
+                    except Exception as error:
+                        request_id = request.get("request_id", "p9req_" + "0" * 24) if isinstance(request, dict) else "p9req_" + "0" * 24
+                        response = worker_response(request_id, status="REJECTED",
+                                                   error_code=type(error).__name__, message=str(error)[:512])
+                    process.stdin.write(canonical_json_line(response)); process.stdin.flush()
+                    if response["message_type"] == "NACK": process.kill(); break
+                process.stdin.close(); code = process.wait()
+        except BaseException:
+            progress.append("FAILED")
+            raise
+        finally:
+            stdout_stream.close(); stderr_stream.close()
+        stderr = progress.stderr_path.read_text(encoding="utf-8", errors="replace")
         state = controller.replay()
         if code != 0:
             if state.operational_state == "TRAINING_FAILED":
+                if progress.state.get("status") != "FAILED":
+                    progress.append("FAILED")
                 controller.close()
                 raise TrainingControllerError(f"SCIENCE_WORKER_TRAINING_FAILED: {stderr[-1000:]}")
             events = read_ledger(controller.ledger_root).events
@@ -174,6 +256,11 @@ def run(args: argparse.Namespace) -> dict:
                 "resumable_checkpoint_committed": exact, "resume_policy": "EXACT_RESUME" if exact else "RESTART",
                 "interruption_reason": f"SCIENCE_WORKER_EXIT_{code}",
             }, occurred_at=now())
+            progress.append("INTERRUPTED", epoch=boundary["completed_epoch"],
+                            update=boundary["optimizer_update"],
+                            latest_checkpoint_id=None if not exact else
+                                next(event["payload"]["checkpoint_id"] for event in reversed(events)
+                                     if event["event_type"] == "VALIDATION_CHECKPOINT_COMMITTED"))
             raise TrainingControllerError(f"SCIENCE_WORKER_INTERRUPTED: {stderr[-1000:]}")
         if controller.replay().scientific_state != "COMPLETE":
             raise TrainingControllerError("SCIENCE_WORKER_EXITED_WITHOUT_TRAINING_COMPLETED")
@@ -187,6 +274,8 @@ def run(args: argparse.Namespace) -> dict:
         result_path = run_root / "training_execution.json"
         result_path.write_text(json.dumps(result, sort_keys=True, separators=(",", ":")), encoding="utf-8")
         result["training_execution"] = str(result_path)
+        if progress.state.get("status") != "COMPLETED":
+            progress.append("COMPLETED")
         return result
 
 

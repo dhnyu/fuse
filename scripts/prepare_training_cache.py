@@ -32,6 +32,7 @@ from scene_encoder import geometry_fourier_features  # noqa: E402
 from training_campaign import cache_identity, current_lineage  # noqa: E402
 from training_geometry_cache import GeometryCacheWriter, cache_record  # noqa: E402
 from training_prepared_cache import DS_RASTER_CONTRACT_ID  # noqa: E402
+from training_progress import CampaignProgress, configured_log_root  # noqa: E402
 from training_schema import validate_instance  # noqa: E402
 
 
@@ -273,7 +274,25 @@ def main() -> None:
     parser.add_argument("--fixture-limit", type=int)
     args = parser.parse_args()
     if args.mode == "build":
-        print(build(args.contract, args.workers, args.fixture_limit, args.root))
+        progress = None
+        if args.fixture_limit is None:
+            contract = yaml.safe_load(Path(args.contract).read_text())
+            progress = CampaignProgress(configured_log_root(ROOT, contract), create=True)
+            progress.append_campaign("PREPARED_CACHE_BUILDING", phase="CACHE",
+                                     config_or_model="prepared_cache")
+        try:
+            acceptance_path = build(args.contract, args.workers, args.fixture_limit, args.root)
+            if progress is not None:
+                acceptance = json.loads(acceptance_path.read_text())
+                progress.append_campaign("PREPARED_CACHE_READY", phase="CACHE",
+                                         config_or_model=acceptance["cache_id"])
+            print(acceptance_path)
+        except BaseException:
+            if progress is not None:
+                progress.append_campaign("PREPARED_CACHE_FAILED", phase="CACHE",
+                                         config_or_model="prepared_cache",
+                                         campaign_status="CAMPAIGN_FAILED")
+            raise
     else:
         print(json.dumps(validate_cache(args.root), sort_keys=True))
 

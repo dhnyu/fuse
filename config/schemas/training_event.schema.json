@@ -92,7 +92,10 @@
         "first_update": {"type": "integer", "minimum": 1}, "last_update": {"type": "integer", "minimum": 1},
         "ending_epoch": {"type": "integer", "minimum": 1}, "ending_sampler_cursor": {"type": "integer", "minimum": 0},
         "trace_block_sha256": {"$ref": "#/$defs/sha256"}, "sampler_state_sha256": {"$ref": "#/$defs/sha256"},
-        "rng_state_sha256": {"$ref": "#/$defs/sha256"}, "queue_state_sha256": {"$ref": "#/$defs/sha256"}
+        "rng_state_sha256": {"$ref": "#/$defs/sha256"}, "queue_state_sha256": {"$ref": "#/$defs/sha256"},
+        "mean_training_loss": {"type": "number", "minimum": 0},
+        "ending_learning_rate": {"type": "number", "minimum": 0},
+        "epoch_wall_seconds": {"type": "number", "minimum": 0}
       },
       "additionalProperties": false
     },

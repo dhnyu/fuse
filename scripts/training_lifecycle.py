@@ -24,8 +24,10 @@ from checkpoint_resolution import (  # noqa: E402
 import training_finalization as finalization_module  # noqa: E402
 import training_lifecycle as lifecycle_module  # noqa: E402
 from training_campaign import s08_selection_document  # noqa: E402
+from training_controller import training_run_id  # noqa: E402
 from training_finalization import finalize_run_bundle, make_selection_contract, validate_finalization_result  # noqa: E402
 from training_lifecycle import build_publish_native_bundle  # noqa: E402
+from training_progress import RunProgress, configured_log_root  # noqa: E402
 
 
 def load(path: str | Path) -> dict:
@@ -97,6 +99,9 @@ def command_finalize(args: argparse.Namespace) -> dict:
 
 def command_accept(args: argparse.Namespace) -> dict:
     handoff, authority = load(args.finalization_record), load(args.authority)
+    if not args.contract:
+        raise RuntimeError("S09_ACCEPTANCE_TRAINING_CONTRACT_REQUIRED")
+    contract = yaml.safe_load(Path(args.contract).read_text(encoding="utf-8"))
     roots = locator_roots(handoff); finalization = load(handoff["finalization_path"])
     publication = publish_acceptance(
         finalization, handoff["bundle_path"], roots, Path(args.publication_root) / "acceptances",
@@ -104,6 +109,33 @@ def command_accept(args: argparse.Namespace) -> dict:
     valid = validate_acceptance(publication.acceptance_id, Path(args.publication_root) / "acceptances",
                                 Path(args.publication_root) / "bundles", roots)
     if not valid.valid: raise RuntimeError(f"ACCEPTANCE_INVALID: {valid.error_code}")
+    scientific = authority["content"]["scientific"]
+    phase = scientific["phase"]
+    config_or_model = scientific["configuration_id"] if phase == "OFAT" else scientific["model_id"]
+    selected = finalization["selected_checkpoint"]
+    progress = RunProgress(
+        configured_log_root(ROOT, contract),
+        phase=phase, config_or_model=config_or_model,
+        authority_id=authority["identity"], run_id=training_run_id(authority),
+        patience_limit=int(contract["execution"]["early_stopping_patience_events"]),
+        epoch_limit=int(contract["execution"]["maximum_epochs"]),
+        update_limit=int(contract["execution"]["maximum_updates"]), create=False,
+        require_existing=True,
+    )
+    progress.append(
+        "ACCEPTED", epoch=selected["completed_epoch"], update=selected["optimizer_update"],
+        validation_loss=selected["validation_retrieval_loss"],
+        validation_margin=selected["mean_source_separation_margin"],
+        selection_eligible=True, best_epoch=selected["completed_epoch"],
+        best_validation_loss=selected["validation_retrieval_loss"],
+        best_validation_margin=selected["mean_source_separation_margin"],
+        latest_checkpoint_id=selected["checkpoint_id"],
+        latest_checkpoint_path=str(roots[handoff["checkpoint_namespace"]] /
+                                   selected["checkpoint_id"] / "checkpoint.pt"),
+        best_checkpoint_id=selected["checkpoint_id"],
+        best_checkpoint_path=str(roots[handoff["checkpoint_namespace"]] /
+                                 selected["checkpoint_id"] / "checkpoint.pt"),
+    )
     return {**handoff, "schema_version": "2.0.0", "artifact_type": "training_native_acceptance_handoff",
             "acceptance_id": publication.acceptance_id, "acceptance_path": str(publication.path)}
 

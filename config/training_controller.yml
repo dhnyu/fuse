@@ -37,10 +37,13 @@ campaign:
   comparison_count: 17
   ordering: OFAT_THEN_WINNER_THEN_COMPARISON
 execution:
+  progress_log_root: logs/s09
   world_size: 2
   backend: nccl
   precision: float32
   optimizer_updates_per_epoch: 76
+  maximum_epochs: 200
+  maximum_updates: 15200
   validation_interval_epochs: 5
   early_stopping_patience_events: 4
   exact_resume: committed_checkpoint_only

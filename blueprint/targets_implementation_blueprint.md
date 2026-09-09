@@ -45,7 +45,9 @@ uses a separate store.
   `/mnt/hdd002/dhnyu/fusedata/targets/fuse-training-s09` store. Its explicit
   operator is `Rscript scripts/run_training_targets.R campaign`; the graph
   builds the accepted CPU prepared cache, executes 11 OFAT runs, publishes the
-  validation-selected winner, and only then enables 17 comparison runs.
+  validation-selected winner, and only then enables 17 comparison runs. Formal
+  progress is append-only in `logs/s09/campaign_status.tsv` and per-run TSVs;
+  `logs/s09/current_status.txt` is the atomically replaced operator summary.
 - `_targets_evaluation.R`: current s10 evaluation preparation and acceptance.
 
 The previous s11 downstream implementation is retired pending a from-scratch

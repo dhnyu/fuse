@@ -23,6 +23,8 @@ Dedicated current entrypoints are:
 - `_targets_training.R` for the s09 campaign in the dedicated
   `/mnt/hdd002/dhnyu/fusedata/targets/fuse-training-s09` store. The guarded
   operator command is `Rscript scripts/run_training_targets.R campaign`.
+  Append-only campaign/per-run progress and separate worker streams are written
+  under `logs/s09/`; `logs/s09/current_status.txt` is updated atomically.
 - `_targets_evaluation.R` for s10 evaluation.
 
 The previous s11 downstream implementation is retired pending a from-scratch

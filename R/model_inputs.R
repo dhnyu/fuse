@@ -80,10 +80,139 @@ p6_contract_file <- function(contract_files, name) {
   matches[[1L]]
 }
 
-p6_root_from_artifact <- function(paths, levels) {
-  path <- normalizePath(paths[[1L]], mustWork = TRUE)
-  for (index in seq_len(levels)) path <- dirname(path)
-  path
+p6_root_from_identity <- function(paths, identity, label) {
+  if (!is.character(paths) || !length(paths) || anyNA(paths) ||
+      !is.character(identity) || length(identity) != 1L || is.na(identity) || !nzchar(identity)) {
+    stop("P6 ", label, " root identity inputs are invalid", call. = FALSE)
+  }
+  missing_paths <- paths[!file.exists(paths)]
+  if (length(missing_paths)) {
+    stop("P6 ", label, " artifact path is missing: ", missing_paths[[1L]], call. = FALSE)
+  }
+  normalized <- normalizePath(paths, mustWork = TRUE)
+  ancestors <- unique(unlist(lapply(normalized, function(path) {
+    current <- if (dir.exists(path)) path else dirname(path)
+    result <- character()
+    repeat {
+      result <- c(result, current)
+      parent <- dirname(current)
+      if (identical(parent, current)) break
+      current <- parent
+    }
+    result
+  }), use.names = FALSE))
+  candidates <- ancestors[basename(ancestors) == identity & dir.exists(ancestors)]
+  if (length(candidates) != 1L) {
+    stop("P6 ", label, " root must resolve exactly one generation for identity ",
+         identity, "; found ", length(candidates), call. = FALSE)
+  }
+  root <- normalizePath(candidates[[1L]], mustWork = TRUE)
+  prefix <- paste0(root, .Platform$file.sep)
+  if (any(!startsWith(normalized, prefix))) {
+    stop("P6 ", label, " artifacts do not share the resolved generation root", call. = FALSE)
+  }
+  root
+}
+
+p6_resolve_p3_cache_generation <- function(paths) {
+  if (!is.character(paths) || !length(paths) || anyNA(paths)) {
+    stop("P6 P3 cache generation artifact paths are invalid", call. = FALSE)
+  }
+  missing_paths <- paths[!file.exists(paths)]
+  if (length(missing_paths)) {
+    stop("P6 P3 cache generation artifact path is missing: ", missing_paths[[1L]], call. = FALSE)
+  }
+  acceptance_path <- artifact_path(paths, "original_scene_dataset_acceptance.json")
+  cache_manifest_path <- artifact_path(paths, "original_scene_cache_manifest.json")
+  acceptance <- jsonlite::read_json(acceptance_path, simplifyVector = FALSE)
+  cache_manifest <- jsonlite::read_json(cache_manifest_path, simplifyVector = FALSE)
+  if (!identical(acceptance$status, "PASS") || !identical(cache_manifest$status, "PASS")) {
+    stop("P6 P3 cache generation requires PASS acceptance and cache manifest", call. = FALSE)
+  }
+  cache_id <- acceptance$cache_id
+  if (!is.character(cache_id) || length(cache_id) != 1L || is.na(cache_id) || !nzchar(cache_id) ||
+      !identical(cache_manifest$cache_id, cache_id)) {
+    stop("P6 P3 accepted cache identity mismatch", call. = FALSE)
+  }
+  acceptance_id <- acceptance$acceptance_id
+  index_id <- cache_manifest$index_id
+  counts <- list(acceptance$scene_count, cache_manifest$scene_count)
+  if (!is.character(acceptance_id) || length(acceptance_id) != 1L || is.na(acceptance_id) ||
+      !nzchar(acceptance_id) || !is.character(index_id) || length(index_id) != 1L ||
+      is.na(index_id) || !nzchar(index_id) ||
+      !all(vapply(counts, function(value) is.numeric(value) && length(value) == 1L &&
+                    !is.na(value) && is.finite(value) && value == as.integer(value), logical(1L)))) {
+    stop("P6 P3 accepted cache manifest identity fields are invalid", call. = FALSE)
+  }
+  root <- p6_root_from_identity(paths, cache_id, "P3 cache generation")
+  if (!identical(basename(root), cache_id)) {
+    stop("P6 P3 cache generation basename does not match accepted cache ID", call. = FALSE)
+  }
+  if (!identical(basename(dirname(acceptance_path)), acceptance_id)) {
+    stop("P6 P3 acceptance path identity mismatch", call. = FALSE)
+  }
+  index_root <- file.path(root, "index")
+  if (!dir.exists(index_root)) {
+    stop("P6 P3 accepted cache generation index directory is missing", call. = FALSE)
+  }
+  index_paths <- list.files(
+    index_root, pattern = "^scene_to_shard[.]parquet$",
+    recursive = TRUE, full.names = TRUE
+  )
+  if (length(index_paths) != 1L) {
+    stop("P6 P3 accepted cache generation must contain exactly one scene index; found ",
+         length(index_paths), call. = FALSE)
+  }
+  index_path <- normalizePath(index_paths[[1L]], mustWork = TRUE)
+  index_dir <- dirname(index_path)
+  index_manifest_path <- file.path(index_dir, "index_manifest.json")
+  if (!file.exists(index_manifest_path)) {
+    stop("P6 P3 accepted scene index manifest is missing", call. = FALSE)
+  }
+  index_manifest <- jsonlite::read_json(index_manifest_path, simplifyVector = FALSE)
+  index_scene_count <- index_manifest$scene_count
+  if (!is.numeric(index_scene_count) || length(index_scene_count) != 1L ||
+      is.na(index_scene_count) || !is.finite(index_scene_count) ||
+      index_scene_count != as.integer(index_scene_count)) {
+    stop("P6 P3 accepted scene index identity fields are invalid", call. = FALSE)
+  }
+  identity_checks <- c(
+    identical(index_manifest$status, "PASS"),
+    identical(index_manifest$cache_id, cache_id),
+    identical(index_manifest$index_id, index_id),
+    identical(basename(index_dir), index_manifest$index_id),
+    identical(as.integer(index_scene_count), as.integer(acceptance$scene_count)),
+    identical(as.integer(cache_manifest$scene_count), as.integer(acceptance$scene_count))
+  )
+  if (!all(identity_checks)) {
+    stop("P6 P3 accepted cache/index identity mismatch", call. = FALSE)
+  }
+  list(
+    root = root, cache_id = cache_id, index_id = index_manifest$index_id,
+    index_path = index_path, index_manifest_path = normalizePath(index_manifest_path, mustWork = TRUE)
+  )
+}
+
+p6_resolve_artifact_roots <- function(original_scene_dataset_acceptance,
+                                      augmentation_bank_acceptance,
+                                      fixed_query_acceptance) {
+  p3 <- p6_resolve_p3_cache_generation(original_scene_dataset_acceptance)
+  p4 <- jsonlite::read_json(
+    artifact_path(augmentation_bank_acceptance, "augmentation_bank_acceptance.json"),
+    simplifyVector = FALSE
+  )
+  p5 <- jsonlite::read_json(
+    artifact_path(fixed_query_acceptance, "fixed_query_acceptance.json"),
+    simplifyVector = FALSE
+  )
+  if (!identical(p4$status, "PASS") || !identical(p5$status, "PASS")) {
+    stop("P6 P4/P5 root resolution requires accepted parents", call. = FALSE)
+  }
+  c(
+    p3 = p3$root,
+    p4 = p6_root_from_identity(augmentation_bank_acceptance, p4$bank_id, "P4 bank generation"),
+    p5 = p6_root_from_identity(fixed_query_acceptance, p5$query_authority_id, "P5 query generation")
+  )
 }
 
 p6_run <- function(arguments) {
@@ -134,9 +263,9 @@ p6_build_preprocessing <- function(original_scene_dataset_acceptance, augmentati
                                       augmentation_bank_acceptance, effective_augmentation_bank_index,
                                       fixed_query_acceptance, base_spatial_acceptance)
   on.exit(unlink(runtime_config), add = TRUE)
-  roots <- c(p3 = p6_root_from_artifact(original_scene_dataset_acceptance, 3L),
-             p4 = p6_root_from_artifact(augmentation_bank_acceptance, 3L),
-             p5 = p6_root_from_artifact(fixed_query_acceptance, 3L))
+  roots <- p6_resolve_artifact_roots(
+    original_scene_dataset_acceptance, augmentation_bank_acceptance, fixed_query_acceptance
+  )
   output <- tempfile(fileext = ".json")
   p6_run(c("scripts/build_model_inputs.py", "preprocessing", "--config", runtime_config,
            "--p3-root", roots[["p3"]], "--p4-root", roots[["p4"]], "--p5-root", roots[["p5"]],
@@ -158,9 +287,9 @@ p6_build_dataloader_acceptance <- function(original_scene_dataset_acceptance, au
                                       augmentation_bank_acceptance, effective_augmentation_bank_index,
                                       fixed_query_acceptance, base_spatial_acceptance)
   on.exit(unlink(runtime_config), add = TRUE)
-  roots <- c(p3 = p6_root_from_artifact(original_scene_dataset_acceptance, 3L),
-             p4 = p6_root_from_artifact(augmentation_bank_acceptance, 3L),
-             p5 = p6_root_from_artifact(fixed_query_acceptance, 3L))
+  roots <- p6_resolve_artifact_roots(
+    original_scene_dataset_acceptance, augmentation_bank_acceptance, fixed_query_acceptance
+  )
   output <- tempfile(fileext = ".json")
   p6_run(c("scripts/build_model_inputs.py", "dataloader", "--config", runtime_config,
            "--p3-root", roots[["p3"]], "--p4-root", roots[["p4"]], "--p5-root", roots[["p5"]],
@@ -182,9 +311,9 @@ p6_build_cpu_smoke <- function(original_scene_dataset_acceptance, augmentation_b
                                       augmentation_bank_acceptance, effective_augmentation_bank_index,
                                       fixed_query_acceptance, base_spatial_acceptance)
   on.exit(unlink(runtime_config), add = TRUE)
-  roots <- c(p3 = p6_root_from_artifact(original_scene_dataset_acceptance, 3L),
-             p4 = p6_root_from_artifact(augmentation_bank_acceptance, 3L),
-             p5 = p6_root_from_artifact(fixed_query_acceptance, 3L))
+  roots <- p6_resolve_artifact_roots(
+    original_scene_dataset_acceptance, augmentation_bank_acceptance, fixed_query_acceptance
+  )
   output <- tempfile(fileext = ".json")
   Sys.setenv(OMP_NUM_THREADS = "1", OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1",
              BLIS_NUM_THREADS = "1", VECLIB_MAXIMUM_THREADS = "1", NUMEXPR_NUM_THREADS = "1",

@@ -59,3 +59,123 @@ testthat::test_that("P6 scientific identity excludes execution environment", {
   testthat::expect_false(grepl("hostname", helper, fixed = TRUE))
   testthat::expect_false(grepl("CUDA", helper, fixed = TRUE))
 })
+
+p6_cache_fixture <- function(root = tempfile("p6-cache-root-"), cache_id = "oscache_fixture",
+                             index_id = "oci_fixture", nested = FALSE) {
+  generation <- file.path(root, cache_id)
+  acceptance_dir <- if (nested) {
+    file.path(generation, "arbitrary", "nested", "acceptance", "osca_fixture")
+  } else {
+    file.path(generation, "acceptance", "osca_fixture")
+  }
+  manifest_dir <- if (nested) file.path(generation, "arbitrary", "manifests") else file.path(generation, "manifests")
+  index_dir <- file.path(generation, "index", index_id)
+  dir.create(acceptance_dir, recursive = TRUE)
+  dir.create(manifest_dir, recursive = TRUE)
+  dir.create(index_dir, recursive = TRUE)
+  acceptance <- file.path(acceptance_dir, "original_scene_dataset_acceptance.json")
+  manifest <- file.path(manifest_dir, "original_scene_cache_manifest.json")
+  index <- file.path(index_dir, "scene_to_shard.parquet")
+  index_manifest <- file.path(index_dir, "index_manifest.json")
+  write_json_file(list(
+    status = "PASS", acceptance_id = "osca_fixture", cache_id = cache_id,
+    scene_count = 12421L
+  ), acceptance)
+  write_json_file(list(
+    status = "PASS", cache_id = cache_id, index_id = index_id,
+    scene_count = 12421L
+  ), manifest)
+  writeLines("fixture-index", index)
+  write_json_file(list(
+    status = "PASS", cache_id = cache_id, index_id = index_id,
+    scene_count = 12421L
+  ), index_manifest)
+  list(
+    root = root, generation = generation, paths = c(manifest, acceptance),
+    acceptance = acceptance, manifest = manifest, index = index,
+    index_manifest = index_manifest
+  )
+}
+
+testthat::test_that("P6 resolves the explicit accepted P3 cache generation", {
+  fixture <- p6_cache_fixture()
+  dir.create(file.path(fixture$root, "oscache_historical_sibling"))
+  resolved <- p6_resolve_p3_cache_generation(fixture$paths)
+
+  testthat::expect_identical(resolved$root, normalizePath(fixture$generation))
+  testthat::expect_identical(resolved$cache_id, "oscache_fixture")
+  testthat::expect_identical(resolved$index_id, "oci_fixture")
+  testthat::expect_identical(resolved$index_path, normalizePath(fixture$index))
+})
+
+testthat::test_that("P6 P3 root resolution is independent of acceptance nesting depth", {
+  fixture <- p6_cache_fixture(nested = TRUE)
+  resolved <- p6_resolve_p3_cache_generation(fixture$paths)
+  testthat::expect_identical(resolved$root, normalizePath(fixture$generation))
+})
+
+testthat::test_that("P6 P3 cache generation resolution fails closed", {
+  fixture <- p6_cache_fixture()
+
+  acceptance <- jsonlite::read_json(fixture$acceptance, simplifyVector = FALSE)
+  acceptance$cache_id <- "oscache_wrong"
+  write_json_file(acceptance, fixture$acceptance)
+  testthat::expect_error(
+    p6_resolve_p3_cache_generation(fixture$paths),
+    "accepted cache identity mismatch"
+  )
+
+  fixture <- p6_cache_fixture()
+  unlink(fixture$generation, recursive = TRUE)
+  testthat::expect_error(
+    p6_resolve_p3_cache_generation(fixture$paths),
+    "artifact path is missing"
+  )
+
+  first <- p6_cache_fixture()
+  second <- p6_cache_fixture(cache_id = "oscache_fixture")
+  mixed <- c(first$acceptance, second$manifest)
+  testthat::expect_error(
+    p6_resolve_p3_cache_generation(mixed),
+    "resolve exactly one generation"
+  )
+
+  fixture <- p6_cache_fixture()
+  unlink(dirname(dirname(fixture$index)), recursive = TRUE)
+  testthat::expect_error(
+    p6_resolve_p3_cache_generation(fixture$paths),
+    "index directory is missing"
+  )
+
+  fixture <- p6_cache_fixture()
+  unlink(fixture$index)
+  testthat::expect_error(
+    p6_resolve_p3_cache_generation(fixture$paths),
+    "exactly one scene index"
+  )
+
+  fixture <- p6_cache_fixture()
+  unlink(fixture$index_manifest)
+  testthat::expect_error(
+    p6_resolve_p3_cache_generation(fixture$paths),
+    "scene index manifest is missing"
+  )
+
+  fixture <- p6_cache_fixture()
+  duplicate_dir <- file.path(fixture$generation, "index", "oci_duplicate")
+  dir.create(duplicate_dir, recursive = TRUE)
+  writeLines("duplicate", file.path(duplicate_dir, "scene_to_shard.parquet"))
+  testthat::expect_error(
+    p6_resolve_p3_cache_generation(fixture$paths),
+    "exactly one scene index"
+  )
+
+  fixture <- p6_cache_fixture()
+  index_manifest <- jsonlite::read_json(fixture$index_manifest, simplifyVector = FALSE)
+  index_manifest$cache_id <- "oscache_wrong"
+  write_json_file(index_manifest, fixture$index_manifest)
+  testthat::expect_error(
+    p6_resolve_p3_cache_generation(fixture$paths),
+    "cache/index identity mismatch"
+  )
+})

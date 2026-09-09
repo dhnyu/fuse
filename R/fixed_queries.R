@@ -365,6 +365,70 @@ p5_validated_query_shard <- function(plan_branch, contract_files, tiered_executi
   c(shard_files, receipt)
 }
 
+p5_canonical_json_value <- function(value, path = "seed") {
+  if (!is.list(value)) return(value)
+  object_names <- names(value)
+  if (!is.null(object_names)) {
+    if (length(object_names) != length(value) || anyNA(object_names) ||
+        any(!nzchar(object_names)) || anyDuplicated(object_names)) {
+      stop("P5 seed contract has invalid object fields at ", path, call. = FALSE)
+    }
+    order <- order(object_names, method = "radix")
+    return(stats::setNames(
+      lapply(order, function(index) {
+        p5_canonical_json_value(value[[index]], paste0(path, ".", object_names[[index]]))
+      }),
+      object_names[order]
+    ))
+  }
+  if (all(vapply(value, function(item) {
+    is.character(item) && length(item) == 1L && !is.na(item)
+  }, logical(1L)))) {
+    return(unlist(value, use.names = FALSE))
+  }
+  lapply(seq_along(value), function(index) {
+    p5_canonical_json_value(value[[index]], paste0(path, "[", index, "]"))
+  })
+}
+
+p5_canonical_seed_contract <- function(seed) {
+  required <- c(
+    "canonical_encoding", "root_fields", "operation_substream",
+    "operation_context_fields", "digest_to_rng", "missing_sentinel"
+  )
+  if (!is.list(seed) || is.null(names(seed)) || anyNA(names(seed)) ||
+      any(!nzchar(names(seed))) || anyDuplicated(names(seed))) {
+    stop("P5 seed contract must be a named object with unique fields", call. = FALSE)
+  }
+  missing <- setdiff(required, names(seed))
+  extra <- setdiff(names(seed), required)
+  if (length(missing) || length(extra)) {
+    detail <- c(
+      if (length(missing)) paste0("missing: ", paste(missing, collapse = ", ")),
+      if (length(extra)) paste0("extra: ", paste(extra, collapse = ", "))
+    )
+    stop("P5 seed contract fields do not match the current schema (",
+         paste(detail, collapse = "; "), ")", call. = FALSE)
+  }
+  canonical <- p5_canonical_json_value(seed)
+  scalar_fields <- c(
+    "canonical_encoding", "operation_substream", "digest_to_rng", "missing_sentinel"
+  )
+  array_fields <- c("root_fields", "operation_context_fields")
+  invalid_scalars <- scalar_fields[!vapply(canonical[scalar_fields], function(value) {
+    is.character(value) && length(value) == 1L && !is.na(value)
+  }, logical(1L))]
+  invalid_arrays <- array_fields[!vapply(canonical[array_fields], function(value) {
+    is.character(value) && is.null(names(value)) && length(value) > 0L &&
+      !anyNA(value) && all(nzchar(value))
+  }, logical(1L))]
+  if (length(invalid_scalars) || length(invalid_arrays)) {
+    stop("P5 seed contract has invalid values for fields: ",
+         paste(c(invalid_scalars, invalid_arrays), collapse = ", "), call. = FALSE)
+  }
+  canonical[sort(required, method = "radix")]
+}
+
 p5_validation_evidence <- function(validated_shards, plan) {
   if (length(validated_shards) != length(plan)) {
     stop("P5 validated shard/plan coverage mismatch", call. = FALSE)
@@ -378,9 +442,13 @@ p5_validation_evidence <- function(validated_shards, plan) {
     if (!identical(receipt$status, "PASS") ||
         !identical(receipt$branch_id, branch$branch_id) ||
         !identical(receipt$split, branch$split) ||
-        !identical(receipt$namespace, branch$namespace) ||
-        !identical(receipt$seed, branch$config$seed)) {
+        !identical(receipt$namespace, branch$namespace)) {
       stop("P5 validation receipt identity/split mismatch", call. = FALSE)
+    }
+    receipt_seed <- p5_canonical_seed_contract(receipt$seed)
+    planned_seed <- p5_canonical_seed_contract(branch$config$seed)
+    if (!identical(receipt_seed, planned_seed)) {
+      stop("P5 validation receipt seed mismatch: ", branch$branch_id, call. = FALSE)
     }
     receipt$validation
   }, validated_shards, plan)

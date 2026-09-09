@@ -210,6 +210,124 @@ testthat::test_that("P5 restores roles after a targets file-vector round trip", 
   )
 })
 
+testthat::test_that("P5 canonicalizes JSON-equivalent seed contracts strictly", {
+  seed <- yaml::read_yaml(file.path(fuse_test_root, "config/p5_deterministic_queries.yml"))$seed
+  path <- tempfile(fileext = ".json")
+  jsonlite::write_json(seed, path, auto_unbox = TRUE, pretty = TRUE)
+  round_trip <- jsonlite::read_json(path, simplifyVector = FALSE)
+
+  testthat::expect_false(identical(seed, round_trip))
+  testthat::expect_identical(
+    p5_canonical_seed_contract(seed),
+    p5_canonical_seed_contract(round_trip)
+  )
+  testthat::expect_identical(
+    p5_canonical_seed_contract(rev(seed)),
+    p5_canonical_seed_contract(seed)
+  )
+
+  wrong_root <- round_trip
+  wrong_root$root_fields[[1L]] <- "wrong_schema_version"
+  testthat::expect_false(identical(
+    p5_canonical_seed_contract(wrong_root),
+    p5_canonical_seed_contract(seed)
+  ))
+  missing_root <- round_trip
+  missing_root$root_fields <- missing_root$root_fields[-1L]
+  testthat::expect_false(identical(
+    p5_canonical_seed_contract(missing_root),
+    p5_canonical_seed_contract(seed)
+  ))
+  extra_root <- round_trip
+  extra_root$root_fields <- c(extra_root$root_fields, list("extra"))
+  testthat::expect_false(identical(
+    p5_canonical_seed_contract(extra_root),
+    p5_canonical_seed_contract(seed)
+  ))
+  wrong_operation <- round_trip
+  wrong_operation$operation_context_fields[[2L]] <- "wrong_entity_id"
+  testthat::expect_false(identical(
+    p5_canonical_seed_contract(wrong_operation),
+    p5_canonical_seed_contract(seed)
+  ))
+  reordered_array <- round_trip
+  reordered_array$root_fields <- rev(reordered_array$root_fields)
+  testthat::expect_false(identical(
+    p5_canonical_seed_contract(reordered_array),
+    p5_canonical_seed_contract(seed)
+  ))
+  missing_field <- seed
+  missing_field$missing_sentinel <- NULL
+  testthat::expect_error(p5_canonical_seed_contract(missing_field), "missing: missing_sentinel")
+  extra_field <- seed
+  extra_field$unknown <- "value"
+  testthat::expect_error(p5_canonical_seed_contract(extra_field), "extra: unknown")
+
+  nested_a <- list(z = list(beta = "b", alpha = "a"), a = "root")
+  nested_b <- list(a = "root", z = list(alpha = "a", beta = "b"))
+  testthat::expect_identical(
+    p5_canonical_json_value(nested_a),
+    p5_canonical_json_value(nested_b)
+  )
+})
+
+testthat::test_that("P5 validation evidence accepts JSON seed shape only", {
+  seed <- yaml::read_yaml(file.path(fuse_test_root, "config/p5_deterministic_queries.yml"))$seed
+  branch <- list(
+    branch_id = "fqb_seed_fixture", split = "validation",
+    namespace = "validation-query", config = list(seed = seed)
+  )
+  write_receipt <- function(receipt) {
+    directory <- tempfile("p5-validation-receipt-")
+    dir.create(directory)
+    path <- file.path(directory, "validation_receipt.json")
+    jsonlite::write_json(receipt, path, auto_unbox = TRUE, pretty = TRUE)
+    path
+  }
+  receipt <- list(
+    status = "PASS", branch_id = branch$branch_id, split = branch$split,
+    namespace = branch$namespace, seed = seed,
+    validation = list(status = "PASS")
+  )
+
+  path <- write_receipt(receipt)
+  testthat::expect_identical(
+    p5_validation_evidence(list(path), list(branch)),
+    list(list(status = "PASS"))
+  )
+
+  wrong_seed <- receipt
+  wrong_seed$seed$root_fields[[1L]] <- "wrong_schema_version"
+  testthat::expect_error(
+    p5_validation_evidence(list(write_receipt(wrong_seed)), list(branch)),
+    "seed mismatch"
+  )
+  missing_root <- receipt
+  missing_root$seed$root_fields <- missing_root$seed$root_fields[-1L]
+  testthat::expect_error(
+    p5_validation_evidence(list(write_receipt(missing_root)), list(branch)),
+    "seed mismatch"
+  )
+  extra_root <- receipt
+  extra_root$seed$root_fields <- c(extra_root$seed$root_fields, "extra")
+  testthat::expect_error(
+    p5_validation_evidence(list(write_receipt(extra_root)), list(branch)),
+    "seed mismatch"
+  )
+  wrong_operation <- receipt
+  wrong_operation$seed$operation_context_fields[[1L]] <- "wrong_operation"
+  testthat::expect_error(
+    p5_validation_evidence(list(write_receipt(wrong_operation)), list(branch)),
+    "seed mismatch"
+  )
+  wrong_namespace <- receipt
+  wrong_namespace$namespace <- "evaluation-query"
+  testthat::expect_error(
+    p5_validation_evidence(list(write_receipt(wrong_namespace)), list(branch)),
+    "identity/split mismatch"
+  )
+})
+
 testthat::test_that("P5 scientific implementation hash excludes execution environment", {
   helper <- paste(readLines(testthat::test_path("..", "..", "R", "fixed_queries.R"), warn = FALSE), collapse = "\n")
   testthat::expect_true(grepl("implementation_hash", helper, fixed = TRUE))

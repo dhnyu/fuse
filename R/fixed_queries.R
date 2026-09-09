@@ -12,32 +12,62 @@ p5_contract_paths <- function(root = getwd()) {
     targets = file.path(root, "targets/s05_fixed_queries.R"))
 }
 
-p5_normalize_contract_files <- function(files, root = getwd()) {
-  roles <- names(files)
-  if (is.null(roles) || any(!nzchar(roles))) {
-    stop("P5 source registry requires named source roles", call. = FALSE)
+p5_normalize_contract_files <- function(files, root = getwd(),
+                                        canonical_files = p5_contract_paths(root)) {
+  if (!is.character(files) || !length(files) || anyNA(files)) {
+    stop("P5 source registry must be a nonempty character vector", call. = FALSE)
   }
-  if (anyDuplicated(roles)) {
+  if (!is.character(canonical_files) || !length(canonical_files) || anyNA(canonical_files)) {
+    stop("P5 canonical source registry must be a nonempty character vector", call. = FALSE)
+  }
+  canonical_roles <- names(canonical_files)
+  if (is.null(canonical_roles) || any(!nzchar(canonical_roles)) || anyDuplicated(canonical_roles)) {
+    stop("P5 canonical source registry has missing or duplicate roles", call. = FALSE)
+  }
+  input_roles <- names(files)
+  if (!is.null(input_roles) && anyDuplicated(input_roles)) {
     stop("P5 source registry contains duplicate source roles", call. = FALSE)
   }
-  required <- c("python", "cli", "runner")
-  missing <- setdiff(required, roles)
-  if (length(missing)) {
-    stop("P5 source registry is missing required roles: ", paste(missing, collapse = ", "), call. = FALSE)
-  }
-  if (any(endsWith(files, "scripts/fixed_queries.py"))) {
+  if (any(endsWith(gsub("\\\\", "/", files), "scripts/fixed_queries.py"))) {
     stop("P5 source registry contains retired scripts/fixed_queries.py", call. = FALSE)
   }
-  missing_paths <- files[!file.exists(files)]
+  missing_paths <- c(files[!file.exists(files)], canonical_files[!file.exists(canonical_files)])
   if (length(missing_paths)) {
-    stop("P5 source registry contains missing paths: ", paste(missing_paths, collapse = ", "), call. = FALSE)
+    stop("P5 source registry contains missing paths: ",
+         paste(unique(missing_paths), collapse = ", "), call. = FALSE)
   }
-  empty_paths <- files[is.na(file.info(files)$size) | file.info(files)$size <= 0]
+  all_paths <- c(files, canonical_files)
+  empty_paths <- all_paths[is.na(file.info(all_paths)$size) | file.info(all_paths)$size <= 0]
   if (length(empty_paths)) {
-    stop("P5 source registry contains empty paths: ", paste(empty_paths, collapse = ", "), call. = FALSE)
+    stop("P5 source registry contains empty paths: ",
+         paste(unique(empty_paths), collapse = ", "), call. = FALSE)
   }
-  files[] <- normalizePath(files, mustWork = TRUE)
+  normalized <- unname(normalizePath(files, mustWork = TRUE))
+  canonical <- unname(normalizePath(canonical_files, mustWork = TRUE))
+  if (anyDuplicated(canonical)) {
+    stop("P5 canonical source registry contains ambiguous paths", call. = FALSE)
+  }
+  if (anyDuplicated(normalized)) {
+    stop("P5 source registry contains duplicate paths", call. = FALSE)
+  }
+  missing <- setdiff(canonical, normalized)
+  extra <- setdiff(normalized, canonical)
+  if (length(missing) || length(extra)) {
+    detail <- c(
+      if (length(missing)) paste0("missing: ", paste(missing, collapse = ", ")),
+      if (length(extra)) paste0("extra: ", paste(extra, collapse = ", "))
+    )
+    stop("P5 source registry does not exactly match canonical paths (",
+         paste(detail, collapse = "; "), ")", call. = FALSE)
+  }
+  files <- stats::setNames(canonical, canonical_roles)
   root <- normalizePath(root, mustWork = TRUE)
+  required <- c("python", "cli", "runner")
+  missing_roles <- setdiff(required, names(files))
+  if (length(missing_roles)) {
+    stop("P5 source registry is missing required roles: ",
+         paste(missing_roles, collapse = ", "), call. = FALSE)
+  }
   expected <- c(
     python = file.path(root, "python/fixed_queries.py"),
     cli = file.path(root, "scripts/build_fixed_queries.py"),

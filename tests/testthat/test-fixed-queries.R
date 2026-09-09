@@ -96,13 +96,22 @@ testthat::test_that("P5 path normalization preserves source roles and order", {
 testthat::test_that("P5 source role validation fails closed", {
   paths <- p5_contract_paths(fuse_test_root)
 
-  testthat::expect_error(
-    p5_normalize_contract_files(unname(paths), fuse_test_root),
-    "requires named source roles"
+  unnamed <- p5_normalize_contract_files(unname(paths), fuse_test_root)
+  testthat::expect_identical(unnamed, p5_normalize_contract_files(paths, fuse_test_root))
+  testthat::expect_identical(
+    p5_normalize_contract_files(unname(rev(paths)), fuse_test_root),
+    p5_normalize_contract_files(paths, fuse_test_root)
+  )
+
+  wrong_names <- paths
+  names(wrong_names) <- paste0("wrong_", seq_along(wrong_names))
+  testthat::expect_identical(
+    p5_normalize_contract_files(wrong_names, fuse_test_root),
+    p5_normalize_contract_files(paths, fuse_test_root)
   )
   testthat::expect_error(
     p5_normalize_contract_files(paths[names(paths) != "runner"], fuse_test_root),
-    "missing required roles: runner"
+    "does not exactly match canonical paths"
   )
   duplicate <- paths
   names(duplicate)[names(duplicate) == "cli"] <- "runner"
@@ -115,6 +124,33 @@ testthat::test_that("P5 source role validation fails closed", {
   testthat::expect_error(
     p5_normalize_contract_files(stale, fuse_test_root),
     "retired scripts/fixed_queries.py"
+  )
+
+  extra <- c(paths, extra = paths[["runner"]])
+  testthat::expect_error(
+    p5_normalize_contract_files(extra, fuse_test_root),
+    "duplicate paths"
+  )
+
+  extra_path <- tempfile(fileext = ".txt")
+  writeLines("extra", extra_path)
+  testthat::expect_error(
+    p5_normalize_contract_files(c(paths, extra = extra_path), fuse_test_root),
+    "does not exactly match canonical paths"
+  )
+
+  ambiguous <- paths
+  ambiguous[["runner"]] <- ambiguous[["cli"]]
+  testthat::expect_error(
+    p5_normalize_contract_files(paths, fuse_test_root, ambiguous),
+    "ambiguous paths"
+  )
+
+  canonical_without_runner <- paths[names(paths) != "runner"]
+  testthat::expect_error(
+    p5_normalize_contract_files(canonical_without_runner, fuse_test_root,
+                                canonical_without_runner),
+    "missing required roles: runner"
   )
 })
 
@@ -135,6 +171,42 @@ testthat::test_that("P5 loaded spec retains executable role lookups", {
   testthat::expect_identical(
     spec$implementation_hash,
     "7bf8b45dd687d33aa6bd9d42cd2bad1b447d008577f3eebd73ce1cbe86489c82"
+  )
+})
+
+testthat::test_that("P5 restores roles after a targets file-vector round trip", {
+  fixture_root <- tempfile("p5-file-vector-")
+  dir.create(fixture_root)
+  script <- file.path(fixture_root, "_targets.R")
+  store <- file.path(fixture_root, "_targets")
+  writeLines(c(
+    "library(targets)",
+    sprintf("source(%s)", encodeString(file.path(fuse_test_root, "R/fixed_queries.R"), quote = "\"")),
+    sprintf("root <- %s", encodeString(fuse_test_root, quote = "\"")),
+    "list(",
+    "  tar_target(p5_fixture_sources, p5_contract_paths(root), format = \"file\"),",
+    "  tar_target(p5_fixture_roles, {",
+    "    names_were_absent <- is.null(names(p5_fixture_sources))",
+    "    restored <- p5_normalize_contract_files(p5_fixture_sources, root)",
+    "    list(names_were_absent = names_were_absent, files = restored,",
+    "         runner = restored[[\"runner\"]])",
+    "  })",
+    ")"
+  ), script)
+
+  targets::tar_make(
+    names = p5_fixture_roles, script = script, store = store,
+    callr_function = NULL, reporter = "silent"
+  )
+  restored_sources <- targets::tar_read_raw("p5_fixture_sources", store = store)
+  result <- targets::tar_read_raw("p5_fixture_roles", store = store)
+
+  testthat::expect_null(names(restored_sources))
+  testthat::expect_true(result$names_were_absent)
+  testthat::expect_identical(names(result$files), names(p5_contract_paths(fuse_test_root)))
+  testthat::expect_identical(
+    result$runner,
+    normalizePath(file.path(fuse_test_root, "scripts/run_fixed_queries.py"), mustWork = TRUE)
   )
 })
 

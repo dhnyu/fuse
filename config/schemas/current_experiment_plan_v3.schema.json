@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schema_version", "scene_split", "model", "training",
+    "hyperparameter_configurations", "comparison_configurations", "lineage",
+    "dissertation_provenance", "training_inheritance", "selection_protocol",
+    "contract_hashes", "plan_id", "content_sha256", "status"
+  ],
+  "properties": {
+    "schema_version": {"const": "3.0.0"},
+    "scene_split": {
+      "type": "object",
+      "required": ["total_off_grid", "validation", "evaluation", "minimum_training_center_distance_m"],
+      "properties": {
+        "total_off_grid": {"const": 10000},
+        "validation": {"const": 1000},
+        "evaluation": {"const": 9000},
+        "minimum_training_center_distance_m": {"const": 50}
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "required": ["d", "d_c", "attention_heads", "information_preservation", "reconstruction_decoders"],
+      "properties": {
+        "d": {"const": 128}, "d_c": {"const": 128}, "attention_heads": {"const": 4},
+        "information_preservation": {"const": false}, "reconstruction_decoders": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "training": {
+      "type": "object",
+      "required": ["objective", "K_aug", "augmentation_intensity", "ema_momentum", "peak_learning_rate"],
+      "properties": {
+        "objective": {"const": "symmetric_scene_contrastive"}, "K_aug": {"const": 8},
+        "augmentation_intensity": {"const": 1.0}, "ema_momentum": {"const": 0.999},
+        "peak_learning_rate": {"const": 0.001}
+      },
+      "additionalProperties": false
+    },
+    "hyperparameter_configurations": {"type": "array", "minItems": 11, "maxItems": 11, "uniqueItems": true},
+    "comparison_configurations": {"type": "array", "minItems": 17, "maxItems": 17, "uniqueItems": true},
+    "lineage": {
+      "type": "object",
+      "required": ["scientific_revision_token", "scientific_contract_sha256", "p0_authority_id", "p1_acceptance_id", "p2_acceptance_id", "p3_acceptance_id", "p3_cache_id", "p4_acceptance_id", "p5_acceptance_id", "p6_acceptance_id"],
+      "properties": {
+        "scientific_revision_token": {"pattern": "^mrev_[0-9a-f]+$"},
+        "scientific_contract_sha256": {"pattern": "^[0-9a-f]{64}$"},
+        "p0_authority_id": {"pattern": "^mta_[0-9a-f]{24}$"},
+        "p1_acceptance_id": {"pattern": "^sia_[0-9a-f]{24}$"},
+        "p2_acceptance_id": {"pattern": "^bsa_[0-9a-f]{24}$"},
+        "p3_acceptance_id": {"pattern": "^osca_[0-9a-f]{24}$"},
+        "p3_cache_id": {"pattern": "^oscache_[0-9a-f]{24}$"},
+        "p4_acceptance_id": {"pattern": "^aba_[0-9a-f]{24}$"},
+        "p5_acceptance_id": {"pattern": "^fqaac_[0-9a-f]{24}$"},
+        "p6_acceptance_id": {"pattern": "^mda_[0-9a-f]{24}$"}
+      },
+      "additionalProperties": false
+    },
+    "dissertation_provenance": {
+      "type": "object",
+      "required": ["authority_commit", "invalidation_policy", "source_drift_blocking"],
+      "properties": {
+        "authority_commit": {"pattern": "^[0-9a-f]{40}$"},
+        "invalidation_policy": {"const": "explicit_revision_only"},
+        "source_drift_blocking": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "training_inheritance": {
+      "type": "object",
+      "required": ["objective", "views_per_scene", "online_branch", "target_branch", "ema", "fifo_queue", "projection_head", "optimizer", "scheduler", "training_horizon", "prohibited"],
+      "properties": {
+        "objective": {
+          "type": "object",
+          "required": ["name", "scope", "directions", "temperature", "negative_exclusion_distance_m"],
+          "properties": {
+            "name": {"const": "symmetric_scene_level_contrastive"}, "scope": {"const": "scene"},
+            "directions": {"const": ["view_0_to_view_1", "view_1_to_view_0"]},
+            "temperature": {"const": 0.1}, "negative_exclusion_distance_m": {"const": 750.0}
+          },
+          "additionalProperties": false
+        },
+        "views_per_scene": {"const": 2},
+        "online_branch": {
+          "type": "object", "required": ["gradient_mode", "modality_masking"],
+          "properties": {
+            "gradient_mode": {"const": "enabled"},
+            "modality_masking": {
+              "type": "object", "required": ["enabled", "probability"],
+              "properties": {"enabled": {"const": true}, "probability": {"const": 0.3}},
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "target_branch": {
+          "type": "object", "required": ["gradient_mode", "update", "initialization", "update_after_optimizer"],
+          "properties": {
+            "gradient_mode": {"const": "disabled"}, "update": {"const": "ema_only"},
+            "initialization": {"const": "exact_online_copy"}, "update_after_optimizer": {"const": true}
+          },
+          "additionalProperties": false
+        },
+        "ema": {
+          "type": "object", "required": ["coefficient_source", "main_coefficient"],
+          "properties": {
+            "coefficient_source": {"const": "hyperparameter_configuration.ema_momentum"},
+            "main_coefficient": {"const": 0.999}
+          },
+          "additionalProperties": false
+        },
+        "fifo_queue": {
+          "type": "object",
+          "required": ["enabled", "discipline", "capacity", "embedding_dimension_source", "main_embedding_dimension", "initialization", "gather_order", "enqueue_views"],
+          "properties": {
+            "enabled": {"const": true}, "discipline": {"const": "FIFO"}, "capacity": {"const": 8192},
+            "embedding_dimension_source": {"const": "hyperparameter_configuration.d"},
+            "main_embedding_dimension": {"const": 128}, "initialization": {"const": "empty_zero_storage"},
+            "gather_order": {"const": "rank_then_local_sample_then_view"}, "enqueue_views": {"const": [0, 1]}
+          },
+          "additionalProperties": false
+        },
+        "projection_head": {
+          "type": "object", "required": ["enabled", "architecture", "output_normalization"],
+          "properties": {
+            "enabled": {"const": true}, "architecture": {"const": "d_to_256_to_d"},
+            "output_normalization": {"const": "l2"}
+          },
+          "additionalProperties": false
+        },
+        "optimizer": {
+          "type": "object",
+          "required": ["name", "peak_learning_rate_source", "main_peak_learning_rate", "weight_decay", "betas", "epsilon", "parameter_grouping", "gradient_clip"],
+          "properties": {
+            "name": {"const": "AdamW"},
+            "peak_learning_rate_source": {"const": "hyperparameter_configuration.peak_learning_rate"},
+            "main_peak_learning_rate": {"const": 0.001}, "weight_decay": {"const": 0.0001},
+            "betas": {"const": [0.9, 0.999]}, "epsilon": {"const": 1e-8},
+            "parameter_grouping": {"const": "all_trainable_parameters_same_weight_decay"},
+            "gradient_clip": {
+              "type": "object", "required": ["norm_type", "maximum_norm"],
+              "properties": {"norm_type": {"const": 2.0}, "maximum_norm": {"const": 1.0}},
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "scheduler": {
+          "type": "object",
+          "required": ["name", "indexing", "warmup_updates", "decay_updates", "minimum_learning_rate", "restart", "update_order"],
+          "properties": {
+            "name": {"const": "linear_warmup_cosine_decay"}, "indexing": {"const": "one_based_optimizer_update"},
+            "warmup_updates": {"const": 760}, "decay_updates": {"const": 14440},
+            "minimum_learning_rate": {"const": 0.0}, "restart": {"const": false},
+            "update_order": {"const": "set_before_optimizer_update"}
+          },
+          "additionalProperties": false
+        },
+        "training_horizon": {
+          "type": "object", "required": ["maximum_epochs", "updates_per_epoch", "maximum_updates"],
+          "properties": {
+            "maximum_epochs": {"const": 200}, "updates_per_epoch": {"const": 76},
+            "maximum_updates": {"const": 15200}
+          },
+          "additionalProperties": false
+        },
+        "prohibited": {
+          "type": "object",
+          "required": ["information_preservation_objective", "reconstruction_decoder", "reconstruction_loss"],
+          "properties": {
+            "information_preservation_objective": {"const": false},
+            "reconstruction_decoder": {"const": false},
+            "reconstruction_loss": {"const": false}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "selection_protocol": {
+      "type": "object",
+      "required": ["contract_version", "validation_interval_epochs", "primary_metric", "primary_direction", "equivalence_tolerance", "equivalence_comparison", "margin_metric", "margin_direction", "final_tiebreaker", "early_stopping_patience", "minimum_delta", "patience_reset", "candidate_eligibility"],
+      "properties": {
+        "contract_version": {"const": "current-training-selection-v1.0.0"},
+        "validation_interval_epochs": {"const": 5},
+        "primary_metric": {"const": "validation_retrieval_loss"},
+        "primary_direction": {"const": "minimize"},
+        "equivalence_tolerance": {"const": 0.0001},
+        "equivalence_comparison": {"const": "absolute_difference_strictly_less_than_tolerance"},
+        "margin_metric": {"const": "mean_source_separation_margin"},
+        "margin_direction": {"const": "maximize"},
+        "final_tiebreaker": {"const": "earlier_completed_epoch"},
+        "early_stopping_patience": {"const": 4},
+        "minimum_delta": {"const": 0.0001},
+        "patience_reset": {"const": "retrieval_loss_decrease_at_least_tolerance_only"},
+        "candidate_eligibility": {"const": "VALIDATION_CHECKPOINT_COMMITTED_ONLY"}
+      },
+      "additionalProperties": false
+    },
+    "contract_hashes": {
+      "type": "object",
+      "required": ["training_inheritance_sha256", "selection_protocol_sha256", "implementation_sha256"],
+      "properties": {
+        "training_inheritance_sha256": {"pattern": "^[0-9a-f]{64}$"},
+        "selection_protocol_sha256": {"pattern": "^[0-9a-f]{64}$"},
+        "implementation_sha256": {"pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "plan_id": {"pattern": "^s08plan_[0-9a-f]{24}$"},
+    "content_sha256": {"pattern": "^[0-9a-f]{64}$"},
+    "status": {"const": "PASS"}
+  },
+  "additionalProperties": false
+}

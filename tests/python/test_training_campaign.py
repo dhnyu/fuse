@@ -21,6 +21,7 @@ from training_campaign import (
 )
 from training_controller import TrainingControllerError, training_run_id
 from training_finalization import selection_contract_content
+from training_runtime_provenance import runtime_implementation_provenance, runtime_source_paths
 from prepare_training_cache import validate_cache
 
 PLAN_PATH = Path("/mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/current_cbb824f19be83552/current_experiment_plan.json")
@@ -82,6 +83,32 @@ def test_s09_authority_identity_retains_runtime_implementation_provenance():
     assert second["content"]["scientific"]["scientific_implementation_hash"] == "b" * 64
     assert first["identity"] != second["identity"]
     assert training_run_id(first) != training_run_id(second)
+
+
+def test_runtime_provenance_registry_is_canonical_and_current():
+    provenance = runtime_implementation_provenance(ROOT)
+    registered = tuple(path.relative_to(ROOT).as_posix() for path in runtime_source_paths(ROOT))
+    assert registered == tuple(provenance["source_hashes"])
+    assert provenance["implementation_sha256"] == scientific_implementation_hash(ROOT)
+    assert provenance["implementation_sha256"] == (
+        "b433a0236f58226330333bf0b34353a686c911dada074a78183389c35fe81876")
+    assert tuple(provenance["authority_source_hashes"]) == (
+        "python/training_campaign.py", "scripts/training_campaign.py")
+
+
+def test_runtime_hash_changes_all_authority_ids_but_not_plan_or_cache():
+    plan, _, training, model, parents = values()
+    first_ofat = ofat_authorities(plan, training, model, parents, "a" * 64)
+    second_ofat = ofat_authorities(plan, training, model, parents, "b" * 64)
+    winner_a = select_ofat_winner(plan, results(first_ofat))
+    winner_b = select_ofat_winner(plan, results(second_ofat))
+    first_comparisons = comparison_authorities(plan, winner_a, training, model, parents, "a" * 64)
+    second_comparisons = comparison_authorities(plan, winner_b, training, model, parents, "b" * 64)
+    assert all(a["identity"] != b["identity"] for a, b in zip(first_ofat, second_ofat))
+    assert all(a["identity"] != b["identity"] for a, b in zip(first_comparisons, second_comparisons))
+    assert plan["plan_id"] == "s08plan_7cd58ffb65db3d43fd3fa234"
+    assert parents["production_cache_id"] == "s09cache_fixture"
+    assert parents["production_cache_acceptance_id"] == "s09ca_fixture"
 
 
 def test_winner_requires_all_results_and_uses_strict_selection():

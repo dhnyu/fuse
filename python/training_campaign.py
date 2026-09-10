@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from artifact_protocol import canonical_json_bytes, canonical_sha256, sha256_file
+from artifact_protocol import canonical_json_bytes, canonical_sha256
 from training_configuration import (
     configuration_seed, materialize_hyperparameter_configuration, scientific_row_hash,
 )
 from training_controller import TrainingControllerError, build_training_authority
 from training_finalization import selection_contract_content
+from training_runtime_provenance import runtime_implementation_provenance
 
 
 CURRENT_LINEAGE_KEYS = (
@@ -27,13 +27,7 @@ COMPARISON_IDS = ("FM", "A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3",
 
 
 def scientific_implementation_hash(root: str | Path) -> str:
-    root = Path(root)
-    paths = (
-        "python/model_data.py", "python/model_families.py", "python/scene_model.py",
-        "python/training_configuration.py", "python/training_support.py",
-        "python/training_runtime_inputs.py", "python/training_worker.py",
-    )
-    return canonical_sha256({path: sha256_file(root / path) for path in paths})
+    return str(runtime_implementation_provenance(root)["implementation_sha256"])
 
 
 def canonical_selection(plan: Mapping[str, Any]) -> dict[str, Any]:

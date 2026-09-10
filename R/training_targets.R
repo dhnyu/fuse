@@ -23,22 +23,46 @@ s09_training_contract_path <- function() {
   normalizePath(path, mustWork = TRUE)
 }
 
-s09_training_source_files <- function() {
+s09_prepared_cache_source_files <- function() {
   paths <- c(
     "config/training_controller.yml", "config/training.yml", "config/model_inputs.yml",
-    "config/schemas/training_training_authority.schema.json",
-    "config/schemas/training_selection_contract.schema.json",
     "config/schemas/s09_prepared_cache_acceptance.schema.json",
-    "config/schemas/s09_campaign_acceptance.schema.json",
     "python/training_campaign.py", "python/training_configuration.py",
-    "python/training_controller.py", "python/training_finalization.py",
     "python/training_progress.py",
-    "python/training_prepared_cache.py", "python/training_runtime_inputs.py",
-    "python/training_worker.py",
-    "scripts/prepare_training_cache.py", "scripts/training_campaign.py",
-    "scripts/training_controller.py", "scripts/training_lifecycle.py", "scripts/training_worker.py"
+    "python/training_prepared_cache.py", "scripts/prepare_training_cache.py"
   )
   paths[] <- normalizePath(paths, mustWork = TRUE); paths
+}
+
+s09_runtime_source_files <- function() {
+  registry <- normalizePath("config/s09_runtime_provenance.yml", mustWork = TRUE)
+  resolvers <- normalizePath(c("python/training_runtime_provenance.py",
+                               "scripts/training_runtime_provenance.py"), mustWork = TRUE)
+  value <- yaml::read_yaml(registry)
+  paths <- unlist(value$runtime_sources, use.names = FALSE)
+  authority <- unlist(value$authority_publication_sources, use.names = FALSE)
+  if (!identical(value$schema_version, "1.0.0") || !length(paths) || anyDuplicated(paths) ||
+      !length(authority) || anyDuplicated(authority)) {
+    stop("S09_RUNTIME_SOURCE_REGISTRY_INVALID", call. = FALSE)
+  }
+  c(registry, resolvers, normalizePath(c(paths, authority), mustWork = TRUE))
+}
+
+s09_resolve_runtime_implementation <- function(sources) {
+  stopifnot(all(file.exists(sources)))
+  output <- system2(Sys.which("python"), "scripts/training_runtime_provenance.py",
+                    stdout = TRUE, stderr = TRUE)
+  if (!identical(attr(output, "status"), NULL)) stop(paste(output, collapse = "\n"), call. = FALSE)
+  value <- jsonlite::fromJSON(tail(output, 1L), simplifyVector = FALSE)
+  registered <- normalizePath(unlist(value$runtime_sources, use.names = FALSE), mustWork = TRUE)
+  authority <- normalizePath(names(value$authority_source_hashes), mustWork = TRUE)
+  observed <- normalizePath(sources[-seq_len(3L)], mustWork = TRUE)
+  if (!identical(value$status, "PASS") || !grepl("^[0-9a-f]{64}$", value$implementation_sha256) ||
+      !grepl("^[0-9a-f]{64}$", value$authority_provenance_sha256) ||
+      !setequal(c(registered, authority), observed)) {
+    stop("S09_RUNTIME_IMPLEMENTATION_PROVENANCE_INVALID", call. = FALSE)
+  }
+  value
 }
 
 s09_experiment_plan_path <- function(contract) {
@@ -87,16 +111,21 @@ s09_resolve_contract <- function(contract, plan, cache_acceptance) {
   normalizePath(output, mustWork = TRUE)
 }
 
-s09_campaign_cli <- function(mode, plan, contract, cache, output, results = character()) {
+s09_campaign_cli <- function(mode, plan, contract, cache, output, results = character(),
+                             runtime_implementation = NULL) {
   args <- c("scripts/training_campaign.py", mode, "--plan", plan, "--contract", contract,
             "--cache-acceptance", cache, "--output", output)
   if (length(results)) args <- c(args, "--results", results)
+  if (!is.null(runtime_implementation)) {
+    args <- c(args, "--implementation-hash", runtime_implementation$implementation_sha256)
+  }
   s09_run_cli(args)
 }
 
-s09_publish_ofat_authorities <- function(plan, contract, cache) {
+s09_publish_ofat_authorities <- function(plan, contract, cache, runtime_implementation) {
   cfg <- yaml::read_yaml(contract); output <- file.path(cfg$roots$immutable_publication, "authorities")
-  unlist(s09_campaign_cli("ofat", plan, contract, cache, output)$paths, use.names = FALSE)
+  unlist(s09_campaign_cli("ofat", plan, contract, cache, output,
+                          runtime_implementation = runtime_implementation)$paths, use.names = FALSE)
 }
 
 s09_worker_matrix_value <- function(plan, authority) {
@@ -219,9 +248,10 @@ s09_select_winner <- function(plan, contract, cache, results) {
   normalizePath(result$path, mustWork = TRUE)
 }
 
-s09_publish_comparison_authorities <- function(plan, contract, cache, winner) {
+s09_publish_comparison_authorities <- function(plan, contract, cache, winner, runtime_implementation) {
   cfg <- yaml::read_yaml(contract); output <- file.path(cfg$roots$immutable_publication, "authorities")
-  unlist(s09_campaign_cli("comparison", plan, contract, cache, output, winner)$paths, use.names = FALSE)
+  unlist(s09_campaign_cli("comparison", plan, contract, cache, output, winner,
+                          runtime_implementation = runtime_implementation)$paths, use.names = FALSE)
 }
 
 s09_accept_campaign <- function(plan, winner, comparison_results, cache, contract) {

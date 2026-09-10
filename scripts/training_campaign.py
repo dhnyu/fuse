@@ -30,6 +30,7 @@ def main() -> None:
         "mode", choices=("ofat", "winner", "comparison", "campaign-accepted"))
     parser.add_argument("--plan", required=True); parser.add_argument("--contract", required=True)
     parser.add_argument("--cache-acceptance", required=True); parser.add_argument("--output", required=True)
+    parser.add_argument("--implementation-hash")
     parser.add_argument("--results", nargs="*"); args = parser.parse_args()
     plan = load(args.plan); contract = yaml.safe_load(Path(args.contract).read_text())
     progress = CampaignProgress(configured_log_root(ROOT, contract), create=True)
@@ -40,6 +41,8 @@ def main() -> None:
     training = yaml.safe_load((ROOT / "config/training.yml").read_text())
     model = yaml.safe_load((ROOT / "config/model_inputs.yml").read_text())
     implementation = scientific_implementation_hash(ROOT)
+    if args.mode in {"ofat", "comparison"} and args.implementation_hash != implementation:
+        raise RuntimeError("S09_RUNTIME_IMPLEMENTATION_HASH_MISMATCH")
     output = Path(args.output)
     if args.mode == "ofat":
         paths = publish_documents(ofat_authorities(plan, training, model, parents, implementation), output)

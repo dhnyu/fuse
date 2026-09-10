@@ -5,7 +5,8 @@ test_that("current training graph encodes OFAT winner and comparison barriers", 
   source("R/training_targets.R", local = TRUE); source("targets/s09_training.R", local = TRUE)
   names <- vapply(list_s09_training, function(x) x$name, character(1))
   expect_setequal(names, c(
-    "s09_training_sources", "s09_training_contract", "s09_current_experiment_plan",
+    "s09_prepared_cache_sources", "s09_runtime_sources", "s09_runtime_implementation",
+    "s09_training_contract", "s09_current_experiment_plan",
     "s09_prepared_cache_acceptance", "s09_resolved_contract", "s09_ofat_authorities",
     "s09_ofat_authority", "s09_ofat_preflight", "s09_ofat_closed_ledger",
     "s09_ofat_run_bundle", "s09_ofat_finalization", "s09_ofat_acceptance",
@@ -23,6 +24,8 @@ test_that("current training graph encodes OFAT winner and comparison barriers", 
   expect_match(manifest$command[manifest$name == "s09_ofat_winner"], "s09_ofat_result")
   expect_match(manifest$command[manifest$name == "s09_comparison_authorities"], "s09_ofat_winner")
   expect_match(manifest$command[manifest$name == "s09_prepared_cache_acceptance"], "s09_build_prepared_cache")
+  expect_match(manifest$command[manifest$name == "s09_ofat_authorities"], "s09_runtime_implementation")
+  expect_match(manifest$command[manifest$name == "s09_comparison_authorities"], "s09_runtime_implementation")
 
   formats <- targets::tar_manifest(script = "_targets_training.R", fields = c("name", "format"))
   expect_identical(formats$format[formats$name == "s09_ofat_authorities"], "rds")
@@ -32,9 +35,14 @@ test_that("current training graph encodes OFAT winner and comparison barriers", 
 
   network <- targets::tar_network(script = "_targets_training.R", targets_only = TRUE)$edges
   has_edge <- function(from, to) any(network$from == from & network$to == to)
+  expect_true(has_edge("s09_prepared_cache_sources", "s09_prepared_cache_acceptance"))
+  expect_false(has_edge("s09_runtime_sources", "s09_prepared_cache_acceptance"))
+  expect_true(has_edge("s09_runtime_sources", "s09_runtime_implementation"))
+  expect_true(has_edge("s09_runtime_implementation", "s09_ofat_authorities"))
   expect_true(has_edge("s09_prepared_cache_acceptance", "s09_ofat_authorities"))
   expect_true(has_edge("s09_ofat_result", "s09_ofat_winner"))
   expect_true(has_edge("s09_ofat_winner", "s09_comparison_authorities"))
+  expect_true(has_edge("s09_runtime_implementation", "s09_comparison_authorities"))
   expect_true(has_edge("s09_comparison_result", "s09_campaign_acceptance"))
 })
 
@@ -86,7 +94,7 @@ test_that("training authority collections branch legally through winner and comp
   expect_identical(targets::tar_read(campaign, store = store), "accepted")
 })
 
-test_that("downstream authority branching changes do not invalidate prepared cache", {
+test_that("runtime provenance changes invalidate authorities but not prepared cache", {
   skip_if_not_installed("targets")
   root <- tempfile("s09-cache-currentness-")
   dir.create(root)
@@ -94,38 +102,47 @@ test_that("downstream authority branching changes do not invalidate prepared cac
   script <- file.path(root, "_targets.R")
   store <- file.path(root, "store")
   cache <- file.path(root, "cache.json")
+  cache_source <- file.path(root, "cache-source.txt")
+  runtime_source <- file.path(root, "runtime-source.txt")
   quote_path <- function(path) encodeString(path, quote = "\"")
+  writeLines("cache-v1", cache_source)
+  writeLines("runtime-v1", runtime_source)
 
-  fixture_script <- function(marker) c(
+  fixture_script <- c(
     "library(targets)",
-    sprintf("cache <- %s", quote_path(cache)),
-    sprintf("marker <- %s", quote_path(marker)),
     "list(",
-    "  tar_target(prepared_cache, {if (!file.exists(cache)) writeLines('cache', cache); cache}, format = 'file'),",
-    "  tar_target(authorities, {prepared_cache; c('authority-1', 'authority-2')}),",
-    "  tar_target(authority, paste0(authorities, marker), pattern = map(authorities))",
+    sprintf("  tar_target(prepared_sources, %s, format = 'file'),", quote_path(cache_source)),
+    sprintf("  tar_target(runtime_sources, %s, format = 'file'),", quote_path(runtime_source)),
+    sprintf("  tar_target(prepared_cache, {readLines(prepared_sources); if (!file.exists(%s)) writeLines('cache', %s); %s}, format = 'file'),",
+            quote_path(cache), quote_path(cache), quote_path(cache)),
+    "  tar_target(cache_acceptance, {prepared_cache; 'cache-accepted'}),",
+    "  tar_target(runtime_implementation, readLines(runtime_sources)),",
+    "  tar_target(ofat_authorities, {cache_acceptance; paste0('ofat-', runtime_implementation)}),",
+    "  tar_target(ofat_run, paste0(ofat_authorities, '-run')),",
+    "  tar_target(winner, paste0(ofat_run, '-winner')),",
+    "  tar_target(comparison_authorities, paste0(winner, '-', runtime_implementation)),",
+    "  tar_target(comparison_run, paste0(comparison_authorities, '-run'))",
     ")"
   )
-  writeLines(fixture_script("-v1"), script)
+  writeLines(fixture_script, script)
   expect_silent(targets::tar_make(
-    names = prepared_cache,
+    names = comparison_run,
     script = script,
     store = store,
     callr_function = NULL,
     reporter = "silent"
   ))
-  cache_hash <- targets::tar_meta(
-    prepared_cache,
-    store = store,
-    fields = data
-  )$data
+  metadata <- targets::tar_meta(store = store, fields = c(name, data))
+  cache_hash <- metadata$data[metadata$name == "prepared_cache"]
 
-  writeLines(fixture_script("-v2"), script)
+  writeLines("runtime-v2", runtime_source)
   outdated <- targets::tar_outdated(script = script, store = store)
-  expect_false("prepared_cache" %in% outdated)
-  expect_true(all(c("authorities", "authority") %in% outdated))
+  expect_false(any(c("prepared_sources", "prepared_cache", "cache_acceptance") %in% outdated))
+  expect_true(all(c("runtime_sources", "runtime_implementation", "ofat_authorities",
+                    "ofat_run", "winner", "comparison_authorities", "comparison_run") %in% outdated))
   expect_identical(
-    targets::tar_meta(prepared_cache, store = store, fields = data)$data,
+    targets::tar_meta(store = store, fields = c(name, data))$data[
+      targets::tar_meta(store = store, fields = name)$name == "prepared_cache"],
     cache_hash
   )
 })
@@ -134,9 +151,17 @@ test_that("current training source registry and operator are explicit", {
   root <- normalizePath(file.path("..", ".."), mustWork = TRUE)
   old_wd <- getwd(); on.exit(setwd(old_wd), add = TRUE); setwd(root)
   source("R/training_targets.R", local = TRUE)
-  sources <- s09_training_source_files()
-  expect_true(all(file.exists(sources)))
-  expect_true(any(basename(sources) == "training_progress.py"))
+  cache_sources <- s09_prepared_cache_source_files()
+  runtime_sources <- s09_runtime_source_files()
+  expect_true(all(file.exists(c(cache_sources, runtime_sources))))
+  expect_false(any(basename(cache_sources) %in% c("training_worker.py", "training_runtime_inputs.py")))
+  expect_true(any(basename(cache_sources) == "training_progress.py"))
+  expect_identical(basename(runtime_sources[[1L]]), "s09_runtime_provenance.yml")
+  implementation <- s09_resolve_runtime_implementation(runtime_sources)
+  expect_identical(implementation$implementation_sha256,
+                   "b433a0236f58226330333bf0b34353a686c911dada074a78183389c35fe81876")
+  expect_length(implementation$source_hashes, 7L)
+  expect_length(implementation$authority_source_hashes, 2L)
   expect_identical(s09_training_contract_path(), normalizePath("config/training_controller.yml"))
   contract <- yaml::read_yaml("config/training_controller.yml")
   expect_identical(contract$execution$progress_log_root, "logs/s09")

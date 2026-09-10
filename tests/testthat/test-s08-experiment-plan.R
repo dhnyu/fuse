@@ -156,3 +156,61 @@ test_that("dissertation source drift is provenance-only and plan identity is det
   revised$scientific_revision_token <- "mrev_5555555555555555"
   expect_false(identical(first$plan_id, s08_plan_value(revised, fuse_test_root)$plan_id))
 })
+
+test_that("S09 operational implementation drift does not change S08 identity", {
+  root <- tempfile("s08-contract-hash-")
+  dir.create(file.path(root, "config"), recursive = TRUE)
+  file.copy(file.path(fuse_test_root, "config/s08_plan_identity.yml"),
+            file.path(root, "config/s08_plan_identity.yml"))
+  training <- list(objective = "symmetric_scene_level_contrastive", queue = "FIFO")
+  selection <- list(primary = "validation_retrieval_loss", tolerance = 0.0001)
+  first <- s08_contract_hashes(training, selection, root)
+  dir.create(file.path(root, "python"))
+  writeLines("runtime implementation v1", file.path(root, "python/training_worker.py"))
+  second <- s08_contract_hashes(training, selection, root)
+  writeLines("runtime implementation v2", file.path(root, "python/training_worker.py"))
+  third <- s08_contract_hashes(training, selection, root)
+  expect_identical(first, second)
+  expect_identical(second, third)
+  expect_false(identical(
+    first$training_inheritance_sha256,
+    s08_contract_hashes(c(training, list(masking = TRUE)), selection, root)$training_inheritance_sha256
+  ))
+  expect_false(identical(
+    first$selection_protocol_sha256,
+    s08_contract_hashes(training, c(selection, list(minimum_delta = 0.001)), root)$selection_protocol_sha256
+  ))
+})
+
+test_that("S08 source registration excludes S09 operational provenance", {
+  paths <- current_experiment_plan_sources(fuse_test_root)
+  relative <- sub(paste0("^", normalizePath(fuse_test_root), "/"), "", paths)
+  expect_true("config/s08_plan_identity.yml" %in% relative)
+  expect_false(any(relative %in% c(
+    "python/training_worker.py", "python/training_runtime_inputs.py",
+    "python/training_progress.py", "python/training_controller.py",
+    "scripts/run_training_targets.R", "scripts/training_controller.py"
+  )))
+})
+
+test_that("OFAT and comparison changes remain S08 identity-bearing", {
+  lineage <- list(
+    scientific_revision_token = "mrev_426b2b6ce0117943",
+    scientific_contract_sha256 = paste(rep("4", 64L), collapse = ""),
+    p0_authority_id = "mta_aaaaaaaaaaaaaaaaaaaaaaaa",
+    p1_acceptance_id = "sia_bbbbbbbbbbbbbbbbbbbbbbbb",
+    p2_acceptance_id = "bsa_cccccccccccccccccccccccc",
+    p3_acceptance_id = "osca_dddddddddddddddddddddddd",
+    p3_cache_id = "oscache_eeeeeeeeeeeeeeeeeeeeeeee",
+    p4_acceptance_id = "aba_ffffffffffffffffffffffff",
+    p5_acceptance_id = "fqaac_222222222222222222222222",
+    p6_acceptance_id = "mda_333333333333333333333333"
+  )
+  plan <- s08_plan_value(lineage, fuse_test_root)
+  changed_ofat <- plan
+  changed_ofat$hyperparameter_configurations[[1L]]$K_aug <- 4L
+  expect_error(s08_validate_plan(changed_ofat, lineage, fuse_test_root), "contract validation")
+  changed_comparison <- plan
+  changed_comparison$comparison_configurations[[1L]]$name <- "OLD"
+  expect_error(s08_validate_plan(changed_comparison, lineage, fuse_test_root), "contract validation")
+})

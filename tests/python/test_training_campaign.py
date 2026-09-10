@@ -74,6 +74,16 @@ def test_ofat_authorities_are_exact_deterministic_and_current():
     assert training_run_id(ofat_authorities(plan, training, model, changed, implementation)[0]) != training_run_id(first[0])
 
 
+def test_s09_authority_identity_retains_runtime_implementation_provenance():
+    plan, _, training, model, parents = values()
+    first = ofat_authorities(plan, training, model, parents, "a" * 64)[0]
+    second = ofat_authorities(plan, training, model, parents, "b" * 64)[0]
+    assert first["content"]["scientific"]["scientific_implementation_hash"] == "a" * 64
+    assert second["content"]["scientific"]["scientific_implementation_hash"] == "b" * 64
+    assert first["identity"] != second["identity"]
+    assert training_run_id(first) != training_run_id(second)
+
+
 def test_winner_requires_all_results_and_uses_strict_selection():
     plan, _, training, model, parents = values()
     authorities = ofat_authorities(plan, training, model, parents, scientific_implementation_hash(ROOT))

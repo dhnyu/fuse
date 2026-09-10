@@ -3,8 +3,7 @@
 current_experiment_plan_sources <- function(root = ".", dissertation_root = path.expand("~/dhnyu-masters-dissertation")) {
   local <- c(
     "config/current_methodology.yml", "config/training.yml", "config/p0_scientific_revision.yml",
-    "python/current_methodology.py", "python/training_finalization.py",
-    "python/training_support.py", "python/training_worker.py",
+    "config/s08_plan_identity.yml", "python/current_methodology.py",
     "config/schemas/current_experiment_plan_v3.schema.json",
     "R/experiment_plan.R", "targets/s08_experiment_plan.R"
   )
@@ -191,13 +190,21 @@ s08_build_base_plan <- function(root = ".") {
 }
 
 s08_contract_hashes <- function(training, selection, root = ".") {
+  identity <- yaml::read_yaml(file.path(root, "config/s08_plan_identity.yml"))
+  expected <- c(
+    identical(identity$schema_version, "1.0.0"),
+    identical(identity$contract_name, "current-s08-scientific-plan-identity-v1"),
+    identical(identity$artifact_schema_version, "3.0.0"),
+    identical(identity$implementation_hash_semantics, "scientific_plan_contract_compatibility"),
+    grepl("^[0-9a-f]{64}$", identity$scientific_contract_implementation_sha256),
+    identical(identity$operational_provenance_owner, "s09_training_authority"),
+    identical(identity$operational_source_drift_blocking, FALSE)
+  )
+  if (!all(expected)) stop("S08 scientific-plan identity configuration mismatch", call. = FALSE)
   list(
     training_inheritance_sha256 = canonical_sha256(training),
     selection_protocol_sha256 = canonical_sha256(selection),
-    implementation_sha256 = sha256_file_set(file.path(root, c(
-      "R/experiment_plan.R", "python/current_methodology.py", "python/training_finalization.py",
-      "python/training_support.py", "python/training_worker.py"
-    )))
+    implementation_sha256 = identity$scientific_contract_implementation_sha256
   )
 }
 

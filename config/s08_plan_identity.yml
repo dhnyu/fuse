@@ -1,0 +1,7 @@
+schema_version: "1.0.0"
+contract_name: current-s08-scientific-plan-identity-v1
+artifact_schema_version: "3.0.0"
+implementation_hash_semantics: scientific_plan_contract_compatibility
+scientific_contract_implementation_sha256: 039611df994d9d1663441d6eba0cf0e55131f974b20de6ba18258f4ebc8510b8
+operational_provenance_owner: s09_training_authority
+operational_source_drift_blocking: false

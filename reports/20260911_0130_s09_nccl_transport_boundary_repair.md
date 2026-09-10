@@ -82,8 +82,8 @@ The next training invocation will reevaluate the broad source and cache-acceptan
 
 ## Repository publication
 
-- Commit: recorded in the final task response after publication
-- Push: recorded in the final task response after publication
+- Implementation commit: `8dca4e2a8420e4fcc9226a7fabe93218697d3056`
+- Push: PASS to `origin/reduced`
 
 ## Verdict
 

@@ -117,8 +117,9 @@ S08 has no edge to S09 runtime provenance. Runtime changes remain S09 authority/
 
 - Implementation commit: `caf45e8c5120519496e7f05d8a34b27a5b34e609`
 - Commit message: `fix(s09): bind authorities to runtime provenance`
-- Push result: recorded after report commit
-- Final repository synchronization: recorded after push
+- Report commit: `e21ed978626bda61aab1a3ead692a1d4bb3ecf63`
+- Push result: PASS (`reduced` -> `origin/reduced`)
+- Final repository synchronization: PASS (verified after push)
 
 ## Next action
 

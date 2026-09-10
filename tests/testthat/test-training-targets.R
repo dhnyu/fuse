@@ -18,9 +18,116 @@ test_that("current training graph encodes OFAT winner and comparison barriers", 
   ))
   manifest <- targets::tar_manifest(script = "_targets_training.R", fields = c("name", "command", "pattern"))
   expect_silent(targets::tar_validate(script = "_targets_training.R"))
+  expect_identical(manifest$pattern[manifest$name == "s09_ofat_authority"], "map(s09_ofat_authorities)")
+  expect_identical(manifest$pattern[manifest$name == "s09_comparison_authority"], "map(s09_comparison_authorities)")
   expect_match(manifest$command[manifest$name == "s09_ofat_winner"], "s09_ofat_result")
   expect_match(manifest$command[manifest$name == "s09_comparison_authorities"], "s09_ofat_winner")
   expect_match(manifest$command[manifest$name == "s09_prepared_cache_acceptance"], "s09_build_prepared_cache")
+
+  formats <- targets::tar_manifest(script = "_targets_training.R", fields = c("name", "format"))
+  expect_identical(formats$format[formats$name == "s09_ofat_authorities"], "rds")
+  expect_identical(formats$format[formats$name == "s09_ofat_authority"], "file")
+  expect_identical(formats$format[formats$name == "s09_comparison_authorities"], "rds")
+  expect_identical(formats$format[formats$name == "s09_comparison_authority"], "file")
+
+  network <- targets::tar_network(script = "_targets_training.R", targets_only = TRUE)$edges
+  has_edge <- function(from, to) any(network$from == from & network$to == to)
+  expect_true(has_edge("s09_prepared_cache_acceptance", "s09_ofat_authorities"))
+  expect_true(has_edge("s09_ofat_result", "s09_ofat_winner"))
+  expect_true(has_edge("s09_ofat_winner", "s09_comparison_authorities"))
+  expect_true(has_edge("s09_comparison_result", "s09_campaign_acceptance"))
+})
+
+test_that("training authority collections branch legally through winner and comparison barriers", {
+  skip_if_not_installed("targets")
+  root <- tempfile("s09-branch-fixture-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  script <- file.path(root, "_targets.R")
+  store <- file.path(root, "store")
+  output <- file.path(root, "output")
+
+  quote_path <- function(path) encodeString(path, quote = "\"")
+  writeLines(c(
+    "library(targets)",
+    sprintf("output <- %s", quote_path(output)),
+    "publish <- function(phase, ids) {",
+    "  paths <- file.path(output, phase, paste0(ids, '.json'))",
+    "  dir.create(dirname(paths[[1L]]), recursive = TRUE, showWarnings = FALSE)",
+    "  for (index in seq_along(paths)) writeLines(ids[[index]], paths[[index]])",
+    "  paths",
+    "}",
+    "list(",
+    "  tar_target(prepared_cache, 'cache-ready'),",
+    "  tar_target(ofat_authorities, {prepared_cache; publish('ofat', sprintf('ofat-%02d', 1:11))}),",
+    "  tar_target(ofat_authority, ofat_authorities, pattern = map(ofat_authorities), format = 'file'),",
+    "  tar_target(ofat_result, paste0(readLines(ofat_authority), '-accepted'), pattern = map(ofat_authority)),",
+    "  tar_target(winner, {stopifnot(length(ofat_result) == 11L); 'winner'}),",
+    "  tar_target(comparison_authorities, {winner; publish('comparison', sprintf('comparison-%02d', 1:17))}),",
+    "  tar_target(comparison_authority, comparison_authorities, pattern = map(comparison_authorities), format = 'file'),",
+    "  tar_target(comparison_result, paste0(readLines(comparison_authority), '-accepted'), pattern = map(comparison_authority)),",
+    "  tar_target(campaign, {stopifnot(length(comparison_result) == 17L); 'accepted'})",
+    ")"
+  ), script)
+
+  expect_silent(targets::tar_validate(script = script))
+  expect_silent(targets::tar_make(
+    names = campaign,
+    script = script,
+    store = store,
+    callr_function = NULL,
+    reporter = "silent"
+  ))
+  expect_length(targets::tar_read(ofat_authority, store = store, branches = TRUE), 11L)
+  expect_length(targets::tar_read(ofat_result, store = store, branches = TRUE), 11L)
+  expect_identical(targets::tar_read(winner, store = store), "winner")
+  expect_length(targets::tar_read(comparison_authority, store = store, branches = TRUE), 17L)
+  expect_length(targets::tar_read(comparison_result, store = store, branches = TRUE), 17L)
+  expect_identical(targets::tar_read(campaign, store = store), "accepted")
+})
+
+test_that("downstream authority branching changes do not invalidate prepared cache", {
+  skip_if_not_installed("targets")
+  root <- tempfile("s09-cache-currentness-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  script <- file.path(root, "_targets.R")
+  store <- file.path(root, "store")
+  cache <- file.path(root, "cache.json")
+  quote_path <- function(path) encodeString(path, quote = "\"")
+
+  fixture_script <- function(marker) c(
+    "library(targets)",
+    sprintf("cache <- %s", quote_path(cache)),
+    sprintf("marker <- %s", quote_path(marker)),
+    "list(",
+    "  tar_target(prepared_cache, {if (!file.exists(cache)) writeLines('cache', cache); cache}, format = 'file'),",
+    "  tar_target(authorities, {prepared_cache; c('authority-1', 'authority-2')}),",
+    "  tar_target(authority, paste0(authorities, marker), pattern = map(authorities))",
+    ")"
+  )
+  writeLines(fixture_script("-v1"), script)
+  expect_silent(targets::tar_make(
+    names = prepared_cache,
+    script = script,
+    store = store,
+    callr_function = NULL,
+    reporter = "silent"
+  ))
+  cache_hash <- targets::tar_meta(
+    prepared_cache,
+    store = store,
+    fields = data
+  )$data
+
+  writeLines(fixture_script("-v2"), script)
+  outdated <- targets::tar_outdated(script = script, store = store)
+  expect_false("prepared_cache" %in% outdated)
+  expect_true(all(c("authorities", "authority") %in% outdated))
+  expect_identical(
+    targets::tar_meta(prepared_cache, store = store, fields = data)$data,
+    cache_hash
+  )
 })
 
 test_that("current training source registry and operator are explicit", {

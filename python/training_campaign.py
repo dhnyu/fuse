@@ -31,7 +31,7 @@ def scientific_implementation_hash(root: str | Path) -> str:
     paths = (
         "python/model_data.py", "python/model_families.py", "python/scene_model.py",
         "python/training_configuration.py", "python/training_support.py",
-        "python/training_worker.py",
+        "python/training_runtime_inputs.py", "python/training_worker.py",
     )
     return canonical_sha256({path: sha256_file(root / path) for path in paths})
 

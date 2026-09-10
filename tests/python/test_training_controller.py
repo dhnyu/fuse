@@ -125,6 +125,25 @@ def test_controller_replays_normal_start_and_clean_shutdown(tmp_path):
     assert read_ledger(controller.ledger_root).closed
 
 
+def test_epoch_zero_restart_requires_a_fresh_repaired_authority_identity(tmp_path):
+    old = authority()
+    controller = TrainingController(old, tmp_path / "old", created_at=stamp(0)); start(controller)
+    controller.append("TRAINING_INTERRUPTED", {
+        "last_durable_boundary": {"completed_epoch": 0, "resume_epoch": 1, "optimizer_update": 0},
+        "resumable_checkpoint_committed": False, "resume_policy": "RESTART",
+        "interruption_reason": "RUNTIME_INPUT_DEFECT",
+    }, occurred_at=stamp(4))
+    state = controller.replay()
+    assert state.operational_state == "BLOCKED"
+    assert state.resumability_state == "RESTART_REQUIRED"
+    assert not controller.resume_allowed()
+    repaired = build_training_authority(
+        configuration_id="ofat_d_64", configuration_hash="c" * 64,
+        scientific_implementation_hash="e" * 64, root_seed=17, parents=PARENTS)
+    assert repaired["identity"] != old["identity"]
+    assert training_run_id(repaired) != training_run_id(old)
+
+
 def test_exact_resume_and_scientific_divergence_are_distinct(tmp_path):
     c = TrainingController(authority(), tmp_path / "resume", created_at=stamp(0)); start(c)
     checkpoint_event(c)

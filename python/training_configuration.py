@@ -10,6 +10,7 @@ import torch
 
 from canonical_config import canonical_json_bytes
 from current_methodology import COMPARISON_NAMES, component_contracts, source_contracts
+from training_runtime_inputs import physical_profile_id
 
 
 def digest(value: Any) -> str:
@@ -61,8 +62,7 @@ def materialize_hyperparameter_configuration(
     dimension = int(scientific["d"])
     model["model"].update({"d": dimension, "d_c": dimension,
                            "head_dimension": dimension // 4, "ffn_dimension": 2 * dimension})
-    intensity = float(scientific["augmentation_intensity"])
-    profile = {0.5: "weak_0.5x", 1.0: "main_1.0x", 2.0: "strong_2.0x"}[intensity]
+    profile = physical_profile_id(scientific["augmentation_intensity"])
     training["training"].update({
         "profile_id": profile, "logical_k": int(scientific["K_aug"]),
         "root_seed": configuration_seed(int(base_training["training"]["root_seed"]), row["configuration_id"]),

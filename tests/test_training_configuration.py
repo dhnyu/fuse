@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from collections import Counter
 
 import pytest
 import yaml
@@ -16,6 +17,7 @@ from training_configuration import (
     training_learning_rate,
     validate_terminal_outcome,
 )
+from training_runtime_inputs import TrainingRuntimeInputError, physical_profile_id
 
 
 def test_all_current_ofat_rows_route_without_removed_objective():
@@ -37,6 +39,21 @@ def test_all_current_ofat_rows_route_without_removed_objective():
     assert by_id["ofat_augmentation_intensity_2.0"]["training"]["training"]["profile_id"] == "strong_2.0x"
     assert by_id["ofat_ema_momentum_0.99"]["training"]["ema"]["coefficient"] == .990
     assert by_id["ofat_peak_learning_rate_0.005"]["training"]["optimizer"]["peak_learning_rate"] == .005
+    assert Counter(item["bank_binding"]["profile_id"] for item in routed) == {
+        "weak_0.5x": 1, "main_1.0x": 9, "strong_2.0x": 1,
+    }
+    assert by_id["ofat_augmentation_intensity_0.5"]["bank_binding"]["profile_id"] == "weak_0.5x"
+    assert by_id["main"]["bank_binding"]["profile_id"] == "main_1.0x"
+    assert by_id["ofat_augmentation_intensity_2.0"]["bank_binding"]["profile_id"] == "strong_2.0x"
+
+
+def test_augmentation_intensity_has_one_fail_closed_physical_profile_mapping():
+    assert physical_profile_id(0.5) == "weak_0.5x"
+    assert physical_profile_id(1) == "main_1.0x"
+    assert physical_profile_id("2.0") == "strong_2.0x"
+    for unsupported in (0, 0.75, 3, True, None, "main_1.0x"):
+        with pytest.raises(TrainingRuntimeInputError, match="INTENSITY_UNSUPPORTED"):
+            physical_profile_id(unsupported)
 
 
 def test_current_row_validation_is_fail_closed():

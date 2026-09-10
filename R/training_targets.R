@@ -33,7 +33,8 @@ s09_training_source_files <- function() {
     "python/training_campaign.py", "python/training_configuration.py",
     "python/training_controller.py", "python/training_finalization.py",
     "python/training_progress.py",
-    "python/training_prepared_cache.py", "python/training_worker.py",
+    "python/training_prepared_cache.py", "python/training_runtime_inputs.py",
+    "python/training_worker.py",
     "scripts/prepare_training_cache.py", "scripts/training_campaign.py",
     "scripts/training_controller.py", "scripts/training_lifecycle.py", "scripts/training_worker.py"
   )

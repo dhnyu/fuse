@@ -42,6 +42,7 @@ from training_finalization import (
     evaluate_selection_candidate, make_selection_contract, qualifies_patience_reset,
 )
 from training_prepared_cache import DSRasterCacheReader, ProductionPreparedData
+from training_runtime_inputs import SceneCenterIndex
 from training_schema import SCHEMA_VERSION, validate_instance
 from rotating_padding_sampler import logical_groups, rotating_padding_state
 
@@ -137,13 +138,14 @@ def load_worker_values(spec: Mapping[str, str]) -> dict[str, Any]:
     routed = materialize_hyperparameter_configuration(row, base_training, base_model)
     routed["training"]["training"].update({"maximum_epochs": 200, "updates_per_epoch": 76, "maximum_updates": 15_200})
     config, model_config = routed["training"], routed["model"]
-    data = ProductionPreparedData(spec["cache_root"], routed["scientific"]["augmentation_intensity"],
-                                  routed["scientific"]["K_aug"])
+    data = ProductionPreparedData(spec["cache_root"], routed["bank_binding"]["profile_id"],
+                                  routed["bank_binding"]["effective_k"])
+    scene_centers = SceneCenterIndex.from_current_contract(base_training, spec["cache_root"])
     vocabulary = build_vocabulary(spec["categories"])
     vocabulary_sizes = validate_vocabulary_contract(vocabulary)
     return {
         "row": row, "config": config, "model_config": model_config,
-        "family": row.get("model_family", "FM"), "data": data,
+        "family": row.get("model_family", "FM"), "data": data, "scene_centers": scene_centers,
         "vocabulary": vocabulary, "vocabulary_sizes": vocabulary_sizes,
         "vocabulary_masks": {field: int(contract["mask"]) for field, contract in vocabulary.items()},
         "geometry_cache": GeometryCacheReader(Path(spec["cache_root"]) / "geometry/geometry_cache_manifest.json", 4 * 1024**3),
@@ -166,6 +168,12 @@ def create_state(values: dict[str, Any], device: torch.device) -> WorkerState:
     return WorkerState(model, optimizer, scheduler, queue, [], [], None, 0, 0)
 
 
+def prepared_sample(values: dict[str, Any], role: str, scene: str, view: int | None) -> dict[str, Any]:
+    """Attach an exact accepted P1 center without mutating the immutable cache."""
+    split = "training" if role == "training" else "validation"
+    return values["scene_centers"].attach(values["data"].sample(role, scene, view), split)
+
+
 def _local_batches(values: dict[str, Any], epoch: int, batch_index: int, rank: int):
     sampler = rotating_padding_state(values["data"].training_scenes, int(values["config"]["training"]["root_seed"]), epoch - 1)
     groups = logical_groups(sampler, 32)
@@ -173,7 +181,7 @@ def _local_batches(values: dict[str, Any], epoch: int, batch_index: int, rank: i
         raise ScienceWorkerError("SAMPLER_UPDATE_COUNT_MISMATCH")
     scenes = list(groups[batch_index]); local = scenes[rank * 16:(rank + 1) * 16]
     pairs = [selected_pair(scene, values["data"].views[scene], values["config"], epoch) for scene in local]
-    batches = [collate([values["data"].sample("training", scene, pair[role])
+    batches = [collate([prepared_sample(values, "training", scene, pair[role])
                         for scene, pair in zip(local, pairs, strict=True)], values["vocabulary"])
                for role in range(2)]
     return batches, scenes, pairs
@@ -242,7 +250,7 @@ def full_validation(state: WorkerState, values: dict[str, Any], device: torch.de
         for start in range(0, len(local_records), 8):
             selected_pairs = local_records[start:start + 8]
             selected = [row for _, row in selected_pairs]
-            cpu = collate([values["data"].sample(*row) for row in selected], values["vocabulary"])
+            cpu = collate([prepared_sample(values, *row) for row in selected], values["vocabulary"])
             role = selected[0][0]
             ds = values["ds_raster_cache"].batch(cpu, role, device) if values["family"] == "DS" else None
             batch = to_device(cpu, device)

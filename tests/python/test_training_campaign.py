@@ -15,13 +15,14 @@ sys.path.append(str(ROOT / "scripts"))
 from artifact_protocol import canonical_sha256
 from training_campaign import (
     COMPARISON_IDS, cache_identity, canonical_selection, comparison_authorities,
-    current_lineage, gpu_pair_environment, ofat_authorities,
+    current_lineage, ofat_authorities,
     scientific_configuration, scientific_implementation_hash, select_ofat_winner,
     selection_hash, s08_selection_document,
 )
 from training_controller import TrainingControllerError, training_run_id
 from training_finalization import selection_contract_content
 from training_runtime_provenance import runtime_implementation_provenance, runtime_source_paths
+from training_transport import gpu_pair_environment
 from prepare_training_cache import validate_cache
 
 PLAN_PATH = Path("/mnt/hdd002/dhnyu/fusedata/models/reduced/formal_plan/current_cbb824f19be83552/current_experiment_plan.json")
@@ -91,7 +92,7 @@ def test_runtime_provenance_registry_is_canonical_and_current():
     assert registered == tuple(provenance["source_hashes"])
     assert provenance["implementation_sha256"] == scientific_implementation_hash(ROOT)
     assert provenance["implementation_sha256"] == (
-        "b433a0236f58226330333bf0b34353a686c911dada074a78183389c35fe81876")
+        "0479d8ae41fb22a4c3c2f82360fa2d12cd0f59fd73d8a50ef0868d2eff1cf66d")
     assert tuple(provenance["authority_source_hashes"]) == (
         "python/training_campaign.py", "scripts/training_campaign.py")
 
@@ -166,12 +167,22 @@ def test_authority_run_key_binds_cache_selection_phase_and_model():
 
 
 def test_gpu_pair_environment_requires_two_devices_and_holds_locks(tmp_path):
-    with pytest.raises(TrainingControllerError, match="EXACTLY_TWO"):
-        with gpu_pair_environment([0], tmp_path, 0): pass
-    with gpu_pair_environment([0, 1], tmp_path, 0.1) as environment:
+    execution = {
+        "selected_gpu_indices": [0, 1], "world_size": 2, "backend": "nccl",
+        "gpu_lock_root": str(tmp_path), "gpu_lock_timeout_seconds": 0.1,
+        "transport": {"p2p_disable": "1", "ib_disable": "1",
+                      "preflight_timeout_seconds": 30},
+    }
+    wrong = copy.deepcopy(execution); wrong["selected_gpu_indices"] = [0]
+    with pytest.raises(TrainingControllerError, match="MUST_BE_0_1"):
+        with gpu_pair_environment(wrong): pass
+    with gpu_pair_environment(execution, {}) as environment:
         assert environment["CUDA_VISIBLE_DEVICES"] == "0,1"
+        assert environment["NCCL_P2P_DISABLE"] == "1"
+        assert environment["NCCL_IB_DISABLE"] == "1"
         with pytest.raises(TrainingControllerError, match="LOCK_UNAVAILABLE"):
-            with gpu_pair_environment([0, 1], tmp_path, 0): pass
+            blocked = copy.deepcopy(execution); blocked["gpu_lock_timeout_seconds"] = 0
+            with gpu_pair_environment(blocked): pass
 
 
 def test_prepared_cache_acceptance_is_fail_closed(tmp_path):

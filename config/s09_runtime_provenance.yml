@@ -1,5 +1,6 @@
 schema_version: 1.0.0
 runtime_sources:
+  - config/training_controller.yml
   - python/model_data.py
   - python/model_families.py
   - python/scene_model.py
@@ -7,6 +8,11 @@ runtime_sources:
   - python/training_support.py
   - python/training_runtime_inputs.py
   - python/training_worker.py
+  - python/training_progress.py
+  - python/training_transport.py
+  - python/ddp_nccl_transport_preflight.py
+  - scripts/training_controller.py
+  - scripts/training_worker.py
 authority_publication_sources:
   - python/training_campaign.py
   - scripts/training_campaign.py

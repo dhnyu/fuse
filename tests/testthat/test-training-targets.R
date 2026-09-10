@@ -159,14 +159,19 @@ test_that("current training source registry and operator are explicit", {
   expect_identical(basename(runtime_sources[[1L]]), "s09_runtime_provenance.yml")
   implementation <- s09_resolve_runtime_implementation(runtime_sources)
   expect_identical(implementation$implementation_sha256,
-                   "b433a0236f58226330333bf0b34353a686c911dada074a78183389c35fe81876")
-  expect_length(implementation$source_hashes, 7L)
+                   "0479d8ae41fb22a4c3c2f82360fa2d12cd0f59fd73d8a50ef0868d2eff1cf66d")
+  expect_length(implementation$source_hashes, 13L)
+  expect_true(all(c("config/training_controller.yml", "python/training_transport.py",
+                    "python/ddp_nccl_transport_preflight.py", "scripts/training_controller.py") %in%
+                  names(implementation$source_hashes)))
   expect_length(implementation$authority_source_hashes, 2L)
   expect_identical(s09_training_contract_path(), normalizePath("config/training_controller.yml"))
   contract <- yaml::read_yaml("config/training_controller.yml")
   expect_identical(contract$execution$progress_log_root, "logs/s09")
   expect_identical(contract$execution$maximum_epochs, 200L)
   expect_identical(contract$execution$maximum_updates, 15200L)
+  expect_identical(contract$execution$transport$p2p_disable, "1")
+  expect_identical(contract$execution$transport$ib_disable, "1")
   operator <- paste(readLines("scripts/run_training_targets.R", warn = FALSE), collapse = "\n")
   expect_match(operator, "fuse-training-s09", fixed = TRUE)
   expect_match(operator, "s09_campaign_acceptance", fixed = TRUE)

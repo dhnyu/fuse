@@ -51,3 +51,7 @@ execution:
   selected_gpu_indices: [0, 1]
   gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
   gpu_lock_timeout_seconds: 120
+  transport:
+    p2p_disable: "1"
+    ib_disable: "1"
+    preflight_timeout_seconds: 30

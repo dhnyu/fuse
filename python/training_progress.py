@@ -6,6 +6,7 @@ import csv
 import datetime as dt
 import fcntl
 import io
+import json
 import os
 import re
 import time
@@ -171,7 +172,7 @@ def campaign_snapshot(rows: list[Mapping[str, str]]) -> dict[str, str]:
             campaign_status = "CAMPAIGN_FAILED"
         elif status == "INTERRUPTED":
             campaign_status = "INTERRUPTED_RESUMABLE"
-        elif status in {"AUTHORITY_READY", "WAITING_FOR_GPU", "PREPARING", "TRAINING",
+        elif status in {"AUTHORITY_READY", "WAITING_FOR_GPU", "NCCL_PREFLIGHT", "PREPARING", "TRAINING",
                         "VALIDATING", "CHECKPOINT_COMMITTED", "RESUMING", "COMPLETED",
                         "EARLY_STOPPED"}:
             campaign_status = "IN_PROGRESS"
@@ -246,6 +247,7 @@ class RunProgress(CampaignProgress):
         self.run_path = self.root / f"{stem}.tsv"
         self.stdout_path = self.root / f"{stem}.stdout.log"
         self.stderr_path = self.root / f"{stem}.stderr.log"
+        self.transport_path = self.root / f"{stem}.nccl_preflight.jsonl"
         if require_existing and not self.run_path.is_file():
             raise TrainingProgressError("S09_RESUME_PROGRESS_LOG_REQUIRED")
         rows = _read_rows(self.run_path)
@@ -260,6 +262,22 @@ class RunProgress(CampaignProgress):
                            "update_limit": update_limit})
         self.elapsed_offset = float(self.state["elapsed_seconds"]) if self.state["elapsed_seconds"] != NA else 0.0
         self.started = time.monotonic()
+
+    def append_transport(self, values: Mapping[str, Any]) -> None:
+        """Append one identity-bound NCCL transport event without exposing the full environment."""
+        record = {
+            "timestamp": utc_now(), "phase": self.phase,
+            "config_or_model": self.config_or_model,
+            "authority_id": self.authority_id, "run_id": self.run_id,
+            **dict(values),
+        }
+        payload = json.dumps(record, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        lock_path = self.transport_path.with_suffix(self.transport_path.suffix + ".lock")
+        with lock_path.open("a+", encoding="utf-8") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            with self.transport_path.open("a", encoding="utf-8") as stream:
+                stream.write(payload + "\n"); stream.flush(); os.fsync(stream.fileno())
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
     def append(self, status: str, **values: Any) -> dict[str, str]:
         elapsed = self.elapsed_offset + time.monotonic() - self.started

@@ -25,8 +25,11 @@ from training_controller import (  # noqa: E402
     accepted_scientific_configurations, validate_startup, validate_training_authority,
     latest_checkpoint_boundary, training_run_id, validate_worker_message, worker_response,
 )
-from training_campaign import gpu_pair_environment  # noqa: E402
 from training_progress import RunProgress, configured_log_root, validation_progress  # noqa: E402
+from training_transport import (  # noqa: E402
+    gpu_pair_environment, launch_formal_worker_after_preflight, perform_locked_transport_preflight,
+    require_no_conflicting_gpu_workload,
+)
 
 
 def now() -> str:
@@ -63,6 +66,34 @@ def progress_logger(authority: dict, contract: dict, *, require_existing: bool =
         update_limit=int(execution["maximum_updates"]), create=True,
         require_existing=require_existing,
     )
+
+
+def disposable_transport_preflight(args: argparse.Namespace) -> dict:
+    """Exercise the exact locked formal transport gate without creating a run ledger."""
+    authority = load(args.authority); validate_training_authority(authority)
+    contract = yaml.safe_load(Path(args.contract).read_text(encoding="utf-8"))
+    require_current_contract_ready(contract)
+    log_root = Path(args.log_root).resolve()
+    temporary_root = Path(tempfile.gettempdir()).resolve()
+    if temporary_root not in log_root.parents:
+        raise TrainingControllerError("S09_TRANSPORT_PREFLIGHT_LOG_ROOT_MUST_BE_TEMPORARY")
+    scientific = authority["content"]["scientific"]
+    progress = RunProgress(
+        log_root, phase=scientific["phase"],
+        config_or_model=scientific.get("configuration_id", scientific.get("model_id")),
+        authority_id=authority["identity"], run_id=training_run_id(authority),
+        patience_limit=int(contract["execution"]["early_stopping_patience_events"]),
+        epoch_limit=int(contract["execution"]["maximum_epochs"]),
+        update_limit=int(contract["execution"]["maximum_updates"]), create=True,
+    )
+    progress.append("AUTHORITY_READY"); progress.append("WAITING_FOR_GPU")
+    with gpu_pair_environment(contract["execution"], os.environ.copy()) as environment:
+        require_no_conflicting_gpu_workload()
+        result = perform_locked_transport_preflight(
+            environment, contract["execution"], ROOT, progress)
+    return {"status": "PASS", "authority_id": authority["identity"],
+            "run_id": training_run_id(authority), "transport": result,
+            "log": str(progress.transport_path)}
 
 
 def log_committed_worker_event(progress: RunProgress, request: dict) -> None:
@@ -191,17 +222,14 @@ def run(args: argparse.Namespace) -> dict:
         })
         stdout_stream = progress.stdout_path.open("ab")
         stderr_stream = progress.stderr_path.open("ab")
-        devices = contract["execution"]["selected_gpu_indices"]
         progress.append("WAITING_FOR_GPU")
         try:
-            with gpu_pair_environment(devices, contract["execution"]["gpu_lock_root"],
-                                      contract["execution"]["gpu_lock_timeout_seconds"]) as locked_environment:
-                progress.append("PREPARING")
+            with gpu_pair_environment(contract["execution"], environment) as locked_environment:
                 environment.update(locked_environment)
-                if environment.get("CUDA_VISIBLE_DEVICES") != ",".join(map(str, devices)):
-                    raise TrainingControllerError("S09_GPU_DEVICE_ENVIRONMENT_MISMATCH")
-                process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                           stderr=stderr_stream, env=environment)
+                require_no_conflicting_gpu_workload()
+                process = launch_formal_worker_after_preflight(
+                    command, environment, contract["execution"], ROOT, progress,
+                    stdout=subprocess.PIPE, stderr=stderr_stream)
                 controller.append("RUN_STARTED", {"process_id": str(process.pid), "world_size": 2,
                                                    "runtime_digest": authority["content_sha256"]}, occurred_at=now())
                 progress.append("TRAINING")
@@ -280,9 +308,11 @@ def run(args: argparse.Namespace) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(); parser.add_argument("mode", choices=("validate", "preflight", "run"))
+    parser = argparse.ArgumentParser(); parser.add_argument(
+        "mode", choices=("validate", "preflight", "transport-preflight", "run"))
     parser.add_argument("--authority", required=True); parser.add_argument("--contract", required=True)
     parser.add_argument("--output", default=""); parser.add_argument("--science-worker-command", default="")
+    parser.add_argument("--log-root", default="")
     parser.add_argument("--noncanonical-pilot", action="store_true")
     args = parser.parse_args()
     if args.mode == "validate":
@@ -296,6 +326,10 @@ def main() -> None:
         result = validate_startup(authority, startup_inputs(contract, authority), accepted_hashes=accepted_hashes,
                                   accepted_configuration_ids=accepted_ids, cuda_devices=visible_gpu_count())
         print(json.dumps({"status": "PASS", "authority_id": authority["identity"], **result}, sort_keys=True))
+    elif args.mode == "transport-preflight":
+        if not args.log_root:
+            parser.error("transport-preflight requires --log-root")
+        print(json.dumps(disposable_transport_preflight(args), sort_keys=True))
     else:
         if not args.output or not args.science_worker_command: parser.error("run requires output and science worker command")
         print(json.dumps(run(args), sort_keys=True))

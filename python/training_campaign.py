@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -188,33 +188,3 @@ def publish_documents(documents: Iterable[Mapping[str, Any]], root: str | Path) 
             temporary.write_bytes(payload); os.replace(temporary, path)
         paths.append(str(path))
     return paths
-
-
-@contextmanager
-def gpu_pair_environment(indices: Iterable[int], lock_root: str | Path, timeout_seconds: float):
-    """Hold the configured pair and per-device locks for the complete DDP subprocess lifetime."""
-    import fcntl
-    import time
-    devices = tuple(int(value) for value in indices)
-    if len(devices) != 2 or len(set(devices)) != 2:
-        raise TrainingControllerError("S09_EXACTLY_TWO_GPU_DEVICES_REQUIRED")
-    root = Path(lock_root); root.mkdir(parents=True, exist_ok=True)
-    streams = []
-    deadline = time.monotonic() + float(timeout_seconds)
-    try:
-        for name in ("gpu_pair.lock", *(f"gpu{device}.lock" for device in devices)):
-            stream = (root / name).open("a+")
-            while True:
-                try:
-                    fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB); break
-                except BlockingIOError:
-                    if time.monotonic() >= deadline:
-                        stream.close(); raise TrainingControllerError("S09_GPU_LOCK_UNAVAILABLE")
-                    time.sleep(0.1)
-            streams.append(stream)
-        environment = os.environ.copy()
-        environment["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, devices))
-        yield environment
-    finally:
-        for stream in reversed(streams):
-            fcntl.flock(stream.fileno(), fcntl.LOCK_UN); stream.close()

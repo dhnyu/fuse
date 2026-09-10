@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -54,6 +55,19 @@ def test_epoch_and_validation_rows_append_without_truncation(tmp_path):
     assert history[2]["best_epoch"] == "5"
     assert history[2]["latest_checkpoint_id"] == "p9ck_" + "a" * 24
     assert history[2]["best_checkpoint_id"] == "p9ck_" + "a" * 24
+
+
+def test_transport_events_are_identity_bound_and_append_only(tmp_path):
+    progress = logger(tmp_path / "logs")
+    progress.append_transport({"status": "STARTED", "world_size": 2})
+    before = progress.transport_path.read_bytes()
+    progress.append_transport({"status": "PASS", "allreduce": "PASS", "allgather": "PASS"})
+    after = progress.transport_path.read_bytes()
+    assert after.startswith(before)
+    events = [json.loads(line) for line in after.decode().splitlines()]
+    assert [event["status"] for event in events] == ["STARTED", "PASS"]
+    assert all(event["authority_id"] == "s09auth_fixture" for event in events)
+    assert all(event["run_id"] == "p9runv2_fixture" for event in events)
 
 
 def test_current_status_is_atomic_and_human_readable(tmp_path):

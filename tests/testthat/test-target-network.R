@@ -118,6 +118,21 @@ test_that("HTML contains required controls and escapes metadata", {
   expect_match(html, "\\u003cscript", fixed = TRUE)
 })
 
+test_that("historical errors may overlap live outdated without changing metadata", {
+  snapshot <- synthetic_snapshot()
+  snapshot$outdated <- c("a", "b")
+  snapshot$errored <- "b"
+  snapshot$running <- character()
+  snapshot$status <- resolve_target_status(snapshot$manifest$name, snapshot$outdated,
+    snapshot$running, snapshot$errored)
+  phases <- synthetic_phase_config(exact = list(Foundation = "a", P1 = "b", P2 = "c"))
+  assignments <- assign_target_phases(snapshot$manifest$name, phases)
+  nodes <- build_nodes(snapshot, assignments, phases)
+  expect_true(validate_network_model(snapshot, nodes, build_edges(snapshot), assignments)$dag)
+  expect_identical(snapshot$outdated, c("a", "b"))
+  expect_identical(nodes$status[nodes$id == "b"], "error")
+})
+
 test_that("atomic renderer does not rewrite identical bytes", {
   path <- tempfile(fileext = ".html")
   write_if_changed_atomic("stable", path)

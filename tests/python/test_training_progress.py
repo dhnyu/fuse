@@ -19,6 +19,25 @@ from training_worker import make_worker_request  # noqa: E402
 from training_controller import TrainingControllerError  # noqa: E402
 
 
+def test_fresh_runtime_generation_preserves_history_but_not_old_completion(tmp_path):
+    campaign = CampaignProgress(tmp_path, create=True)
+    campaign.append_campaign("ACCEPTED", phase="OFAT", config_or_model="main")
+    campaign.append_campaign("WINNER_SELECTED", winner_configuration="old_winner")
+    historical = campaign.campaign_path.read_bytes()
+    campaign.ensure_generation("a" * 64)
+    assert campaign.campaign_path.read_bytes().startswith(historical)
+    snapshot = campaign_snapshot(rows(campaign.campaign_path))
+    assert snapshot["ofat_completed"] == "0"
+    assert snapshot["winner_configuration"] == "NA"
+    campaign.append_campaign("ACCEPTED", phase="OFAT", config_or_model="main")
+    before_resume = campaign.campaign_path.read_bytes()
+    campaign.ensure_generation("a" * 64)
+    assert campaign.campaign_path.read_bytes() == before_resume
+    assert campaign_snapshot(rows(campaign.campaign_path))["ofat_completed"] == "1"
+    campaign.ensure_generation("b" * 64)
+    assert campaign_snapshot(rows(campaign.campaign_path))["ofat_completed"] == "0"
+
+
 def logger(root: Path, *, phase: str = "OFAT", config: str = "ofat_d_64",
            authority: str = "s09auth_fixture", run: str = "p9runv2_fixture",
            require_existing: bool = False) -> RunProgress:

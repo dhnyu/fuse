@@ -42,7 +42,8 @@ list_s09_training <- list(
       s09_ofat_authority), format = "file"),
   targets::tar_target(s09_ofat_winner,
     s09_select_winner(s09_current_experiment_plan, s09_resolved_contract,
-                      s09_prepared_cache_acceptance, s09_ofat_result), format = "file"),
+                      s09_prepared_cache_acceptance, s09_ofat_result,
+                      s09_runtime_implementation), format = "file"),
   targets::tar_target(s09_comparison_authorities,
     s09_publish_comparison_authorities(s09_current_experiment_plan, s09_resolved_contract,
       s09_prepared_cache_acceptance, s09_ofat_winner, s09_runtime_implementation)),
@@ -76,5 +77,6 @@ list_s09_training <- list(
       s09_comparison_accepted_checkpoint, s09_comparison_authority), format = "file"),
   targets::tar_target(s09_campaign_acceptance,
     s09_accept_campaign(s09_current_experiment_plan, s09_ofat_winner, s09_comparison_result,
-                        s09_prepared_cache_acceptance, s09_resolved_contract), format = "file")
+                        s09_prepared_cache_acceptance, s09_resolved_contract,
+                        s09_runtime_implementation), format = "file")
 )

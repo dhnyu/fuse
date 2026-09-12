@@ -91,19 +91,22 @@ class SceneEncoder(nn.Module):
             self.geometry_fusion = projected_block(2 * d, 2 * d, d, dropout, True)
         if "semantic" in self.contract.modalities:
             fixed = 32
-            self.category_embeddings = nn.ModuleDict({name: nn.Embedding(vocabulary_sizes[name], fixed)
-                                                      for name in ("A9", "A11", "ROAD_RANK", "ROAD_TYPE")})
-            self.building_numerical = projected_block(4, d, fixed, dropout, False)
-            self.building_fusion = projected_block(3 * fixed, 2 * d, d, dropout, True)
-            self.road_numerical = nn.Sequential(nn.Linear(2, fixed), nn.LayerNorm(fixed), nn.GELU(), nn.Linear(fixed, fixed))
-            self.road_fusion = projected_block(3 * fixed, 2 * d, d, dropout, True)
+            names=tuple(name for source,keys in [('B',('A9','A11')),('R',('ROAD_RANK','ROAD_TYPE'))] if source in self.contract.retained_sources for name in keys)
+            self.category_embeddings = nn.ModuleDict({name: nn.Embedding(vocabulary_sizes[name], fixed) for name in names})
+            if 'B' in self.contract.retained_sources:
+                self.building_numerical = projected_block(4, d, fixed, dropout, False)
+                self.building_fusion = projected_block(3 * fixed, 2 * d, d, dropout, True)
+            if 'R' in self.contract.retained_sources:
+                self.road_numerical = nn.Sequential(nn.Linear(2, fixed), nn.LayerNorm(fixed), nn.GELU(), nn.Linear(fixed, fixed))
+                self.road_fusion = projected_block(3 * fixed, 2 * d, d, dropout, True)
             poi_names = [f"CLASS_L{x}" for x in range(1, 7)]
             poi_dims = [int(value) for value in model["poi_hierarchy_dimensions"]]
-            self.poi_embeddings = nn.ModuleList([nn.Embedding(vocabulary_sizes[name], width)
+            if 'P' in self.contract.retained_sources:
+                self.poi_embeddings = nn.ModuleList([nn.Embedding(vocabulary_sizes[name], width)
                                                   for name, width in zip(poi_names, poi_dims, strict=True)])
-            self.poi_projections = nn.ModuleList([nn.Linear(width, fixed) for width in poi_dims])
-            self.poi_score = nn.Sequential(nn.Linear(fixed, d), nn.Tanh(), nn.Linear(d, 1))
-            self.poi_fusion = projected_block(sum(poi_dims) + fixed, 2 * d, d, dropout, True)
+                self.poi_projections = nn.ModuleList([nn.Linear(width, fixed) for width in poi_dims])
+                self.poi_score = nn.Sequential(nn.Linear(fixed, d), nn.Tanh(), nn.Linear(d, 1))
+                self.poi_fusion = projected_block(sum(poi_dims) + fixed, 2 * d, d, dropout, True)
         if "environmental" in self.contract.modalities:
             environmental_width = (23 if "LC" in self.environment_sources else 0) + (3 if "DEM" in self.environment_sources else 0)
             if environmental_width == 0:
@@ -166,11 +169,18 @@ class SceneEncoder(nn.Module):
     def forward(self, batch: dict[str, Any], geometry: tuple[torch.Tensor, torch.Tensor] | None = None,
                 ds_raster: torch.Tensor | None = None, assignments: torch.Tensor | None = None) -> dict[str, torch.Tensor]:
         if self.contract.name == "DS":
-            if ds_raster is None or ds_raster.ndim != 4 or ds_raster.shape[1:] != (26, 100, 100):
+            expected = {"family_name", "scene_ids", "scene_center_5186", "scene_numeric_ids"}
+            if (batch.get("family_name") != "DS" or set(batch) != expected
+                    or assignments is not None or geometry is not None):
+                raise ValueError('DS forbids entity encoder inputs')
+            if (ds_raster is None or ds_raster.ndim != 4
+                    or ds_raster.shape != (len(batch["scene_ids"]), 26, 100, 100)):
                 raise ValueError("DS requires C_cat+4 (26) channels on the 100x100 grid")
             scene = self.ds_projection(self.ds_cnn(ds_raster)); contrastive = F.normalize(self.contrastive_projection(scene), dim=1)
             return {"scene_embedding": scene, "contrastive_embedding": contrastive, "ds_raster": ds_raster}
         entities = batch["entities"]; values: dict[str, torch.Tensor] = {}
+        from training_family_inputs import validate_family_encoder_input
+        validate_family_encoder_input(batch, self.contract, geometry, assignments)
         if self.contract.name.startswith("B"):
             allowed = {index for index, source in enumerate(("B", "R", "P"))
                        if source in self.contract.retained_sources}
@@ -183,12 +193,8 @@ class SceneEncoder(nn.Module):
             values["geometry"] = self.geometry_fusion(torch.cat((self.magnitude_encoder(geometry[0]), self.phase_encoder(geometry[1])), 1))
         if "semantic" in self.contract.modalities: values["semantic"] = self._semantic(entities)
         if "environmental" in self.contract.modalities:
-            columns = []
-            if "LC" in self.environment_sources:
-                columns.append(entities["object_raster"][:, :23])
-            if "DEM" in self.environment_sources:
-                columns.append(entities["object_raster"][:, 23:26])
-            values["environmental"] = self.object_raster_encoder(torch.cat(columns, dim=1))
+            blocks = batch["environment"]
+            values["environmental"] = self.object_raster_encoder(torch.cat([blocks[source] for source in self.environment_sources], dim=1))
         stacked = torch.stack([values[name] for name in self.contract.modalities], 1)
         if assignments is not None:
             if assignments.shape != (stacked.shape[0],): raise ValueError("P9 modality assignment shape mismatch")
@@ -215,8 +221,9 @@ class SceneEncoder(nn.Module):
         type_summary = self._pool(contextual, entities["entity_type"], batch["entity_scene_index"], len(batch["scene_ids"]))
         scene_parts = [type_summary.flatten(1)]
         if self.contract.scene_raster:
-            rasters = batch["rasters"]; fraction = rasters["landcover_class_fraction"]
+            rasters = batch["rasters"]
             if "LC" in self.raster_sources:
+                fraction = rasters["landcover_class_fraction"]
                 landcover = torch.einsum("bchw,cd->bdhw", fraction, self.landcover_embedding.weight[:22])
                 valid = rasters["landcover_valid_mask"].bool(); intentional = rasters["landcover_intentional_mask"].bool()
                 if torch.any(intentional & valid): raise ValueError("intentional land-cover mask overlaps valid support")

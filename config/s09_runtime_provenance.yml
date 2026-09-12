@@ -4,6 +4,10 @@ runtime_sources:
   - python/model_data.py
   - python/model_families.py
   - python/scene_model.py
+  - python/scene_encoder.py
+  - python/training_family_inputs.py
+  - python/training_geometry_cache.py
+  - python/training_prepared_cache.py
   - python/training_configuration.py
   - python/training_support.py
   - python/training_runtime_inputs.py

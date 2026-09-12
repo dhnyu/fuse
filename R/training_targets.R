@@ -241,10 +241,12 @@ s09_training_result <- function(finalization, acceptance, resolution, authority,
   s09_write_json(value, s09_record_path(contract, authority, "campaign-result"))
 }
 
-s09_select_winner <- function(plan, contract, cache, results) {
+s09_select_winner <- function(plan, contract, cache, results, runtime_implementation) {
   cfg <- yaml::read_yaml(contract); output <- file.path(cfg$roots$canonical_publication, "campaign",
-    jsonlite::read_json(plan, simplifyVector = FALSE)$plan_id, "ofat_winner.json")
-  result <- s09_campaign_cli("winner", plan, contract, cache, output, results)
+    jsonlite::read_json(plan, simplifyVector = FALSE)$plan_id,
+    runtime_implementation$implementation_sha256, "ofat_winner.json")
+  result <- s09_campaign_cli("winner", plan, contract, cache, output, results,
+    runtime_implementation = runtime_implementation)
   normalizePath(result$path, mustWork = TRUE)
 }
 
@@ -254,13 +256,16 @@ s09_publish_comparison_authorities <- function(plan, contract, cache, winner, ru
                           runtime_implementation = runtime_implementation)$paths, use.names = FALSE)
 }
 
-s09_accept_campaign <- function(plan, winner, comparison_results, cache, contract) {
+s09_accept_campaign <- function(plan, winner, comparison_results, cache, contract, runtime_implementation) {
+  s09_campaign_cli("campaign-validate", plan, contract, cache, "unused",
+    c(winner, comparison_results), runtime_implementation = runtime_implementation)
   comparisons <- lapply(comparison_results, jsonlite::read_json, simplifyVector = FALSE)
   expected <- c("FM", paste0("A", 1:5), paste0("B", 1:9), "SSV", "DS")
   if (length(comparisons) != 17L || !setequal(vapply(comparisons, `[[`, character(1L), "model_id"), expected)) {
     stop("S09_COMPARISON_CAMPAIGN_INCOMPLETE", call. = FALSE)
   }
   value <- list(schema_version = "1.0.0", status = "PASS",
+    runtime_implementation_sha256 = runtime_implementation$implementation_sha256,
     experiment_plan_id = jsonlite::read_json(plan, simplifyVector = FALSE)$plan_id,
     prepared_cache_acceptance_id = jsonlite::read_json(cache, simplifyVector = FALSE)$acceptance_id,
     winner_id = jsonlite::read_json(winner, simplifyVector = FALSE)$winner_id,
@@ -271,6 +276,7 @@ s09_accept_campaign <- function(plan, winner, comparison_results, cache, contrac
   cfg <- yaml::read_yaml(contract)
   path <- s09_write_json(value, file.path(cfg$roots$canonical_publication, "campaign",
                                          value$campaign_acceptance_id, "campaign_acceptance.json"))
-  s09_campaign_cli("campaign-accepted", plan, contract, cache, path, winner)
+  s09_campaign_cli("campaign-accepted", plan, contract, cache, path,
+    c(winner, comparison_results), runtime_implementation = runtime_implementation)
   path
 }

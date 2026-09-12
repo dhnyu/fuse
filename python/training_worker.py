@@ -181,22 +181,25 @@ def _local_batches(values: dict[str, Any], epoch: int, batch_index: int, rank: i
         raise ScienceWorkerError("SAMPLER_UPDATE_COUNT_MISMATCH")
     scenes = list(groups[batch_index]); local = scenes[rank * 16:(rank + 1) * 16]
     pairs = [selected_pair(scene, values["data"].views[scene], values["config"], epoch) for scene in local]
-    batches = [collate([prepared_sample(values, "training", scene, pair[role])
-                        for scene, pair in zip(local, pairs, strict=True)], values["vocabulary"])
-               for role in range(2)]
+    from training_family_inputs import assemble_family_batch
+    batches = []
+    for role in range(2):
+        b,g,_=assemble_family_batch(values,[("training",scene,pair[role]) for scene,pair in zip(local,pairs,strict=True)])
+        b['_family_geometry']=g
+        batches.append(b)
     return batches, scenes, pairs
 
 
 def training_update(ddp: DistributedDataParallel, state: WorkerState, values: dict[str, Any],
                     epoch: int, batch_index: int, rank: int, device: torch.device) -> dict[str, Any]:
     cpu, scenes, pairs = _local_batches(values, epoch, batch_index, rank)
-    assignments = [modality_assignments(batch, values["config"], epoch, role, rank) for role, batch in enumerate(cpu)]
+    from training_family_inputs import family_encoder_batch, family_modality_assignments
+    assignments = [None if values["family"] == "DS" else family_modality_assignments(batch, values["config"], epoch, role, rank)[1] for role, batch in enumerate(cpu)]
     ds_inputs = [values["ds_raster_cache"].batch(batch, values["data"].physical_training_role, device)
                  if values["family"] == "DS" else None for batch in cpu]
-    batches = [to_device(batch, device) for batch in cpu]
-    geometries = [None if "geometry" not in family_contract(values["family"]).modalities else
-                  values["geometry_cache"].batch(
-                      batch, values["data"].physical_training_role, device) for batch in batches]
+    geometries = [None if batch['_family_geometry'] is None else tuple(t.to(device) for t in batch['_family_geometry']) for batch in cpu]
+    batches = [to_device(family_encoder_batch(batch), device) for batch in cpu]
+    assignments = [None if a is None else a.to(device) for a in assignments]
     state.optimizer.zero_grad(set_to_none=True)
     outputs = [ddp(batch, geometry, ds, assignment) for batch, geometry, ds, assignment in
                zip(batches, geometries, ds_inputs, assignments, strict=True)]
@@ -250,11 +253,12 @@ def full_validation(state: WorkerState, values: dict[str, Any], device: torch.de
         for start in range(0, len(local_records), 8):
             selected_pairs = local_records[start:start + 8]
             selected = [row for _, row in selected_pairs]
-            cpu = collate([prepared_sample(values, *row) for row in selected], values["vocabulary"])
+            from training_family_inputs import assemble_family_batch, family_encoder_batch
+            cpu,geometry,_ = assemble_family_batch(values,selected)
             role = selected[0][0]
             ds = values["ds_raster_cache"].batch(cpu, role, device) if values["family"] == "DS" else None
-            batch = to_device(cpu, device)
-            geometry = None if "geometry" not in family_contract(values["family"]).modalities else values["geometry_cache"].batch(batch, role, device)
+            batch = to_device(family_encoder_batch(cpu), device)
+            geometry = None if geometry is None else tuple(t.to(device) for t in geometry)
             vectors.append(torch.nn.functional.normalize(state.model.online(batch, geometry, ds)["scene_embedding"], dim=1))
             indices.extend(index for index, _ in selected_pairs)
     vector = torch.cat(vectors); index = torch.tensor(indices, device=device, dtype=torch.int64)

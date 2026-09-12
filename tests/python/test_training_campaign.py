@@ -18,6 +18,7 @@ from training_campaign import (
     current_lineage, ofat_authorities,
     scientific_configuration, scientific_implementation_hash, select_ofat_winner,
     selection_hash, s08_selection_document,
+    validate_current_results, validate_current_winner,
 )
 from training_controller import TrainingControllerError, training_run_id
 from training_finalization import selection_contract_content
@@ -42,6 +43,9 @@ def values():
 
 def results(authorities):
     return [{"configuration_id": authority["content"]["scientific"]["configuration_id"],
+             "authority_id": authority["identity"],
+             "phase": authority["content"]["scientific"]["phase"],
+             "model_id": authority["content"]["scientific"]["model_id"],
              "status": "PASS", "checkpoint_id": f"p9ck_{index:024x}",
              "validation_retrieval_loss": 1.0 + index / 100,
              "mean_source_separation_margin": 0.1, "completed_epoch": 5}
@@ -91,8 +95,9 @@ def test_runtime_provenance_registry_is_canonical_and_current():
     registered = tuple(path.relative_to(ROOT).as_posix() for path in runtime_source_paths(ROOT))
     assert registered == tuple(provenance["source_hashes"])
     assert provenance["implementation_sha256"] == scientific_implementation_hash(ROOT)
-    assert provenance["implementation_sha256"] == (
+    assert provenance["implementation_sha256"] != (
         "0479d8ae41fb22a4c3c2f82360fa2d12cd0f59fd73d8a50ef0868d2eff1cf66d")
+    assert {"python/training_family_inputs.py", "python/training_prepared_cache.py"} <= set(registered)
     assert tuple(provenance["authority_source_hashes"]) == (
         "python/training_campaign.py", "scripts/training_campaign.py")
 
@@ -119,6 +124,22 @@ def test_winner_requires_all_results_and_uses_strict_selection():
     rows[1]["mean_source_separation_margin"] = 0.2
     assert select_ofat_winner(plan, rows)["selected_configuration_id"] == rows[1]["configuration_id"]
     with pytest.raises(TrainingControllerError, match="INCOMPLETE"): select_ofat_winner(plan, rows[:-1])
+
+
+def test_new_campaign_rejects_every_historical_authority_and_winner():
+    plan, _, training, model, parents = values()
+    old = ofat_authorities(plan, training, model, parents, "a" * 64)
+    new = ofat_authorities(plan, training, model, parents, "b" * 64)
+    validate_current_results(results(new), new)
+    winner = select_ofat_winner(plan, results(new))
+    validate_current_winner(plan, winner, new)
+    with pytest.raises(TrainingControllerError, match="STALE"):
+        validate_current_winner(plan, select_ofat_winner(plan, results(old)), new)
+    old_cmp = comparison_authorities(plan, winner, training, model, parents, "a" * 64)
+    new_cmp = comparison_authorities(plan, winner, training, model, parents, "b" * 64)
+    validate_current_results(results(new_cmp), new_cmp)
+    with pytest.raises(TrainingControllerError, match="STALE"):
+        validate_current_results(results(old_cmp), new_cmp)
 
 
 def test_comparison_authorities_require_winner_and_propagate_hyperparameters():

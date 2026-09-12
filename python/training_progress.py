@@ -160,6 +160,10 @@ def campaign_snapshot(rows: list[Mapping[str, str]]) -> dict[str, str]:
     campaign_status = "IN_PROGRESS" if rows else "NOT_STARTED"
     for row in rows:
         phase, status = row.get("phase"), row.get("status")
+        if status == "CAMPAIGN_GENERATION_STARTED":
+            accepted = {name: set() for name in ("OFAT", "COMPARISON")}
+            winner = NA
+            campaign_status = "IN_PROGRESS"
         if phase in accepted and status == TERMINAL_ACCEPTED:
             accepted[phase].add(row.get("config_or_model", NA))
         if status == "WINNER_SELECTED":
@@ -190,6 +194,18 @@ class CampaignProgress:
     def __init__(self, root: str | Path, *, create: bool = False):
         self.root = ensure_log_root(root, create=create)
         self.campaign_path = self.root / "campaign_status.tsv"
+
+    def ensure_generation(self, runtime_sha256: str) -> None:
+        """Separate fresh campaigns without truncating history or resetting resumes."""
+        if re.fullmatch(r"[0-9a-f]{64}", runtime_sha256) is None:
+            raise TrainingProgressError("S09_CAMPAIGN_RUNTIME_HASH_INVALID")
+        with (self.root / ".campaign_generation.lock").open("a+") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            generations = [row["config_or_model"] for row in _read_rows(self.campaign_path)
+                           if row["status"] == "CAMPAIGN_GENERATION_STARTED"]
+            if not generations or generations[-1] != runtime_sha256:
+                self.append_campaign("CAMPAIGN_GENERATION_STARTED", config_or_model=runtime_sha256)
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
     def _campaign_row(self, values: Mapping[str, Any]) -> dict[str, str]:
         existing = _read_rows(self.campaign_path)

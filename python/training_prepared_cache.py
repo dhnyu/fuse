@@ -11,7 +11,7 @@ from typing import Any, Iterable, Mapping
 import torch
 
 from canonical_config import canonical_json_bytes
-from artifact_protocol import sha256_file
+from artifact_protocol import canonical_sha256, sha256_file
 
 
 DS_CACHE_SCHEMA_VERSION = "1.0.0"
@@ -121,38 +121,69 @@ class DSRasterCacheReader:
 
     def __init__(self, production_cache_root: str | Path,
                  maximum_memory_bytes: int = 4 * 1024**3) -> None:
-        self.production_cache_root = Path(production_cache_root)
+        self.production_cache_root = Path(production_cache_root).resolve()
         production_path = self.production_cache_root / "production_cache_manifest.json"
         production = json.loads(production_path.read_text(encoding="utf-8"))
+        acceptance = json.loads((self.production_cache_root / "acceptance.json").read_text())
+        acceptance_hash = canonical_sha256({
+            key: value for key, value in acceptance.items()
+            if key not in {"acceptance_id", "content_sha256"}
+        })
+        if (acceptance.get("status") != "PASS"
+                or acceptance.get("cache_id") != production.get("cache_id")
+                or production.get("cache_id") != self.production_cache_root.name
+                or acceptance.get("acceptance_id") != "s09ca_" + acceptance_hash[:24]
+                or acceptance.get("content_sha256") != acceptance_hash
+                or acceptance.get("manifest_sha256") != sha256_file(production_path)
+                or acceptance.get("parents") != production.get("parents")
+                or acceptance.get("entry_count") != production.get("entry_count")
+                or production.get("content_sha256") != canonical_sha256({
+                    key: value for key, value in production.items()
+                    if key not in {"cache_id", "content_sha256"}})):
+            raise DSRasterCacheError("DS_CACHE_ACCEPTANCE_INVALID")
         binding = production.get("ds", {})
-        manifest_path = self.production_cache_root / str(binding.get("manifest_relative_path", ""))
-        if (not manifest_path.is_file()
+        # Accepted S09-v1 writer contract; no generation discovery or fallback.
+        manifest_path = self.production_cache_root / "ds" / "ds_cache_manifest.json"
+        if (set(binding) != {"cache_id", "manifest_sha256"}
+                or manifest_path.is_symlink() or manifest_path.resolve() != manifest_path
+                or not manifest_path.is_file()
                 or binding.get("manifest_sha256") != sha256_file(manifest_path)):
             raise DSRasterCacheError("DS_CACHE_PRODUCTION_BINDING_MISMATCH")
         self.root = manifest_path.parent
         self.manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         scientific = {key: value for key, value in self.manifest.items()
                       if key not in {"content_sha256", "cache_id"}}
-        content_hash = _cache_sha256(scientific)
+        content_hash = canonical_sha256(scientific)
         if (self.manifest.get("schema_version") != DS_CACHE_SCHEMA_VERSION
                 or self.manifest.get("status") != "PASS"
                 or self.manifest.get("contract_id") != DS_RASTER_CONTRACT_ID
                 or self.manifest.get("content_sha256") != content_hash
-                or self.manifest.get("cache_id") != "p9ds_" + content_hash[:24]
+                or self.manifest.get("cache_id") != "s09ds_" + content_hash[:24]
                 or binding.get("cache_id") != self.manifest.get("cache_id")):
             raise DSRasterCacheError("DS_CACHE_MANIFEST_INVALID")
         entries = self.manifest.get("entries")
-        if not isinstance(entries, list) or len(entries) != int(self.manifest.get("entry_count", -1)):
+        if (not isinstance(entries, list)
+                or len(entries) != int(self.manifest.get("entry_count", -1))
+                or len(entries) != production.get("entry_count")):
             raise DSRasterCacheError("DS_CACHE_ENTRY_COUNT_MISMATCH")
+        original_rows = {int(row["global_index"]): row for row in production["entries"]}
+        if len(original_rows) != len(production["entries"]):
+            raise DSRasterCacheError("DS_CACHE_DUPLICATE_PRODUCTION_ROW")
         self.index: dict[tuple[str, str, str], dict[str, Any]] = {}
         for source in entries:
             row = dict(source)
             try:
                 identity = _ds_entry_identity(row)
                 key = (str(row["role"]), str(row["scene_id"]), str(row["view_id"]))
+                original = original_rows.pop(int(row["global_index"]), None)
             except (KeyError, TypeError) as error:
                 raise DSRasterCacheError("DS_CACHE_ENTRY_MALFORMED") from error
-            if (row.get("cache_key") != _cache_sha256(identity)
+            if (original is None
+                    or original["ds"] != {**identity, "cache_key": row["cache_key"]}
+                    or original["ds_sha256"] != row["payload_sha256"]
+                    or original["ds_size"] != row["payload_size_bytes"]
+                    or row["relative_path"] != f"entries/{row['cache_key']}.pt"
+                    or row.get("cache_key") != canonical_sha256(identity)
                     or row.get("contract_id") != DS_RASTER_CONTRACT_ID
                     or row.get("geometry_layout_version") != "3.0.0"
                     or tuple(row.get("shape", ())) != DS_RASTER_SHAPE
@@ -160,6 +191,8 @@ class DSRasterCacheReader:
                     or key in self.index):
                 raise DSRasterCacheError("DS_CACHE_ENTRY_IDENTITY_INVALID")
             self.index[key] = row
+        if original_rows:
+            raise DSRasterCacheError("DS_CACHE_MISSING_ENTRIES")
         self.maximum_memory_bytes = int(maximum_memory_bytes)
         self.memory: OrderedDict[tuple[str, str, str], tuple[torch.Tensor, int]] = OrderedDict()
         self.memory_bytes = self.hits = self.misses = self.evictions = 0

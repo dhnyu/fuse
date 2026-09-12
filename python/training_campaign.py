@@ -174,6 +174,28 @@ def comparison_authorities(plan: Mapping[str, Any], winner: Mapping[str, Any],
     return values
 
 
+def validate_current_results(results, authorities):
+    """Reject historical results even when their configuration names still match."""
+    expected = {a["content"]["scientific"]["configuration_id"]: a for a in authorities}
+    rows = list(results)
+    if len(rows) != len(expected) or {r.get("configuration_id") for r in rows} != set(expected):
+        raise TrainingControllerError("S09_CURRENT_RESULTS_INCOMPLETE")
+    for row in rows:
+        authority = expected[row["configuration_id"]]
+        scientific = authority["content"]["scientific"]
+        if (row.get("status") != "PASS" or not row.get("checkpoint_id")
+                or row.get("authority_id") != authority["identity"]
+                or row.get("phase") != scientific["phase"]
+                or row.get("model_id") != scientific["model_id"]):
+            raise TrainingControllerError("S09_STALE_CAMPAIGN_RESULT")
+
+
+def validate_current_winner(plan, winner, authorities):
+    validate_current_results(winner.get("candidate_results", []), authorities)
+    if dict(winner) != select_ofat_winner(plan, winner["candidate_results"]):
+        raise TrainingControllerError("S09_CURRENT_WINNER_MISMATCH")
+
+
 def publish_documents(documents: Iterable[Mapping[str, Any]], root: str | Path) -> list[str]:
     root = Path(root); paths = []
     for document in documents:

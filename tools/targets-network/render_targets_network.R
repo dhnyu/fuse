@@ -190,7 +190,9 @@ validate_network_model <- function(snapshot, nodes, edges, phase_assignments) {
   if (!identical(sort(names(phase_assignments)), sort(target_names))) stop("Phase assignments do not match manifest", call. = FALSE)
   unknown <- setdiff(unique(c(edges$from, edges$to)), target_names)
   if (length(unknown)) stop("Network edges reference unknown nodes: ", paste(unknown, collapse = ", "), call. = FALSE)
-  if (!identical(sum(nodes$status == "outdated"), length(snapshot$outdated))) stop("Rendered outdated count differs from independent tar_outdated()", call. = FALSE)
+  # Historical errors and running state take display precedence over outdated.
+  displayed_outdated <- setdiff(snapshot$outdated, c(snapshot$errored, snapshot$running))
+  if (!setequal(nodes$id[nodes$status == "outdated"], displayed_outdated)) stop("Rendered outdated set differs from independent tar_outdated()", call. = FALSE)
   graph <- igraph::graph_from_data_frame(edges[, c("from", "to")], directed = TRUE, vertices = target_names)
   if (!igraph::is_dag(graph)) stop("Target dependency graph contains a cycle", call. = FALSE)
   phase_levels <- unique(nodes$phase[order(nodes$phase_order)])

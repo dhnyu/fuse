@@ -48,6 +48,11 @@ uses a separate store.
   validation-selected winner, and only then enables 17 comparison runs. Formal
   progress is append-only in `logs/s09/campaign_status.tsv` and per-run TSVs;
   `logs/s09/current_status.txt` is the atomically replaced operator summary.
+  Runtime provenance binds all fresh authorities. Winner publication is isolated
+  by plan ID and runtime SHA; winner and campaign acceptance reject historical
+  authority IDs. The corrected family adapter requires a full fresh campaign,
+  not checkpoint or result reuse from the legacy global runtime. Immutable
+  prepared payloads are reused downstream through family-aware projection.
 - `_targets_evaluation.R`: current s10 evaluation preparation and acceptance.
 
 The previous s11 downstream implementation is retired pending a from-scratch

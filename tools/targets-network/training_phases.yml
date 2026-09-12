@@ -1,0 +1,35 @@
+schema_version: "1.0.0"
+phases:
+  - {id: Foundation, label: Foundation / Shared, color: "#475569"}
+  - {id: P0, label: S00 Methodology Authority, color: "#7C3AED"}
+  - {id: P1, label: S01 Scene Index, color: "#0369A1"}
+  - {id: P2, label: S02 Spatial Observations, color: "#0F766E"}
+  - {id: P3, label: S03 Scene Cache, color: "#4D7C0F"}
+  - {id: P4, label: S04 Augmentation, color: "#B45309"}
+  - {id: P5, label: S05 Fixed Queries, color: "#BE185D"}
+  - {id: P6, label: S06 Model Inputs, color: "#4338CA"}
+  - {id: P7, label: S07 Training Preflight, color: "#0E7490"}
+  - {id: P8, label: S08 Experiment Plan, color: "#A21CAF"}
+  - {id: P9, label: S09 Training, color: "#C2410C"}
+  - {id: P10, label: S10 Evaluation, color: "#9F1239"}
+  - {id: P11, label: S11 Downstream, color: "#365314"}
+  - {id: P12, label: S12 Retrieval, color: "#0F766E"}
+  - {id: Maintenance, label: Maintenance, color: "#6B7280"}
+
+exact: {}
+
+rules:
+  - {phase: P0, pattern: "^s00_", future: true}
+  - {phase: P1, pattern: "^(s01_|i01_)", future: true}
+  - {phase: P2, pattern: "^(s02_|i02_)", future: true}
+  - {phase: P3, pattern: "^(s03_|i03_)", future: true}
+  - {phase: P4, pattern: "^(s04_|i04_)", future: true}
+  - {phase: P5, pattern: "^(s05_|i05_)", future: true}
+  - {phase: P6, pattern: "^(s06_|i06_)", future: true}
+  - {phase: P7, pattern: "^(s07_|i07_)", future: true}
+  - {phase: P8, pattern: "^(s08_|i08_)", future: true}
+  - {phase: P9, pattern: "^s09_", future: false}
+  - {phase: P10, pattern: "^(s10_|i10_|p10_)", future: true}
+  - {phase: P11, pattern: "^(s11_|i11_|p11_)", future: true}
+  - {phase: P12, pattern: "^(s12_|i12_|retrieval_)", future: true}
+  - {phase: Maintenance, pattern: "^(m00_|maintenance_|seoul_data_preprocess$)", future: true}

@@ -123,4 +123,3 @@ Before/after preservation verifier returned PRESERVATION_PASS 2274 10: historica
 - S10/downstream: NO.
 - Implementation commit/push: PASS.
 - Next action requires separate authorization: fresh OFAT main epoch 0 -> 11 fresh OFAT -> new winner -> FM,A1,A2,A3,A4,A5,SSV,DS,B1,B2,B3,B4,B5,B6,B7,B8,B9 -> campaign acceptance.
-

@@ -185,11 +185,12 @@ test_that("current training source registry and operator are explicit", {
   implementation <- s09_resolve_runtime_implementation(runtime_sources)
   expect_false(identical(implementation$implementation_sha256,
                    "0479d8ae41fb22a4c3c2f82360fa2d12cd0f59fd73d8a50ef0868d2eff1cf66d"))
-  expect_length(implementation$source_hashes, 17L)
+  expect_length(implementation$source_hashes, 18L)
   expect_true(all(c("python/training_family_inputs.py", "python/training_prepared_cache.py") %in%
                     names(implementation$source_hashes)))
   expect_true(all(c("config/training_controller.yml", "python/training_transport.py",
-                    "python/ddp_nccl_transport_preflight.py", "scripts/training_controller.py") %in%
+                    "python/ddp_nccl_transport_preflight.py", "scripts/training_controller.py",
+                    "python/training_controller.py") %in%
                   names(implementation$source_hashes)))
   expect_length(implementation$authority_source_hashes, 2L)
   expect_identical(s09_training_contract_path(), normalizePath("config/training_controller.yml"))

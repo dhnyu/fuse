@@ -156,10 +156,7 @@ def run(args: argparse.Namespace) -> dict:
         if temporary_root not in output_root.parents or "--mode bounded-pilot" not in args.science_worker_command:
             raise TrainingControllerError("NONCANONICAL_PILOT_SCOPE_INVALID")
     else:
-        accepted_ids, accepted_hashes = accepted_scientific_configurations(
-            Path(contract["roots"]["immutable_publication"]) / "canonical", contract["roots"]["eligibility_snapshot"])
-        validate_startup(authority, startup_inputs(contract, authority), accepted_hashes=accepted_hashes,
-                         accepted_configuration_ids=accepted_ids, cuda_devices=visible_gpu_count())
+        validate_formal_startup(authority, contract)
     run_root = Path(args.output) / content["scientific_run_key"]
     lock_root = run_root.parent / ".pilot-locks" if args.noncanonical_pilot else Path(contract["roots"]["execution_locks"])
     with TrainingRunLock(lock_root, content["scientific_run_key"]):
@@ -307,6 +304,14 @@ def run(args: argparse.Namespace) -> dict:
         return result
 
 
+def validate_formal_startup(authority, contract):
+    accepted = accepted_scientific_configurations(
+        Path(contract["roots"]["immutable_publication"]) / "canonical",
+        contract["roots"]["eligibility_snapshot"], contract["roots"]["writable_runs"])
+    return validate_startup(authority, startup_inputs(contract, authority),
+                            accepted_configurations=accepted, cuda_devices=visible_gpu_count())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(); parser.add_argument(
         "mode", choices=("validate", "preflight", "transport-preflight", "run"))
@@ -321,10 +326,7 @@ def main() -> None:
     elif args.mode == "preflight":
         authority = load(args.authority); contract = yaml.safe_load(Path(args.contract).read_text(encoding="utf-8"))
         require_current_contract_ready(contract)
-        accepted_ids, accepted_hashes = accepted_scientific_configurations(
-            Path(contract["roots"]["immutable_publication"]) / "canonical", contract["roots"]["eligibility_snapshot"])
-        result = validate_startup(authority, startup_inputs(contract, authority), accepted_hashes=accepted_hashes,
-                                  accepted_configuration_ids=accepted_ids, cuda_devices=visible_gpu_count())
+        result = validate_formal_startup(authority, contract)
         print(json.dumps({"status": "PASS", "authority_id": authority["identity"], **result}, sort_keys=True))
     elif args.mode == "transport-preflight":
         if not args.log_root:

@@ -9,6 +9,7 @@ runtime_sources:
   - python/training_geometry_cache.py
   - python/training_prepared_cache.py
   - python/training_configuration.py
+  - python/training_controller.py
   - python/training_support.py
   - python/training_runtime_inputs.py
   - python/training_worker.py

@@ -161,8 +161,8 @@ def _git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
 
 
-def validate_startup(authority: dict[str, Any], inputs: StartupInputs, *, accepted_hashes: set[str],
-                     accepted_configuration_ids: set[str] | None = None,
+def validate_startup(authority: dict[str, Any], inputs: StartupInputs, *,
+                     accepted_configurations: tuple["AcceptedConfiguration", ...],
                      require_clean: bool = True, cuda_devices: int | None = None) -> dict[str, Any]:
     """Fail-closed production startup checks. This function creates no authority or run."""
     validate_training_authority(authority)
@@ -194,8 +194,8 @@ def validate_startup(authority: dict[str, Any], inputs: StartupInputs, *, accept
         valid_configuration = model is not None and canonical_sha256(model) == content["scientific"]["plan_configuration_hash"]
     if not valid_configuration: failures.append("EXPERIMENT_CONFIGURATION_INVALID")
     if content["parents"] != inputs.expected_parents: failures.append("SCIENTIFIC_PARENT_MISMATCH")
-    if content["scientific"]["configuration_hash"] in accepted_hashes: failures.append("SCIENTIFIC_CONFIGURATION_ALREADY_ACCEPTED")
-    if content["scientific"]["configuration_id"] in (accepted_configuration_ids or set()): failures.append("SCIENTIFIC_CONFIGURATION_ALREADY_ACCEPTED")
+    if is_accepted_duplicate(authority, accepted_configurations):
+        failures.append("SCIENTIFIC_CONFIGURATION_ALREADY_ACCEPTED")
     if not inputs.production_cache_root.is_dir():
         failures.append("PRODUCTION_CACHE_MISSING")
     else:
@@ -216,25 +216,80 @@ def validate_startup(authority: dict[str, Any], inputs: StartupInputs, *, accept
     return {"status": "PASS", "scientific_run_key": content["scientific_run_key"], "evaluation_ancestry": 0}
 
 
-def accepted_scientific_configurations(canonical_root: str | Path, eligibility_path: str | Path) -> tuple[set[str], set[str]]:
-    """Resolve explicitly eligible bundle configs; never enumerate a latest acceptance."""
+@dataclass(frozen=True)
+class AcceptedConfiguration:
+    domain: tuple[str, str, str]
+    configuration_id: str
+    configuration_hash: str
+    authority_id: str
+    run_id: str
+    acceptance_id: str
+    checkpoint_id: str
+
+
+def acceptance_domain(authority: dict[str, Any]) -> tuple[str, str, str]:
+    """Runtime SHA is the existing campaign generation key, not a wall-clock ID."""
+    validate_training_authority(authority)
+    content = authority["content"]
+    return (content["parents"]["experiment_plan_id"],
+            content["scientific"]["scientific_implementation_hash"],
+            content["scientific"]["phase"])
+
+
+def is_accepted_duplicate(authority, records):
+    domain = acceptance_domain(authority)
+    scientific = authority["content"]["scientific"]
+    return any(record.domain == domain and (
+        record.configuration_id == scientific["configuration_id"] or
+        record.configuration_hash == scientific["configuration_hash"]) for record in records)
+
+
+def accepted_scientific_configurations(canonical_root: str | Path, eligibility_path: str | Path,
+                                      writable_root: str | Path) -> tuple[AcceptedConfiguration, ...]:
+    """Validate every eligible immutable chain before applying runtime-scoped dedup."""
+    from checkpoint_resolution import load_acceptance_eligibility
+    from training_acceptance import validate_acceptance
+    from training_bundle import COMMIT_PATH
+
     canonical = Path(canonical_root); eligibility_path = Path(eligibility_path)
-    if not eligibility_path.is_file():
-        return set(), set()
-    eligibility = json.loads(eligibility_path.read_text(encoding="utf-8"))
-    validate_instance("acceptance_eligibility", eligibility)
-    identifiers: set[str] = set(); hashes: set[str] = set()
+    eligibility = load_acceptance_eligibility(eligibility_path)
+    records = []
     for entry in eligibility["entries"]:
         if entry["eligibility"] != "ELIGIBLE": continue
         acceptance = json.loads((canonical / "acceptances" / entry["acceptance_id"] / "acceptance.json").read_text(encoding="utf-8"))
-        configuration = json.loads((canonical / "bundles" / acceptance["run_bundle_id"] /
-                                    "config/scientific_configuration.json").read_text(encoding="utf-8"))
-        if configuration.get("content_sha256") != canonical_sha256(configuration.get("content")):
-            raise TrainingControllerError("ACCEPTED_CONFIGURATION_HASH_MISMATCH")
-        value = configuration["content"].get("configuration_id")
-        if not isinstance(value, str): raise TrainingControllerError("ACCEPTED_CONFIGURATION_ID_MISSING")
-        identifiers.add(value); hashes.add(configuration["content_sha256"])
-    return identifiers, hashes
+        validate_instance("acceptance", acceptance)
+        bundle = canonical / "bundles" / acceptance["run_bundle_id"]
+        authority = json.loads((bundle / "authority/authority_manifest.json").read_text())
+        validate_training_authority(authority)
+        if any(entry[key] != acceptance[key] for key in ("authority_id", "authority_hash")) or (
+                authority["identity"] != entry["authority_id"] or
+                authority["content_sha256"] != entry["authority_hash"]):
+            raise TrainingControllerError("ACCEPTED_AUTHORITY_MISMATCH")
+        run_id = training_run_id(authority)
+        run_key = authority["content"]["scientific_run_key"]
+        expected_key = canonical_sha256({key: authority["content"][key]
+                                        for key in ("scientific", "parents", "parent_hashes")})
+        if run_key != expected_key:
+            raise TrainingControllerError("ACCEPTED_RUN_KEY_MISMATCH")
+        # Native writer contract: namespace derives from run ID, storage from run key.
+        roots = {"p9-v2-native-" + run_id: Path(writable_root) / run_key / "checkpoints"}
+        valid = validate_acceptance(entry["acceptance_id"], canonical / "acceptances",
+                                    canonical / "bundles", roots)
+        if not valid.valid:
+            raise TrainingControllerError("ACCEPTED_EVIDENCE_INVALID:" + str(valid.error_code))
+        manifest = json.loads((bundle / COMMIT_PATH).read_text())
+        if manifest["run_id"] != run_id:
+            raise TrainingControllerError("ACCEPTED_RUN_ID_MISMATCH")
+        scientific = authority["content"]["scientific"]
+        record = AcceptedConfiguration(acceptance_domain(authority), scientific["configuration_id"],
+            scientific["configuration_hash"], authority["identity"], run_id,
+            entry["acceptance_id"], acceptance["checkpoint_id"])
+        if any(previous.domain == record.domain and (
+                previous.configuration_id == record.configuration_id or
+                previous.configuration_hash == record.configuration_hash) for previous in records):
+            raise TrainingControllerError("AMBIGUOUS_ACCEPTED_CONFIGURATION")
+        records.append(record)
+    return tuple(records)
 
 
 class TrainingRunLock:

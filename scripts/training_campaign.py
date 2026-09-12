@@ -17,7 +17,7 @@ from artifact_protocol import canonical_json_bytes  # noqa: E402
 from training_campaign import (  # noqa: E402
     comparison_authorities, current_lineage, ofat_authorities, publish_documents,
     scientific_implementation_hash, select_ofat_winner,
-    validate_current_results, validate_current_winner,
+    validate_current_results, validate_current_winner, ordered_comparisons,
 )
 from training_progress import CampaignProgress, configured_log_root  # noqa: E402
 
@@ -68,7 +68,10 @@ def main() -> None:
         rows = [load(path) for path in (args.results or [])[1:]]
         validate_current_results(rows, comparison_authorities(plan, winner, training, model, parents, implementation))
         if args.mode == "campaign-validate":
-            print(json.dumps({"status": "PASS"})); return
+            ordered = ordered_comparisons(rows, key="model_id")
+            paths = {row["model_id"]: path for row, path in zip(rows, args.results[1:])}
+            print(json.dumps({"status": "PASS", "comparison_result_paths": [
+                paths[row["model_id"]] for row in ordered]})); return
         acceptance = load(output)
         progress.append_campaign(
             "CAMPAIGN_ACCEPTED", config_or_model=acceptance["campaign_acceptance_id"],

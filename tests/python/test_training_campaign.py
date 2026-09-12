@@ -19,6 +19,7 @@ from training_campaign import (
     scientific_configuration, scientific_implementation_hash, select_ofat_winner,
     selection_hash, s08_selection_document,
     validate_current_results, validate_current_winner,
+    ordered_comparisons,
 )
 from training_controller import TrainingControllerError, training_run_id
 from training_finalization import selection_contract_content
@@ -155,6 +156,41 @@ def test_comparison_authorities_require_winner_and_propagate_hyperparameters():
         scientific_configuration(expected, "FM"))
     with pytest.raises(TrainingControllerError, match="WINNER_REQUIRED"):
         comparison_authorities(plan, {"status": "FAILED"}, training, model, parents, implementation)
+
+
+def test_dissertation_order_and_smoke_parity():
+    import s09_smoke
+    expected = ("FM", "A1", "A2", "A3", "A4", "A5", "SSV", "DS",
+                "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9")
+    assert COMPARISON_IDS == s09_smoke.COMPARISONS == expected
+    assert len(set(COMPARISON_IDS)) == 17
+    rows = [{"model_id": name} for name in reversed(expected)]
+    assert tuple(r["model_id"] for r in ordered_comparisons(rows, "model_id")) == expected
+    for invalid in (rows[:-1], rows + rows[:1], rows[:-1] + rows[:1]):
+        with pytest.raises(TrainingControllerError, match="INVENTORY_INVALID"):
+            ordered_comparisons(invalid, "model_id")
+
+
+def test_order_does_not_change_authorities_seeds_or_science(monkeypatch):
+    import training_campaign
+    plan, _, training, model, parents = values()
+    original = copy.deepcopy(plan)
+    implementation = scientific_implementation_hash(ROOT)
+    winner = select_ofat_winner(plan, results(ofat_authorities(plan, training, model, parents, implementation)))
+    new = comparison_authorities(plan, winner, training, model, parents, implementation)
+    legacy_order = tuple(row["name"] for row in plan["comparison_configurations"])
+    with monkeypatch.context() as context:
+        context.setattr(training_campaign, "COMPARISON_IDS", legacy_order)
+        old = comparison_authorities(plan, winner, training, model, parents, implementation)
+    by_model = lambda authorities: {a["content"]["scientific"]["model_id"]: a for a in authorities}
+    assert by_model(new) == by_model(old)
+    assert {training_run_id(a) for a in new} == {training_run_id(a) for a in old}
+    assert plan == original
+    shuffled = copy.deepcopy(plan)
+    shuffled["comparison_configurations"].reverse()
+    assert comparison_authorities(shuffled, winner, training, model, parents, implementation) == new
+    with pytest.raises(TrainingControllerError, match="INCOMPLETE"):
+        validate_current_results(results(new)[:-1], new)
 
 
 def test_prepared_cache_identity_changes_with_parent_or_implementation():

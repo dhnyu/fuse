@@ -1,3 +1,24 @@
+test_that("campaign summary preserves validated model order rather than path order", {
+  env <- new.env(parent = globalenv())
+  sys.source(file.path("..", "..", "R", "training_targets.R"), envir = env)
+  root <- tempfile("ordered-summary-"); dir.create(root)
+  on.exit(unlink(root, recursive = TRUE), add = TRUE)
+  files <- file.path(root, c("z.json", "a.json"))
+  for (path in files) jsonlite::write_json(list(plan_id = "plan", acceptance_id = "cache",
+                                              winner_id = "winner"), path)
+  contract <- file.path(root, "contract.yml")
+  yaml::write_yaml(list(roots = list(canonical_publication = root)), contract)
+  env$s09_campaign_cli <- function(mode, ...) {
+    if (mode == "campaign-validate") list(comparison_result_paths = as.list(files))
+    else list(status = "PASS")
+  }
+  captured <- NULL
+  env$s09_write_json <- function(value, path) { captured <<- value; path }
+  env$s09_accept_campaign(files[1], files[1], rev(files), files[1], contract,
+                          list(implementation_sha256 = "runtime"))
+  expect_identical(captured$comparison_acceptance_records, normalizePath(files))
+})
+
 test_that("current training graph encodes OFAT winner and comparison barriers", {
   skip_if_not_installed("targets")
   root <- normalizePath(file.path("..", ".."), mustWork = TRUE)

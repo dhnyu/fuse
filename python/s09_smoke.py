@@ -23,6 +23,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from artifact_protocol import canonical_sha256, sha256_file
+from training_campaign import COMPARISON_IDS
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE_ROOT = ROOT / "logs/s09/smoke"
@@ -30,8 +31,7 @@ OFAT = ("main", "ofat_d_64", "ofat_d_256", "ofat_K_aug_4", "ofat_K_aug_16",
         "ofat_augmentation_intensity_0.5", "ofat_augmentation_intensity_2.0",
         "ofat_ema_momentum_0.99", "ofat_peak_learning_rate_0.002",
         "ofat_peak_learning_rate_0.003", "ofat_peak_learning_rate_0.005")
-COMPARISONS = ("FM", "A1", "A2", "A3", "A4", "A5", "SSV", "DS",
-               "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9")
+COMPARISONS = COMPARISON_IDS
 CASES = OFAT + COMPARISONS
 SMOKE_SEED = 20260912
 CACHE_ID = "s09cache_dc4e9e271e40ffe8ae17967c"

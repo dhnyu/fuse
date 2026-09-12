@@ -17,7 +17,9 @@ identical to its predecessor.
 - Current training retains modality masking, momentum encoder, EMA, FIFO queue,
   and the contrastive projection head.
 - Formal OFAT: five axes and exactly 11 unique configurations.
-- Comparisons: FM, A1-A5, B1-B9, SSV, and DS, exactly 17 configurations.
+- Comparisons: exactly 17 configurations; operational execution/display order is
+  FM, A1-A5, SSV, DS, B1-B9 (canonical `training_campaign.COMPARISON_IDS`).
+  The immutable S08 definition-array order is not an execution ordinal or seed.
 - Source ablation removes inputs and uses the induced relation subgraph.
 
 ## Active main DAG

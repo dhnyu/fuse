@@ -257,19 +257,15 @@ s09_publish_comparison_authorities <- function(plan, contract, cache, winner, ru
 }
 
 s09_accept_campaign <- function(plan, winner, comparison_results, cache, contract, runtime_implementation) {
-  s09_campaign_cli("campaign-validate", plan, contract, cache, "unused",
+  validated <- s09_campaign_cli("campaign-validate", plan, contract, cache, "unused",
     c(winner, comparison_results), runtime_implementation = runtime_implementation)
-  comparisons <- lapply(comparison_results, jsonlite::read_json, simplifyVector = FALSE)
-  expected <- c("FM", paste0("A", 1:5), paste0("B", 1:9), "SSV", "DS")
-  if (length(comparisons) != 17L || !setequal(vapply(comparisons, `[[`, character(1L), "model_id"), expected)) {
-    stop("S09_COMPARISON_CAMPAIGN_INCOMPLETE", call. = FALSE)
-  }
+  comparison_results <- unlist(validated$comparison_result_paths, use.names = FALSE)
   value <- list(schema_version = "1.0.0", status = "PASS",
     runtime_implementation_sha256 = runtime_implementation$implementation_sha256,
     experiment_plan_id = jsonlite::read_json(plan, simplifyVector = FALSE)$plan_id,
     prepared_cache_acceptance_id = jsonlite::read_json(cache, simplifyVector = FALSE)$acceptance_id,
     winner_id = jsonlite::read_json(winner, simplifyVector = FALSE)$winner_id,
-    comparison_acceptance_records = sort(normalizePath(comparison_results, mustWork = TRUE)),
+    comparison_acceptance_records = normalizePath(comparison_results, mustWork = TRUE),
     training_runs = 28L, evaluation_runs = 0L)
   value$content_sha256 <- s09_digest(value)
   value$campaign_acceptance_id <- paste0("s09camp_", substr(value$content_sha256, 1L, 24L))

@@ -22,8 +22,20 @@ CURRENT_LINEAGE_KEYS = (
     "query_acceptance_id", "bank_acceptance_id", "scene_cache_acceptance_id",
     "scene_cache_id", "scientific_revision_token",
 )
-COMPARISON_IDS = ("FM", "A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3",
-                  "B4", "B5", "B6", "B7", "B8", "B9", "SSV", "DS")
+# Dissertation experimental setup: components, controlled baselines, then sources.
+# This operational order does not rewrite the immutable S08 definition array.
+COMPARISON_IDS = ("FM", "A1", "A2", "A3", "A4", "A5", "SSV", "DS",
+                  "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9")
+
+
+def ordered_comparisons(rows, key="name"):
+    """Validate the complete scientific inventory and order it for execution/display."""
+    rows = list(rows)
+    if (len(rows) != len(COMPARISON_IDS)
+            or {row.get(key) for row in rows} != set(COMPARISON_IDS)):
+        raise TrainingControllerError("S09_COMPARISON_INVENTORY_INVALID")
+    by_id = {row[key]: row for row in rows}
+    return [by_id[name] for name in COMPARISON_IDS]
 
 
 def scientific_implementation_hash(root: str | Path) -> str:
@@ -156,11 +168,11 @@ def comparison_authorities(plan: Mapping[str, Any], winner: Mapping[str, Any],
     winner_row = next((row for row in plan["hyperparameter_configurations"]
                        if row["configuration_id"] == winner["selected_configuration_id"]), None)
     comparisons = plan.get("comparison_configurations")
-    if winner_row is None or not isinstance(comparisons, list) or tuple(row.get("name") for row in comparisons) != COMPARISON_IDS:
+    if winner_row is None or not isinstance(comparisons, list):
         raise TrainingControllerError("S09_COMPARISON_INVENTORY_INVALID")
     selection = selection_hash(plan)
     values = []
-    for model in comparisons:
+    for model in ordered_comparisons(comparisons):
         row = {**winner_row, "configuration_id": f"cmp_{model['name']}", "model_family": model["name"]}
         routed = materialize_hyperparameter_configuration(row, dict(base_training), dict(base_model))
         comparison_hash = canonical_sha256(scientific_configuration(row, model["name"]))

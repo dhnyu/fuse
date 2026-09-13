@@ -63,10 +63,12 @@ def build_logical_index(
 class ProductionPreparedData:
     """Read accepted immutable prepared views by logical scientific identity."""
 
-    def __init__(self, root: str | Path, profile: str, logical_k: int):
+    def __init__(self, root: str | Path, profile: str, logical_k: int, *, verify_payloads: bool = False):
         self.root = Path(root)
         acceptance = json.loads((self.root / "acceptance.json").read_text(encoding="utf-8"))
         manifest_path = self.root / "production_cache_manifest.json"
+        self.payload_checks = ({int(row["global_index"]): row for row in
+                               json.loads(manifest_path.read_text())["entries"]} if verify_payloads else None)
         if (acceptance.get("status") != "PASS"
                 or acceptance.get("cache_id") != self.root.name
                 or acceptance.get("manifest_sha256") != sha256_file(manifest_path)):
@@ -102,6 +104,11 @@ class ProductionPreparedData:
         if spec is None:
             raise PreparedCacheError("PREPARED_VIEW_MISSING")
         index = int(spec["global_index"])
+        if self.payload_checks is not None:
+            path = self.root / "prepared" / f"{index:06d}.pt"
+            row = self.payload_checks[index]
+            if path.stat().st_size != row["prepared_size"] or sha256_file(path) != row["prepared_sha256"]:
+                raise PreparedCacheError("PREPARED_REPLICA_PAYLOAD_CORRUPTION")
         payload = torch.load(
             self.root / "prepared" / f"{index:06d}.pt", map_location="cpu", weights_only=False)
         if payload.get("spec") != spec or int(payload.get("global_index", -1)) != index:

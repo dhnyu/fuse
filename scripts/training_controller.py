@@ -156,7 +156,12 @@ def run(args: argparse.Namespace) -> dict:
         if temporary_root not in output_root.parents or "--mode bounded-pilot" not in args.science_worker_command:
             raise TrainingControllerError("NONCANONICAL_PILOT_SCOPE_INVALID")
     else:
-        validate_formal_startup(authority, contract)
+        startup = validate_formal_startup(authority, contract)
+        with progress.run_path.with_suffix(".cache_read.jsonl").open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps({"timestamp": now(), "authority_id": authority["identity"],
+                "run_id": training_run_id(authority), "canonical_cache_root": contract["roots"]["production_cache"],
+                "cache_read_root": startup["cache_read_root"]}, sort_keys=True) + "\n")
+            stream.flush(); os.fsync(stream.fileno())
     run_root = Path(args.output) / content["scientific_run_key"]
     lock_root = run_root.parent / ".pilot-locks" if args.noncanonical_pilot else Path(contract["roots"]["execution_locks"])
     with TrainingRunLock(lock_root, content["scientific_run_key"]):
@@ -305,11 +310,14 @@ def run(args: argparse.Namespace) -> dict:
 
 
 def validate_formal_startup(authority, contract):
+    from training_cache_storage import resolve_cache_read_root
+    read_root = resolve_cache_read_root(contract["roots"]["production_cache"])
     accepted = accepted_scientific_configurations(
         Path(contract["roots"]["immutable_publication"]) / "canonical",
         contract["roots"]["eligibility_snapshot"], contract["roots"]["writable_runs"])
-    return validate_startup(authority, startup_inputs(contract, authority),
-                            accepted_configurations=accepted, cuda_devices=visible_gpu_count())
+    result = validate_startup(authority, startup_inputs(contract, authority),
+                              accepted_configurations=accepted, cuda_devices=visible_gpu_count())
+    return {**result, "cache_read_root": str(read_root)}
 
 
 def main() -> None:

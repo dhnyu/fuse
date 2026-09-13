@@ -46,6 +46,48 @@ for the complete machine-readable contract.
 
 ## Validation
 
+### S09 SSD read replica
+
+The canonical HDD cache remains the immutable authority. An optional SSD copy
+changes only physical prepared/geometry/DS reads, for training and validation.
+P1 scene centers and lineage metadata still resolve from current accepted parents.
+No bind mount, symlink, targets-store editing, or scientific cache rebuild is needed.
+
+```bash
+CANONICAL=/mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/prepared_cache/s09cache_dc4e9e271e40ffe8ae17967c
+REPLICA="$HOME/fuse-cache/s09cache_dc4e9e271e40ffe8ae17967c"
+python scripts/s09_cache_replica.py plan --canonical-root "$CANONICAL"
+python scripts/s09_cache_replica.py copy --canonical-root "$CANONICAL" --read-root "$REPLICA"
+python scripts/s09_cache_replica.py verify --canonical-root "$CANONICAL" --read-root "$REPLICA"
+```
+
+Copy is sequential and verifies every destination byte against accepted hashes
+before creating `replica_verified.json`. It preserves the HDD original. Existing
+complete destination files are verified and reused, never overwritten. Corrupt
+files or an interrupted `.copying` file stop the operation and remain evidence;
+use a fresh destination parent or explicitly investigate before retrying. Space
+checking reserves an additional 1 GiB. A full copy/verify is substantial HDD I/O;
+schedule it separately from competing raster jobs.
+
+Only after full replica verification and separate training authorization:
+
+```bash
+FUSE_S09_CACHE_READ_ROOT="$REPLICA" Rscript scripts/run_training_targets.R campaign
+```
+
+An unset variable preserves canonical reads; an explicitly empty, missing,
+unverified or mismatched root fails closed before formal GPU launch. There is no
+automatic HDD fallback. Startup verifies all inventory sizes and metadata hashes;
+prepared payloads are hashed at consumption, and geometry/DS retain their existing
+payload hash checks. The runtime records physical placement in per-run
+`.cache_read.jsonl` evidence. `verify` explicitly rehashes the entire replica.
+
+Placement does not change S08 or the accepted cache identity. The implementation
+is S09 runtime-bound and requires fresh campaign authorities after this repair;
+do not reuse the interrupted old campaign's results/checkpoints. No scientific
+target declarations or S01-S08 paths change. Verify main-store currentness before
+any future formal launch. Do not commit replica data, receipts or logs.
+
 Inspect a graph without executing targets:
 
 ```bash

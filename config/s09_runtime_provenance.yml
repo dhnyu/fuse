@@ -13,6 +13,7 @@ runtime_sources:
   - python/training_support.py
   - python/training_runtime_inputs.py
   - python/training_worker.py
+  - python/training_cache_storage.py
   - python/training_progress.py
   - python/training_transport.py
   - python/ddp_nccl_transport_preflight.py

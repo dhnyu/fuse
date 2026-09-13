@@ -128,6 +128,8 @@ def selected_pair(scene: str, available: tuple[int, ...], config: dict[str, Any]
 
 
 def load_worker_values(spec: Mapping[str, str]) -> dict[str, Any]:
+    from training_cache_storage import resolve_cache_read_root
+    read_root = resolve_cache_read_root(spec["cache_root"])
     matrix = json.loads(Path(spec["matrix"]).read_text(encoding="utf-8"))
     row = next((item for item in current_plan_rows(matrix)
                 if item["configuration_id"] == spec["configuration_id"]), None)
@@ -138,8 +140,9 @@ def load_worker_values(spec: Mapping[str, str]) -> dict[str, Any]:
     routed = materialize_hyperparameter_configuration(row, base_training, base_model)
     routed["training"]["training"].update({"maximum_epochs": 200, "updates_per_epoch": 76, "maximum_updates": 15_200})
     config, model_config = routed["training"], routed["model"]
-    data = ProductionPreparedData(spec["cache_root"], routed["bank_binding"]["profile_id"],
-                                  routed["bank_binding"]["effective_k"])
+    data = ProductionPreparedData(read_root, routed["bank_binding"]["profile_id"],
+                                  routed["bank_binding"]["effective_k"],
+                                  verify_payloads=read_root != Path(spec["cache_root"]).resolve())
     scene_centers = SceneCenterIndex.from_current_contract(base_training, spec["cache_root"])
     vocabulary = build_vocabulary(spec["categories"])
     vocabulary_sizes = validate_vocabulary_contract(vocabulary)
@@ -148,8 +151,8 @@ def load_worker_values(spec: Mapping[str, str]) -> dict[str, Any]:
         "family": row.get("model_family", "FM"), "data": data, "scene_centers": scene_centers,
         "vocabulary": vocabulary, "vocabulary_sizes": vocabulary_sizes,
         "vocabulary_masks": {field: int(contract["mask"]) for field, contract in vocabulary.items()},
-        "geometry_cache": GeometryCacheReader(Path(spec["cache_root"]) / "geometry/geometry_cache_manifest.json", 4 * 1024**3),
-        "ds_raster_cache": (DSRasterCacheReader(spec["cache_root"])
+        "geometry_cache": GeometryCacheReader(read_root / "geometry/geometry_cache_manifest.json", 4 * 1024**3),
+        "ds_raster_cache": (DSRasterCacheReader(read_root)
                             if row.get("model_family", "FM") == "DS" else None),
     }
 

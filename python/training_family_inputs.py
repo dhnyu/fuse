@@ -5,12 +5,14 @@ Immutable prepared payloads retain full sources; this boundary precedes all enco
 """
 
 import copy
+import hashlib
 from dataclasses import dataclass
 from typing import Any
 import torch
 from model_families import FamilyContract, family_contract
 from model_data import validate_geometry_layout
-from training_support import collate, derive_seed, uniform01
+from canonical_config import canonical_json_bytes
+from training_support import collate, seed_payload
 
 MODALITIES = ("relative", "geometry", "semantic", "environmental")
 SOURCES = ("B", "R", "P")
@@ -25,21 +27,26 @@ def index_tensor(value):
 
 
 def ptr(lengths):
-    return torch.tensor(
-        [0, *torch.tensor(lengths, dtype=torch.int64).cumsum(0).tolist()],
-        dtype=torch.int64,
-    )
+    lengths = torch.as_tensor(lengths, dtype=torch.int64)
+    return torch.cat((lengths.new_zeros(1), lengths.cumsum(0)))
 
 
 def segments(offsets, rows):
-    selected = [
-        torch.arange(int(offsets[i]), int(offsets[i + 1]), dtype=torch.int64)
-        for i in rows
-    ]
-    return (
-        torch.cat(selected) if selected else torch.empty(0, dtype=torch.int64),
-        ptr([len(x) for x in selected]),
-    )
+    rows = index_tensor(rows)
+    offsets = index_tensor(offsets)
+    starts = offsets[rows]
+    lengths = offsets[rows + 1] - starts
+    if bool((lengths < 0).any()):
+        raise ValueError("negative segment length")
+    compact = ptr(lengths)
+    # Full retention keeps the original contiguous storage order, without a
+    # Python range allocation per entity/part (including empty segments).
+    if (len(rows) == len(offsets) - 1
+            and torch.equal(rows, torch.arange(len(rows))) and int(offsets[0]) == 0):
+        return torch.arange(int(offsets[-1])), compact
+    indices = torch.arange(int(compact[-1]))
+    indices += torch.repeat_interleave(starts - compact[:-1], lengths)
+    return indices, compact
 
 
 def check_sample(s):
@@ -164,19 +171,12 @@ def check_sample(s):
         v = g[key]
         if int(v[0]) != 0 or int(v[-1]) != terminal or bool((v[1:] < v[:-1]).any()):
             raise ValueError("geometry offsets invalid")
-    for entity in range(n):
-        comps = g["ring_component_index"][
-            int(g["entity_ring_offsets"][entity]) : int(
-                g["entity_ring_offsets"][entity + 1]
-            )
-        ]
-        if comps.numel() and not bool(
-            (
-                (comps >= g["entity_part_offsets"][entity])
-                & (comps < g["entity_part_offsets"][entity + 1])
-            ).all()
-        ):
-            raise ValueError("ring owner mismatch")
+    ring_counts = g["entity_ring_offsets"][1:] - g["entity_ring_offsets"][:-1]
+    comps = g["ring_component_index"]
+    lower = torch.repeat_interleave(g["entity_part_offsets"][:-1], ring_counts)
+    upper = torch.repeat_interleave(g["entity_part_offsets"][1:], ring_counts)
+    if comps.shape != lower.shape or not bool(((comps >= lower) & (comps < upper)).all()):
+        raise ValueError("ring owner mismatch")
     t = s["topology"]
     roads = index_tensor(t["source_chain_road_index"])
     index_tensor(t["source_chain_offsets"])
@@ -211,7 +211,7 @@ def project(s, family):
     e = s["entities"]
     n = len(e["local_entity_id"])
     allowed = [i for i, x in enumerate(SOURCES) if x in c.retained_sources]
-    keep = torch.tensor([int(x) in allowed for x in e["entity_type"]], dtype=torch.bool)
+    keep = torch.isin(e["entity_type"], torch.tensor(allowed, dtype=torch.int64))
     rows = torch.where(keep)[0]
     reverse = torch.full((n,), -1, dtype=torch.int64)
     reverse[rows] = torch.arange(len(rows))
@@ -252,14 +252,11 @@ def project(s, family):
     parts, ep = segments(g["entity_part_offsets"], rows)
     coords, pc = segments(g["part_coordinate_offsets"], parts)
     rings, er = segments(g["entity_ring_offsets"], rows)
-    ringpieces = [
-        torch.arange(
-            int(g["ring_coordinate_start"][i]), int(g["ring_coordinate_end"][i])
-        )
-        for i in rings
-    ]
-    rcoords = torch.cat(ringpieces) if ringpieces else torch.empty(0, dtype=torch.int64)
-    rp = ptr([len(x) for x in ringpieces])
+    ring_offsets = torch.cat((g["ring_coordinate_start"],
+                              g["ring_coordinate_end"][-1:]))
+    if not len(ring_offsets):
+        ring_offsets = torch.zeros(1, dtype=torch.int64)
+    rcoords, rp = segments(ring_offsets, rings)
     partmap = torch.full(
         (len(g["part_coordinate_offsets"]) - 1,), -1, dtype=torch.int64
     )
@@ -355,6 +352,44 @@ def project_fourier(values, metadata, retained_ids):
     return result
 
 
+class EntitySeedBytes:
+    """Training masking: prevalidate fixed JSON fields, retain exact seed bytes.
+
+    The only variable is the canonical decimal integer local_entity_id. Keys
+    and all fixed values still use the existing canonical JSON encoder.
+    """
+
+    def __init__(self, config, epoch, view_role, global_rank, scene, operation):
+        payload = seed_payload(config, "modality-mask", epoch=epoch,
+                               global_rank=global_rank, worker_id=0,
+                               operation=operation, scene_id=scene,
+                               local_entity_id=0, view_role=view_role)
+        canonical_json_bytes(payload)
+        pieces = []
+        for key in sorted(payload):
+            value = (None if key == "local_entity_id" else
+                     canonical_json_bytes(payload[key])[:-1])
+            pieces.append((canonical_json_bytes(key)[:-1] + b":", value))
+        position = sorted(payload).index("local_entity_id")
+        self.prefix = b"{" + b",".join(k + v for k, v in pieces[:position])
+        if position:
+            self.prefix += b","
+        self.prefix += pieces[position][0]
+        self.suffix = b""
+        if position + 1 < len(pieces):
+            self.suffix = b"," + b",".join(k + v for k, v in pieces[position + 1:])
+        self.suffix += b"}\n"
+
+    def payload(self, entity_id):
+        if type(entity_id) is not int:
+            raise ValueError("mask entity identity must be an integer")
+        return self.prefix + str(entity_id).encode("ascii") + self.suffix
+
+    def seed(self, entity_id):
+        digest = hashlib.sha256(self.payload(entity_id)).digest()
+        return int.from_bytes(digest[:8], "big", signed=False) & ((1 << 63) - 1)
+
+
 def family_modality_assignments(batch, config, epoch, view_role, global_rank=0):
     """Same seed/gate as legacy; sample only eligible GLOBAL IDs then map to local."""
     meta = batch["family_projection"]
@@ -370,35 +405,19 @@ def family_modality_assignments(batch, config, epoch, view_role, global_rank=0):
     local = assignments.clone()
     ptrs = batch["scene_ptr"].tolist()
     ids = batch["entities"]["local_entity_id"].tolist()
+    choices_by_row = [[i for i, enabled in enumerate(row) if enabled]
+                      for row in available.tolist()]
+    probability = float(config["training"]["modality_mask_probability"])
     for si, scene in enumerate(batch["scene_ids"]):
+        gate = EntitySeedBytes(config, epoch, view_role, global_rank, scene, "entity-gate")
+        pick_seed = EntitySeedBytes(config, epoch, view_role, global_rank, scene, "available-modality")
         for row in range(ptrs[si], ptrs[si + 1]):
-            fields = dict(
-                epoch=epoch,
-                global_rank=global_rank,
-                worker_id=0,
-                operation="entity-gate",
-                scene_id=scene,
-                local_entity_id=int(ids[row]),
-                view_role=view_role,
-            )
-            if uniform01(config, "modality-mask", **fields) >= float(
-                config["training"]["modality_mask_probability"]
-            ):
+            if (gate.seed(int(ids[row])) >> 10) * (2.0 ** -53) >= probability:
                 continue
-            choices = torch.where(available[row])[0].tolist()
+            choices = choices_by_row[row]
             if not choices:
                 continue  # Explicit NOT_MASKABLE (-1), including DS.
-            pick = derive_seed(
-                config,
-                "modality-mask",
-                epoch=epoch,
-                global_rank=global_rank,
-                worker_id=0,
-                operation="available-modality",
-                scene_id=scene,
-                local_entity_id=int(ids[row]),
-                view_role=view_role,
-            ) % len(choices)
+            pick = pick_seed.seed(int(ids[row])) % len(choices)
             selected = choices[pick]
             assignments[row] = selected
             local[row] = active.index(selected)

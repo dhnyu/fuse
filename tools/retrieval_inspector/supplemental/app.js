@@ -107,4 +107,4 @@ async function init(){
  $('provenanceText').textContent=`${config.acceptance}\nSupplemental display only. No selection or scientific recomputation.\nGeometry: unchanged accepted SVG; attributes: same-P3-payload, stored per-entity categorical values.\nAll models show common original scene context, including modalities they may not consume.\nLC uses the existing display's fraction-blended palette and valid-support-weighted legend; no new classification.\nDEM is a stored standardized tensor, not raw metres. No raster resampling.\nRoad lane: raw LANES from the exact accepted P3 parent payload, bound by payload SHA and ordered entity IDs. No spatial matching, inverse normalization or inference.\nS09, accepted S10 and S11 unchanged.`;
  await render();
 }
-init().catch(fail);
+if (!window.S10_BANDS) init().catch(fail);

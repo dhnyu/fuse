@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>S10 Retrieval Inspector</title><link rel="stylesheet" href="augmentation.css"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="legacy_bands.css"><link rel="stylesheet" href="bands.css"></head>
+<body data-query="__QUERY__" data-config-sha="__CONFIG_SHA__">
+<header><div class="brand"><h1>S10 Retrieval Inspector</h1><span>Read-only accepted retrieval · qualitative inspection</span></div><div class="controls">
+<div class="control"><label for="query">Query</label><select id="query"></select></div>
+<div class="control"><label>Navigation</label><div><button id="prev" aria-label="Previous query">&lt;</button> <button id="next" aria-label="Next query">&gt;</button></div></div>
+<div class="control"><label for="group">Model group</label><select id="group"><option value="all">All</option><option>OFAT</option><option>COMPARISON</option></select></div>
+<div class="control"><label for="model">Model</label><select id="model"></select></div>
+<div class="control"><label for="mode">Retrieval setting</label><select id="mode"><option value="standard">Standard</option><option value="nonlocal">Non-local ≥ 2 km</option></select></div>
+<div class="control"><label>Vector layers</label><div class="layer-group"><label><input type="checkbox" data-layer="B" checked>Building</label><label><input type="checkbox" data-layer="R" checked>Road</label><label><input type="checkbox" data-layer="P" checked>POI</label></div></div>
+<div class="control"><label>Raster layers</label><div class="layer-group"><label><input type="checkbox" data-layer="LC" checked>LC</label><label><input type="checkbox" data-layer="DEM" checked>DEM</label></div></div>
+<div class="control"><label>Commands</label><div><button id="resetZoom" title="Reset all vector panels to the 500 m extent">Reset zoom</button> <button id="toggleProvenance">Provenance</button></div></div>
+</div></header>
+<main><div id="error" class="warning" role="alert" hidden></div><div class="case-meta"><h2 id="caseTitle"></h2><code id="identity"></code></div>
+<section id="comparison" class="comparison" aria-live="polite"></section>
+<section id="provenance" class="section provenance hidden"><h2>Provenance and display semantics</h2><pre id="provenanceText"></pre></section>
+</main><div class="tooltip" id="tooltip"></div><script>window.S10_BANDS=true;</script><script src="app.js"></script><script src="bands_app.js"></script></body></html>

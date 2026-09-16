@@ -1,0 +1,17 @@
+/* Comparison sizing comes verbatim from legacy 10c02e4; these are host adapters. */
+#comparison{--green:#176b52;--muted:#657069;--line:#cbd3ce}
+#comparison .strip button svg{width:30px;height:30px;display:block}
+#comparison .map-frame{overflow:hidden}
+#comparison .map-frame svg,#comparison .map-frame img,#comparison .map-frame canvas{width:100%;height:100%;display:block}
+#comparison .scene-id{font:10px ui-monospace,monospace;overflow-wrap:anywhere}
+#comparison .column-head{top:var(--header-height,100px)}
+#comparison .raster-pair{display:grid;grid-template-columns:1fr;gap:7px}
+#comparison [data-raster="LC"] img{image-rendering:pixelated}
+#comparison [data-raster="DEM"] img{image-rendering:auto}
+#comparison .column-head h2{background:transparent;color:inherit}
+#comparison .detail-host>.panel{border:0}
+#comparison .detail-host>.panel>h3{display:none}
+#comparison .strip button:focus-visible{outline:3px solid #80bfc5;outline-offset:1px}
+/* Only categorical display: integer device-pixel cell boundaries, smoothing off. */
+#comparison .lc-canvas{image-rendering:pixelated}
+@media(max-width:1336px){#comparison{min-width:0;grid-template-columns:repeat(5,minmax(0,1fr))}#comparison .strip{grid-template-columns:repeat(2,minmax(0,1fr));height:auto}#comparison .strip-spacer{height:252px}}

@@ -18,8 +18,12 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'python'))
 from retrieval_artifacts import load, read_json, file_hash, digest, encoded, publish_bytes, require
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from thematic import bind, bind_lanes
+from lane_source import load_lanes
 
 ACCEPTANCE = 's10_acceptance_5471f74031f267c4253df231'
+PREVIOUS = Path('/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers/viewer_404735cf7d702a5704f0b8f1')
 # UI palette inherited from augmentation_inspector; channel 1 is palette entry 1.
 PALETTE = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999','#66c2a5','#fc8d62','#8da0cb','#e78ac3','#a6d854','#ffd92f','#e5c494','#b3b3b3','#1b9e77','#d95f02','#7570b3','#e7298a','#6a3d9a']
 
@@ -115,6 +119,10 @@ def build(root, destination, limit=None):
     consumed[str(root/'original_inputs/manifest.json')] = file_hash(root/'original_inputs/manifest.json')
     names_path = next(Path(p) for p in models['body']['config']['source_pins'] if p.endswith('/spatial_categories.json'))
     require(file_hash(names_path) == original['body']['categories_sha256'] == models['body']['config']['source_pins'][str(names_path)], 'VIEWER_VOCABULARY')
+    previous = read_json(PREVIOUS/'viewer_receipt.json')
+    require(previous['parent']==ACCEPTANCE and previous['parent_sha256']==file_hash(root/'acceptance.json') and
+            previous['sources'][str(root/'original_inputs/manifest.json')]==file_hash(root/'original_inputs/manifest.json'), 'THEMATIC_PREVIOUS_BINDING')
+    consumed[str(PREVIOUS/'viewer_receipt.json')] = file_hash(PREVIOUS/'viewer_receipt.json')
     names = labels(read_json(names_path))
     consumed[str(names_path)] = file_hash(names_path)
     qrows = queries['body']['rows']
@@ -135,8 +143,21 @@ def build(root, destination, limit=None):
         for q in qids:
             data[q][mid] = {mode: groups[q,mode] for mode in ('standard','nonlocal')}
     selected = qrows[:limit] if limit else qrows
+    scene_ids = {q['scene_id'] for q in selected}
+    for q in selected:
+        for modes in data[q['scene_id']].values():
+            for rows in modes.values(): scene_ids.update(r['gallery_scene_id'] for r in rows)
+    lane_rows,lane_sources=load_lanes(models,scene_ids)
+    consumed.update(lane_sources)
     source = Path(__file__).parent
+    augmentation_source = source.parents[1] / 'augmentation_inspector/inspector.py'
+    augmentation_text = augmentation_source.read_text()
+    augmentation_css = augmentation_text.split('<style>',1)[1].split('</style>',1)[0]
     code = {p.name:file_hash(p) for p in sorted(source.iterdir()) if p.suffix in ('.py','.js','.css','.html')}
+    code['augmentation_inspector/inspector.py'] = file_hash(augmentation_source)
+    # The entity-order proof is tied to the exact accepted implementation, not names alone.
+    for module in ('python/retrieval_render.py','python/retrieval_originals.py','python/model_data.py'):
+        require(file_hash(source.parents[2]/module)==models['body']['runtime']['sources'][module], 'THEMATIC_ORDER_IMPLEMENTATION')
     identity = {'parent':acceptance['artifact_id'], 'parent_sha256':file_hash(root/'acceptance.json'),
                 'sources':consumed,'code':code,'query_count':len(selected),'scope':'supplemental UI only'}
     out = destination / ('viewer_'+digest(identity)[:24])
@@ -147,10 +168,7 @@ def build(root, destination, limit=None):
         files[name] = file_hash(out/name)
     for name in ('app.js','style.css'):
         put(name,(source/name).read_bytes())
-    scene_ids = {q['scene_id'] for q in selected}
-    for q in selected:
-        for modes in data[q['scene_id']].values():
-            for rows in modes.values(): scene_ids.update(r['gallery_scene_id'] for r in rows)
+    put('augmentation.css',augmentation_css.encode())
     by_scene = {s['scene_id']:s for s in renders['body']['scenes']}
     verified = {(root/'renders'/f['path']).resolve() for f in renders['files']}
     original_files = {f['path']:f for f in original['files']}
@@ -159,8 +177,15 @@ def build(root, destination, limit=None):
         require(sid+'.pt' in original_files, 'VIEWER_INPUT_MISSING')
         sample = torch.load(root/'original_inputs'/(sid+'.pt'), map_location='cpu', weights_only=True)
         require(sample['scene_id'] == sid and sample['split'] == 'evaluation', 'VIEWER_SCENE_BINDING')
-        display = scene_display(sample,names)
-        display['svg'] = Path(by_scene[sid]['path']).read_text()
+        # Reuse existing LC/DEM display images exactly, without raster colour computation.
+        previous_name = 'scenes/'+sid+'.json'
+        require(file_hash(PREVIOUS/previous_name)==previous['files'][previous_name], 'THEMATIC_PREVIOUS_PAYLOAD')
+        display = read_json(PREVIOUS/previous_name)
+        require(display['scene_id']==sid and display['svg']==Path(by_scene[sid]['path']).read_text(), 'THEMATIC_PREVIOUS_SVG')
+        require(by_scene[sid]['rendering_code_hash']==models['body']['runtime']['sources']['python/retrieval_render.py'], 'THEMATIC_RENDER_IMPLEMENTATION')
+        display['thematic'] = bind(sample, display['svg'], by_scene[sid], names, original_files[sid+'.pt']['sha256'])
+        display['thematic']['maps']['Road lane'] = bind_lanes(sample,lane_rows[sid])
+        display['thematic']['road_lane'] = {'available':True,'source':'same accepted P3 parent payload; raw LANES, no inverse normalization'}
         put('scenes/'+sid+'.json',encoded(display))
         if i%100 == 0: print(f'display scenes {i+1}/{len(scene_ids)}',flush=True)
     config = {'acceptance':acceptance['artifact_id'],'queries':selected,

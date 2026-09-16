@@ -1,10 +1,19 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Spatial Scene Retrieval Inspector</title><link rel="stylesheet" href="style.css"></head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>S10 Retrieval Inspector</title><link rel="stylesheet" href="augmentation.css"><link rel="stylesheet" href="style.css"></head>
 <body data-query="__QUERY__" data-config-sha="__CONFIG_SHA__">
-<header><div><small>S10 · RETRIEVAL VISUALIZATION</small><h1>Spatial Scene Retrieval Inspector</h1><p>Fixed queries. Accepted results. Qualitative interpretation only.</p></div><span class="badge">Scientific evidence · PASS</span></header>
-<nav class="controls" aria-label="Inspection controls">
-<label>Query<select id="query"></select></label><div class="buttons"><button id="prev" aria-label="Previous query">←</button><button id="next" aria-label="Next query">→</button></div>
-<label>Model group<select id="group"><option value="all">All models</option><option>OFAT</option><option>COMPARISON</option></select></label>
-<label>Model<select id="model"></select></label><label>Retrieval setting<select id="mode"><option value="standard">Standard</option><option value="nonlocal">Non-local ≥ 2 km</option></select></label>
-<fieldset><legend>Visible layers</legend><label><input type="checkbox" data-layer="B" checked>Building</label><label><input type="checkbox" data-layer="R" checked>Road</label><label><input type="checkbox" data-layer="P" checked>POI</label><label><input type="checkbox" data-layer="LC" checked>LC</label><label><input type="checkbox" data-layer="DEM" checked>DEM</label></fieldset></nav>
-<main><div id="error" role="alert" hidden></div><div id="summary" class="summary-strip" aria-live="polite"></div><div class="section-heading"><h2>Scene comparison</h2><span>Query + published ranks 1–5 · select a scene to enlarge</span></div><div id="strip" class="strip"></div><div class="section-heading"><h2>Focused inspection</h2><span>500 m scene extent · north up · common original scene context</span></div><div id="focus" class="focus"></div>
-<details class="provenance"><summary>Evidence & display semantics</summary><p id="provenance"></p><p>All model views show the same original scene context, including modalities a selected model may not consume. Land cover colours blend stored class fractions; composition is weighted by stored valid support. DEM colours show stored standardized means on a fixed −3 to +3 display scale, clipped only for colour. Transparent cells are unavailable. No raster extraction or interpolation.</p><p>No model selection, winner changes, checkpoint changes, retuning or S11 execution. This supplemental UI does not replace the accepted S10 pages or acceptance.</p></details></main><script src="app.js"></script></body></html>
+<header><div class="brand"><h1>S10 Retrieval Inspector</h1><span>Read-only accepted retrieval · qualitative inspection</span></div><div class="controls">
+<div class="control"><label for="query">Query</label><select id="query"></select></div>
+<div class="control"><label>Navigation</label><div><button id="prev" aria-label="Previous query">&lt;</button> <button id="next" aria-label="Next query">&gt;</button></div></div>
+<div class="control"><label for="group">Model group</label><select id="group"><option value="all">All</option><option>OFAT</option><option>COMPARISON</option></select></div>
+<div class="control"><label for="model">Model</label><select id="model"></select></div>
+<div class="control"><label for="mode">Retrieval setting</label><select id="mode"><option value="standard">Standard</option><option value="nonlocal">Non-local ≥ 2 km</option></select></div>
+<div class="control"><label>Vector layers</label><div class="layer-group"><label><input type="checkbox" data-layer="B" checked>Building</label><label><input type="checkbox" data-layer="R" checked>Road</label><label><input type="checkbox" data-layer="P" checked>POI</label></div></div>
+<div class="control"><label>Raster layers</label><div class="layer-group"><label><input type="checkbox" data-layer="LC" checked>LC</label><label><input type="checkbox" data-layer="DEM" checked>DEM</label></div></div>
+<div class="control"><label>Commands</label><div><button id="resetZoom" title="Reset all vector panels to the 500 m extent">Reset zoom</button> <button id="toggleProvenance">Provenance</button></div></div>
+</div></header>
+<main><div id="error" class="warning" role="alert" hidden></div><div class="case-meta"><h2 id="caseTitle"></h2><code id="identity"></code></div>
+<section class="section"><h2>VECTOR DATA</h2><div class="grid4 retrieval-grid" id="vectorGrid"></div><div class="legend"><span style="--c:#667085;--b:#667085">Building</span><span style="--c:#e4a11b;--b:#e4a11b">Road</span><span style="--c:#c83e63;--b:#c83e63">POI</span><span>500 m frame · north up · wheel/drag linked vector views</span></div></section>
+<section class="section"><h2>RASTER DATA</h2><div class="grid4 retrieval-grid" id="rasterGrid"></div></section>
+<section class="section"><h2>ATTRIBUTES &amp; SPATIAL RELATIONS</h2><div class="grid4 retrieval-grid" id="summaryGrid"></div></section>
+<section class="section"><h2>DETAILED SUMMARIES</h2><div class="grid4 retrieval-grid" id="detailGrid"></div></section>
+<section id="provenance" class="section provenance hidden"><h2>Provenance and display semantics</h2><pre id="provenanceText"></pre></section>
+</main><div class="tooltip" id="tooltip"></div><script src="app.js"></script></body></html>

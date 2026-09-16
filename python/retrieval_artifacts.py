@@ -44,6 +44,8 @@ def validate_envelope(value):
     if value.get("kind") != "fixture":
         from jsonschema import validate
         validate(value, read_json(Path(__file__).resolve().parents[1] / "config/schemas/retrieval_artifact.schema.json"))
+        if value.get("kind") == "geometry_features":
+            validate(value["body"], read_json(Path(__file__).resolve().parents[1] / "config/schemas/retrieval_geometry.schema.json"))
 
 
 def publish_bytes(path, raw):

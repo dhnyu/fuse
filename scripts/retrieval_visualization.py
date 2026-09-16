@@ -19,9 +19,9 @@ import retrieval_pipeline as pipeline
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=("sources", "models", "gallery", "queries", "originals", "embeddings", "rankings", "renders", "pages", "summary", "acceptance"))
+    parser.add_argument("stage", choices=("sources", "models", "gallery", "queries", "originals", "geometry", "embeddings", "rankings", "renders", "pages", "summary", "acceptance"))
     parser.add_argument("--config", default="config/retrieval_visualization.yml")
-    for name in ("models", "gallery", "queries", "model-id", "embedding", "render", "pages", "summary", "prepared"):
+    for name in ("models", "gallery", "queries", "model-id", "embedding", "render", "pages", "summary", "prepared", "geometry"):
         parser.add_argument("--" + name)
     parser.add_argument("--rankings", nargs="+", default=[])
     args = parser.parse_args()
@@ -32,7 +32,8 @@ def main():
     elif args.stage == "gallery": result = pipeline.gallery_manifest(args.models)
     elif args.stage == "queries": result = pipeline.query_manifest(args.models, args.gallery)
     elif args.stage == "originals": result = pipeline.original_inputs(args.models,args.gallery,args.queries)
-    elif args.stage == "embeddings": result = pipeline.embeddings(args.models,args.gallery,args.queries,args.model_id,args.prepared)
+    elif args.stage == "geometry": result = pipeline.geometry_features(args.models,args.gallery,args.queries,args.prepared)
+    elif args.stage == "embeddings": result = pipeline.embeddings(args.models,args.gallery,args.queries,args.model_id,args.prepared,args.geometry)
     elif args.stage == "rankings": result = pipeline.rankings(args.models,args.gallery,args.queries,args.embedding)
     elif args.stage == "renders": result = pipeline.render_cache(args.models,args.gallery,args.queries,args.rankings)
     elif args.stage == "pages": result = pipeline.comparison_pages(args.models,args.gallery,args.queries,args.rankings,args.render)

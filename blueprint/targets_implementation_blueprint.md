@@ -110,6 +110,7 @@ S10 file contracts: generation root is
 `/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/<generation_id>/`.
 Fixed names are `model_manifest.json`, `gallery_manifest.json`,
 `query_manifest.json`, `original_inputs/{<scene_id>.pt,manifest.json}`,
+`geometry_features/{<geometry_config_sha256>/<shard_ordinal>.pt,manifest.json}`,
 `embeddings/<configuration_id>/{vectors.npy,manifest.json}`,
 `rankings/<configuration_id>/{rankings.parquet,manifest.json}`,
 `renders/{<cache_id>.svg,manifest.json}`, `pages/{query_01.html…query_30.html,index.html,
@@ -122,12 +123,42 @@ it has its own pinned preprocessing/category hashes and validates source payload
 It is also gated by full-execution authorization so metadata validation cannot
 accidentally prepare the entire 9,000-scene population.
 
+The common `s10_retrieval_geometry_features` GPU target follows original inputs
+and precedes embeddings. It calls the unchanged GPU Fourier function scene-wise
+at batch=1, storing only pre-MLP float32 magnitude [N,128] and phase [N,256].
+Twenty-five geometry-active configurations share the current identical settings;
+A1, SSV and DS do not read geometry payloads. Different geometry settings form
+separate hash-keyed groups. Learned projections, family row projection and model
+forward remain unchanged. No checkpoint participates in feature computation.
+
+The immutable cache binds each original payload/manifest, preprocessing ID/hash,
+entity ordering, geometry config, implementation source hash and runtime/generation.
+One deterministic 100-scene PyTorch shard is retained at a time. Shape/schema,
+finite values, payload/tensor checksums and model-group bindings are checked.
+Same-ID different-byte publication fails. Creation metadata is deterministic;
+wall time is telemetry outside identity. No historical S09 geometry cache is used.
+The cache GPU target has the same lock/controller and full-execution gate as
+inference. Bounded benchmarks are noncanonical and limited to 100 originals.
+
 S10 model branches use one GPU controller worker plus the existing per-device
 GPU lock; CPU workers default to one, configurable by FUSE_S10_CPU_WORKERS.
-Threads and batch size are recorded in the configuration (initially one each).
+Threads are recorded in the configuration; batch_size=1 is a scientific contract.
 The operator sets BLAS/OpenMP limits from the same thread configuration. Total
 CPU budget is `(CPU workers + GPU worker) × threads`, checked against host CPUs.
 The conservative settings require an I/O/memory pilot before any expansion.
+The S10 original reader traverses accepted P3 shards deterministically, filters
+Arrow tables before Python conversion, and retains only one shard's tables and
+raster extraction at a time. Published original tensors remain scene-ID ordered
+individual `.pt` files; S09 prepared training/validation views are not evaluation
+originals. Vector-only SVG rendering avoids loading unused raster/graph inputs.
+Common-input hashes are verified once per ranking-validation invocation, with no
+persistent verification cache and no removal of acceptance checks.
+
+Batch expansion remains a known prohibited optimization: zero-edge scenes differ
+when collated with edge-bearing scenes under the existing relation-layer branch.
+Keep batch_size=1. Do not change the frozen S09 model/runtime to repair this in a
+performance task, or treat batched output as scientifically interchangeable.
+This finding does not modify the canonical S09 acceptance. Full S10 remains gated.
 S10 uses `/mnt/hdd002/dhnyu/fusedata/targets/fuse-retrieval-s10`; S09 and maintenance
 stores remain independent. Full inference requires separate authorization and
 the explicit operator switch documented below; a successful smoke is not approval.

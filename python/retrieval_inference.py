@@ -37,7 +37,9 @@ def device_lock(cfg):
             fcntl.flock(stream, fcntl.LOCK_UN)
 
 
-def infer(cfg, model_record, roots, gallery, prepared_path=None):
+def initialize_inference(cfg):
+    require(cfg["batch_size"] == 1, "BATCH_ONE_REQUIRED")
+    require(torch.get_default_dtype() == torch.float32, "DEFAULT_FLOAT32_REQUIRED")
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     random.seed(cfg["inference_seed"])
     np.random.seed(cfg["inference_seed"])
@@ -47,7 +49,11 @@ def infer(cfg, model_record, roots, gallery, prepared_path=None):
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
     torch.backends.cudnn.benchmark = False
-    device = torch.device(cfg["device"])
+    return torch.device(cfg["device"])
+
+
+def infer(cfg, model_record, roots, gallery, prepared_path=None, precomputed_geometry_features=None):
+    device = initialize_inference(cfg)
     training = yaml.safe_load(Path(cfg["training_config"]).read_text())
     base_model = yaml.safe_load(Path(cfg["model_config"]).read_text())
     scientific = model_record["scientific_configuration"]
@@ -59,6 +65,12 @@ def infer(cfg, model_record, roots, gallery, prepared_path=None):
     prepared_rows = {r["scene_id"]: r for r in prepared["body"]["samples"]} if prepared else {}
     family = model_record["model_id"]
     contract = family_contract(family)
+    geometry_reader = None
+    if "geometry" in contract.modalities and precomputed_geometry_features is not None:
+        from retrieval_geometry import GeometryReader
+        require(prepared is not None, "GEOMETRY_PREPARED_REQUIRED")
+        geometry_reader = GeometryReader(precomputed_geometry_features, prepared,
+                                         routed["model"]["model"]["geometry"], cfg)
     require(file_hash(model_record["payload"]) == model_record["payload_sha256"], "CHECKPOINT_MUTATED")
     with device_lock(cfg):
         payload = torch.load(model_record["payload"], map_location="cpu", weights_only=False)
@@ -85,8 +97,9 @@ def infer(cfg, model_record, roots, gallery, prepared_path=None):
                         sample["scene_center_5186"] = torch.tensor(scene["center"], dtype=torch.float64)
                     projected_sample, metadata = project(sample, family)
                     if "geometry" in contract.modalities:
-                        raw = geometry_fourier_features(collate([sample], vocabulary),
-                            {"geometry": routed["model"]["model"]["geometry"]}, device)
+                        raw = (geometry_reader.get(sample) if geometry_reader is not None else
+                               geometry_fourier_features(collate([sample], vocabulary),
+                                   {"geometry": routed["model"]["model"]["geometry"]}, device))
                         fourier.append(project_fourier(tuple(x.cpu() for x in raw), metadata,
                                                        projected_sample["entities"]["local_entity_id"]))
                     projected.append((projected_sample, metadata))

@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "python"))
 from retrieval_artifacts import publish, load, digest, require, file_hash
 from retrieval_lineage import config, inventory, population, runtime
 from retrieval_ranking import sample_queries
-from retrieval_pipeline import (GUARDRAILS, context, original_inputs, embeddings, rankings, render_cache,
+from retrieval_pipeline import (GUARDRAILS, context, original_inputs, geometry_features, embeddings, rankings, render_cache,
                                comparison_pages, summary, acceptance, validate_rankings)
 
 
@@ -53,12 +53,16 @@ def smoke():
         preparation_start = time.monotonic()
         prepared = original_inputs(m,g,q)
         preparation_seconds = time.monotonic()-preparation_start
+        geometry_start = time.monotonic()
+        geometry = geometry_features(m,g,q,prepared)
+        geometry_seconds = time.monotonic()-geometry_start
+        require(geometry_features(m,g,q,prepared)==geometry, "GEOMETRY_RERUN")
         inference_start = time.monotonic()
         for model in body["models"]:
-            e = embeddings(m,g,q,model["configuration_id"],prepared)
+            e = embeddings(m,g,q,model["configuration_id"],prepared,geometry)
             before = file_hash(e)
             # Two real inference passes must publish identical bytes in the same runtime.
-            require(file_hash(embeddings(m,g,q,model["configuration_id"],prepared)) == before, "SMOKE_RERUN")
+            require(file_hash(embeddings(m,g,q,model["configuration_id"],prepared,geometry)) == before, "SMOKE_RERUN")
             ranking_paths.append(rankings(m,g,q,e))
         inference_seconds = time.monotonic()-inference_start
         render = render_cache(m,g,q,ranking_paths)
@@ -104,7 +108,7 @@ def smoke():
                 "inference_models":[r['configuration_id'] for r in body['models']], "gallery":6,"queries":2,
                 "rows":len(validate_rankings(m,g,q,ranking_paths)), "rerun_byte_equality":True,
                 "viewer_browser":"PASS", "inference_seconds_two_passes":inference_seconds,
-                "preparation_seconds":preparation_seconds,
+                "preparation_seconds":preparation_seconds,"geometry_seconds":geometry_seconds,
                 "elapsed_seconds":time.monotonic()-started, "acceptance_id":load(a)['artifact_id'],
                 "temporary_directory":directory}
     require(not Path(directory).exists(), "SMOKE_CLEANUP")

@@ -16,6 +16,7 @@ crs: EPSG:5186
 device: cuda:0
 threads: 1
 batch_size: 1
+geometry_cache_scenes_per_shard: 100
 publication_root: /mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10
 store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-retrieval-s10
 gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks

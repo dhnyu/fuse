@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S10 immutable common GPU Fourier cache body",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "generation_id",
+    "runtime_id",
+    "scope",
+    "model_manifest_id",
+    "query_manifest_id",
+    "gallery_manifest_id",
+    "original_manifest_id",
+    "preprocessing_id",
+    "schema",
+    "preprocessing_sha256",
+    "categories_sha256",
+    "implementation",
+    "scene_count",
+    "scene_ids",
+    "groups",
+    "storage",
+    "creation"
+  ],
+  "properties": {
+    "generation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtime_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model_manifest_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "query_manifest_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "gallery_manifest_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "original_manifest_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "preprocessing_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema": {
+      "const": "s10-fourier-v1"
+    },
+    "preprocessing_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "categories_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sources",
+        "sha256",
+        "function",
+        "implementation"
+      ],
+      "properties": {
+        "sources": {
+          "type": "object",
+          "minProperties": 6,
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "function": {
+          "const": "scene_encoder.geometry_fourier_features"
+        },
+        "implementation": {
+          "const": "vectorized"
+        }
+      }
+    },
+    "scene_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9000
+    },
+    "scene_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "configuration",
+          "configuration_sha256",
+          "models",
+          "entries"
+        ],
+        "properties": {
+          "configuration": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "normalization_length_m",
+              "radial_frequencies",
+              "angular_orientations",
+              "minimum_radial_frequency",
+              "maximum_radial_frequency"
+            ],
+            "properties": {
+              "normalization_length_m": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "radial_frequencies": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "angular_orientations": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "minimum_radial_frequency": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "maximum_radial_frequency": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            }
+          },
+          "configuration_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "models": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "entries": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "scene_id",
+                "record",
+                "path",
+                "position",
+                "tensor_sha256"
+              ],
+              "properties": {
+                "scene_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "record": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "schema",
+                    "scene_id",
+                    "original_manifest_id",
+                    "preprocessing_id",
+                    "runtime_id",
+                    "generation_id",
+                    "geometry_layout_version",
+                    "dtype",
+                    "original_payload_sha256",
+                    "preprocessing_sha256",
+                    "categories_sha256",
+                    "geometry_configuration_sha256",
+                    "implementation_sha256",
+                    "entity_order_sha256",
+                    "cache_key",
+                    "shapes"
+                  ],
+                  "properties": {
+                    "schema": {
+                      "const": "s10-fourier-v1"
+                    },
+                    "scene_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "original_manifest_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "preprocessing_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "runtime_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "generation_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "geometry_layout_version": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "dtype": {
+                      "const": "torch.float32"
+                    },
+                    "original_payload_sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "preprocessing_sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "categories_sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "geometry_configuration_sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "implementation_sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "entity_order_sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "cache_key": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "shapes": {
+                      "type": "array",
+                      "minItems": 2,
+                      "maxItems": 2,
+                      "items": {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": 2,
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 99
+                },
+                "tensor_sha256": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "scenes_per_shard"
+      ],
+      "properties": {
+        "format": {
+          "const": "torch-shards"
+        },
+        "scenes_per_shard": {
+          "const": 100
+        }
+      }
+    },
+    "creation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generator",
+        "device",
+        "seed",
+        "dtype",
+        "default_dtype",
+        "batch_size",
+        "deterministic_algorithms",
+        "tf32"
+      ],
+      "properties": {
+        "generator": {
+          "const": "S10 common original GPU Fourier"
+        },
+        "device": {
+          "type": "string",
+          "pattern": "^cuda:[0-9]+$"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "dtype": {
+          "const": "torch.float32"
+        },
+        "default_dtype": {
+          "const": "torch.float32"
+        },
+        "batch_size": {
+          "const": 1
+        },
+        "deterministic_algorithms": {
+          "const": true
+        },
+        "tf32": {
+          "const": false
+        }
+      }
+    }
+  }
+}

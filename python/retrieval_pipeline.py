@@ -76,7 +76,8 @@ def bindings(m, g, q):
 def original_inputs(model_path, gallery_path, query_path):
     """Prepare common original tensors once, independently of model or retrieval result."""
     import torch
-    from model_data import read_original_scene, tensorize_scene, build_vocabulary
+    from model_data import tensorize_scene, build_vocabulary
+    from retrieval_originals import OriginalReader
     from retrieval_artifacts import read_json
     m, g, q = common(model_path,gallery_path,query_path)
     cfg = m["body"]["config"]
@@ -95,22 +96,38 @@ def original_inputs(model_path, gallery_path, query_path):
     preprocessing = read_json(roots["preprocessing"])
     vocab = build_vocabulary(roots["categories"])
     samples, files = [], []
-    for row in g["body"]["rows"]:
-        scene = read_original_scene(catalog,row["scene_id"])
-        require(scene["split"] == "evaluation" and np.array_equal(scene["center"],[row["center_x"],row["center_y"]]), "SCENE_CENTER_BINDING")
-        sample = tensorize_scene(scene,preprocessing,vocab)
-        sample["scene_center_5186"] = torch.tensor(scene["center"],dtype=torch.float64)
-        buffer = io.BytesIO()
-        torch.save(sample,buffer)
-        filename = row["scene_id"] + ".pt"
-        files.append(publish_bytes(root/filename,buffer.getvalue()))
-        samples.append({"scene_id": row["scene_id"], "path": filename})
+    rows = {r["scene_id"]: r for r in g["body"]["rows"]}
+    with OriginalReader(catalog) as reader:
+        for scene_id in reader.ordered_ids(list(rows)):
+            row = rows[scene_id]
+            scene = reader.read(scene_id)
+            require(scene["split"] == "evaluation" and np.array_equal(scene["center"],[row["center_x"],row["center_y"]]), "SCENE_CENTER_BINDING")
+            sample = tensorize_scene(scene,preprocessing,vocab)
+            sample["scene_center_5186"] = torch.tensor(scene["center"],dtype=torch.float64)
+            buffer = io.BytesIO()
+            torch.save(sample,buffer)
+            filename = row["scene_id"] + ".pt"
+            files.append(publish_bytes(root/filename,buffer.getvalue()))
+            samples.append({"scene_id": row["scene_id"], "path": filename})
+    samples.sort(key=lambda r: r["scene_id"])
+    files.sort(key=lambda p: p.name)
     return publish(root/"manifest.json", "original_inputs", {**bindings(m,g,q),
-        "samples": samples, "preprocessing_sha256": file_hash(roots["preprocessing"]),
+        "samples": samples, "preprocessing_id": preprocessing["preprocessing_id"],
+        "preprocessing_sha256": file_hash(roots["preprocessing"]),
         "categories_sha256": file_hash(roots["categories"])}, files)
 
 
-def embeddings(model_path, gallery_path, query_path, model_id, prepared_path=None):
+def geometry_features(model_path, gallery_path, query_path, prepared_path):
+    from retrieval_geometry import create_cache
+    m, g, q = common(model_path, gallery_path, query_path)
+    prepared = load(prepared_path, "original_inputs")
+    require(all(prepared["body"][k] == v for k, v in bindings(m,g,q).items()) and
+            [r["scene_id"] for r in prepared["body"]["samples"]] == [r["scene_id"] for r in g["body"]["rows"]], "GEOMETRY_PREPARED_BINDING")
+    return create_cache(m["body"]["config"], m["body"]["models"], m["body"]["roots"], prepared_path,
+                        Path(model_path).parent / "geometry_features")
+
+
+def embeddings(model_path, gallery_path, query_path, model_id, prepared_path=None, geometry_path=None):
     from retrieval_inference import infer
     m, g, q = common(model_path, gallery_path, query_path)
     cfg = m["body"]["config"]
@@ -125,7 +142,13 @@ def embeddings(model_path, gallery_path, query_path, model_id, prepared_path=Non
     prepared = load(prepared_path, "original_inputs")
     require(all(prepared["body"][k] == v for k,v in bindings(m,g,q).items()) and
             [r["scene_id"] for r in prepared["body"]["samples"]] == [r["scene_id"] for r in g["body"]["rows"]], "PREPARED_BINDING")
-    vectors = infer(cfg, model, m["body"]["roots"], g["body"]["rows"], prepared_path)
+    from retrieval_geometry import active
+    if active(model):
+        require(geometry_path is not None, "GEOMETRY_CACHE_REQUIRED")
+        geometry_doc = load(geometry_path, "geometry_features")
+    else:
+        geometry_path, geometry_doc = None, None  # Inactive branches never read cache, even if supplied.
+    vectors = infer(cfg, model, m["body"]["roots"], g["body"]["rows"], prepared_path, geometry_path)
     check_embeddings(vectors, len(g["body"]["rows"]))
     output = Path(model_path).parent / "embeddings" / model_id
     buffer = io.BytesIO()
@@ -136,7 +159,9 @@ def embeddings(model_path, gallery_path, query_path, model_id, prepared_path=Non
     return publish(output / "manifest.json", "embeddings", {**bindings(m, g, q), "model": model,
         "scene_ids": [r["scene_id"] for r in g["body"]["rows"]], "shape": list(vectors.shape),
         "dtype": str(vectors.dtype), "guardrails": GUARDRAILS,
-        "prepared_manifest": str(prepared_path), "prepared_manifest_id": prepared["artifact_id"]}, [payload])
+        "prepared_manifest": str(prepared_path), "prepared_manifest_id": prepared["artifact_id"],
+        "geometry_manifest": str(geometry_path) if geometry_doc else None,
+        "geometry_manifest_id": geometry_doc["artifact_id"] if geometry_doc else None}, [payload])
 
 
 def rankings(model_path, gallery_path, query_path, embedding_path):
@@ -161,6 +186,9 @@ def validate_rankings(model_path, gallery_path, query_path, ranking_paths):
     cfg = m["body"]["config"]
     require(len(ranking_paths) == len(m["body"]["models"]), "MODEL_RESULT_COUNT")
     seen, result = set(), []
+    # One immutable common-input verification per validation call, not per model.
+    # No process-global cache: every later validation rechecks all payload hashes.
+    verified_originals, verified_geometry = {}, {}
     for path in ranking_paths:
         r = load(path, "rankings")
         b = bindings(m, g, q)
@@ -170,12 +198,32 @@ def validate_rankings(model_path, gallery_path, query_path, ranking_paths):
         seen.add(model["configuration_id"])
         ep = Path(r["body"]["embedding_manifest"])
         e = load(ep, "embeddings")
-        prepared = load(e["body"]["prepared_manifest"], "original_inputs")
+        prepared_path = str(Path(e["body"]["prepared_manifest"]).resolve())
+        if prepared_path not in verified_originals:
+            verified_originals[prepared_path] = load(prepared_path, "original_inputs")
+        prepared = verified_originals[prepared_path]
         require(prepared["artifact_id"] == e["body"]["prepared_manifest_id"] and
                 all(prepared["body"][k] == v for k,v in b.items()), "PREPARED_BINDING")
         require(e["artifact_id"] == r["body"]["embedding_manifest_id"] and e["body"]["model"] == model and
                 all(e["body"][k] == v for k, v in b.items()) and
                 e["body"]["scene_ids"] == [row["scene_id"] for row in g["body"]["rows"]], "EMBEDDING_BINDING")
+        if "geometry_cache_scenes_per_shard" in cfg:
+            from retrieval_geometry import active, GeometryReader, configuration_groups
+            if active(model):
+                gp = e["body"].get("geometry_manifest")
+                require(gp is not None, "GEOMETRY_CACHE_REQUIRED")
+                groups = configuration_groups(cfg, m["body"]["models"])
+                group = next(x for x in groups if model["configuration_id"] in x["models"])
+                cache_key = (str(Path(gp).resolve()), group["configuration_sha256"], prepared["artifact_id"])
+                if cache_key not in verified_geometry:
+                    reader = GeometryReader(gp, prepared, group["configuration"], cfg)
+                    require([{k: x[k] for k in ("configuration", "configuration_sha256", "models")}
+                             for x in reader.manifest["body"]["groups"]] == groups, "GEOMETRY_MODEL_GROUPS")
+                    verified_geometry[cache_key] = reader.manifest
+                require(verified_geometry[cache_key]["artifact_id"] == e["body"].get("geometry_manifest_id"), "GEOMETRY_EMBEDDING_BINDING")
+            else:
+                require(e["body"].get("geometry_manifest") is None and e["body"].get("geometry_manifest_id") is None,
+                        "INACTIVE_GEOMETRY_BINDING")
         actual = pq.read_table(Path(path).parent / r["files"][0]["path"]).to_pylist()
         expected = rank(np.load(ep.parent / e["files"][0]["path"], allow_pickle=False),
             g["body"]["rows"], q["body"]["rows"], model, b, cfg["top_k"])
@@ -185,15 +233,17 @@ def validate_rankings(model_path, gallery_path, query_path, ranking_paths):
 
 
 def render_cache(model_path, gallery_path, query_path, ranking_paths):
-    from model_data import read_original_scene
+    from retrieval_originals import OriginalReader
     from retrieval_render import render_scene
     m, g, q = common(model_path, gallery_path, query_path)
     rows = validate_rankings(model_path, gallery_path, query_path, ranking_paths)
     scenes = sorted({r["gallery_scene_id"] for r in rows if r["rank"] <= 5} | {r["scene_id"] for r in q["body"]["rows"]})
     catalog = OriginalCatalog(m["body"]["roots"], yaml.safe_load(Path(m["body"]["config"]["training_config"]).read_text()))
     output = Path(model_path).parent / "renders"
-    rendered = [render_scene(read_original_scene(catalog, scene),
-        catalog.p3_by_scene[scene]["payload_sha256"], output) for scene in scenes]
+    with OriginalReader(catalog) as reader:
+        rendered = [render_scene(reader.read(scene, vectors_only=True),
+            catalog.p3_by_scene[scene]["payload_sha256"], output) for scene in reader.ordered_ids(scenes)]
+    rendered.sort(key=lambda r: r["scene_id"])
     return publish(output / "manifest.json", "renders", {**bindings(m, g, q), "scenes": rendered},
                    [r["path"] for r in rendered])
 
@@ -233,6 +283,7 @@ def acceptance(model_path, gallery_path, query_path, ranking_paths, pages_path, 
     if m["body"]["scope"] == "formal":
         require((cfg["model_count"], cfg["gallery_count"], cfg["query_count"], cfg["top_k"]) == (28,9000,30,50), "FORMAL_COUNTS")
         require([r["configuration_id"] for r in m["body"]["models"]] == list(OFAT) + ["cmp_" + n for n in COMPARISON], "MODEL_INVENTORY")
+        require(cfg.get("geometry_cache_scenes_per_shard") == 100 and cfg["batch_size"] == 1, "GEOMETRY_FORMAL_CONTRACT")
         current = inventory(config("config/retrieval_visualization.yml"))
         require(current["models"] == m["body"]["models"], "ACCEPTANCE_LINEAGE_CHANGED")
         canonical_rows, canonical_source = population(cfg, current)
@@ -252,6 +303,13 @@ def acceptance(model_path, gallery_path, query_path, ranking_paths, pages_path, 
     render = load(p["body"]["render_manifest"], "renders")
     require(render["artifact_id"] == p["body"]["render_manifest_id"], "RENDER_IDENTITY")
     paths = [model_path,gallery_path,query_path,*ranking_paths,pages_path,summary_path,p["body"]["render_manifest"]]
+    geometry_paths = set()
+    for rp in ranking_paths:
+        ranking_doc = load(rp, "rankings")
+        embedding_doc = load(ranking_doc["body"]["embedding_manifest"], "embeddings")
+        if embedding_doc["body"].get("geometry_manifest"):
+            geometry_paths.add(embedding_doc["body"]["geometry_manifest"])
+    paths.extend(sorted(geometry_paths))
     return publish(Path(model_path).parent / "acceptance.json", "acceptance" if m["body"]["scope"] == "formal" else "smoke_acceptance",
         {**bindings(m,g,q), "status": "PASS", "guardrails": GUARDRAILS,
          "artifacts": {str(path): load(path)["artifact_id"] for path in paths},

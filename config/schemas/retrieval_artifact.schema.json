@@ -27,7 +27,8 @@
         "pages",
         "summary",
         "acceptance",
-        "smoke_acceptance"
+        "smoke_acceptance",
+        "geometry_features"
       ]
     },
     "artifact_id": {

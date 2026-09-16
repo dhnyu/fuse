@@ -24,7 +24,8 @@
     "publication_root",
     "store",
     "gpu_lock_root",
-    "source_pins"
+    "source_pins",
+    "geometry_cache_scenes_per_shard"
   ],
   "additionalProperties": false,
   "properties": {
@@ -89,8 +90,7 @@
       "minimum": 1
     },
     "batch_size": {
-      "type": "integer",
-      "minimum": 1
+      "const": 1
     },
     "publication_root": {
       "type": "string",
@@ -111,6 +111,9 @@
         "type": "string",
         "pattern": "^[0-9a-f]{64}$"
       }
+    },
+    "geometry_cache_scenes_per_shard": {
+      "const": 100
     }
   }
 }

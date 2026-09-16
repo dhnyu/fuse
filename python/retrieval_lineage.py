@@ -46,12 +46,14 @@ def runtime(cfg):
         ROOT / "targets/s10_retrieval_visualization.R", ROOT / "_targets_retrieval_visualization.R",
         *ROOT.glob("config/schemas/retrieval*.json")])
     sources = {str(p.relative_to(ROOT)): file_hash(p) for p in paths if p.is_file()}
-    versions = {p: importlib.metadata.version(p) for p in ("torch", "numpy", "pyarrow", "shapely", "zarr")}
+    versions = {p: importlib.metadata.version(p) for p in ("torch", "numpy", "pyarrow", "shapely", "zarr", "triangle")}
     value = {"sources": sources, "versions": versions, "python": platform.python_version(),
              "device": cfg["device"], "threads": cfg["threads"], "batch_size": cfg["batch_size"],
              "inference_seed": cfg["inference_seed"], "deterministic_algorithms": True,
              "tf32": False, "cublas_workspace_config": ":4096:8"}
     import torch
+    value["default_dtype"] = str(torch.get_default_dtype())
+    value["cudnn_version"] = torch.backends.cudnn.version()
     value["cuda_version"] = torch.version.cuda
     if cfg["device"].startswith("cuda:"):
         props = torch.cuda.get_device_properties(torch.device(cfg["device"]))

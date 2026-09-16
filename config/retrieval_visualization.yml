@@ -1,0 +1,33 @@
+schema_version: 1.0.0
+campaign: /mnt/hdd002/dhnyu/fusedata/models/reduced/training/canonical/campaign/s09camp_d2f6749da19ad6aa56c2d303/campaign_acceptance.json
+campaign_id: s09camp_d2f6749da19ad6aa56c2d303
+campaign_sha256: 054462de597de22fe3a4d2769693c0a72d2f2dd17cde3ba6b33523fe73bdfe30
+training_controller: config/training_controller.yml
+training_config: config/training.yml
+model_config: config/model_inputs.yml
+query_seed: 20260916
+inference_seed: 20260916
+query_count: 30
+gallery_count: 9000
+model_count: 28
+top_k: 50
+nonlocal_m: 2000
+crs: EPSG:5186
+device: cuda:0
+threads: 1
+batch_size: 1
+publication_root: /mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10
+store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-retrieval-s10
+gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks
+source_pins:
+  config/training.yml: 3c4d5e754cc67a296f25d0f7d9035b10ebbff708e428ee31dc9529e4bc5b0d4a
+  config/model_inputs.yml: d40d9fc3a8b17221cd48fb1d10b9d7186fb81117fec3643b8e5a3a35fa5c795c
+  config/training_controller.yml: 73dc94237257eb8322b66e4a671d7be05dbdb07259f8c18836a259b627c0d329
+  ? /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/model_data/preprocessing/ppc_603236bfd673bda81a56d7c3/preprocessing_contract.json
+  : d92c42fc6c80e1391d55a976896d8453a35e5ed3a7eedc39d9c1c351f78fd553
+  ? /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_ee28248872c4ab0ce8b3ea4f/production/acceptance/bsa_bd504b7e871945a5a6207664/spatial_categories.json
+  : 654e4488e3e6d7e15adc8f3799c37aa99e5f0372abcdf38e3e944295a7c2a4a2
+  ? /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_75a543f656ab777aada74fbd/index/oci_d9012a099b411b5bae0f6679/scene_to_shard.parquet
+  : 9975c24d274ba72203c8be46d8dc39da4baafc25266ee744a0d1d10424d118cf
+  ? /mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_75a543f656ab777aada74fbd/acceptance/osca_c177810e2c5165326a328b56/original_scene_dataset_acceptance.json
+  : 080759a92684cee61f56983ce180e3a3f2aac7195a120623182831ed8e91ec5c

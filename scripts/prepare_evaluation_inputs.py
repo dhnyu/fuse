@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build or validate the deterministic P10 prepared-input cache."""
+"""Build or validate the deterministic P11 prepared-input cache."""
 
 from __future__ import annotations
 

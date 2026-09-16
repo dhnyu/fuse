@@ -25,7 +25,10 @@ Dedicated current entrypoints are:
   operator command is `Rscript scripts/run_training_targets.R campaign`.
   Append-only campaign/per-run progress and separate worker streams are written
   under `logs/s09/`; `logs/s09/current_status.txt` is updated atomically.
-- `_targets_evaluation.R` for s10 evaluation.
+- `_targets_retrieval_visualization.R` for S10 deterministic retrieval visualization
+  over the 28 accepted S09 models (30 fixed queries, common 9,000-scene gallery).
+- `_targets_evaluation.R` for S11 evaluation, currently fail-closed pending separate
+  lineage repair. S10 does not select models or alter the S11 protocol.
 
 The previous s11 downstream implementation is retired pending a from-scratch
 redesign; no active s11 target entrypoint is retained. P9 v1 execution remains

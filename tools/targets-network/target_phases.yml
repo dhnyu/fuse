@@ -11,9 +11,9 @@ phases:
   - {id: P7, label: S07 Training Preflight, color: "#0E7490"}
   - {id: P8, label: S08 Experiment Plan, color: "#A21CAF"}
   - {id: P9, label: S09 Training, color: "#C2410C"}
-  - {id: P10, label: S10 Evaluation, color: "#9F1239"}
-  - {id: P11, label: S11 Downstream, color: "#365314"}
-  - {id: P12, label: S12 Retrieval, color: "#0F766E"}
+  - {id: P10, label: S10 Retrieval Visualization, color: "#9F1239"}
+  - {id: P11, label: S11 Formal Evaluation (BLOCKED), color: "#365314"}
+  - {id: P12, label: S12 Reserved, color: "#0F766E"}
   - {id: Maintenance, label: Maintenance, color: "#6B7280"}
 
 exact:

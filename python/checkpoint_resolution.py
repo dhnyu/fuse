@@ -20,7 +20,7 @@ from training_ledger import fsync_directory, write_all
 from training_schema import TrainingSchemaError, SCHEMA_VERSION, validate_instance
 
 
-CONSUMERS = ("held_out_evaluation", "p10", "p11")
+CONSUMERS = ("held_out_evaluation", "s11_evaluation", "p11")
 
 
 class DownstreamResolutionError(ValueError):
@@ -222,8 +222,8 @@ def resolve_held_out_evaluation_checkpoint(identity: str, resolver: AcceptedChec
     return resolve_consumer_checkpoint("held_out_evaluation", identity, resolver)
 
 
-def resolve_p10_checkpoint(identity: str, resolver: AcceptedCheckpointResolver) -> AcceptedCheckpoint:
-    return resolve_consumer_checkpoint("p10", identity, resolver)
+def resolve_s11_checkpoint(identity: str, resolver: AcceptedCheckpointResolver) -> AcceptedCheckpoint:
+    return resolve_consumer_checkpoint("s11_evaluation", identity, resolver)
 
 
 def resolve_p11_checkpoint(identity: str, resolver: AcceptedCheckpointResolver) -> AcceptedCheckpoint:

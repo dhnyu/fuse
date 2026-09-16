@@ -1,10 +1,10 @@
 test_that("evaluation target graph is closed and downstream/training-free", {
-  script <- readLines(file.path(fuse_test_root, "targets/s10_evaluation.R"), warn = FALSE)
+  script <- readLines(file.path(fuse_test_root, "targets/s11_evaluation.R"), warn = FALSE)
   names <- paste(script, collapse = "\n")
-  expect_true(grepl("s10_evaluation_input_cache", names, fixed = TRUE))
-  expect_true(grepl("s10_evaluation_geometry_cache", names, fixed = TRUE))
-  expect_true(grepl("s10_evaluation_acceptance", names, fixed = TRUE))
-  expect_false(grepl("p11|optimizer|training|checkpoint", names, ignore.case = TRUE))
+  expect_true(grepl("s11_evaluation_input_cache", names, fixed = TRUE))
+  expect_true(grepl("s11_evaluation_geometry_cache", names, fixed = TRUE))
+  expect_true(grepl("s11_evaluation_acceptance", names, fixed = TRUE))
+  expect_false(grepl("s10_retrieval|s09_training|optimizer|checkpoint", names, ignore.case = TRUE))
 })
 
 test_that("evaluation entrypoint manifest and validation remain direct", {

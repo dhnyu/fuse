@@ -16,7 +16,7 @@ from checkpoint_resolution import (  # noqa: E402
     make_acceptance_eligibility,
     resolve_consumer_checkpoint,
     resolve_held_out_evaluation_checkpoint,
-    resolve_p10_checkpoint,
+    resolve_s11_checkpoint,
     resolve_p11_checkpoint,
     validate_acceptance_eligibility,
 )
@@ -25,7 +25,7 @@ from training_ef_test_support import make_synthetic_chain  # noqa: E402
 
 ADAPTERS = {
     "held_out_evaluation": resolve_held_out_evaluation_checkpoint,
-    "p10": resolve_p10_checkpoint,
+    "s11_evaluation": resolve_s11_checkpoint,
     "p11": resolve_p11_checkpoint,
 }
 
@@ -127,7 +127,7 @@ def test_unknown_consumer_and_noncanonical_resolver_are_rejected(tmp_path):
     with pytest.raises(DownstreamResolutionError, match="UNKNOWN_CONSUMER"):
         resolve_consumer_checkpoint("other", chain.acceptance.acceptance_id, chain.resolver)
     with pytest.raises(DownstreamResolutionError, match="INVALID_RESOLVER"):
-        resolve_consumer_checkpoint("p10", chain.acceptance.acceptance_id, object())
+        resolve_consumer_checkpoint("s11_evaluation", chain.acceptance.acceptance_id, object())
 
 
 def test_downstream_resolver_import_boundary_has_no_scientific_execution_stack():

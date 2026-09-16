@@ -1,8 +1,8 @@
-"""Deterministic, content-addressed prepared inputs for canonical P10 evaluation.
+"""Deterministic, content-addressed prepared inputs for canonical P11 evaluation.
 
 The cache is an execution acceleration artifact. Its identity binds the accepted
 P3/P5 sources and tensorization contract, while scientific authority remains the
-closed P10 authority. Formal P10 evaluation never falls back to dynamic source
+closed P11 authority. Formal P11 evaluation never falls back to dynamic source
 reconstruction when this cache is required.
 """
 
@@ -41,18 +41,18 @@ from training_prepared_cache import ProductionPreparedData
 
 
 SCHEMA_VERSION = "1.0.0"
-CONTRACT_VERSION = "p10-prepared-input-v1"
-TENSOR_LAYOUT_VERSION = "p6-ragged-collate-v3+p10-center-v1"
+CONTRACT_VERSION = "p11-prepared-input-v1"
+TENSOR_LAYOUT_VERSION = "p6-ragged-collate-v3+p11-center-v1"
 
 
-class P10PreparedInputError(RuntimeError):
-    """The immutable P10 prepared-input cache is missing or inconsistent."""
+class P11PreparedInputError(RuntimeError):
+    """The immutable P11 prepared-input cache is missing or inconsistent."""
 
 
 def _read_json(path: str | Path) -> dict[str, Any]:
     value = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(value, dict):
-        raise P10PreparedInputError(f"PREPARED_JSON_OBJECT_REQUIRED:{path}")
+        raise P11PreparedInputError(f"PREPARED_JSON_OBJECT_REQUIRED:{path}")
     return value
 
 
@@ -69,7 +69,7 @@ def _atomic_bytes(path: Path, raw: bytes) -> None:
         os.link(stage, path)
     except FileExistsError:
         if path.read_bytes() != raw:
-            raise P10PreparedInputError(f"PREPARED_IMMUTABLE_COLLISION:{path}")
+            raise P11PreparedInputError(f"PREPARED_IMMUTABLE_COLLISION:{path}")
     finally:
         stage.unlink(missing_ok=True)
     fsync_directory(path.parent)
@@ -85,7 +85,7 @@ def _atomic_torch(path: Path, value: Mapping[str, Any]) -> None:
     try:
         os.link(temporary, path)
     except FileExistsError as error:
-        raise P10PreparedInputError(f"PREPARED_PAYLOAD_COLLISION:{path}") from error
+        raise P11PreparedInputError(f"PREPARED_PAYLOAD_COLLISION:{path}") from error
     finally:
         temporary.unlink(missing_ok=True)
     fsync_directory(path.parent)
@@ -98,7 +98,7 @@ def _catalog_inputs(contract: Mapping[str, Any]) -> tuple[dict[str, str], dict[s
         "*/augmentation_bank_acceptance.json"
     ))
     if len(p4_paths) != 1:
-        raise P10PreparedInputError("PREPARED_P4_ACCEPTANCE_AMBIGUOUS")
+        raise P11PreparedInputError("PREPARED_P4_ACCEPTANCE_AMBIGUOUS")
     p4 = _read_json(p4_paths[0])
     roots = {key: str(contract["inputs"][f"{key}_root"]) for key in ("p3", "p4", "p5")}
     expected = {
@@ -118,7 +118,7 @@ def _source_inventory(contract: Mapping[str, Any], catalog: ArtifactCatalog) -> 
     p5 = Path(contract["inputs"]["p5_acceptance_root"])
     p3_indices = sorted((Path(contract["inputs"]["p3_root"]) / "index").glob("*/scene_to_shard.parquet"))
     if len(p3_indices) != 1:
-        raise P10PreparedInputError("PREPARED_P3_INDEX_AMBIGUOUS")
+        raise P11PreparedInputError("PREPARED_P3_INDEX_AMBIGUOUS")
     evaluation_scenes = sorted(str(row["scene_id"]) for row in catalog.gallery_rows["evaluation"])
     validation_data = ProductionPreparedData(contract["inputs"]["training_production_cache"], "main_1.0x", 8)
     validation_scenes = list(validation_data.validation_scenes)
@@ -151,7 +151,7 @@ def _source_inventory(contract: Mapping[str, Any], catalog: ArtifactCatalog) -> 
         "training_production_cache_manifest": Path(contract["inputs"]["training_production_cache"]) / "production_cache_manifest.json",
     }.items():
         if not path.is_file():
-            raise P10PreparedInputError(f"PREPARED_SOURCE_MISSING:{name}")
+            raise P11PreparedInputError(f"PREPARED_SOURCE_MISSING:{name}")
         files[name] = {"sha256": sha256_file(path), "size_bytes": path.stat().st_size}
     return {
         "accepted_evaluation": dict(contract["accepted_evaluation"]),
@@ -174,17 +174,21 @@ def _ordered_records(source: Mapping[str, Any]) -> list[dict[str, Any]]:
             records.append({"split": split, "role": f"{split}_gallery", "scene_id": scene, "view": None})
     expected = 3000 + 27000
     if len(records) != expected:
-        raise P10PreparedInputError("PREPARED_RECORD_POPULATION_INVALID")
+        raise P11PreparedInputError("PREPARED_RECORD_POPULATION_INVALID")
     return records
 
 
 def make_cache_plan(contract: Mapping[str, Any]) -> dict[str, Any]:
+    # S11 number-only migration: stop before reading/adopting stale sources.
+    # This does not repair the deliberately contradictory pending schema/lifecycle.
+    if contract.get("migration_status") == "RECOMPUTE_REQUIRED":
+        raise P11PreparedInputError("S11_LINEAGE_REPAIR_REQUIRED")
     catalog = _catalog(contract, verify=False)
     source = _source_inventory(contract, catalog)
     records = _ordered_records(source)
     batch_size = int(contract["prepared_input"]["batch_size"])
     if batch_size != int(contract["execution"]["batch_size"]) or batch_size <= 0:
-        raise P10PreparedInputError("PREPARED_BATCH_SIZE_MISMATCH")
+        raise P11PreparedInputError("PREPARED_BATCH_SIZE_MISMATCH")
     preimage = {
         "schema_version": SCHEMA_VERSION,
         "artifact_type": "evaluation_inputs_plan",
@@ -199,7 +203,7 @@ def make_cache_plan(contract: Mapping[str, Any]) -> dict[str, Any]:
         "nonlocal_exclusion": {"included": True, "distance_m": 2000.0},
     }
     digest = canonical_sha256(preimage)
-    return {**preimage, "cache_id": f"p10pi_{digest[:24]}", "content_sha256": digest}
+    return {**preimage, "cache_id": f"p11pi_{digest[:24]}", "content_sha256": digest}
 
 
 _WORKER_CONTRACT: dict[str, Any] | None = None
@@ -274,7 +278,7 @@ def _verify_unique_sources(plan: Mapping[str, Any], contract: Mapping[str, Any])
             seen[path] = row["query_payload_sha256"]
     for path, expected in sorted(seen.items(), key=lambda item: str(item[0])):
         if not path.is_file() or sha256_file(path) != expected:
-            raise P10PreparedInputError(f"PREPARED_SOURCE_HASH_MISMATCH:{path}")
+            raise P11PreparedInputError(f"PREPARED_SOURCE_HASH_MISMATCH:{path}")
 
 
 def _batch_specs(plan: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -283,7 +287,7 @@ def _batch_specs(plan: Mapping[str, Any]) -> list[dict[str, Any]]:
     for split, count in (("validation", 1000), ("evaluation", 9000)):
         scenes = list(plan["source_inventory"][f"{split}_scene_ids"])
         if len(scenes) != count:
-            raise P10PreparedInputError("PREPARED_SPLIT_POPULATION_INVALID")
+            raise P11PreparedInputError("PREPARED_SPLIT_POPULATION_INVALID")
         query_records = [(scene, view) for scene in scenes for view in (0, 1)]
         gallery_records = [(scene, None) for scene in scenes]
         for kind, records in (("query", query_records), ("gallery", gallery_records)):
@@ -308,7 +312,7 @@ def _materialize_batches(stage: Path, plan: Mapping[str, Any], scene_rows: Seque
                 loaded[source] = torch.load(source, map_location="cpu", weights_only=False)
             payload = loaded[source]
             if payload.get("split") != identity["split"] or payload.get("scene_id") != record["scene_id"]:
-                raise P10PreparedInputError("PREPARED_SCENE_BUNDLE_IDENTITY_MISMATCH")
+                raise P11PreparedInputError("PREPARED_SCENE_BUNDLE_IDENTITY_MISMATCH")
             key = "gallery" if identity["kind"] == "gallery" else f"query_{record['view']}"
             samples.append(payload["samples"][key])
             ds.append(payload["ds_rasters"][key])
@@ -333,7 +337,7 @@ def _nonlocal_masks(stage: Path, plan: Mapping[str, Any], batch_rows: Sequence[M
         scenes.extend(payload["batch"]["scene_ids"])
     center_array = np.asarray(centers, dtype=np.float64)
     if len(scenes) != 9000 or scenes != list(plan["source_inventory"]["evaluation_scene_ids"]):
-        raise P10PreparedInputError("PREPARED_GALLERY_CENTER_IDENTITY_MISMATCH")
+        raise P11PreparedInputError("PREPARED_GALLERY_CENTER_IDENTITY_MISMATCH")
     distances = ((center_array[:, None, :] - center_array[None, :, :]) ** 2).sum(2) ** 0.5
     masks = distances >= 2000.0
     path = stage / "nonlocal_masks.pt"
@@ -350,34 +354,34 @@ def validate_prepared_cache(manifest_path: str | Path, verify_payloads: bool = T
     manifest = _read_json(path)
     plan = manifest.get("plan")
     if not isinstance(plan, dict):
-        raise P10PreparedInputError("PREPARED_PLAN_MISSING")
+        raise P11PreparedInputError("PREPARED_PLAN_MISSING")
     preimage = {key: value for key, value in plan.items() if key not in {"cache_id", "content_sha256"}}
     digest = canonical_sha256(preimage)
     if (plan.get("schema_version") != SCHEMA_VERSION or plan.get("contract_version") != CONTRACT_VERSION
-            or plan.get("content_sha256") != digest or plan.get("cache_id") != f"p10pi_{digest[:24]}"
+            or plan.get("content_sha256") != digest or plan.get("cache_id") != f"p11pi_{digest[:24]}"
             or manifest.get("cache_id") != plan.get("cache_id") or manifest.get("status") != "PASS"):
-        raise P10PreparedInputError("PREPARED_MANIFEST_IDENTITY_INVALID")
+        raise P11PreparedInputError("PREPARED_MANIFEST_IDENTITY_INVALID")
     rows = manifest.get("batches")
     expected = _batch_specs(plan)
     if not isinstance(rows, list) or [{key: row[key] for key in ("split", "kind", "batch_index", "records")}
                                       for row in rows] != expected:
-        raise P10PreparedInputError("PREPARED_BATCH_INVENTORY_INVALID")
+        raise P11PreparedInputError("PREPARED_BATCH_INVENTORY_INVALID")
     root = path.parent.resolve()
     for row in [*rows, manifest.get("nonlocal_masks", {})]:
         try:
             payload = (root / row["relative_path"]).resolve()
             relative = payload.relative_to(root)
         except (KeyError, ValueError) as error:
-            raise P10PreparedInputError("PREPARED_PAYLOAD_PATH_INVALID") from error
+            raise P11PreparedInputError("PREPARED_PAYLOAD_PATH_INVALID") from error
         if relative.parts[0].startswith(".") or payload.is_symlink() or not payload.is_file():
-            raise P10PreparedInputError("PREPARED_PAYLOAD_MISSING")
+            raise P11PreparedInputError("PREPARED_PAYLOAD_MISSING")
         if payload.stat().st_size != int(row["size_bytes"]):
-            raise P10PreparedInputError("PREPARED_PAYLOAD_SIZE_MISMATCH")
+            raise P11PreparedInputError("PREPARED_PAYLOAD_SIZE_MISMATCH")
         if verify_payloads and sha256_file(payload) != row["payload_sha256"]:
-            raise P10PreparedInputError("PREPARED_PAYLOAD_HASH_MISMATCH")
+            raise P11PreparedInputError("PREPARED_PAYLOAD_HASH_MISMATCH")
     scientific = {key: value for key, value in manifest.items() if key not in {"manifest_sha256"}}
     if manifest.get("manifest_sha256") != canonical_sha256(scientific):
-        raise P10PreparedInputError("PREPARED_MANIFEST_HASH_MISMATCH")
+        raise P11PreparedInputError("PREPARED_MANIFEST_HASH_MISMATCH")
     return manifest
 
 
@@ -390,7 +394,7 @@ def build_prepared_cache(contract: Mapping[str, Any]) -> Path:
         validate_prepared_cache(committed)
         return committed
     if destination.exists():
-        raise P10PreparedInputError("PREPARED_INCOMPLETE_DESTINATION_EXISTS")
+        raise P11PreparedInputError("PREPARED_INCOMPLETE_DESTINATION_EXISTS")
     root.mkdir(parents=True, exist_ok=True)
     _verify_unique_sources(plan, contract)
     stage = root / f".staging-{plan['cache_id']}-{os.getpid()}"
@@ -447,12 +451,12 @@ def _device_batch(value: Any, device: torch.device, key: str = "") -> Any:
     return value
 
 
-def make_geometry_plan(contract: Mapping[str, Any], inputs: "P10PreparedInputCache") -> dict[str, Any]:
+def make_geometry_plan(contract: Mapping[str, Any], inputs: "P11PreparedInputCache") -> dict[str, Any]:
     model = load_strict_yaml(contract["inputs"]["model_config"])
     preimage = {
         "schema_version": SCHEMA_VERSION,
-        "artifact_type": "p10_prepared_geometry_plan",
-        "contract_version": "p10-prepared-geometry-v1",
+        "artifact_type": "p11_prepared_geometry_plan",
+        "contract_version": "p11-prepared-geometry-v1",
         "prepared_input_cache_id": inputs.cache_id,
         "prepared_input_plan_sha256": inputs.manifest["plan"]["content_sha256"],
         "geometry_config": model["model"]["geometry"],
@@ -464,7 +468,7 @@ def make_geometry_plan(contract: Mapping[str, Any], inputs: "P10PreparedInputCac
                     for row in inputs.manifest["batches"] if row["split"] == "evaluation"],
     }
     digest = canonical_sha256(preimage)
-    return {**preimage, "cache_id": f"p10geo_{digest[:24]}", "content_sha256": digest}
+    return {**preimage, "cache_id": f"p11geo_{digest[:24]}", "content_sha256": digest}
 
 
 def _geometry_worker(gpu: int, rows: Sequence[Mapping[str, Any]], input_root: str,
@@ -484,7 +488,7 @@ def _geometry_worker(gpu: int, rows: Sequence[Mapping[str, Any]], input_root: st
         source = Path(input_root) / row["relative_path"]
         payload = torch.load(source, map_location="cpu", weights_only=False)
         if payload.get("cache_id") != input_cache_id:
-            raise P10PreparedInputError("PREPARED_GEOMETRY_PARENT_MISMATCH")
+            raise P11PreparedInputError("PREPARED_GEOMETRY_PARENT_MISMATCH")
         batch = _device_batch(payload["batch"], device)
         magnitude, phase = geometry_fourier_features(
             batch, {"geometry": dict(geometry_config)}, device, implementation="vectorized"
@@ -504,36 +508,38 @@ def validate_geometry_cache(manifest_path: str | Path, verify_payloads: bool = T
     plan = manifest.get("plan", {})
     preimage = {key: value for key, value in plan.items() if key not in {"cache_id", "content_sha256"}}
     digest = canonical_sha256(preimage)
-    if (plan.get("contract_version") != "p10-prepared-geometry-v1"
-            or plan.get("content_sha256") != digest or plan.get("cache_id") != f"p10geo_{digest[:24]}"
+    if (plan.get("contract_version") != "p11-prepared-geometry-v1"
+            or plan.get("content_sha256") != digest or plan.get("cache_id") != f"p11geo_{digest[:24]}"
             or manifest.get("cache_id") != plan.get("cache_id") or manifest.get("status") != "PASS"):
-        raise P10PreparedInputError("PREPARED_GEOMETRY_MANIFEST_INVALID")
+        raise P11PreparedInputError("PREPARED_GEOMETRY_MANIFEST_INVALID")
     expected = plan.get("batches")
     rows = manifest.get("entries")
     if not isinstance(rows, list) or [{key: row[key] for key in ("split", "kind", "batch_index", "records")}
                                       for row in rows] != expected:
-        raise P10PreparedInputError("PREPARED_GEOMETRY_INVENTORY_INVALID")
+        raise P11PreparedInputError("PREPARED_GEOMETRY_INVENTORY_INVALID")
     root = path.parent.resolve()
     for row in rows:
         payload = (root / row["relative_path"]).resolve()
         try:
             payload.relative_to(root)
         except ValueError as error:
-            raise P10PreparedInputError("PREPARED_GEOMETRY_PATH_INVALID") from error
+            raise P11PreparedInputError("PREPARED_GEOMETRY_PATH_INVALID") from error
         if payload.is_symlink() or not payload.is_file():
-            raise P10PreparedInputError("PREPARED_GEOMETRY_PAYLOAD_MISSING")
+            raise P11PreparedInputError("PREPARED_GEOMETRY_PAYLOAD_MISSING")
         if payload.stat().st_size != int(row["size_bytes"]):
-            raise P10PreparedInputError("PREPARED_GEOMETRY_SIZE_MISMATCH")
+            raise P11PreparedInputError("PREPARED_GEOMETRY_SIZE_MISMATCH")
         if verify_payloads and sha256_file(payload) != row["payload_sha256"]:
-            raise P10PreparedInputError("PREPARED_GEOMETRY_HASH_MISMATCH")
+            raise P11PreparedInputError("PREPARED_GEOMETRY_HASH_MISMATCH")
     scientific = {key: value for key, value in manifest.items() if key != "manifest_sha256"}
     if manifest.get("manifest_sha256") != canonical_sha256(scientific):
-        raise P10PreparedInputError("PREPARED_GEOMETRY_MANIFEST_HASH_MISMATCH")
+        raise P11PreparedInputError("PREPARED_GEOMETRY_MANIFEST_HASH_MISMATCH")
     return manifest
 
 
 def build_geometry_cache(contract: Mapping[str, Any], input_manifest: str | Path) -> Path:
-    inputs = P10PreparedInputCache.open(input_manifest)
+    if contract.get("migration_status") == "RECOMPUTE_REQUIRED":
+        raise P11PreparedInputError("S11_LINEAGE_REPAIR_REQUIRED")
+    inputs = P11PreparedInputCache.open(input_manifest)
     plan = make_geometry_plan(contract, inputs)
     root = Path(contract["prepared_input"]["geometry_root"])
     destination = root / plan["cache_id"]
@@ -542,7 +548,7 @@ def build_geometry_cache(contract: Mapping[str, Any], input_manifest: str | Path
         validate_geometry_cache(committed)
         return committed
     if destination.exists():
-        raise P10PreparedInputError("PREPARED_GEOMETRY_INCOMPLETE_DESTINATION")
+        raise P11PreparedInputError("PREPARED_GEOMETRY_INCOMPLETE_DESTINATION")
     root.mkdir(parents=True, exist_ok=True)
     stage = root / f".staging-{plan['cache_id']}-{os.getpid()}"
     entries = stage / "entries"
@@ -562,17 +568,17 @@ def build_geometry_cache(contract: Mapping[str, Any], input_manifest: str | Path
     for process in processes:
         process.join()
         if process.exitcode != 0:
-            raise P10PreparedInputError(f"PREPARED_GEOMETRY_WORKER_FAILED:{process.pid}:{process.exitcode}")
+            raise P11PreparedInputError(f"PREPARED_GEOMETRY_WORKER_FAILED:{process.pid}:{process.exitcode}")
     output_rows = []
     for row in rows:
         filename = f"{row['split']}-{row['kind']}-{row['batch_index']:04d}.pt"
         path = entries / filename
         if not path.is_file():
-            raise P10PreparedInputError("PREPARED_GEOMETRY_COVERAGE_INCOMPLETE")
+            raise P11PreparedInputError("PREPARED_GEOMETRY_COVERAGE_INCOMPLETE")
         output_rows.append({**{key: row[key] for key in ("split", "kind", "batch_index", "records")},
                             "relative_path": f"entries/{filename}", "size_bytes": path.stat().st_size,
                             "payload_sha256": sha256_file(path)})
-    manifest = {"schema_version": SCHEMA_VERSION, "artifact_type": "p10_prepared_geometry_cache",
+    manifest = {"schema_version": SCHEMA_VERSION, "artifact_type": "p11_prepared_geometry_cache",
                 "cache_id": plan["cache_id"], "plan": plan, "entries": output_rows,
                 "entry_count": len(output_rows), "build": {"gpu_count": 2,
                 "wall_seconds": time.monotonic() - started}, "status": "PASS"}
@@ -589,12 +595,12 @@ def build_geometry_cache(contract: Mapping[str, Any], input_manifest: str | Path
 
 
 @dataclass(frozen=True)
-class P10PreparedGeometryCache:
+class P11PreparedGeometryCache:
     manifest_path: Path
     manifest: dict[str, Any]
 
     @classmethod
-    def open(cls, manifest_path: str | Path, verify_payloads: bool = True) -> "P10PreparedGeometryCache":
+    def open(cls, manifest_path: str | Path, verify_payloads: bool = True) -> "P11PreparedGeometryCache":
         path = Path(manifest_path)
         return cls(path, validate_geometry_cache(path, verify_payloads))
 
@@ -606,17 +612,17 @@ class P10PreparedGeometryCache:
         rows = [row for row in self.manifest["entries"]
                 if row["split"] == split and row["kind"] == kind and int(row["batch_index"]) == index]
         if len(rows) != 1:
-            raise P10PreparedInputError("PREPARED_GEOMETRY_LOOKUP_MISSING")
+            raise P11PreparedInputError("PREPARED_GEOMETRY_LOOKUP_MISSING")
         row = rows[0]
         payload = torch.load(self.manifest_path.parent / row["relative_path"], map_location="cpu", weights_only=False)
         identity = {key: row[key] for key in ("split", "kind", "batch_index", "records")}
         if (payload.get("cache_id") != self.cache_id
                 or payload.get("parent_cache_id") != self.manifest["plan"]["prepared_input_cache_id"]
                 or payload.get("identity") != identity):
-            raise P10PreparedInputError("PREPARED_GEOMETRY_PAYLOAD_IDENTITY_MISMATCH")
+            raise P11PreparedInputError("PREPARED_GEOMETRY_PAYLOAD_IDENTITY_MISMATCH")
         magnitude, phase = payload.get("magnitude"), payload.get("phase")
         if not isinstance(magnitude, torch.Tensor) or not isinstance(phase, torch.Tensor):
-            raise P10PreparedInputError("PREPARED_GEOMETRY_PAYLOAD_INVALID")
+            raise P11PreparedInputError("PREPARED_GEOMETRY_PAYLOAD_INVALID")
         return magnitude.to(device, non_blocking=True), phase.to(device, non_blocking=True)
 
 
@@ -635,20 +641,20 @@ class _PreparedBatchDataset(Dataset):
         identity = {key: row[key] for key in ("split", "kind", "batch_index", "records")}
         if (payload.get("schema_version") != SCHEMA_VERSION or payload.get("cache_id") != self.cache_id
                 or payload.get("identity") != identity):
-            raise P10PreparedInputError("PREPARED_BATCH_PAYLOAD_IDENTITY_MISMATCH")
+            raise P11PreparedInputError("PREPARED_BATCH_PAYLOAD_IDENTITY_MISMATCH")
         batch, ds = payload.get("batch"), payload.get("ds_raster")
         if not isinstance(batch, dict) or not isinstance(ds, torch.Tensor) or tuple(ds.shape[1:]) != (26, 100, 100):
-            raise P10PreparedInputError("PREPARED_BATCH_PAYLOAD_INVALID")
+            raise P11PreparedInputError("PREPARED_BATCH_PAYLOAD_INVALID")
         return {"batch": batch, "ds_raster": ds, "record_count": len(row["records"])}
 
 
 @dataclass(frozen=True)
-class P10PreparedInputCache:
+class P11PreparedInputCache:
     manifest_path: Path
     manifest: dict[str, Any]
 
     @classmethod
-    def open(cls, manifest_path: str | Path, verify_payloads: bool = True) -> "P10PreparedInputCache":
+    def open(cls, manifest_path: str | Path, verify_payloads: bool = True) -> "P11PreparedInputCache":
         path = Path(manifest_path)
         return cls(path, validate_prepared_cache(path, verify_payloads=verify_payloads))
 
@@ -675,9 +681,9 @@ class P10PreparedInputCache:
         payload = torch.load(self.manifest_path.parent / row["relative_path"], map_location="cpu", weights_only=False)
         identity, masks = payload.get("identity"), payload.get("masks")
         if identity != {key: row[key] for key in ("scene_ids", "distance_m", "raw_sha256")}:
-            raise P10PreparedInputError("PREPARED_NONLOCAL_IDENTITY_MISMATCH")
+            raise P11PreparedInputError("PREPARED_NONLOCAL_IDENTITY_MISMATCH")
         if not isinstance(masks, torch.Tensor) or tuple(masks.shape) != (9000, 9000) or masks.dtype != torch.bool:
-            raise P10PreparedInputError("PREPARED_NONLOCAL_PAYLOAD_INVALID")
+            raise P11PreparedInputError("PREPARED_NONLOCAL_PAYLOAD_INVALID")
         if hashlib.sha256(masks.numpy().tobytes()).hexdigest() != row["raw_sha256"]:
-            raise P10PreparedInputError("PREPARED_NONLOCAL_HASH_MISMATCH")
+            raise P11PreparedInputError("PREPARED_NONLOCAL_HASH_MISMATCH")
         return list(identity["scene_ids"]), masks

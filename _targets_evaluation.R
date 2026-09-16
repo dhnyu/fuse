@@ -1,16 +1,21 @@
 library(targets)
+library(crew)
 source("R/evaluation_targets.R")
 
-tar_option_set(packages = c("jsonlite"), error = "stop", garbage_collection = TRUE, memory = "transient")
-source("targets/s10_evaluation.R")
+# S11 is intentionally fail-closed; this controller declaration grants no execution.
+controller_05 <- crew::crew_controller_local(name = "controller_05", workers = 1L)
+tar_option_set(packages = c("jsonlite"), error = "stop", garbage_collection = TRUE, memory = "transient",
+  controller = controller_05,
+  resources = tar_resources(crew = tar_resources_crew(controller = "controller_05")))
+source("targets/s11_evaluation.R")
 
-list_s10 <- c(list(
-  tar_target(s10_evaluation_sources,
+list_s11 <- c(list(
+  tar_target(s11_evaluation_sources,
     c("python/evaluation.py", "python/evaluation_inputs.py",
       "python/requirements-evaluation.txt", "scripts/evaluate_scene_encoder.py",
       "scripts/prepare_evaluation_inputs.py", "config/evaluation.yml",
       "config/schemas/evaluation.schema.json"),
     format = "file")
-), list_s10_evaluation_targets)
+), list_s11_evaluation_targets)
 
-list_s10
+list_s11

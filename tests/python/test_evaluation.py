@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "python"))
 
 from current_methodology import COMPARISON_NAMES
-from evaluation import CURRENT_MODEL_IDS, P10Error, load_contract
+from evaluation import CURRENT_MODEL_IDS, P11Error, load_contract
 
 
 def test_current_evaluation_contract_is_closed_and_pending_recomputation():
@@ -20,7 +20,7 @@ def test_current_evaluation_contract_is_closed_and_pending_recomputation():
     assert value["accepted_evaluation"]["original_count"] == 9000
     assert value["validation_revalidation"]["original_count"] == 1000
     assert {item["acceptance_id"] for item in value["model_set"]} == {"PENDING_RECOMPUTATION"}
-    with pytest.raises(P10Error, match="PENDING_RECOMPUTATION"):
+    with pytest.raises(P11Error, match="PENDING_RECOMPUTATION"):
         load_contract(path)
 
 

@@ -1,8 +1,8 @@
 schema_version: "1.0.0"
-contract_name: p10-full-evaluation-v2
+contract_name: p11-full-evaluation-v2
 migration_status: RECOMPUTE_REQUIRED
-publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/p10/canonical
-runtime_root: /mnt/hdd002/dhnyu/fusedata/runtime/p10
+publication_root: /mnt/hdd002/dhnyu/fusedata/models/reduced/p11/canonical
+runtime_root: /mnt/hdd002/dhnyu/fusedata/runtime/p11
 model_set:
   - {configuration_id: FM, acceptance_id: PENDING_RECOMPUTATION, family: FM}
   - {configuration_id: A1, acceptance_id: PENDING_RECOMPUTATION, family: A1}
@@ -49,7 +49,9 @@ validation_revalidation:
   retrieval_loss_atol: 0.000001
   margin_atol: 0.000001
 qualitative:
-  contract_version: p10-qualitative-query-v1
+  contract_version: p11-qualitative-query-v1
+  # Preserve the former stage scientific seed bytes across number-only migration.
+  scientific_seed_preimage_version: p10-qualitative-query-v1
   count: 10
   prng: numpy.random.PCG64
   numpy_version: "2.4.6"
@@ -59,7 +61,7 @@ qualitative:
   nonlocal_exclusion_m: 2000.0
   reported_rank_positions: [top, one_third, two_thirds, bottom]
 analysis:
-  contract_version: p10-representation-analysis-v1
+  contract_version: p11-representation-analysis-v1
   umap: {package: umap-learn, version: 0.5.9.post2, n_components: 2, n_neighbors: 15, min_dist: 0.1, metric: cosine, random_state: 20260904, transform_seed: 20260904, n_jobs: 1}
   hdbscan: {package: hdbscan, version: 0.8.40, min_cluster_size: 30, min_samples: 10, metric: euclidean, cluster_selection_method: eom, allow_single_cluster: false}
 execution:
@@ -71,9 +73,9 @@ execution:
   checkpoint_writes: 0
   optimizer_updates: 0
 prepared_input:
-  contract_version: p10-prepared-input-v1
-  root: /mnt/hdd002/dhnyu/fusedata/runtime/p10/prepared_input
-  geometry_root: /mnt/hdd002/dhnyu/fusedata/runtime/p10/prepared_geometry
+  contract_version: p11-prepared-input-v1
+  root: /mnt/hdd002/dhnyu/fusedata/runtime/p11/prepared_input
+  geometry_root: /mnt/hdd002/dhnyu/fusedata/runtime/p11/prepared_geometry
   batch_size: 8
   build_workers: 32
   loader: {workers: 8, prefetch: 2, pin_memory: true, nonblocking_h2d: true}

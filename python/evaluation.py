@@ -1,6 +1,6 @@
-"""Canonical P10 revalidation, held-out evaluation, and representation analysis.
+"""Canonical P11 revalidation, held-out evaluation, and representation analysis.
 
-P10 is read-only with respect to P9.  It resolves checkpoints through V2 acceptance,
+P11 is read-only with respect to P9.  It resolves checkpoints through V2 acceptance,
 replays the fixed validation retrieval once, then consumes the closed evaluation set.
 """
 
@@ -36,11 +36,11 @@ from training_support import collate, to_device
 from training_configuration import materialize_hyperparameter_configuration
 from model_families import MomentumSceneModel, ds_raster_from_batch, family_contract
 from artifact_protocol import canonical_json_bytes, canonical_sha256, sha256_file
-from checkpoint_resolution import build_checkpoint_resolver, resolve_p10_checkpoint
+from checkpoint_resolution import build_checkpoint_resolver, resolve_s11_checkpoint
 from training_ledger import fsync_directory, write_all
 from training_prepared_cache import DSRasterCacheReader, ProductionPreparedData
 from evaluation_inputs import (
-    P10PreparedGeometryCache, P10PreparedInputCache, build_geometry_cache, build_prepared_cache,
+    P11PreparedGeometryCache, P11PreparedInputCache, build_geometry_cache, build_prepared_cache,
 )
 
 
@@ -50,8 +50,8 @@ CURRENT_MODEL_IDS = (
     "B5", "B6", "B7", "B8", "B9", "SSV", "DS",
 )
 
-class P10Error(RuntimeError):
-    """A stable fail-closed P10 contract or evidence error."""
+class P11Error(RuntimeError):
+    """A stable fail-closed P11 contract or evidence error."""
 
 
 @dataclass(frozen=True)
@@ -75,7 +75,7 @@ class ModelBinding:
 def _read_json(path: str | Path) -> dict[str, Any]:
     value = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(value, dict):
-        raise P10Error(f"JSON_OBJECT_REQUIRED:{path}")
+        raise P11Error(f"JSON_OBJECT_REQUIRED:{path}")
     return value
 
 
@@ -83,7 +83,7 @@ def _atomic_file(path: Path, raw: bytes) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
         if path.read_bytes() != raw:
-            raise P10Error(f"IMMUTABLE_PUBLICATION_COLLISION:{path}")
+            raise P11Error(f"IMMUTABLE_PUBLICATION_COLLISION:{path}")
         return path
     descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     stage = Path(name)
@@ -96,7 +96,7 @@ def _atomic_file(path: Path, raw: bytes) -> Path:
         os.link(stage, path)
     except FileExistsError:
         if path.read_bytes() != raw:
-            raise P10Error(f"IMMUTABLE_PUBLICATION_COLLISION:{path}")
+            raise P11Error(f"IMMUTABLE_PUBLICATION_COLLISION:{path}")
     finally:
         stage.unlink(missing_ok=True)
     fsync_directory(path.parent)
@@ -109,19 +109,19 @@ def publish_json(path: Path, value: Mapping[str, Any]) -> Path:
 
 def load_contract(path: str | Path) -> dict[str, Any]:
     value = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    if value.get("schema_version") != SCHEMA_VERSION or value.get("contract_name") != "p10-full-evaluation-v2":
-        raise P10Error("P10_CONTRACT_VERSION_INVALID")
+    if value.get("schema_version") != SCHEMA_VERSION or value.get("contract_name") != "p11-full-evaluation-v2":
+        raise P11Error("P11_CONTRACT_VERSION_INVALID")
     if value.get("migration_status") == "RECOMPUTE_REQUIRED":
-        raise P10Error("P10_CURRENT_ARTIFACTS_PENDING_RECOMPUTATION")
+        raise P11Error("P11_CURRENT_ARTIFACTS_PENDING_RECOMPUTATION")
     if tuple(item.get("configuration_id") for item in value.get("model_set", ())) != CURRENT_MODEL_IDS:
-        raise P10Error("P10_MODEL_SET_NOT_CLOSED_SEVENTEEN")
+        raise P11Error("P11_MODEL_SET_NOT_CLOSED_SEVENTEEN")
     if len({item["acceptance_id"] for item in value["model_set"]}) != 17:
-        raise P10Error("P10_ACCEPTANCE_SET_AMBIGUOUS")
+        raise P11Error("P11_ACCEPTANCE_SET_AMBIGUOUS")
     expected = value["accepted_evaluation"]
     if (expected.get("original_count"), expected.get("query_count"), expected.get("gallery_count")) != (9000, 18000, 9000):
-        raise P10Error("P10_EVALUATION_POPULATION_MISMATCH")
+        raise P11Error("P11_EVALUATION_POPULATION_MISMATCH")
     if any(not expected.get(name) for name in ("split_acceptance_id", "query_index_id", "gallery_id", "mapping_id")):
-        raise P10Error("P10_EVALUATION_IDENTITY_MISSING")
+        raise P11Error("P11_EVALUATION_IDENTITY_MISSING")
     return value
 
 
@@ -129,7 +129,7 @@ def _resolver_inputs(contract: Mapping[str, Any]) -> tuple[Any, list[dict[str, A
     completed = []
     for item in contract["model_set"]:
         if item["acceptance_id"] == "PENDING_RECOMPUTATION" or not item.get("bundle_record"):
-            raise P10Error("P10_CURRENT_TRAINING_ACCEPTANCE_PENDING")
+            raise P11Error("P11_CURRENT_TRAINING_ACCEPTANCE_PENDING")
         completed.append({
             "configuration_id": item["configuration_id"],
             "acceptance_id": item["acceptance_id"],
@@ -146,17 +146,17 @@ def resolve_model_bindings(contract: Mapping[str, Any]) -> list[ModelBinding]:
     resolver, _ = _resolver_inputs(contract)
     bindings: list[ModelBinding] = []
     for item in contract["model_set"]:
-        resolved = resolve_p10_checkpoint(item["acceptance_id"], resolver)
+        resolved = resolve_s11_checkpoint(item["acceptance_id"], resolver)
         locator = resolved.payload_locator
         location = locator.get("location", {})
         if locator.get("backend") != "filesystem" or location.get("namespace") not in resolver.locator_roots:
-            raise P10Error("P10_CHECKPOINT_LOCATOR_INVALID")
+            raise P11Error("P11_CHECKPOINT_LOCATOR_INVALID")
         payload = Path(resolver.locator_roots[location["namespace"]]) / location["relative_path"]
         if not payload.is_file() or sha256_file(payload) != resolved.payload_sha256:
-            raise P10Error("P10_CHECKPOINT_HASH_MISMATCH")
+            raise P11Error("P11_CHECKPOINT_HASH_MISMATCH")
         scientific_content = resolved.scientific_configuration.get("content", {})
         if scientific_content.get("configuration_id") != item["configuration_id"]:
-            raise P10Error("P10_CONFIGURATION_BINDING_MISMATCH")
+            raise P11Error("P11_CONFIGURATION_BINDING_MISMATCH")
         bindings.append(ModelBinding(
             configuration_id=item["configuration_id"], acceptance_id=item["acceptance_id"], family=item["family"],
             checkpoint_id=resolved.checkpoint_id, checkpoint_path=str(payload),
@@ -176,41 +176,42 @@ def evaluation_population(contract: Mapping[str, Any]) -> tuple[list[dict[str, A
     acceptance = _read_json(root / "fixed_query_acceptance.json")
     evaluation = _read_json(root / "evaluation_acceptance.json")
     if acceptance.get("evaluation_acceptance_id") != contract["accepted_evaluation"]["split_acceptance_id"]:
-        raise P10Error("P10_EVALUATION_ACCEPTANCE_MISMATCH")
+        raise P11Error("P11_EVALUATION_ACCEPTANCE_MISMATCH")
     if (evaluation.get("query_index_id"), evaluation.get("gallery_id"), evaluation.get("mapping_id")) != (
         contract["accepted_evaluation"]["query_index_id"], contract["accepted_evaluation"]["gallery_id"],
         contract["accepted_evaluation"]["mapping_id"],
     ):
-        raise P10Error("P10_EVALUATION_COMPONENT_MISMATCH")
+        raise P11Error("P11_EVALUATION_COMPONENT_MISMATCH")
     queries = pq.read_table(root / "evaluation_query_index.parquet").to_pylist()
     galleries = pq.read_table(root / "evaluation_gallery.parquet").to_pylist()
     queries = sorted(queries, key=lambda row: (row["scene_id"], int(row["query_index"])))
     galleries = sorted(galleries, key=lambda row: row["scene_id"])
     if len(queries) != 18000 or len(galleries) != 9000:
-        raise P10Error("P10_EVALUATION_POPULATION_INVALID")
+        raise P11Error("P11_EVALUATION_POPULATION_INVALID")
     if [row["positive_scene_id"] for row in queries] != [row["scene_id"] for row in galleries for _ in range(2)]:
-        raise P10Error("P10_EVALUATION_MAPPING_INVALID")
+        raise P11Error("P11_EVALUATION_MAPPING_INVALID")
     return queries, galleries
 
 
 def make_qualitative_contract(contract: Mapping[str, Any], galleries: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     scene_ids = [str(row["scene_id"]) for row in galleries]
     if scene_ids != sorted(scene_ids) or len(scene_ids) != 9000 or len(set(scene_ids)) != 9000:
-        raise P10Error("P10_QUALITATIVE_POPULATION_INVALID")
+        raise P11Error("P11_QUALITATIVE_POPULATION_INVALID")
     population_hash = canonical_sha256(scene_ids)
     version = contract["qualitative"]["contract_version"]
     seed_digest = hashlib.sha256(
-        (version + contract["accepted_evaluation"]["split_acceptance_id"] + population_hash).encode("utf-8")
+        (contract["qualitative"]["scientific_seed_preimage_version"] + contract["accepted_evaluation"]["split_acceptance_id"] + population_hash).encode("utf-8")
     ).hexdigest()
     seed = int.from_bytes(bytes.fromhex(seed_digest)[:8], "big", signed=False)
     generator = np.random.Generator(np.random.PCG64(seed))
     positions = generator.choice(len(scene_ids), size=10, replace=False).tolist()
     selected = [scene_ids[index] for index in positions]
     preimage = {
-        "schema_version": SCHEMA_VERSION, "artifact_type": "p10_qualitative_query_contract",
+        "schema_version": SCHEMA_VERSION, "artifact_type": "p11_qualitative_query_contract",
         "contract_version": version, "evaluation_split_acceptance_id": contract["accepted_evaluation"]["split_acceptance_id"],
         "ordered_population_sha256": population_hash, "population_count": 9000,
-        "seed_derivation": "sha256_utf8(contract_version||evaluation_split_acceptance_id||ordered_population_sha256)",
+        "scientific_seed_preimage_version": contract["qualitative"]["scientific_seed_preimage_version"],
+        "seed_derivation": "sha256_utf8(scientific_seed_preimage_version||evaluation_split_acceptance_id||ordered_population_sha256)",
         "seed_digest": seed_digest, "seed_unsigned_big_endian_u64_decimal": str(seed),
         "prng": "numpy.random.PCG64", "numpy_version": contract["qualitative"]["numpy_version"],
         "sampling": "choice_without_replacement_preserve_draw_order", "selected_indices": positions,
@@ -219,13 +220,13 @@ def make_qualitative_contract(contract: Mapping[str, Any], galleries: Sequence[M
         "reported_rank_positions": ["top", "one_third", "two_thirds", "bottom"],
     }
     digest = canonical_sha256(preimage)
-    return {**preimage, "contract_id": f"p10qq_{digest[:24]}", "content_sha256": digest, "status": "COMMITTED"}
+    return {**preimage, "contract_id": f"p11qq_{digest[:24]}", "content_sha256": digest, "status": "COMMITTED"}
 
 
 def make_analysis_contract(contract: Mapping[str, Any]) -> dict[str, Any]:
-    preimage = {"schema_version": SCHEMA_VERSION, "artifact_type": "p10_representation_analysis_contract", **contract["analysis"]}
+    preimage = {"schema_version": SCHEMA_VERSION, "artifact_type": "p11_representation_analysis_contract", **contract["analysis"]}
     digest = canonical_sha256(preimage)
-    return {**preimage, "contract_id": f"p10ana_{digest[:24]}", "content_sha256": digest, "status": "COMMITTED"}
+    return {**preimage, "contract_id": f"p11ana_{digest[:24]}", "content_sha256": digest, "status": "COMMITTED"}
 
 
 def make_authority(contract: Mapping[str, Any], bindings: Sequence[ModelBinding], qualitative: Mapping[str, Any], analysis: Mapping[str, Any]) -> dict[str, Any]:
@@ -237,7 +238,7 @@ def make_authority(contract: Mapping[str, Any], bindings: Sequence[ModelBinding]
     }
     preimage = {
         "schema_version": SCHEMA_VERSION, "artifact_type": "evaluation_authority",
-        "scope": "CURRENT_SEVENTEEN_MODEL_FULL_P10", "models": [asdict(item) for item in bindings],
+        "scope": "CURRENT_SEVENTEEN_MODEL_FULL_P11", "models": [asdict(item) for item in bindings],
         "evaluation": contract["accepted_evaluation"], "validation_revalidation": contract["validation_revalidation"],
         "qualitative_contract_id": qualitative["contract_id"], "analysis_contract_id": analysis["contract_id"],
         "implementation": implementation,
@@ -245,7 +246,7 @@ def make_authority(contract: Mapping[str, Any], bindings: Sequence[ModelBinding]
                         "optimizer_updates": 0, "checkpoint_writes": 0, "p11": 0},
     }
     digest = canonical_sha256(preimage)
-    return {**preimage, "authority_id": f"p10auth_{digest[:24]}", "content_sha256": digest, "status": "AUTHORIZED"}
+    return {**preimage, "authority_id": f"p11auth_{digest[:24]}", "content_sha256": digest, "status": "AUTHORIZED"}
 
 
 def _rows(contract: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
@@ -269,7 +270,7 @@ def _model_values(contract: Mapping[str, Any], binding: ModelBinding, row: Mappi
 
 def _device(contract: Mapping[str, Any]) -> torch.device:
     if not torch.cuda.is_available():
-        raise P10Error("P10_CUDA_UNAVAILABLE")
+        raise P11Error("P11_CUDA_UNAVAILABLE")
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     torch.use_deterministic_algorithms(True, warn_only=False)
     torch.backends.cudnn.deterministic = True
@@ -285,7 +286,7 @@ def _device(contract: Mapping[str, Any]) -> torch.device:
 def _load_model(binding: ModelBinding, values: Mapping[str, Any], device: torch.device) -> MomentumSceneModel:
     checkpoint = torch.load(binding.checkpoint_path, map_location="cpu", weights_only=False)
     if checkpoint.get("configuration_identity") != binding.scientific_configuration.get("content_sha256"):
-        raise P10Error("P10_CHECKPOINT_INTERNAL_CONFIGURATION_MISMATCH")
+        raise P11Error("P11_CHECKPOINT_INTERNAL_CONFIGURATION_MISMATCH")
     model = MomentumSceneModel(values["model_config"], values["vocabulary_sizes"], binding.family).to(device)
     model.online.load_state_dict(checkpoint["online_model"], strict=True)
     model.online.eval()
@@ -313,7 +314,7 @@ def _dynamic_catalog(contract: Mapping[str, Any]) -> ArtifactCatalog:
     p5 = _read_json(Path(contract["inputs"]["p5_acceptance_root"]) / "fixed_query_acceptance.json")
     p4_paths = list((Path(contract["inputs"]["p4_root"]) / "acceptance").glob("*/augmentation_bank_acceptance.json"))
     if len(p4_paths) != 1:
-        raise P10Error("P10_P4_ACCEPTANCE_AMBIGUOUS")
+        raise P11Error("P11_P4_ACCEPTANCE_AMBIGUOUS")
     p4 = _read_json(p4_paths[0])
     return ArtifactCatalog(
         {key: contract["inputs"][f"{key}_root"] for key in ("p3", "p4", "p5")},
@@ -381,9 +382,9 @@ def _embed_prepared(
     values: Mapping[str, Any],
     contract: Mapping[str, Any],
     device: torch.device,
-    cache: P10PreparedInputCache,
+    cache: P11PreparedInputCache,
     split: str,
-    prepared_geometry: P10PreparedGeometryCache | None = None,
+    prepared_geometry: P11PreparedGeometryCache | None = None,
 ) -> tuple[torch.Tensor, np.ndarray]:
     """Embed fixed prepared batches; no dynamic source fallback is permitted."""
     vectors: list[torch.Tensor] = []
@@ -402,7 +403,7 @@ def _embed_prepared(
                 for row in cache.manifest["batches"]
             )
             print(
-                f"P10_PREPARED_INPUT_ACTIVE split={split} kind={kind} "
+                f"P11_PREPARED_INPUT_ACTIVE split={split} kind={kind} "
                 f"batches={batch_count} cache={cache.cache_id}",
                 file=sys.stderr, flush=True,
             )
@@ -425,14 +426,14 @@ def _embed_prepared(
                         geometry = accepted_geometry.batch(batch, f"validation_{kind}", device)
                     else:
                         if prepared_geometry is None:
-                            raise P10Error("P10_PREPARED_GEOMETRY_REQUIRED_NO_FALLBACK")
+                            raise P11Error("P11_PREPARED_GEOMETRY_REQUIRED_NO_FALLBACK")
                         geometry = prepared_geometry.batch(split, kind, batch_index, device)
                 output = model.online(batch, geometry, ds)["scene_embedding"]
                 vectors.append(torch.nn.functional.normalize(output, dim=1).cpu())
                 completed = batch_index + 1
                 if completed % 50 == 0 or completed == batch_count:
                     print(
-                        f"P10_PREPARED_PROGRESS split={split} kind={kind} "
+                        f"P11_PREPARED_PROGRESS split={split} kind={kind} "
                         f"completed={completed}/{batch_count}",
                         file=sys.stderr, flush=True,
                     )
@@ -443,7 +444,7 @@ def _save_arrays(path: Path, **arrays: np.ndarray) -> None:
     if path.exists():
         with np.load(path) as existing:
             if set(existing.files) != set(arrays) or any(not np.array_equal(existing[key], value) for key, value in arrays.items()):
-                raise P10Error(f"IMMUTABLE_ARRAY_PUBLICATION_COLLISION:{path}")
+                raise P11Error(f"IMMUTABLE_ARRAY_PUBLICATION_COLLISION:{path}")
         return
     temporary = path.with_name(f".{path.name}.incomplete-{os.getpid()}")
     with temporary.open("wb") as stream:
@@ -454,7 +455,7 @@ def _save_arrays(path: Path, **arrays: np.ndarray) -> None:
     except FileExistsError:
         with np.load(path) as existing:
             if set(existing.files) != set(arrays) or any(not np.array_equal(existing[key], value) for key, value in arrays.items()):
-                raise P10Error(f"IMMUTABLE_ARRAY_PUBLICATION_COLLISION:{path}")
+                raise P11Error(f"IMMUTABLE_ARRAY_PUBLICATION_COLLISION:{path}")
     finally:
         temporary.unlink(missing_ok=True)
     fsync_directory(path.parent)
@@ -462,7 +463,7 @@ def _save_arrays(path: Path, **arrays: np.ndarray) -> None:
 
 def _load_committed_model_evaluation(
     root: Path, authority: Mapping[str, Any], binding: ModelBinding,
-    prepared_cache: P10PreparedInputCache, prepared_geometry: P10PreparedGeometryCache,
+    prepared_cache: P11PreparedInputCache, prepared_geometry: P11PreparedGeometryCache,
 ) -> dict[str, Any] | None:
     committed = root / "evaluation.json"
     if not committed.is_file():
@@ -475,11 +476,11 @@ def _load_committed_model_evaluation(
             or result.get("checkpoint_id") != binding.checkpoint_id
             or result.get("prepared_input_cache_id") != prepared_cache.cache_id
             or result.get("prepared_geometry_cache_id") != prepared_geometry.cache_id):
-        raise P10Error(f"P10_COMMITTED_MODEL_EVALUATION_MISMATCH:{binding.configuration_id}")
+        raise P11Error(f"P11_COMMITTED_MODEL_EVALUATION_MISMATCH:{binding.configuration_id}")
     arrays_path = root / "evaluation_embeddings_ranks_analysis.npz"
     qualitative_path = root / "qualitative_retrieval.json"
     if not arrays_path.is_file() or not qualitative_path.is_file():
-        raise P10Error(f"P10_COMMITTED_MODEL_EVALUATION_INCOMPLETE:{binding.configuration_id}")
+        raise P11Error(f"P11_COMMITTED_MODEL_EVALUATION_INCOMPLETE:{binding.configuration_id}")
     with np.load(arrays_path) as arrays:
         expected = {
             "embedding_sha256": hashlib.sha256(arrays["embeddings"].tobytes()).hexdigest(),
@@ -491,9 +492,9 @@ def _load_committed_model_evaluation(
             ).hexdigest(),
         }
     if any(result.get(key) != value for key, value in expected.items()):
-        raise P10Error(f"P10_COMMITTED_MODEL_ARRAY_HASH_MISMATCH:{binding.configuration_id}")
+        raise P11Error(f"P11_COMMITTED_MODEL_ARRAY_HASH_MISMATCH:{binding.configuration_id}")
     if result.get("qualitative_sha256") != canonical_sha256(_read_json(qualitative_path)):
-        raise P10Error(f"P10_COMMITTED_MODEL_QUALITATIVE_HASH_MISMATCH:{binding.configuration_id}")
+        raise P11Error(f"P11_COMMITTED_MODEL_QUALITATIVE_HASH_MISMATCH:{binding.configuration_id}")
     return result
 
 
@@ -512,9 +513,9 @@ def revalidate_model(contract: Mapping[str, Any], authority: Mapping[str, Any], 
     margin_delta = metrics["mean_source_separation_margin"] - binding.expected_margin
     gate = contract["validation_revalidation"]
     if abs(loss_delta) > float(gate["retrieval_loss_atol"]) or abs(margin_delta) > float(gate["margin_atol"]):
-        raise P10Error(f"P10_VALIDATION_REVALIDATION_MISMATCH:{binding.configuration_id}:{loss_delta}:{margin_delta}")
+        raise P11Error(f"P11_VALIDATION_REVALIDATION_MISMATCH:{binding.configuration_id}:{loss_delta}:{margin_delta}")
     result = {
-        "schema_version": SCHEMA_VERSION, "artifact_type": "p10_validation_revalidation",
+        "schema_version": SCHEMA_VERSION, "artifact_type": "p11_validation_revalidation",
         "authority_id": authority["authority_id"], "configuration_id": binding.configuration_id,
         "acceptance_id": binding.acceptance_id, "checkpoint_id": binding.checkpoint_id,
         "expected": {"retrieval_loss": binding.expected_retrieval_loss, "mean_source_separation_margin": binding.expected_margin},
@@ -534,15 +535,15 @@ def revalidate_model(contract: Mapping[str, Any], authority: Mapping[str, Any], 
 
 def make_consumption(authority: Mapping[str, Any], validations: Sequence[Mapping[str, Any]], contract: Mapping[str, Any]) -> dict[str, Any]:
     if len(validations) != 8 or any(item.get("status") != "PASS" for item in validations):
-        raise P10Error("P10_PREHELDOUT_GATE_INCOMPLETE")
+        raise P11Error("P11_PREHELDOUT_GATE_INCOMPLETE")
     preimage = {
-        "schema_version": SCHEMA_VERSION, "artifact_type": "p10_heldout_consumption",
+        "schema_version": SCHEMA_VERSION, "artifact_type": "p11_heldout_consumption",
         "authority_id": authority["authority_id"], "evaluation_split_acceptance_id": contract["accepted_evaluation"]["split_acceptance_id"],
         "closed_model_acceptance_ids": [item["acceptance_id"] for item in authority["models"]],
         "validation_gate_sha256": canonical_sha256(list(validations)), "transition": {"before": 0, "after": 1},
     }
     digest = canonical_sha256(preimage)
-    return {**preimage, "consumption_id": f"p10cons_{digest[:24]}", "content_sha256": digest, "status": "COMMITTED"}
+    return {**preimage, "consumption_id": f"p11cons_{digest[:24]}", "content_sha256": digest, "status": "COMMITTED"}
 
 
 def _qualitative(binding: ModelBinding, gallery_embeddings: torch.Tensor, centers: np.ndarray,
@@ -573,8 +574,8 @@ def _qualitative(binding: ModelBinding, gallery_embeddings: torch.Tensor, center
 
 def evaluate_model(contract: Mapping[str, Any], authority: Mapping[str, Any], binding: ModelBinding,
                    row: Mapping[str, Any], qualitative: Mapping[str, Any], output: Path,
-                   prepared_cache: P10PreparedInputCache,
-                   prepared_geometry: P10PreparedGeometryCache) -> dict[str, Any]:
+                   prepared_cache: P11PreparedInputCache,
+                   prepared_geometry: P11PreparedGeometryCache) -> dict[str, Any]:
     root = output / binding.configuration_id
     existing = _load_committed_model_evaluation(
         root, authority, binding, prepared_cache, prepared_geometry
@@ -592,7 +593,7 @@ def evaluate_model(contract: Mapping[str, Any], authority: Mapping[str, Any], bi
     mask_scenes, masks = prepared_cache.nonlocal_masks()
     gallery_scenes = [row["scene_id"] for row in galleries]
     if mask_scenes != gallery_scenes:
-        raise P10Error("P10_PREPARED_NONLOCAL_SCENE_MISMATCH")
+        raise P11Error("P11_PREPARED_NONLOCAL_SCENE_MISMATCH")
     qualitative_result = _qualitative(
         binding, gallery_embeddings, centers[18000:], gallery_scenes, qualitative, masks
     )
@@ -606,7 +607,7 @@ def evaluate_model(contract: Mapping[str, Any], authority: Mapping[str, Any], bi
     clusterer = hdbscan.HDBSCAN(**cluster_args).fit(gallery_embeddings.numpy())
     norms = torch.linalg.vector_norm(gallery_embeddings, dim=1)
     result = {
-        "schema_version": SCHEMA_VERSION, "artifact_type": "p10_model_evaluation",
+        "schema_version": SCHEMA_VERSION, "artifact_type": "p11_model_evaluation",
         "authority_id": authority["authority_id"], "configuration_id": binding.configuration_id,
         "acceptance_id": binding.acceptance_id, "checkpoint_id": binding.checkpoint_id,
         "evaluation_split_acceptance_id": contract["accepted_evaluation"]["split_acceptance_id"],
@@ -644,21 +645,21 @@ def _installed_versions() -> dict[str, str]:
 
 def make_execution_attempt(
     contract: Mapping[str, Any], authority: Mapping[str, Any], consumption: Mapping[str, Any],
-    cache: P10PreparedInputCache,
-    geometry: P10PreparedGeometryCache,
+    cache: P11PreparedInputCache,
+    geometry: P11PreparedGeometryCache,
 ) -> dict[str, Any]:
     expected_versions = dict(contract["prepared_input"]["environment"])
     observed_versions = _installed_versions()
     if observed_versions != expected_versions:
-        raise P10Error(f"P10_EXECUTION_ENVIRONMENT_MISMATCH:{observed_versions}")
+        raise P11Error(f"P11_EXECUTION_ENVIRONMENT_MISMATCH:{observed_versions}")
     preimage = {
         "schema_version": SCHEMA_VERSION,
-        "artifact_type": "p10_execution_attempt",
+        "artifact_type": "p11_execution_attempt",
         "base_authority_id": authority["authority_id"],
         "base_authority_sha256": authority["content_sha256"],
         "consumption_id": consumption["consumption_id"],
         "consumption_sha256": consumption["content_sha256"],
-        "reason": "OPERATOR_REQUESTED_PERFORMANCE_REMEDIATION_P10_INPUT_PIPELINE",
+        "reason": "OPERATOR_REQUESTED_PERFORMANCE_REMEDIATION_P11_INPUT_PIPELINE",
         "closed_model_acceptance_ids": [item["acceptance_id"] for item in authority["models"]],
         "qualitative_contract_id": authority["qualitative_contract_id"],
         "analysis_contract_id": authority["analysis_contract_id"],
@@ -675,7 +676,7 @@ def make_execution_attempt(
                         "checkpoint_writes": 0, "model_set_changes": 0, "p11": 0},
     }
     digest = canonical_sha256(preimage)
-    return {**preimage, "attempt_id": f"p10exec_{digest[:24]}", "content_sha256": digest,
+    return {**preimage, "attempt_id": f"p11exec_{digest[:24]}", "content_sha256": digest,
             "status": "AUTHORIZED_SAME_CLOSED_CONTRACT_REEXECUTION"}
 
 
@@ -691,10 +692,10 @@ def record_interrupted_execution(contract: Mapping[str, Any]) -> dict[str, Any]:
             completed.append({"configuration_id": configuration_id, "sha256": sha256_file(path)})
     expected_completed = list(reexecution["interrupted_completed_models"])
     if [item["configuration_id"] for item in completed] != expected_completed:
-        raise P10Error("P10_INTERRUPTED_COMPLETION_SET_MISMATCH")
+        raise P11Error("P11_INTERRUPTED_COMPLETION_SET_MISMATCH")
     preimage = {
         "schema_version": SCHEMA_VERSION,
-        "artifact_type": "p10_execution_interruption",
+        "artifact_type": "p11_execution_interruption",
         "authority_id": authority["authority_id"],
         "authority_sha256": authority["content_sha256"],
         "consumption_id": consumption["consumption_id"],
@@ -709,7 +710,7 @@ def record_interrupted_execution(contract: Mapping[str, Any]) -> dict[str, Any]:
         "status": "INTERRUPTED_PRESERVED",
     }
     digest = canonical_sha256(preimage)
-    result = {**preimage, "interruption_id": f"p10int_{digest[:24]}", "content_sha256": digest}
+    result = {**preimage, "interruption_id": f"p11int_{digest[:24]}", "content_sha256": digest}
     publish_json(publication / "interruptions" / f"{result['interruption_id']}.json", result)
     return result
 
@@ -724,25 +725,25 @@ def _load_base_evidence(contract: Mapping[str, Any], bindings: Sequence[ModelBin
             or authority.get("models") != [asdict(item) for item in bindings]
             or authority.get("qualitative_contract_id") != qualitative["contract_id"]
             or authority.get("analysis_contract_id") != analysis["contract_id"]):
-        raise P10Error("P10_BASE_AUTHORITY_CONTRACT_MISMATCH")
+        raise P11Error("P11_BASE_AUTHORITY_CONTRACT_MISMATCH")
     if (consumption.get("authority_id") != authority["authority_id"]
             or consumption.get("transition") != {"before": 0, "after": 1}
             or consumption.get("status") != "COMMITTED"):
-        raise P10Error("P10_BASE_CONSUMPTION_INVALID")
+        raise P11Error("P11_BASE_CONSUMPTION_INVALID")
     validation_root = publication / "validation_revalidation" / authority["authority_id"]
     validations = [_read_json(validation_root / item.configuration_id / "validation_revalidation.json")
                    for item in bindings]
     if len(validations) != 8 or any(item.get("status") != "PASS" for item in validations):
-        raise P10Error("P10_BASE_VALIDATION_GATE_INVALID")
+        raise P11Error("P11_BASE_VALIDATION_GATE_INVALID")
     return authority, consumption, validations
 
 
-def finalize_p10_attempt(authority: Mapping[str, Any], attempt: Mapping[str, Any],
+def finalize_p11_attempt(authority: Mapping[str, Any], attempt: Mapping[str, Any],
                          consumption: Mapping[str, Any], validations: Sequence[Mapping[str, Any]],
                          evaluations: Sequence[Mapping[str, Any]], qualitative: Mapping[str, Any],
                          analysis: Mapping[str, Any], output: Path) -> dict[str, Any]:
     if len(evaluations) != 8 or any(item.get("status") != "PASS" for item in evaluations):
-        raise P10Error("P10_MODEL_EVALUATION_INCOMPLETE")
+        raise P11Error("P11_MODEL_EVALUATION_INCOMPLETE")
     comparison = [{"configuration_id": item["configuration_id"], **item["metrics"]} for item in evaluations]
     preimage = {
         "schema_version": SCHEMA_VERSION, "artifact_type": "evaluation_acceptance",
@@ -754,14 +755,14 @@ def finalize_p10_attempt(authority: Mapping[str, Any], attempt: Mapping[str, Any
         "fixed_full_model": "cfg_d128", "selection_reopened": False, "p11_execution_count": 0,
     }
     digest = canonical_sha256(preimage)
-    acceptance = {**preimage, "acceptance_id": f"p10acc_{digest[:24]}",
+    acceptance = {**preimage, "acceptance_id": f"p11acc_{digest[:24]}",
                   "content_sha256": digest, "status": "PASS"}
     publish_json(output / "final_comparison.json", {"models": comparison, "reference": "cfg_d128"})
     publish_json(output / "commit" / "evaluation_acceptance.json", acceptance)
     return acceptance
 
 
-def run_p10_reexecution(contract_path: str | Path) -> dict[str, Any]:
+def run_p11_reexecution(contract_path: str | Path) -> dict[str, Any]:
     contract = load_contract(contract_path)
     interruption = record_interrupted_execution(contract)
     bindings = resolve_model_bindings(contract)
@@ -770,9 +771,9 @@ def run_p10_reexecution(contract_path: str | Path) -> dict[str, Any]:
     analysis = make_analysis_contract(contract)
     authority, consumption, validations = _load_base_evidence(contract, bindings, qualitative, analysis)
     cache_manifest = build_prepared_cache(contract)
-    cache = P10PreparedInputCache.open(cache_manifest)
+    cache = P11PreparedInputCache.open(cache_manifest)
     geometry_manifest = build_geometry_cache(contract, cache_manifest)
-    geometry = P10PreparedGeometryCache.open(geometry_manifest)
+    geometry = P11PreparedGeometryCache.open(geometry_manifest)
     attempt = make_execution_attempt(contract, authority, consumption, cache, geometry)
     publication = Path(contract["publication_root"])
     attempt_root = publication / "execution_attempts" / attempt["attempt_id"]
@@ -790,12 +791,12 @@ def run_p10_reexecution(contract_path: str | Path) -> dict[str, Any]:
     rows = _rows(contract)
     evaluations = []
     for binding in bindings:
-        print(f"P10 prepared held-out evaluation: {binding.configuration_id}", file=sys.stderr, flush=True)
+        print(f"P11 prepared held-out evaluation: {binding.configuration_id}", file=sys.stderr, flush=True)
         evaluations.append(evaluate_model(
             contract, authority, binding, rows[binding.configuration_id], qualitative,
             attempt_root / "evaluations", cache, geometry,
         ))
-    acceptance = finalize_p10_attempt(
+    acceptance = finalize_p11_attempt(
         authority, attempt, consumption, validations, evaluations, qualitative, analysis, attempt_root
     )
     return {"authority": authority, "interruption": interruption,
@@ -805,11 +806,11 @@ def run_p10_reexecution(contract_path: str | Path) -> dict[str, Any]:
             "result_root": str(attempt_root)}
 
 
-def finalize_p10(authority: Mapping[str, Any], consumption: Mapping[str, Any], validations: Sequence[Mapping[str, Any]],
+def finalize_p11(authority: Mapping[str, Any], consumption: Mapping[str, Any], validations: Sequence[Mapping[str, Any]],
                  evaluations: Sequence[Mapping[str, Any]], qualitative: Mapping[str, Any], analysis: Mapping[str, Any],
                  output: Path) -> dict[str, Any]:
     if len(evaluations) != 8 or any(item.get("status") != "PASS" for item in evaluations):
-        raise P10Error("P10_MODEL_EVALUATION_INCOMPLETE")
+        raise P11Error("P11_MODEL_EVALUATION_INCOMPLETE")
     comparison = [{"configuration_id": item["configuration_id"], **item["metrics"]} for item in evaluations]
     preimage = {
         "schema_version": SCHEMA_VERSION, "artifact_type": "evaluation_acceptance",
@@ -820,13 +821,13 @@ def finalize_p10(authority: Mapping[str, Any], consumption: Mapping[str, Any], v
         "fixed_full_model": "cfg_d128", "selection_reopened": False, "p11_execution_count": 0,
     }
     digest = canonical_sha256(preimage)
-    acceptance = {**preimage, "acceptance_id": f"p10acc_{digest[:24]}", "content_sha256": digest, "status": "PASS"}
+    acceptance = {**preimage, "acceptance_id": f"p11acc_{digest[:24]}", "content_sha256": digest, "status": "PASS"}
     publish_json(output / "final_comparison.json", {"models": comparison, "reference": "cfg_d128"})
     publish_json(output / "commit" / "evaluation_acceptance.json", acceptance)
     return acceptance
 
 
-def run_p10(contract_path: str | Path) -> dict[str, Any]:
+def run_p11(contract_path: str | Path) -> dict[str, Any]:
     contract = load_contract(contract_path)
     bindings = resolve_model_bindings(contract)
     _, galleries = evaluation_population(contract)  # IDs/metadata only; no held-out payload is opened.
@@ -852,18 +853,18 @@ def run_p10(contract_path: str | Path) -> dict[str, Any]:
     validation_root = publication / "validation_revalidation" / authority["authority_id"]
     validations = []
     for binding in bindings:
-        print(f"P10 validation revalidation: {binding.configuration_id}", file=sys.stderr, flush=True)
+        print(f"P11 validation revalidation: {binding.configuration_id}", file=sys.stderr, flush=True)
         validations.append(revalidate_model(contract, authority, binding, rows[binding.configuration_id], validation_root))
     consumption = make_consumption(authority, validations, contract)
     publish_json(publication / "consumption" / f"{consumption['consumption_id']}.json", consumption)
     evaluations = []
     for binding in bindings:
-        print(f"P10 held-out evaluation: {binding.configuration_id}", file=sys.stderr, flush=True)
+        print(f"P11 held-out evaluation: {binding.configuration_id}", file=sys.stderr, flush=True)
         cache_manifest = build_prepared_cache(contract)
-        cache = P10PreparedInputCache.open(cache_manifest)
-        geometry = P10PreparedGeometryCache.open(build_geometry_cache(contract, cache_manifest))
+        cache = P11PreparedInputCache.open(cache_manifest)
+        geometry = P11PreparedGeometryCache.open(build_geometry_cache(contract, cache_manifest))
         evaluations.append(evaluate_model(contract, authority, binding, rows[binding.configuration_id], qualitative, result_root, cache, geometry))
-    acceptance = finalize_p10(authority, consumption, validations, evaluations, qualitative, analysis, result_root)
+    acceptance = finalize_p11(authority, consumption, validations, evaluations, qualitative, analysis, result_root)
     return {"authority": authority, "qualitative": qualitative, "analysis": analysis, "consumption": consumption,
             "validation_revalidations": validations, "evaluations": evaluations, "acceptance": acceptance,
             "result_root": str(result_root)}

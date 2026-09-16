@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S10 read-only qualitative inspection configuration",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "campaign",
+    "campaign_id",
+    "campaign_sha256",
+    "training_controller",
+    "training_config",
+    "model_config",
+    "query_seed",
+    "inference_seed",
+    "query_count",
+    "gallery_count",
+    "model_count",
+    "top_k",
+    "nonlocal_m",
+    "crs",
+    "device",
+    "threads",
+    "batch_size",
+    "publication_root",
+    "store",
+    "gpu_lock_root",
+    "source_pins"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "campaign": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaign_id": {
+      "const": "s09camp_d2f6749da19ad6aa56c2d303"
+    },
+    "campaign_sha256": {
+      "type": "string",
+      "minLength": 1
+    },
+    "training_controller": {
+      "type": "string",
+      "minLength": 1
+    },
+    "training_config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model_config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "query_seed": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "inference_seed": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "query_count": {
+      "const": 30
+    },
+    "gallery_count": {
+      "const": 9000
+    },
+    "model_count": {
+      "const": 28
+    },
+    "top_k": {
+      "const": 50
+    },
+    "nonlocal_m": {
+      "const": 2000
+    },
+    "crs": {
+      "const": "EPSG:5186"
+    },
+    "device": {
+      "type": "string",
+      "minLength": 1
+    },
+    "threads": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "batch_size": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "publication_root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "store": {
+      "type": "string",
+      "minLength": 1
+    },
+    "gpu_lock_root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_pins": {
+      "type": "object",
+      "minProperties": 7,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    }
+  }
+}

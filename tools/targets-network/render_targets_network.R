@@ -16,9 +16,10 @@ script_path <- function() {
 parse_network_args <- function(args) {
   output <- list(output_dir = "artifacts/targets-network", focus = character(), degree = 1L,
                  store = NULL, script = targets::tar_config_get("script"),
-                 phases = "tools/targets-network/target_phases.yml")
+                 phases = "tools/targets-network/target_phases.yml", definition_only = FALSE)
   for (arg in args) {
-    if (grepl("^--output-dir=", arg)) output$output_dir <- sub("^--output-dir=", "", arg)
+    if (identical(arg, "--definition-only")) output$definition_only <- TRUE
+    else if (grepl("^--output-dir=", arg)) output$output_dir <- sub("^--output-dir=", "", arg)
     else if (grepl("^--focus=", arg)) {
       value <- sub("^--focus=", "", arg)
       output$focus <- unique(Filter(nzchar, trimws(strsplit(value, ",", fixed = TRUE)[[1L]])))
@@ -70,10 +71,21 @@ latest_target_metadata <- function(metadata, target_names) {
   result
 }
 
-extract_network_snapshot <- function(store, script = targets::tar_config_get("script")) {
-  assert_supported_environment(store)
+extract_network_snapshot <- function(store, script = targets::tar_config_get("script"), definition_only = FALSE) {
+  if (!definition_only) assert_supported_environment(store)
   manifest <- suppressMessages(targets::tar_manifest(fields = tidyselect::everything(), script = script))
   network <- suppressMessages(targets::tar_network(targets_only = TRUE, outdated = FALSE, script = script, store = store))
+  if (definition_only) {
+    # No execution or store mutation: useful for deliberately blocked stage graphs.
+    names <- sort(manifest$name)
+    metadata <- data.frame(name = character(), parent = character(), time = as.POSIXct(character()))
+    return(list(manifest = manifest[match(names, manifest$name), , drop = FALSE],
+      vertices = network$vertices[match(names, network$vertices$name), , drop = FALSE],
+      edges = unique(network$edges[, c("from", "to"), drop = FALSE]),
+      metadata = latest_target_metadata(metadata, names), progress = data.frame(),
+      outdated = names, errored = character(), running = character(),
+      status = rep("outdated", length(names))))
+  }
   metadata <- targets::tar_meta(targets_only = TRUE, store = store)
   progress <- targets::tar_progress(store = store)
   # Keep script evaluation isolated so repeated inspection cannot contaminate globals.
@@ -336,8 +348,8 @@ write_if_changed_atomic <- function(content, output_file) {
 
 render_targets_network <- function(output_dir, focus = character(), degree = 1L, store = targets::tar_config_get("store"),
                                    phase_file = "tools/targets-network/target_phases.yml",
-                                   script = targets::tar_config_get("script")) {
-  snapshot <- extract_network_snapshot(store, script)
+                                   script = targets::tar_config_get("script"), definition_only = FALSE) {
+  snapshot <- extract_network_snapshot(store, script, definition_only)
   phase_config <- read_phase_config(phase_file)
   assignments <- assign_target_phases(snapshot$manifest$name, phase_config)
   nodes <- build_nodes(snapshot, assignments, phase_config)
@@ -366,7 +378,7 @@ main <- function() {
   setwd(project_root)
   options <- parse_network_args(commandArgs(trailingOnly = TRUE))
   if (is.null(options$store)) options$store <- yaml::read_yaml("config/research_paths.yml")$targets$research_store
-  outputs <- render_targets_network(options$output_dir, options$focus, options$degree, options$store, options$phases, options$script)
+  outputs <- render_targets_network(options$output_dir, options$focus, options$degree, options$store, options$phases, options$script, options$definition_only)
   statistics <- attr(outputs, "statistics")
   message("Created dependency HTML:\n", paste0("- ", outputs, collapse = "\n"),
           "\nSnapshot: ", statistics$node_count, " targets, ", statistics$edge_count, " edges, ",

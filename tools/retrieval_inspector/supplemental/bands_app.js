@@ -30,6 +30,7 @@ async function renderBandColumns(token){
   const strip=col.strip?`<div class="strip">${col.strip.map((x,j)=>`<button data-band="${col.key}" data-index="${j}" data-rank="${x.rank}" data-scene="${esc(x.gallery_scene_id)}" class="${j===bandsSelection[col.key]?'selected':''}" title="Rank ${x.rank} · ${esc(x.gallery_scene_id)} · cosine ${x.similarity} · ${x.geographic_distance_m} m">${thumbMap.get(x.gallery_scene_id).svg}<span>#${x.rank}</span></button>`).join('')}</div>`:'<div class="strip-spacer"></div>';
   const el=document.createElement('section');el.className='column';el.dataset.scene=s.scene_id;el.dataset.band=col.key;el.dataset.rank=item.rank||'';
   el.innerHTML=`<div class="column-head"><h2>${col.title}</h2><div class="rank-meta" title="${item.rank?`Exact cosine ${item.similarity}; ${item.geographic_distance_m} m`:meta}">${meta}</div><div class="scene-id">${esc(s.scene_id)}</div></div>${strip}`+
+   (window.S10Locations?window.S10Locations.block(s):'')+
    bandRow('Vector data',`<div class="map-frame vector-map">${s.svg}</div>`)+
    bandRow('Raster data',`<div class="raster-pair">${rasterBlock(s,'LC')}${rasterBlock(s,'DEM')}</div>`)+
    bandRow('Attributes & spatial relations',`<div class="summary">${Object.entries(s.counts).map(([k,v])=>`<div><b>${v}</b>${esc(k)}</div>`).join('')}<div><b>${s.ordered_edges}</b>ordered edges</div></div><div class="display-note">EPSG:5186 · ${s.center.map(x=>x.toFixed(2)).join(', ')}</div>`);
@@ -55,6 +56,7 @@ async function renderBands(){
 function navigateBandQuery(i){queryIndex=i;$('query').value=i;bandsSelection={top:0,middle:0,bottom:0};renderBands().catch(bandFail);const url=new URL(location);url.pathname=url.pathname.replace(/[^/]*$/,`query_${String(config.queries[i].query_index).padStart(2,'0')}.html`);history.replaceState(null,'',url)}
 async function initBands(){
  config=await verified('config.json',document.body.dataset.configSha);
+ if(window.S10Locations)await window.S10Locations.init(config);
  $('query').innerHTML=config.queries.map((q,i)=>option(i,`${q.query_index}. ${q.scene_id}`)).join('');$('query').value=queryIndex;modelOptions();
  const params=new URL(location).searchParams;if(config.models.some(m=>m.id===params.get('model')))$('model').value=params.get('model');if(['standard','nonlocal'].includes(params.get('mode')))$('mode').value=params.get('mode');
  $('query').onchange=()=>navigateBandQuery(+$('query').value);$('prev').onclick=()=>navigateBandQuery(queryIndex-1);$('next').onclick=()=>navigateBandQuery(queryIndex+1);
@@ -62,6 +64,7 @@ async function initBands(){
  document.querySelectorAll('[data-layer]').forEach(x=>x.onchange=()=>document.body.classList.toggle('hide-'+x.dataset.layer,!x.checked));
  $('resetZoom').onclick=()=>{view={scale:1,dx:0,dy:0};updateZoom()};$('toggleProvenance').onclick=()=>$('provenance').classList.toggle('hidden');
  $('provenanceText').textContent=`Parent ${config.acceptance}\nSupplemental evidence ${config.evidence_id}\nAccepted normalized embeddings only; formal Top50 exact consistency verified.\nRank1 = full eligible rank 1; Top = 2–11; Middle starts floor((N−10)/2)+1; Bottom = N−9…N.\nNo checkpoint/inference/preprocessing/Fourier execution. Formal acceptance is unchanged.\nLC uses identical stored 100×100 fraction-colour pixels; canvas smoothing is off at device resolution.\nDEM is stored standardized 17×17, display smoothing only. Detailed thematic summaries are unchanged.`;
+ if(config.location_metadata)$('provenanceText').textContent+='\nLocation: '+config.location_metadata.artifact_id+'\nScene center, WGS84 lon/lat; administrative-dong boundaries 2025-06-30. Metadata-only enrichment; no ranking recomputation or inference.';
  new ResizeObserver(()=>{document.documentElement.style.setProperty('--header-height',document.querySelector('header').getBoundingClientRect().height+'px');document.querySelectorAll('.lc-canvas').forEach(c=>drawLC(c).catch(bandFail))}).observe(document.querySelector('header'));
  window.addEventListener('resize',()=>document.querySelectorAll('.lc-canvas').forEach(c=>drawLC(c).catch(bandFail)));
  await renderBands();

@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0.0",
+  "parent_acceptance": {
+    "id": "s10_acceptance_5471f74031f267c4253df231",
+    "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35/acceptance.json",
+    "sha256": "7db57622f33bb3027f68fe916e3ec1a8d6fbb7aa18a09e0945fe803de8d129f8"
+  },
+  "parent_viewer": {
+    "id": "viewer_f33db05a1507064733ee8702",
+    "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers/viewer_f33db05a1507064733ee8702/viewer_receipt.json",
+    "sha256": "6891692ddc1f8433907f608773b95e095b10db95bc4a9ad480e5008f848fab98"
+  },
+  "band_evidence": {
+    "id": "s10_supplemental_bands_5aee156c71f64e4e70258d89",
+    "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers/viewer_f33db05a1507064733ee8702/band_evidence_receipt.json",
+    "sha256": "da5f04520520a29bfc469bd984b7eaad829ed72fc8580d7d064ea6683309782c"
+  },
+  "gallery": {
+    "id": "s10_gallery_16e80b03246c193969aad9b5",
+    "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35/gallery_manifest.json",
+    "sha256": "3f7faf720e54aefc570a63e06dbb005511b196f1cd5cb762174c50f1536142c6"
+  },
+  "boundary_date": "2025-06-30",
+  "boundaries": {
+    "sigungu": {
+      "crs": "EPSG:5179",
+      "BASE_DATE": "20250630",
+      "fields": [
+        "BASE_DATE",
+        "SIGUNGU_CD",
+        "SIGUNGU_NM"
+      ],
+      "components": {
+        ".shp": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_sigungu_00_2025_2Q.shp",
+          "sha256": "85523b10411652aa6b5c286a82eff7e77c7e563d5f644eb62a221a121f7e3968"
+        },
+        ".shx": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_sigungu_00_2025_2Q.shx",
+          "sha256": "9fbaeb394ffde8be2fce4e47f2420ac63942fbbdf6c15cf2c71ac69136b9428c"
+        },
+        ".dbf": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_sigungu_00_2025_2Q.dbf",
+          "sha256": "18f7d3a5f0fd8cf12e4a5deca3faf52133db4f7221dfbeccedf94ec06b58ece6"
+        },
+        ".prj": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_sigungu_00_2025_2Q.prj",
+          "sha256": "e21b26451491c617318aab7d28abf4d07f5facc2aed1564e082ec8d4268cfa3b"
+        },
+        ".cpg": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_sigungu_00_2025_2Q.cpg",
+          "sha256": "3ad3031f5503a4404af825262ee8232cc04d4ea6683d42c5dd0a2f2a27ac9824"
+        }
+      }
+    },
+    "dong": {
+      "crs": "EPSG:5179",
+      "BASE_DATE": "20250630",
+      "fields": [
+        "BASE_DATE",
+        "ADM_CD",
+        "ADM_NM"
+      ],
+      "components": {
+        ".shp": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_dong_00_2025_2Q.shp",
+          "sha256": "8f5dec93ce06be03402d24c69b7f4643386945ba291cbc9e0b59b4fee992371d"
+        },
+        ".shx": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_dong_00_2025_2Q.shx",
+          "sha256": "b04b98b8807bff242506fb1cad2b9cc38c23e4e855f5fc4a47850a27145e4d6b"
+        },
+        ".dbf": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_dong_00_2025_2Q.dbf",
+          "sha256": "55ef3b6114e10424bc2e0e35e99b4ae0cf0d2c55ab9a8afe9a063337c894f266"
+        },
+        ".prj": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_dong_00_2025_2Q.prj",
+          "sha256": "e21b26451491c617318aab7d28abf4d07f5facc2aed1564e082ec8d4268cfa3b"
+        },
+        ".cpg": {
+          "path": "/mnt/hdd002/dhnyu/fusedata/koreaadmin/bnd_dong_00_2025_2Q.cpg",
+          "sha256": "3ad3031f5503a4404af825262ee8232cc04d4ea6683d42c5dd0a2f2a27ac9824"
+        }
+      }
+    }
+  }
+}

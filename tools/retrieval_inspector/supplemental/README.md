@@ -83,3 +83,52 @@ pytest -q tests/python/test_s10_retrieval_bands.py
 The earlier `build.py` and its tests remain available for reproducing prior
 six-column display contracts; new band views use `build_bands.py`. Neither invokes
 the targets graph. No target store or network change is required.
+
+## Scene-center locations (metadata-only publication)
+
+For the accepted legacy-band viewer `viewer_f33db05a1507064733ee8702`, use the
+separate location publisher. **Do not rerun `build_bands.py` to add locations**:
+that older publisher reconstructs bands from embedding arrays. The location
+publisher has no model/scientific imports and consumes existing band bytes only.
+
+```sh
+python tools/retrieval_inspector/supplemental/build_locations.py
+python scripts/validate_s10_locations_viewer.py \
+  --viewer /path/printed/by/location/publisher \
+  --audit-root /mnt/hdd002/dhnyu/fusedata/tmp/fuse/location-browser-audit
+python -m pytest -q tests/python/test_s10_viewer_locations.py
+```
+
+`config/s10_viewer_locations.json` pins the parent acceptance, viewer receipt,
+band receipt, accepted gallery, and all five shapefile components for each of the
+2025-06-30 district and administrative-dong sources. Existing pins must not be
+silently refreshed when a source changes. Source checksum mismatch fails closed.
+
+The R `sf` helper reads the accepted gallery's full-precision EPSG:5186 easting /
+northing centers, transforms once to OGC:CRS84 longitude/latitude and EPSG:5179,
+and uses `st_covered_by` against the boundaries. PROJ network access is disabled.
+Zero matches and shared-boundary matches have explicit unavailable/ambiguous
+metadata, with all candidate names/codes retained and no nearest fallback.
+Hierarchy mismatch fails. This Seoul publication requires 9,000 unique matches
+at both levels before publishing; exceptions are not filled automatically.
+
+`location_metadata.json` contains one row keyed by each of the 9,000 gallery
+scene IDs, independently of model/query/mode. `ADM_NM` is preserved as an
+administrative-dong name, e.g. 독산1동, never converted to a legal-dong name or
+street address. Geographic coordinates remain full precision in the sidecar;
+only browser text rounds them to five decimals. Every visible column has the
+same location slot before Vector data, updated from its selected scene ID.
+
+The publisher verifies every parent display-file checksum, copies assets as
+unchanged bytes (not writable hard links), and writes a **new** immutable viewer
+directory. Parent scenes, band query JSON, SVG and embedded raster bytes remain
+identical. A new supplemental receipt binds the location sidecar, source/library
+versions, code and output hashes; it is not a new S10 scientific acceptance.
+The receipt is written last. Never serve incomplete directories without it.
+An existing identical generation is validated/reused; differing bytes fail.
+
+The location validator starts its own localhost HTTP server and Chromium. It
+checks immutable byte reuse, gallery-center bindings, query/model/mode switches,
+all three bands, the five documented examples, status rendering, layout,
+rasters/thematic panels and controls. It does not load checkpoint/tensor payloads
+or compute ranks. Browser screenshots and validation JSON belong outside Git.

@@ -1,0 +1,4 @@
+/* Fixed, identical location slot above Vector data; legacy header/strip unchanged. */
+#comparison .scene-location{box-sizing:border-box;height:118px;padding:10px 8px;border-bottom:1px solid var(--line);font-size:11px;line-height:1.5;overflow-wrap:anywhere;background:#f4f7f5}
+#comparison .scene-location .location-name{font-weight:650;color:#244337;min-height:18px}
+#comparison .scene-location small{font-size:10px;color:var(--muted)}

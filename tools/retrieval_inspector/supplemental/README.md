@@ -1,6 +1,68 @@
 # Supplemental S10 retrieval viewer
 
-The current entrypoint is `build_bands.py`. It publishes **separate supplemental
+## Current serving and browser validation: port 8765 only
+
+The current accepted **100-query** production viewer is
+`viewer_eb2cd9af73816e89b1390ded`, bound to
+`s10_acceptance_e41bb7c33d2ae4171a1f2c59` and
+`s10_queries_d8875a530a769040d5ec7fb3`.
+Serving/validation consumes existing files; do not run any publisher, sampling,
+ranking, embedding, inference or scientific target to open this viewer.
+
+Canonical manual command (foreground; Ctrl+C stops it):
+
+```sh
+python -u -m http.server 8765 \
+  --bind 127.0.0.1 \
+  --directory /mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers/viewer_eb2cd9af73816e89b1390ded
+```
+
+Always open **http://127.0.0.1:8765/?model=main&mode=standard**.
+Never choose a fallback port. The optional helper `python scripts/serve_s10_viewer.py`
+starts the same server, or verifies an already running identical server. It
+inspects `ss` and `/proc/<PID>/cmdline`; unknown or different listeners fail closed.
+For an old S10 server, inspect its PID, command line and root and explicitly stop
+that verified server before retrying. Never stop unrelated processes.
+`python scripts/serve_s10_viewer.py --check` verifies root, 100 queries, 28 models,
+acceptance, final query and HTTP/filesystem config byte equality.
+
+For a persistent manual session, run `tmux new -s s10-viewer`, then the canonical
+command inside it. Detach with Ctrl+B then D; manage it with
+`tmux attach -t s10-viewer`, and stop the server with Ctrl+C. No daemon is needed.
+
+Browser validation attaches to this existing production server; it cannot start
+an alternative server or select another port:
+
+```sh
+python scripts/validate_s10_query_revision_viewer.py \
+  --viewer /mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers/viewer_eb2cd9af73816e89b1390ded \
+  --audit-root /mnt/hdd002/dhnyu/fusedata/tmp/fuse/s10-fixed-port-browser-audit
+```
+
+It uses fresh Chromium context, disabled cache and blocked service workers, and
+records exact URLs, PID/root, config hashes, DOM counts and queries 1/30/31/50/100.
+Screenshots and validation JSON remain outside Git.
+
+**Stale document:** do not reuse a still-loaded 30-query document. Open a new tab
+at the canonical URL or press Ctrl+Shift+R. If necessary, enable DevTools → Network
+→ Disable cache and reload. Reload/new tab resolves stale document state; changing
+ports is forbidden. Historical reports retain their original diagnostic ports as
+historical evidence, not current operating instructions.
+
+Remote SSH keeps the remote server at `127.0.0.1:8765`. Prefer local 8765 → remote
+8765 forwarding: `ssh -p 22 -L 8765:127.0.0.1:8765 dhnyu@<server>`.
+A Windows local bind limitation is a client-side issue; do not change the server
+port to work around it.
+
+## Historical publication contracts
+
+The sections below document earlier 30-query generations, not the current
+serving workflow. Their publishers and scientific validators are not needed to
+serve or validate the current 100-query viewer. Legacy browser validators also
+bind only 8765 and fail if it is occupied; do not run them against the current
+production server or stop it to reproduce historical displays.
+
+The historical band publication entrypoint is `build_bands.py`. It publishes **separate supplemental
 band evidence**, then an artifact-only viewer. It never executes formal S10,
 loads checkpoints, runs inference/Fourier features, or preprocesses original data.
 The parent remains `s10_acceptance_5471f74031f267c4253df231`.
@@ -63,10 +125,9 @@ context, including modalities a selected model may not consume.
 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python tools/retrieval_inspector/supplemental/build_bands.py \
   --generation /mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35 \
   --output-root /mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers
-python -m http.server 8765 --bind 127.0.0.1 --directory /path/printed/by/publisher
 ```
 
-Open `http://localhost:8765`. Localhost/HTTPS is required for browser checksum
+Use the current serving instructions above. Localhost/HTTPS is required for browser checksum
 verification; file:// is unsupported. Missing/corrupt artifacts fail closed.
 `--smoke` publishes a noncanonical one-query/main preview, using the same complete
 eligible ordering. Existing directories are never overwritten. Only a complete
@@ -127,7 +188,7 @@ versions, code and output hashes; it is not a new S10 scientific acceptance.
 The receipt is written last. Never serve incomplete directories without it.
 An existing identical generation is validated/reused; differing bytes fail.
 
-The location validator starts its own localhost HTTP server and Chromium. It
+The historical location validator starts its own HTTP server on 127.0.0.1:8765 and Chromium, failing on conflicts. It
 checks immutable byte reuse, gallery-center bindings, query/model/mode switches,
 all three bands, the five documented examples, status rendering, layout,
 rasters/thematic panels and controls. It does not load checkpoint/tensor payloads

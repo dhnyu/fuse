@@ -48,7 +48,8 @@ def validate(viewer, audit_root):
     assert all(receipt[k] is False for k in ['scientific_mutation','ranking_recomputation','inference'])
     class Quiet(SimpleHTTPRequestHandler):
         def log_message(self,*args):pass
-    server=ThreadingHTTPServer(('127.0.0.1',0),partial(Quiet,directory=str(viewer.parent)))
+    # Historical viewer validation also uses only 8765; conflicts fail, never fall back.
+    server=ThreadingHTTPServer(('127.0.0.1',8765),partial(Quiet,directory=str(viewer.parent)))
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     errors=[]; cases=[]; clicks=0; proof=[]; external=[]
     try:

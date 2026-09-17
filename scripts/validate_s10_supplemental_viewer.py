@@ -79,7 +79,8 @@ def validate(viewer, generation):
         assert all(d[k]==old[k] for k in ['svg','lc','dem','charts','counts','relation_masks'])
     class Quiet(SimpleHTTPRequestHandler):
         def log_message(self,*args):pass
-    server=ThreadingHTTPServer(('127.0.0.1',0),partial(Quiet,directory=str(viewer)))
+    # Historical viewer validation also uses only 8765; conflicts fail, never fall back.
+    server=ThreadingHTTPServer(('127.0.0.1',8765),partial(Quiet,directory=str(viewer)))
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     errors=[]
     try:

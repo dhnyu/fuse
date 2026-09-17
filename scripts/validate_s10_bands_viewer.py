@@ -54,7 +54,8 @@ def validate(viewer,generation,audit_path):
     class Quiet(SimpleHTTPRequestHandler):
         def log_message(self,*args):pass
     # Serve parent to audit the immutable previous viewer alongside the new one.
-    server=ThreadingHTTPServer(('127.0.0.1',0),partial(Quiet,directory=str(viewer.parent)))
+    # Historical viewer validation also uses only 8765; conflicts fail, never fall back.
+    server=ThreadingHTTPServer(('127.0.0.1',8765),partial(Quiet,directory=str(viewer.parent)))
     t=threading.Thread(target=server.serve_forever,daemon=True);t.start();errors=[];measurements=[]
     try:
         with sync_playwright() as p:

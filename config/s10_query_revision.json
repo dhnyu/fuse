@@ -1,0 +1,16 @@
+{
+  "policy": "s10-100-query-sparse-v1",
+  "parent_generation": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35",
+  "parent_acceptance_id": "s10_acceptance_5471f74031f267c4253df231",
+  "display_parent": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers/viewer_59c5653e6a27d4e89581e943",
+  "publication_root": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_query_revisions",
+  "viewer_root": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers",
+  "selection_seed": 20260916,
+  "query_count": 100,
+  "gallery_count": 9000,
+  "model_count": 28,
+  "sparse_threshold": 10,
+  "max_sparse_queries": 5,
+  "top_k": 50,
+  "threads": 1
+}

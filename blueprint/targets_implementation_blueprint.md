@@ -166,3 +166,47 @@ the explicit operator switch documented below; a successful smoke is not approva
 Retired training interfaces are represented only by immutable retirement
 evidence and immediate fail-closed entrypoints. Their executable implementations
 are absent from the current source tree.
+
+## Authorized S10 100-query revision (2026-09-18)
+
+The existing 30-query contract, generation and acceptance above remain immutable.
+The user explicitly authorized a separate 100-query policy after disclosure that
+`sec:spatial-scene-retrieval` currently describes ten queries. This extension is
+qualitative inspection only; it does not revise the dissertation, S09 or S11.
+
+`_targets_s10_query_revision.R` / `targets/s10_query_revision.R` use the separate
+store `/mnt/hdd002/dhnyu/fusedata/targets/fuse-s10-query-revision`. Its six file
+targets are contract, sources, immutable parent manifests, canonical object
+counts, ranking acceptance and supplemental viewer. Controller `controller_05`
+uses one worker and one internal BLAS/OpenMP thread, based on the read-only pilot.
+There is no GPU controller, checkpoint resolution/loading or inference target.
+
+Inputs are acceptance `s10_acceptance_5471f74031f267c4253df231`, its 28 normalized
+9,000-scene embedding arrays, original gallery, and hash-bound P3 vector shards.
+`object_count = |B|+|R|+|P|` counts original observed entity records before model
+family projection. Within each lexical scene-ID stratum, PCG64 seed 20260916 draws
+`min(5, available_sparse)` scenes with count <10, followed by enough count >=10
+scenes to reach 100, without replacement; draw order is retained. No further
+stratification or old-query preservation is applied. Counts bind P3 checksums.
+
+Output paths are fixed by the content-derived generation identity beneath
+`config/s10_query_revision.json:publication_root`: `object_counts_manifest.json`,
+`query_manifest.json`, `rankings/<model>/manifest.json`, `rankings.parquet`, and
+`acceptance.json`. File bytes are staged and create-or-validate published;
+acceptance is written last. The original models/gallery/embedding manifests are
+referenced under their original IDs and original query bindings, never rebound
+or falsely relabeled as newly inferred. New ranking manifests explicitly bind
+both the new query manifest and the original accepted embedding parent.
+Acceptance checks canonical count recomputation, deterministic selection,
+unchanged centers/population, and exact deterministic read-back of 280,000 Top50
+rows. Ranking semantics and tie handling are unchanged.
+
+The supplemental viewer has a separate content-derived directory under
+`viewer_root`, a staging directory and receipt-last publication. It checks all
+formal Top50 rows when reconstructing Rank1, ranks 2–11, true middle and true
+bottom. It reuses exact original display/9,000-center location bytes where
+available, and serializes only missing display scenes from accepted originals.
+It publishes 100 query JSON files, 100 query HTML pages plus index, display scene
+JSONs and receipts. Every file target returns its complete verified file set.
+Browser validation is a separate read-only completion gate. S09, S11, maintenance
+and the old S10 graph/store have no execution dependency on this revision.

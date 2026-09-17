@@ -1,0 +1,7 @@
+schema_version: "1.0.0"
+required_phase_ids: [S10R]
+phases:
+  - {id: S10R, label: S10 100-query revision, color: "#9F1239"}
+exact: {}
+rules:
+  - {phase: S10R, pattern: "^s10_revision_", future: true}

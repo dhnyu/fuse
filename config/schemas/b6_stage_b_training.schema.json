@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "namespace",
+    "arms",
+    "root_seed",
+    "seed_group",
+    "bootstrap_seed",
+    "bootstrap_replicates",
+    "bootstrap_group",
+    "parent_length_statistic",
+    "parent_length_bins_m",
+    "output_root",
+    "store",
+    "resources",
+    "formal_training",
+    "canonical_publication"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "namespace": {
+      "const": "b6-stage-b-formal-v1"
+    },
+    "arms": {
+      "const": [
+        "B6-original",
+        "B6-S50-G",
+        "B6-S50-Ppre"
+      ]
+    },
+    "root_seed": {
+      "const": 1629790839
+    },
+    "seed_group": {
+      "const": "b6-postbank-paired-v1"
+    },
+    "bootstrap_seed": {
+      "const": 20261002
+    },
+    "bootstrap_replicates": {
+      "const": 2000
+    },
+    "bootstrap_group": {
+      "const": "source_scene_two_queries"
+    },
+    "parent_length_statistic": {
+      "const": "mean_original_parent_length_m"
+    },
+    "parent_length_bins_m": {
+      "const": [
+        0,
+        50,
+        100,
+        250,
+        500
+      ]
+    },
+    "output_root": {
+      "const": "/mnt/hdd002/dhnyu/fusedata/experiments/b6_road_granularity_stage_b_training"
+    },
+    "store": {
+      "const": "/mnt/hdd002/dhnyu/fusedata/targets/fuse-b6-stage-b-training"
+    },
+    "resources": {
+      "const": {
+        "arm_workers": 1,
+        "threads_per_rank": 1,
+        "world_size": 2,
+        "global_batch": 32,
+        "descriptor_workers": 8,
+        "descriptor_threads": 1
+      }
+    },
+    "formal_training": {
+      "const": true
+    },
+    "canonical_publication": {
+      "const": false
+    }
+  }
+}

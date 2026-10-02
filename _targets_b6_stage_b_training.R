@@ -1,0 +1,10 @@
+library(targets)
+library(crew)
+Sys.setenv(OMP_NUM_THREADS='1',OPENBLAS_NUM_THREADS='1',MKL_NUM_THREADS='1')
+controller_05<-crew_controller_local(name='controller_05',workers=1L)
+controller_gpu_02<-crew_controller_local(name='controller_gpu_02',workers=1L)
+tar_option_set(packages=c('yaml','jsonlite'),controller=crew_controller_group(controller_05,controller_gpu_02),error='stop')
+b6f_cpu<-tar_resources(crew=tar_resources_crew(controller='controller_05'))
+b6f_gpu<-tar_resources(crew=tar_resources_crew(controller='controller_gpu_02'))
+source('R/b6_stage_b_training.R')
+source('targets/b6_stage_b_training.R')$value

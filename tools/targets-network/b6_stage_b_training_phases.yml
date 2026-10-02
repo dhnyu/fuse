@@ -1,0 +1,7 @@
+schema_version: '1.0.0'
+required_phase_ids: [B6F]
+phases:
+  - {id: B6F, label: B6 formal three-arm training, color: '#164E63'}
+exact: {}
+rules:
+  - {phase: B6F, pattern: '^b6f_', future: false}

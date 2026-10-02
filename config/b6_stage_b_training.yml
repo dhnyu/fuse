@@ -1,0 +1,15 @@
+schema_version: '1.0.0'
+namespace: b6-stage-b-formal-v1
+arms: [B6-original, B6-S50-G, B6-S50-Ppre]
+root_seed: 1629790839
+seed_group: b6-postbank-paired-v1
+bootstrap_seed: 20261002
+bootstrap_replicates: 2000
+bootstrap_group: source_scene_two_queries
+parent_length_statistic: mean_original_parent_length_m
+parent_length_bins_m: [0, 50, 100, 250, 500]
+output_root: /mnt/hdd002/dhnyu/fusedata/experiments/b6_road_granularity_stage_b_training
+store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-b6-stage-b-training
+resources: {arm_workers: 1, threads_per_rank: 1, world_size: 2, global_batch: 32, descriptor_workers: 8, descriptor_threads: 1}
+formal_training: true
+canonical_publication: false

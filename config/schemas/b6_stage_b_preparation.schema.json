@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Frozen B6 Stage B preparation scope",
+  "const": {
+    "schema_version": "1.0.0",
+    "arms": [
+      "B6-original",
+      "B6-S50-G",
+      "B6-S50-Ppre"
+    ],
+    "anchor": "accepted_materialized_post_bank",
+    "outside_node_child_lift": "unresolved_fail_closed",
+    "preserve_accepted_p4_outside_node_semantics": true,
+    "sibling_parent": "original_source_road_id",
+    "sn": {
+      "radius_m": 100,
+      "top_k": 16,
+      "quantization_m": 1e-09,
+      "symmetrization": "either_direction"
+    },
+    "seed_group": "b6-postbank-paired-v1",
+    "root_seed": 1629790839,
+    "stage_a_id": "b6a_f5d6a32cdd09cf5688b0666a",
+    "stage_a_root": "/mnt/hdd002/dhnyu/fusedata/experiments/b6_road_granularity/b6a_f5d6a32cdd09cf5688b0666a",
+    "accepted_authority": "/mnt/hdd002/dhnyu/fusedata/models/reduced/training/authorities/s09auth_478c450cdf0e9fa4921ef485/training_authority.json",
+    "prepared_parent": "/mnt/hdd002/dhnyu/fusedata/models/reduced/formal_training/prepared_cache/s09cache_dc4e9e271e40ffe8ae17967c",
+    "output_root": "/mnt/hdd002/dhnyu/fusedata/experiments/b6_road_granularity_stage_b",
+    "store": "/mnt/hdd002/dhnyu/fusedata/targets/fuse-b6-road-granularity-stage-b",
+    "resources": {
+      "workers": 8,
+      "threads": 1
+    },
+    "full_training_allowed": false,
+    "checkpoint_publication_allowed": false,
+    "pilot_requires": [
+      "full_lineage",
+      "original_parity",
+      "con_child_lift_decided",
+      "model_ready",
+      "fourier"
+    ]
+  }
+}

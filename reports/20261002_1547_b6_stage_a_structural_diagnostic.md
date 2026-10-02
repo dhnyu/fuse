@@ -262,3 +262,7 @@ No training, checkpoint creation, canonical artifact publication, dissertation e
 | >16 sibling candidates | 20 adjacent 5 m child fixture verifies top-k pressure and P-pre/P-post; fine-scale population bounds only |
 
 The last two stress conditions are controlled fixtures, not additional randomly sampled scenes. Full observed topology tags are in `topology_audit/stress_observed.parquet`. Stress-only graph/entity metrics remain available under `group=stress` and are excluded from every pilot growth table above.
+
+## Stage B preparation handoff (2026-10-02)
+
+The isolated Stage B preparation is documented in [the Stage B readiness report](20261002_b6_stage_b_method_selection_and_readiness.md). Full accepted K8/query lineage resolved 693,292 materialized parts with zero ownership ambiguity; Original prepared-control parity passed 22,368/22,368 entries. An accepted off-support source-node CON requires a child-incidence methodology decision before S50 input publication. The user explicitly deferred the GPU pilot while authorizing continued lineage/parity/contract preparation. Verdict: `NEEDS_METHOD_DECISION`. Stage A measurements and accepted artifacts are unchanged.

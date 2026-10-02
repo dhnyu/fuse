@@ -1,0 +1,7 @@
+schema_version: "1.0.0"
+required_phase_ids: [B6B]
+phases:
+  - {id: B6B, label: B6 Stage B preparation gates, color: "#164E63"}
+exact: {}
+rules:
+  - {phase: B6B, pattern: "^b6b_", future: false}

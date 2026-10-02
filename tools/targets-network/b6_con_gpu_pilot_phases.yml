@@ -1,0 +1,7 @@
+schema_version: '1.0.0'
+required_phase_ids: [B6C]
+phases:
+  - {id: B6C, label: B6 CON gate and bounded updates, color: '#164E63'}
+exact: {}
+rules:
+  - {phase: B6C, pattern: '^b6c_', future: false}

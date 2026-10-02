@@ -1,0 +1,7 @@
+schema_version: '1.0.0'
+census_workers: 8
+cache_workers: 40
+threads_per_worker: 1
+cpu_budget: 48
+gpu_world_size: 2
+store: /mnt/hdd002/dhnyu/fusedata/targets/fuse-b6-con-gpu-pilot

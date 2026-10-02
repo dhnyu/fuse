@@ -2,6 +2,8 @@
 
 Created 2026-10-02 16:47 Asia/Seoul. Input commit: `302293b14a9b8bd3bb84550d982420f3f631dea9`, branch `B6`, upstream `origin/B6`, entry ahead/behind 0/0 and clean. This exact report filename was explicitly requested. Final commit is the commit containing this report.
 
+Latest handoff (2026-10-02): the user approved the source-chain CON lift, and the complete input/cache census plus bounded two-GPU pilot subsequently passed. Current verdict is **READY_FOR_STAGE_B_TRAINING_AUTHORIZATION**; see [CON lift and GPU pilot](20261002_1727_b6_con_lift_and_gpu_pilot.md). The preparation-only results below are retained as historical evidence. No full training was executed.
+
 ## Scope and decision
 
 **NEEDS_METHOD_DECISION. GPU pilot deferred by the user.** The request was to prepare the fixed Original/S50-G/S50-Ppre block, validate post-bank ownership and Original parity, then test bounded training updates only after all input gates pass. Upon discovering an unresolved accepted CON-to-child mapping, the user explicitly directed: “방법론 gate로 남기고 GPU pilot 보류; lineage·Original parity·계약 준비는 계속”. This report covers that amended scope. No formal or bounded training update was executed.

@@ -1,0 +1,13 @@
+schema_version: '1.0.0'
+policy: accepted_parent_con_nearest_chain_child_v1
+L: 50
+output_root: /mnt/hdd002/dhnyu/fusedata/experiments/b6_con_lift
+arms: [B6-original, B6-S50-G, B6-S50-Ppre]
+workers: 8
+threads: 1
+full_training: false
+checkpoint_publication: false
+pilot_updates: 5
+pilot_warmup_updates: 1
+global_batch: 32
+world_size: 2

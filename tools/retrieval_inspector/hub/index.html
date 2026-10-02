@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Spatial Scene Inspector</title><link rel="stylesheet" href="style.css"></head>
+<body><main><p class="eyebrow">Viewer Hub</p><h1>Spatial Scene Inspector</h1><p>Open an immutable retrieval viewer. All views share this server and SSH tunnel.</p>
+<h2>Retrieval</h2><div class="viewers">
+<section><span class="badge">Canonical S10</span><h3>Canonical 100-query</h3><p>100 fixed queries · 28 models · opens with final FM.</p><a href="canonical/?model=cmp_FM&amp;mode=standard">Canonical 100-query <span aria-hidden="true">→</span></a></section>
+<section><span class="badge extreme">HIGH/LOW Extreme</span><h3>Final FM diagnostics</h3><p>Four primary inspection sets of 100 queries. HIGH requires at least 20 vector objects in the query; LOW is unchanged. Original all-scene and historical obj ≥ 1 HIGH remain available inside the viewer. HIGH/LOW describes Rank-1 cosine similarity, not correctness.</p><nav aria-label="Extreme query sets">
+<a href="extreme/?set=STANDARD_HIGH_OBJ20&amp;mode=standard&amp;query=1">Standard HIGH (obj ≥ 20) →</a>
+<a href="extreme/?set=STANDARD_LOW&amp;mode=standard&amp;query=1">Standard LOW →</a>
+<a href="extreme/?set=NONLOCAL_HIGH_OBJ20&amp;mode=nonlocal&amp;query=1">Non-local HIGH (obj ≥ 20) →</a>
+<a href="extreme/?set=NONLOCAL_LOW&amp;mode=nonlocal&amp;query=1">Non-local LOW →</a>
+</nav></section></div><p class="note">Both viewers support Standard and Non-local retrieval. Use your browser’s Back button to return here. If a tab shows an older document, open a new tab or reload with Ctrl+Shift+R.</p></main></body></html>

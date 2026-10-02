@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "contract_sha256": "9c658c84c8e6119a8a56153c0ba113f9756e90b0c543933fb40c3331152da239",
+  "dissertation_commit": "e43b57441cdc47c10c4108c37f280bd207717d3d",
+  "dissertation_root": "/members/dhnyu/dhnyu-masters-dissertation",
+  "dissertation_sources": {
+    "sections/chapters/results/03-spatial-scene-retrieval.typ": "776e7b0f976207063aa52d4b11c3df90d4d8530b533042e890c840069f147bcd",
+    "sections/chapters/results/04-representation-analysis.typ": "7695de94c7fad682781f0c747e694c2d37eb0fb564f7aa38fe1115e6d6da96e7",
+    "sections/chapters/results/05-model-comparison-and-ablation.typ": "90d70aa86436b262fdd4cb8cd814862b15daf52e38ffd411540fba4e5a3d0fac"
+  },
+  "kernel_sources": {
+    "python/representation_analysis.py": "de273d033e92c97c8ed7706b09e8c9932139f9ec93bfd94bc06d24ce7c66b466",
+    "python/s11_alignment.py": "e587935b32e997ee77dd5e8025429e362a9560675d446bbdf40f65c61c51429c",
+    "python/s11_artifacts.py": "cdec0ed05c019d1519fe9454ce066cc025b845511f9a3a76092df5fbcd30cc23",
+    "python/s11_independent_oracle.py": "d783ae091f9aeefe80ec3ed3770710746da486585bbac44657e3b928f0c7642d",
+    "python/retrieval_artifacts.py": "ef6ef85a021a1383c99f817dc2cba75c35606b99377633984a7c5baf2189fd1b",
+    "python/retrieval_ranking.py": "ac0e893b16315054de5d7f3ad569e0ba8b77bdb0db6441aa1ebca48bc64b93eb",
+    "python/retrieval_inference.py": "3bc303784d82841df846758fc09fbe02b6a9a8b85f98cb777c9317af077b483d",
+    "python/model_data.py": "acab0640c9a9a78ca46d688b9574d8712c71646a3adde0f7a1acb9d9985e126f"
+  }
+}

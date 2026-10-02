@@ -1,0 +1,13 @@
+{
+  "original_generation": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35",
+  "query_revision": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_query_revisions/s10gen_fdff84a5dd8b3565f7c39f58",
+  "accepted_viewer": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers/viewer_eb2cd9af73816e89b1390ded",
+  "lifecycle_root": "/mnt/hdd002/dhnyu/fusedata/runtime/training_lifecycle",
+  "publication_root": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_extreme_rank1",
+  "viewer_root": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_extreme_viewers",
+  "configuration": "cmp_FM",
+  "block_size": 32,
+  "nonlocal_m": 2000,
+  "set_size": 100,
+  "display_fallback": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_viewers/viewer_f33db05a1507064733ee8702"
+}

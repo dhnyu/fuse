@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0.0",
+  "contract_sha256": "05c06e9f07fb9e2eed0294b25e1db16c4145a72590e053e9350c2cdf01927533",
+  "dissertation_commit": "e43b57441cdc47c10c4108c37f280bd207717d3d",
+  "dissertation_root": "/members/dhnyu/dhnyu-masters-dissertation",
+  "dissertation_sources": {
+    "sections/chapters/results/03-spatial-scene-retrieval.typ": "776e7b0f976207063aa52d4b11c3df90d4d8530b533042e890c840069f147bcd",
+    "sections/chapters/results/04-representation-analysis.typ": "7695de94c7fad682781f0c747e694c2d37eb0fb564f7aa38fe1115e6d6da96e7",
+    "sections/chapters/results/01-experimental-setup.typ": "437d6d61dbf86cc3c49e2fa61d93fb14cf170a07fb2eb2c62688e1f0e8e612ff",
+    "sections/chapters/results/02-model-training-and-selection.typ": "3619f12b6489c6aad8484b98c328954b272a07a8468246281fa2dd1cc319e7cb",
+    "sections/chapters/04-methodology-training.typ": "bc92eb56728af0c022b60dd5c72371a74cffbeeba4aef4b2476e07905c15c74b",
+    "sections/chapters/methodology/01-scene-construction.typ": "10940c7a5d8da10e328e32121c7bf3b9b23534efc2e75538962dd847948bd651",
+    "sections/chapters/methodology/04-spatial-relations.typ": "c8c10fb2b8c893409f0e92635efb05344143a2c6aa457be371952492d85d4361"
+  },
+  "parents": {
+    "s10_acceptance": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35/acceptance.json",
+      "sha256": "7db57622f33bb3027f68fe916e3ec1a8d6fbb7aa18a09e0945fe803de8d129f8"
+    },
+    "gallery": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35/gallery_manifest.json",
+      "sha256": "3f7faf720e54aefc570a63e06dbb005511b196f1cd5cb762174c50f1536142c6"
+    },
+    "models": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35/model_manifest.json",
+      "sha256": "5455bce8b87fea9160a0593e2c2450a9fbabb8ae5e9108bdd10e68d3f5679ddb"
+    },
+    "fm_embedding_manifest": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35/embeddings/cmp_FM/manifest.json",
+      "sha256": "81aa39eea921ead66b1ccf5bc0934ef8528fbd78f249f8ec5913f71704cadaa8"
+    },
+    "fm_vectors": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10/s10gen_a24b979d4c1557387cbbec35/embeddings/cmp_FM/vectors.npy",
+      "sha256": "5bf36f518cd24bb8384f3732287a8f7a9df62e0a4375f735183c49c7b64bae9e"
+    },
+    "categories": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_ee28248872c4ab0ce8b3ea4f/production/acceptance/bsa_bd504b7e871945a5a6207664/spatial_categories.json",
+      "sha256": "654e4488e3e6d7e15adc8f3799c37aa99e5f0372abcdf38e3e944295a7c2a4a2"
+    },
+    "scene_statistics": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_ee28248872c4ab0ce8b3ea4f/production/acceptance/bsa_bd504b7e871945a5a6207664/scene_spatial_statistics.parquet",
+      "sha256": "c68120cf5c1a53a180bb0e6a37955561e29e4a593479c5c73db43822b3c184aa"
+    },
+    "scene_index": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/index/rsi_55ccb6d830dac6767b822f16/spatial_scene_index.parquet",
+      "sha256": "0ff1357c101ff154ee8a1b7f4c9d655050d5d03796f0c40edc614b07fbfcfe23"
+    },
+    "campaign": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/models/reduced/training/canonical/campaign/s09camp_d2f6749da19ad6aa56c2d303/campaign_acceptance.json",
+      "sha256": "054462de597de22fe3a4d2769693c0a72d2f2dd17cde3ba6b33523fe73bdfe30"
+    },
+    "band_manifest": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_all_query_bands/s10all_0d929355b8cad37b85860e2c/manifest.json",
+      "sha256": "8f13e1b57c014bb2ae97927e6bdbed46b3380dcc60fe6927df4820d544174a61"
+    },
+    "bands": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/retrieval_data/reduced/s10_all_query_bands/s10all_0d929355b8cad37b85860e2c/bands.parquet",
+      "sha256": "b24ce294735ebf046f6d45d2aafe06026e0353de0a47b7532ef3a97ab4ebcf6f"
+    },
+    "checkpoint": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/runtime/training_runs/17e604986e3b07d3cf46fad19a36aca524413a8ca61e31153a36bdd630fe582a/checkpoints/p9ck_8ff9d205b9ff93e4d985ab06/checkpoint.pt",
+      "sha256": "b4a8e6f224536525679d83c574d5458f4887ed262b5914bcafbf9446304fed22"
+    },
+    "checkpoint_manifest": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/runtime/training_runs/17e604986e3b07d3cf46fad19a36aca524413a8ca61e31153a36bdd630fe582a/checkpoints/p9ck_8ff9d205b9ff93e4d985ab06/checkpoint_manifest.json",
+      "sha256": "5b019d765073460e0abe20af8a26e7b47b33368cd940689c72fc276bf7ebc8f3"
+    }
+  },
+  "checkpoint_id": "p9ck_8ff9d205b9ff93e4d985ab06",
+  "training_acceptance_id": "p9accv2_b885ef3b63cf88667d2727bd",
+  "embedding_manifest_id": "s10_embeddings_f70b8dbb9eaf05657fca83d2",
+  "inference_source_sha256": "3bc303784d82841df846758fc09fbe02b6a9a8b85f98cb777c9317af077b483d",
+  "legacy_ranking_source_sha256": "ac0e893b16315054de5d7f3ad569e0ba8b77bdb0db6441aa1ebca48bc64b93eb",
+  "category_alias_reference_sha256": "acab0640c9a9a78ca46d688b9574d8712c71646a3adde0f7a1acb9d9985e126f"
+}

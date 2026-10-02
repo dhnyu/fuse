@@ -82,8 +82,23 @@ uses a separate store.
   queries. S11 has no dependency on S10 query/ranking artifacts and its scientific
   protocol remains unchanged.
 
-The historical S11 downstream implementation is retired pending a from-scratch
-redesign; the S11 name now denotes the blocked evaluation graph above. P9 v1 remains
+The historical S11 downstream implementation remains retired and fail-closed.
+The approved D1-D7 representation analysis uses the separate FM-only
+`_targets_representation.R` entrypoint and external store
+`/mnt/hdd002/dhnyu/fusedata/targets/fuse-s11-representation-analysis`.
+It consumes immutable accepted parents, extracts original P3 descriptor shards,
+validates/merges 22 descriptors, fits the fixed UMAP independently, and computes
+32-query native batched GEMV alignment blocks, summaries, figures/tables, then
+scientific acceptance last. No producer training/inference targets are imported.
+Every target explicitly uses CPU controller_05 (one worker, one thread). Payloads
+and acceptance receipts are immutable, content checked, staged externally, and
+returned together by file targets. The frozen scientific contract remains
+`config/s11_representation_analysis.json`; execution/runtime pins and approval
+gates are separate in `config/s11_execution.json`. Full execution requires both
+an exact-current-code passing bounded pilot receipt and explicit operator gate;
+the implementation phase executes no full descriptors, UMAP, or alignment.
+The old `_targets_evaluation.R` graph remains blocked and is not a dependency.
+P9 v1 remains
 fail-closed through the centralized R/Python retirement registry and operator
 CLI guards; obsolete root retirement entrypoints are absent.
 

@@ -1,0 +1,7 @@
+schema_version: "1.0.0"
+required_phase_ids: [P11]
+phases:
+  - {id: P11, label: S11 FM Representation Analysis (execution gated), color: "#365314"}
+exact: {}
+rules:
+  - {phase: P11, pattern: "^s11_", future: false}

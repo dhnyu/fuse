@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S12 scientific products v1",
+  "$defs": {
+    "comparison": {
+      "type": "array",
+      "minItems": 3740,
+      "maxItems": 3740,
+      "items": {
+        "type": "object",
+        "required": [
+          "configuration_id",
+          "model_id",
+          "checkpoint_id",
+          "embedding_manifest_id",
+          "mode",
+          "descriptor",
+          "family",
+          "region",
+          "source_manifest",
+          "shared_descriptor_sha256",
+          "s11_receipt_id",
+          "selected_epoch",
+          "total_count",
+          "valid_count",
+          "invalid_count",
+          "candidate_total_count",
+          "candidate_valid_count",
+          "candidate_invalid_count",
+          "median",
+          "q1",
+          "q3",
+          "iqr",
+          "null_reason",
+          "fm_reused"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "configuration_id": {
+            "type": "string"
+          },
+          "model_id": {
+            "type": "string"
+          },
+          "checkpoint_id": {
+            "type": "string"
+          },
+          "embedding_manifest_id": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "descriptor": {
+            "type": "string"
+          },
+          "family": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "source_manifest": {
+            "type": "string"
+          },
+          "shared_descriptor_sha256": {
+            "type": "string"
+          },
+          "s11_receipt_id": {
+            "type": "string"
+          },
+          "selected_epoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "valid_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "invalid_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "candidate_total_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "candidate_valid_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "candidate_invalid_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "median": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "q1": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "q3": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "iqr": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "null_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fm_reused": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

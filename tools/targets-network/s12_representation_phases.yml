@@ -1,0 +1,7 @@
+schema_version: "1.0.0"
+required_phase_ids: [P12]
+phases:
+  - {id: P12, label: S12 Multi-model Alignment (execution gated), color: "#164e63"}
+exact: {}
+rules:
+  - {phase: P12, pattern: "^s12_", future: false}

@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "contract_sha256": "05c06e9f07fb9e2eed0294b25e1db16c4145a72590e053e9350c2cdf01927533",
+  "p3_root": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_75a543f656ab777aada74fbd",
+  "p3_pins": {
+    "acceptance": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_75a543f656ab777aada74fbd/acceptance/osca_c177810e2c5165326a328b56/original_scene_dataset_acceptance.json",
+      "sha256": "080759a92684cee61f56983ce180e3a3f2aac7195a120623182831ed8e91ec5c"
+    },
+    "index": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_75a543f656ab777aada74fbd/index/oci_d9012a099b411b5bae0f6679/scene_to_shard.parquet",
+      "sha256": "9975c24d274ba72203c8be46d8dc39da4baafc25266ee744a0d1d10424d118cf"
+    },
+    "index_manifest": {
+      "path": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_75a543f656ab777aada74fbd/index/oci_d9012a099b411b5bae0f6679/index_manifest.json",
+      "sha256": "db76339b8a16497dcc668232e27e032b9f45d7ed8366588c30242fe3cf2d6958"
+    }
+  },
+  "observation_config_pins": {
+    "config/vector_observation.yml": "80a16037897d9b09b6145ce6c937bbe3671961ba61c1ecb9f0d512f7e378a30a",
+    "config/raster_observation.yml": "b0c6ace5187ab50ea1d57c07e384e1255c94a29deb2221b4528e3b2e1c7f08a1",
+    "config/relation_graph.yml": "4f166aed496a4de1341649dd135c7772c88638375a7b08373c0735ef455b320d"
+  },
+  "output_root": "/mnt/hdd002/dhnyu/fusedata/analysis_data/reduced/s11_representation",
+  "pilot_root": "/mnt/hdd002/dhnyu/fusedata/tmp/fuse/s11_production_pilot",
+  "store": "/mnt/hdd002/dhnyu/fusedata/targets/fuse-s11-representation-analysis",
+  "workers": 1,
+  "threads": 1,
+  "query_block_size": 32,
+  "pilot_scene_limit": 16,
+  "pilot_query_limit": 8,
+  "umap_pilot_scenes": 64,
+  "python": "3.14.0",
+  "versions": {
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "pyarrow": "22.0.0",
+    "shapely": "2.1.2",
+    "zarr": "3.1.6",
+    "umap-learn": "0.5.9.post2",
+    "pynndescent": "0.6.0",
+    "numba": "0.67.0",
+    "llvmlite": "0.49.0",
+    "scikit-learn": "1.7.2",
+    "threadpoolctl": "3.6.0",
+    "matplotlib": "3.10.9",
+    "numcodecs": "0.16.5",
+    "jsonschema": "4.26.0"
+  },
+  "authorization_env": "FUSE_S11_FULL_EXECUTION",
+  "authorization_value": "s11-representation-analysis-approved-v1",
+  "pilot_receipt_env": "FUSE_S11_PILOT_RECEIPT",
+  "r_runtime": {
+    "R": "R version 4.5.3 (2026-03-11)",
+    "packages": {
+      "sf": "1.1.0",
+      "arrow": "22.0.0",
+      "jsonlite": "2.0.0",
+      "data.table": "1.17.8"
+    },
+    "spatial": {
+      "GEOS": "3.14.1",
+      "GDAL": "3.12.2",
+      "proj.4": "9.7.1",
+      "GDAL_with_GEOS": "true",
+      "USE_PROJ_H": "true",
+      "PROJ": "9.7.1"
+    }
+  },
+  "blas": [
+    {
+      "internal_api": "openblas",
+      "version": "0.3.33",
+      "architecture": "Cooperlake",
+      "threading_layer": "pthreads"
+    }
+  ]
+}

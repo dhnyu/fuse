@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "complete",
+    "scientific_contract_sha256",
+    "rows"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "scientific_contract_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 2983,
+      "maxItems": 4512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "configuration_id",
+          "block_id",
+          "positions",
+          "manifest",
+          "manifest_sha256",
+          "files",
+          "producing_context",
+          "origin",
+          "status"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "configuration_id": {
+            "type": "string"
+          },
+          "block_id": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$"
+          },
+          "positions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 8999
+            }
+          },
+          "manifest": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "files": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "metrics.parquet",
+              "bands.parquet"
+            ],
+            "properties": {
+              "metrics.parquet": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "bands.parquet": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          },
+          "producing_context": {
+            "type": "object"
+          },
+          "origin": {
+            "enum": [
+              "adopted_original",
+              "single_attempt_recovery"
+            ]
+          },
+          "status": {
+            "const": "PASS"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Immutable S11 verifier-only revalidation receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "generation",
+    "original_context",
+    "verifier",
+    "started_at",
+    "verified_at",
+    "checks",
+    "original_pilot",
+    "regression_receipt",
+    "historical_failure_evidence",
+    "verified_payload_hashes",
+    "scientific_payloads_unchanged",
+    "receipt_id"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "BLOCKED"
+      ]
+    },
+    "generation": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{24}$"
+    },
+    "original_context": {
+      "type": "object",
+      "required": [
+        "generation",
+        "root",
+        "runtime",
+        "contract_sha256",
+        "checkpoint_id",
+        "embedding_manifest_id"
+      ]
+    },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "runtime",
+        "sources",
+        "identity_sha256"
+      ],
+      "properties": {
+        "version": {
+          "const": "s11-independent-revalidation-v1"
+        },
+        "runtime": {
+          "type": "object"
+        },
+        "sources": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "identity_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "verified_at": {
+      "type": "string"
+    },
+    "checks": {
+      "type": "object"
+    },
+    "original_pilot": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "regression_receipt": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256"
+      ]
+    },
+    "historical_failure_evidence": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "verified_payload_hashes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "scientific_payloads_unchanged": {
+      "type": "boolean"
+    },
+    "receipt_id": {
+      "type": "string",
+      "pattern": "^s11rv_[0-9a-f]{24}$"
+    },
+    "manifest_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "parents_reverified": {
+      "type": "boolean"
+    },
+    "failure": {
+      "type": "object",
+      "required": [
+        "type",
+        "message"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "PASS"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "manifest_count",
+          "parents_reverified"
+        ],
+        "properties": {
+          "scientific_payloads_unchanged": {
+            "const": true
+          },
+          "parents_reverified": {
+            "const": true
+          },
+          "checks": {
+            "required": [
+              "descriptor",
+              "umap",
+              "alignment_publication",
+              "independent"
+            ]
+          }
+        },
+        "not": {
+          "required": [
+            "failure"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "failure"
+        ]
+      }
+    }
+  ]
+}

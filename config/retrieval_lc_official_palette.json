@@ -1,0 +1,259 @@
+{
+  "source": "https://aid.mcee.go.kr/intro/land.do",
+  "source_title": "환경공간정보서비스 토지피복지도 중분류 색상코드",
+  "verified_at": "2026-09-22T06:24:49.921672+00:00",
+  "verification": "Live official page opened through web tool; color-table rows 81–132, middle-category columns only. All 22 RGB triples compared. Direct curl returned HTTP400; web retrieval succeeded.",
+  "mapping_evidence": [
+    "scripts/preprocess/04_landcover.R:127",
+    "config/data_contracts/landcover.yml:10",
+    "/mnt/hdd002/dhnyu/fusedata/main_data/korea_lc.tif LC_VALUE_01..22",
+    "R/raster_observations.R:51 and :659"
+  ],
+  "metadata_sha256": "13015ab17134beb88bf705766cd863e67924d0c722bc8a306973ae710da7c445",
+  "nodata": 0,
+  "valid_classes": 22,
+  "rows": [
+    {
+      "internal": 1,
+      "official": 110,
+      "category": "주거지역",
+      "rgb": [
+        254,
+        230,
+        194
+      ],
+      "hex": "#fee6c2"
+    },
+    {
+      "internal": 2,
+      "official": 120,
+      "category": "공업지역",
+      "rgb": [
+        192,
+        132,
+        132
+      ],
+      "hex": "#c08484"
+    },
+    {
+      "internal": 3,
+      "official": 130,
+      "category": "상업지역",
+      "rgb": [
+        237,
+        131,
+        184
+      ],
+      "hex": "#ed83b8"
+    },
+    {
+      "internal": 4,
+      "official": 140,
+      "category": "문화·체육·휴양지역",
+      "rgb": [
+        246,
+        113,
+        138
+      ],
+      "hex": "#f6718a"
+    },
+    {
+      "internal": 5,
+      "official": 150,
+      "category": "교통지역",
+      "rgb": [
+        247,
+        65,
+        42
+      ],
+      "hex": "#f7412a"
+    },
+    {
+      "internal": 6,
+      "official": 160,
+      "category": "공공시설지역",
+      "rgb": [
+        246,
+        177,
+        18
+      ],
+      "hex": "#f6b112"
+    },
+    {
+      "internal": 7,
+      "official": 210,
+      "category": "논",
+      "rgb": [
+        255,
+        255,
+        191
+      ],
+      "hex": "#ffffbf"
+    },
+    {
+      "internal": 8,
+      "official": 220,
+      "category": "밭",
+      "rgb": [
+        247,
+        249,
+        102
+      ],
+      "hex": "#f7f966"
+    },
+    {
+      "internal": 9,
+      "official": 230,
+      "category": "시설재배지",
+      "rgb": [
+        223,
+        220,
+        115
+      ],
+      "hex": "#dfdc73"
+    },
+    {
+      "internal": 10,
+      "official": 240,
+      "category": "과수원",
+      "rgb": [
+        184,
+        177,
+        44
+      ],
+      "hex": "#b8b12c"
+    },
+    {
+      "internal": 11,
+      "official": 250,
+      "category": "기타재배지",
+      "rgb": [
+        184,
+        145,
+        18
+      ],
+      "hex": "#b89112"
+    },
+    {
+      "internal": 12,
+      "official": 310,
+      "category": "활엽수림",
+      "rgb": [
+        51,
+        160,
+        44
+      ],
+      "hex": "#33a02c"
+    },
+    {
+      "internal": 13,
+      "official": 320,
+      "category": "침엽수림",
+      "rgb": [
+        10,
+        79,
+        64
+      ],
+      "hex": "#0a4f40"
+    },
+    {
+      "internal": 14,
+      "official": 330,
+      "category": "혼효림",
+      "rgb": [
+        51,
+        102,
+        51
+      ],
+      "hex": "#336633"
+    },
+    {
+      "internal": 15,
+      "official": 410,
+      "category": "자연초지",
+      "rgb": [
+        161,
+        213,
+        148
+      ],
+      "hex": "#a1d594"
+    },
+    {
+      "internal": 16,
+      "official": 420,
+      "category": "인공초지",
+      "rgb": [
+        96,
+        126,
+        51
+      ],
+      "hex": "#607e33"
+    },
+    {
+      "internal": 17,
+      "official": 510,
+      "category": "내륙습지",
+      "rgb": [
+        180,
+        167,
+        208
+      ],
+      "hex": "#b4a7d0"
+    },
+    {
+      "internal": 18,
+      "official": 520,
+      "category": "연안습지",
+      "rgb": [
+        153,
+        116,
+        153
+      ],
+      "hex": "#997499"
+    },
+    {
+      "internal": 19,
+      "official": 610,
+      "category": "자연나지",
+      "rgb": [
+        193,
+        219,
+        236
+      ],
+      "hex": "#c1dbec"
+    },
+    {
+      "internal": 20,
+      "official": 620,
+      "category": "인공나지",
+      "rgb": [
+        159,
+        242,
+        255
+      ],
+      "hex": "#9ff2ff"
+    },
+    {
+      "internal": 21,
+      "official": 710,
+      "category": "내륙수",
+      "rgb": [
+        62,
+        167,
+        255
+      ],
+      "hex": "#3ea7ff"
+    },
+    {
+      "internal": 22,
+      "official": 720,
+      "category": "해양수",
+      "rgb": [
+        23,
+        57,
+        255
+      ],
+      "hex": "#1739ff"
+    }
+  ]
+}

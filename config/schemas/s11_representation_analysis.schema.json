@@ -1,0 +1,502 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Approved S11 D1-D7 pilot-only frozen contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "approval",
+    "scope",
+    "population",
+    "descriptors",
+    "excluded_core",
+    "geometry",
+    "relations",
+    "semantics",
+    "missing",
+    "raster",
+    "retrieval",
+    "alignment",
+    "umap",
+    "illustrations",
+    "pilot",
+    "future_dag"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "contract_id": {
+      "const": "s11-representation-analysis-approved-v1"
+    },
+    "approval": {
+      "const": "user-approved D1-D7; 2026-09-23 conversation"
+    },
+    "scope": {
+      "const": {
+        "execution": "fixtures_and_bounded_pilot_only",
+        "full_analysis_authorized": false,
+        "inference_authorized": false,
+        "training_authorized": false,
+        "targets_graph_changed": false
+      }
+    },
+    "population": {
+      "const": {
+        "scene_count": 9000,
+        "dimension": 256,
+        "configuration_id": "cmp_FM",
+        "selected_epoch": 60,
+        "view": "original",
+        "split": "evaluation",
+        "crs": "EPSG:5186",
+        "window_area_m2": 250000,
+        "order": "accepted embedding scene_ids; lexical ascending",
+        "embedding": "online scene_embedding before contrastive projection; accepted float32 normalized bytes unchanged"
+      }
+    },
+    "descriptors": {
+      "const": [
+        {
+          "id": "building_coverage",
+          "family": "composition",
+          "kind": "scalar",
+          "units": "fraction",
+          "source": "B.observed_geometry",
+          "definition": "area(union(observed clipped buildings))/250000",
+          "empty": "zero",
+          "difference": "absolute"
+        },
+        {
+          "id": "road_density",
+          "family": "composition",
+          "kind": "scalar",
+          "units": "km/km2",
+          "source": "R.observed_length_m",
+          "definition": "sum(observed_length_m)/1000/0.25",
+          "empty": "zero",
+          "difference": "absolute"
+        },
+        {
+          "id": "poi_density",
+          "family": "composition",
+          "kind": "scalar",
+          "units": "entities/km2",
+          "source": "P.local_entity_id",
+          "definition": "n_P/0.25",
+          "empty": "zero",
+          "difference": "absolute"
+        },
+        {
+          "id": "mean_building_footprint_size",
+          "family": "geometry",
+          "kind": "scalar",
+          "units": "m2",
+          "source": "B.observed_area_m2",
+          "definition": "mean(observed_area_m2)",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "mean_building_compactness",
+          "family": "geometry",
+          "kind": "scalar",
+          "units": "1",
+          "source": "B.observed_geometry",
+          "definition": "entity_mean(4*pi*area/full_perimeter^2); include holes and multipart boundaries",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "building_orientation_dispersion",
+          "family": "geometry",
+          "kind": "scalar",
+          "units": "1",
+          "source": "B.observed_geometry",
+          "definition": "1-abs(mean(exp(2i*MRR_long_axis_angle))); equal entities with identifiable axis",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "road_orientation_dispersion",
+          "family": "geometry",
+          "kind": "scalar",
+          "units": "1",
+          "source": "R.observed_geometry",
+          "definition": "1-abs(sum(length_s*exp(2i*tangent_s))/sum(length_s)); positive elementary segments",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "mean_road_segment_length",
+          "family": "geometry",
+          "kind": "scalar",
+          "units": "m",
+          "source": "R.observed_length_m",
+          "definition": "mean(observed road-entity length); multipart stays one entity",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "building_location_dispersion",
+          "family": "configuration",
+          "kind": "scalar",
+          "units": "m",
+          "source": "B.observed_center_x_5186,B.observed_center_y_5186",
+          "definition": "sqrt(mean(squared_distance(bbox_center,type_mean_center)))",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "road_location_dispersion",
+          "family": "configuration",
+          "kind": "scalar",
+          "units": "m",
+          "source": "R.observed_center_x_5186,R.observed_center_y_5186",
+          "definition": "sqrt(mean(squared_distance(bbox_center,type_mean_center)))",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "poi_location_dispersion",
+          "family": "configuration",
+          "kind": "scalar",
+          "units": "m",
+          "source": "P.observed_center_x_5186,P.observed_center_y_5186",
+          "definition": "sqrt(mean(squared_distance(bbox_center,type_mean_center)))",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "relation_composition",
+          "family": "relations",
+          "kind": "compositional",
+          "units": "proportion",
+          "source": "relations.relation_mask",
+          "definition": "normalize([e_SN/2,e_CNT,e_INT/2,e_CON/2]); e_CNT=e_WIT",
+          "empty": "null",
+          "difference": "euclidean"
+        },
+        {
+          "id": "mean_relational_degree",
+          "family": "relations",
+          "kind": "scalar",
+          "units": "neighbors/entity",
+          "source": "relations.ordered_pairs,all_original_entities",
+          "definition": "ordered_pair_count/node_count; unique neighbors, include isolates",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "building_use_composition",
+          "family": "semantics",
+          "kind": "compositional",
+          "units": "proportion",
+          "source": "B.A9",
+          "definition": "known official category entity counts/known count",
+          "empty": "null",
+          "difference": "euclidean"
+        },
+        {
+          "id": "building_structure_composition",
+          "family": "semantics",
+          "kind": "compositional",
+          "units": "proportion",
+          "source": "B.A11",
+          "definition": "known official category entity counts/known count",
+          "empty": "null",
+          "difference": "euclidean"
+        },
+        {
+          "id": "road_type_composition",
+          "family": "semantics",
+          "kind": "compositional",
+          "units": "proportion",
+          "source": "R.ROAD_TYPE",
+          "definition": "known official category entity counts/known count",
+          "empty": "null",
+          "difference": "euclidean"
+        },
+        {
+          "id": "road_hierarchy_composition",
+          "family": "semantics",
+          "kind": "compositional",
+          "units": "proportion",
+          "source": "R.ROAD_RANK",
+          "definition": "known official category entity counts/known count",
+          "empty": "null",
+          "difference": "euclidean"
+        },
+        {
+          "id": "mean_lane_count",
+          "family": "semantics",
+          "kind": "scalar",
+          "units": "lanes",
+          "source": "R.LANES",
+          "definition": "mean(valid finite positive raw lane count)",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "poi_l2_composition",
+          "family": "semantics",
+          "kind": "compositional",
+          "units": "proportion",
+          "source": "P.CLASS_L1_CODE,P.CLASS_L2_CODE,P.CLASS_L1_STATE,P.CLASS_L2_STATE",
+          "definition": "known official L2 full path entity counts/known count; 17 categories",
+          "empty": "null",
+          "difference": "euclidean"
+        },
+        {
+          "id": "landcover_composition",
+          "family": "environment",
+          "kind": "compositional",
+          "units": "proportion",
+          "source": "scene_landcover.zarr/class_fraction,valid_support_ratio,valid_mask",
+          "definition": "sum(cell_area*valid_fraction*class_fraction)/sum(cell_area*valid_fraction); 22 classes",
+          "empty": "null",
+          "difference": "euclidean"
+        },
+        {
+          "id": "mean_elevation",
+          "family": "environment",
+          "kind": "scalar",
+          "units": "m",
+          "source": "scene_dem.zarr/raw_mean_m,valid_support_ratio,valid_mask",
+          "definition": "valid-area weighted mean of 17x17 original cell means",
+          "empty": "null",
+          "difference": "absolute"
+        },
+        {
+          "id": "elevation_variability",
+          "family": "environment",
+          "kind": "scalar",
+          "units": "m",
+          "source": "scene_dem.zarr/raw_mean_m,valid_support_ratio,valid_mask",
+          "definition": "valid-area weighted population SD of 17x17 original cell means; not native pixel variance",
+          "empty": "null",
+          "difference": "absolute"
+        }
+      ]
+    },
+    "excluded_core": {
+      "const": [
+        "building_size_dispersion",
+        "nearest_neighbor",
+        "poi_entropy",
+        "poi_deeper_hierarchy",
+        "raw_relation_counts"
+      ]
+    },
+    "geometry": {
+      "const": {
+        "numeric_square_tolerance_relative": 1.4210854715202004e-14,
+        "square_policy": "null axis if MRR long-short <= tolerance*long; numerical degeneracy only, no substantive near-square threshold",
+        "invalid_geometry": "fail; never repair or drop",
+        "perimeter": "all exterior and interior rings of every polygon component",
+        "location": "axis-aligned bbox center"
+      }
+    },
+    "relations": {
+      "const": {
+        "order": [
+          "SN",
+          "INC",
+          "INT",
+          "CON"
+        ],
+        "bits": {
+          "SN": 1,
+          "CNT": 2,
+          "WIT": 4,
+          "INT": 8,
+          "CON": 16
+        },
+        "counts": "QC only",
+        "degree": "unique ordered pair count/all nodes; zero if nodes>0 and no edges; null if no nodes"
+      }
+    },
+    "semantics": {
+      "const": {
+        "weight": "equal_entity",
+        "denominator": "known_categories",
+        "unknown_missing": "separate counts; never MASK; preserve null reason",
+        "poi_level": 2,
+        "poi_categories": 17,
+        "poi_key": "CLASS_L1_CODE/CLASS_L2_CODE; both STATE=VALUE",
+        "dictionary_order": "source_order then UTF-8 category_key",
+        "dominant_tie": "dictionary order",
+        "alias_resolution": "exact official category_key, then first source-order alias as accepted model_data.py:build_vocabulary; collision QC; no learned lookup"
+      }
+    },
+    "missing": {
+      "const": {
+        "preserve_scene_query_rows": true,
+        "empty_additive": 0,
+        "empty_support": null,
+        "difference": "both sides valid only",
+        "rho": "null if valid pairs<2 or either ranked variable constant; never replace with zero",
+        "support": [
+          "total_count",
+          "valid_count",
+          "invalid_count",
+          "null_reason",
+          "valid_weight",
+          "missing_count",
+          "unknown_count"
+        ]
+      }
+    },
+    "raster": {
+      "const": {
+        "lc_shape": [
+          22,
+          100,
+          100
+        ],
+        "dem_shape": [
+          17,
+          17
+        ],
+        "landcover_classes": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "weight": "cell_area * valid_support_ratio",
+        "dem_nodata": -32767,
+        "dem_sd": "population SD of scene-local cell means, not native pixel variance"
+      }
+    },
+    "retrieval": {
+      "const": {
+        "similarity": "accepted float32 normalized inner product",
+        "sort": "descending score, exact tie lexical scene_id ascending; no rounding/clipping/epsilon ties",
+        "standard": "exclude self only",
+        "nonlocal": "exclude self and float64 center distance < 2000 metres; equality included",
+        "nonlocal_m": 2000,
+        "bands": {
+          "rank1": [
+            1
+          ],
+          "upper": [
+            2,
+            11
+          ],
+          "middle": "start=(M-10)//2+1; 10 ranks",
+          "lower": "M-9 through M"
+        },
+        "refill_invalid_slots": false
+      }
+    },
+    "alignment": {
+      "const": {
+        "spearman_ties": "average",
+        "rerank": "after mode eligibility and descriptor validity filtering",
+        "band_aggregation": "arithmetic mean of valid fixed-band differences per query",
+        "across_queries": "equal-weight median,Q1,Q3,IQR; NumPy linear / R type7",
+        "monotonicity_acceptance": false,
+        "composite_geographic_score": false
+      }
+    },
+    "umap": {
+      "const": {
+        "package": "umap-learn",
+        "version": "0.5.9.post2",
+        "n_components": 2,
+        "n_neighbors": 30,
+        "min_dist": 0.1,
+        "metric": "cosine",
+        "random_state": 20260904,
+        "transform_seed": 20260904,
+        "n_jobs": 1,
+        "init": "spectral",
+        "low_memory": true,
+        "n_epochs": null,
+        "numba_threads": 1,
+        "blas_threads": 1,
+        "clustering": false,
+        "purpose": "visualization only",
+        "panels": [
+          "building_coverage",
+          "mean_building_compactness",
+          "building_location_dispersion",
+          "mean_relational_degree",
+          "dominant_poi_l2",
+          "dominant_landcover"
+        ]
+      }
+    },
+    "illustrations": {
+      "const": {
+        "selection_seed": 20260904,
+        "grid_quantiles": [
+          0.3333333333333333,
+          0.6666666666666666
+        ],
+        "quantile_method": "linear/type7",
+        "boundary": "left closed/right open; last bin closed; equal cuts assigned with searchsorted side=right",
+        "hash_preimage": "ASCII decimal seed concatenated directly with UTF-8 scene_id; no separator",
+        "within_cell": "smallest SHA256 digest, then lexical scene_id",
+        "maximum_per_cell": 1,
+        "maximum_scenes": 9,
+        "filters": [],
+        "manual_replacement": false,
+        "meaning": "illustration only, no clusters/prototypes"
+      }
+    },
+    "pilot": {
+      "const": {
+        "query_count": 32,
+        "selection_seed": 20260923,
+        "selection": "first32 ascending SHA256(ASCII seed || UTF8 scene_id), lexical tie; final processing lexical scene order",
+        "maximum_queries_hard_limit": 32,
+        "candidate_count": 9000,
+        "query_block_sizes": [
+          1,
+          7,
+          32
+        ],
+        "threads": 1,
+        "workers": 1,
+        "gpu_count": 0,
+        "kernel_candidate": "numpy broadcast batched matmul (BLAS GEMV), exact parity gate",
+        "gemm": "diagnostic only; never automatically selected",
+        "output_root": "/mnt/hdd002/dhnyu/fusedata/tmp/fuse/s11_representation_pilot"
+      }
+    },
+    "future_dag": {
+      "const": [
+        "accepted immutable parents",
+        "original descriptor shards",
+        "descriptor acceptance",
+        "UMAP from accepted X",
+        "bounded query alignment blocks",
+        "query and band summaries",
+        "figures and tables",
+        "scientific acceptance",
+        "optional separate viewer"
+      ]
+    }
+  }
+}

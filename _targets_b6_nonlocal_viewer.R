@@ -1,0 +1,10 @@
+library(targets)
+library(crew)
+Sys.setenv(OMP_NUM_THREADS='1',OPENBLAS_NUM_THREADS='1',MKL_NUM_THREADS='1')
+controller_05<-crew_controller_local(name='controller_05',workers=1L)
+controller_gpu_02<-crew_controller_local(name='controller_gpu_02',workers=1L)
+tar_option_set(controller=crew_controller_group(controller_05,controller_gpu_02),error='stop')
+b6n_cpu<-tar_resources(crew=tar_resources_crew(controller='controller_05'))
+b6n_gpu<-tar_resources(crew=tar_resources_crew(controller='controller_gpu_02'))
+source('R/b6_nonlocal_viewer.R')
+source('targets/b6_nonlocal_viewer.R')$value

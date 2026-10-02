@@ -1,0 +1,10 @@
+list(
+ tar_target(b6n_sources,c(list.files('python',pattern='[.]py$',full.names=TRUE),'config/b6_nonlocal_viewer.yml','R/b6_nonlocal_viewer.R','targets/b6_nonlocal_viewer.R','_targets_b6_nonlocal_viewer.R'),format='file',resources=b6n_cpu),
+ tar_target(b6n_contract,b6n_run('contract',b6n_sources),format='file',resources=b6n_cpu),
+ tar_target(b6n_pilot_inputs,b6n_run('pilot-inputs',b6n_contract,b6n_contract),format='file',resources=b6n_cpu),
+ tar_target(b6n_pilot_embeddings,b6n_run('pilot-embeddings',b6n_pilot_inputs,b6n_contract),format='file',resources=b6n_gpu),
+ tar_target(b6n_inputs,b6n_run('inputs',b6n_pilot_embeddings,b6n_contract),format='file',resources=b6n_cpu),
+ tar_target(b6n_embeddings,b6n_run('embeddings',b6n_inputs,b6n_contract),format='file',resources=b6n_gpu),
+ tar_target(b6n_bands,b6n_run('bands',b6n_embeddings,b6n_contract),format='file',resources=b6n_cpu),
+ tar_target(b6n_viewer,b6n_run('viewer',b6n_bands,b6n_contract),format='file',resources=b6n_cpu)
+)

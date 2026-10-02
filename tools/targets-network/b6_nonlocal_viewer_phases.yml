@@ -1,0 +1,7 @@
+schema_version: '1.0.0'
+required_phase_ids: [B6N]
+phases:
+  - {id: B6N, label: B6 evaluation Non-local viewer, color: '#164E63'}
+exact: {}
+rules:
+  - {phase: B6N, pattern: '^b6n_', future: false}

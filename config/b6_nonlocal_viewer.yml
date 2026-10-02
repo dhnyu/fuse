@@ -1,0 +1,15 @@
+schema_version: 1
+arms: [B6-original, B6-S50-G, B6-S50-Ppre]
+epochs: [90, 135, 130]
+output_root: /mnt/hdd002/dhnyu/fusedata/experiments/b6_nonlocal_retrieval_viewer
+queries: 9000
+gallery: 9000
+nonlocal_m: 2000
+training: false
+workers: 8
+inference:
+  device: cuda:0
+  batch_size: 1
+  inference_seed: 20260916
+  threads: 1
+  gpu_lock_root: /mnt/hdd002/dhnyu/fusedata/runtime/gpu_locks

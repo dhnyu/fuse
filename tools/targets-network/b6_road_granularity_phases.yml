@@ -1,0 +1,7 @@
+schema_version: "1.0.0"
+required_phase_ids: [B6]
+phases:
+  - {id: B6, label: B6 Stage A structural diagnostic, color: "#164E63"}
+exact: {}
+rules:
+  - {phase: B6, pattern: "^b6_", future: false}

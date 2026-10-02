@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "B6 Stage A frozen optimizer-free pilot",
+  "type": "object",
+  "const": {
+    "schema_version": "1.0.0",
+    "policy_version": "b6-observed-v1",
+    "no_training": true,
+    "no_canonical_publication": true,
+    "parent": {
+      "p3_root": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_75a543f656ab777aada74fbd",
+      "p3_acceptance": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/original_scene_cache/oscache_75a543f656ab777aada74fbd/acceptance/osca_c177810e2c5165326a328b56/original_scene_dataset_acceptance.json",
+      "p2_acceptance": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_ee28248872c4ab0ce8b3ea4f/production/acceptance/bsa_bd504b7e871945a5a6207664/base_spatial_acceptance.json",
+      "statistics": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_ee28248872c4ab0ce8b3ea4f/production/acceptance/bsa_bd504b7e871945a5a6207664/scene_spatial_statistics.parquet",
+      "statistics_sha256": "c68120cf5c1a53a180bb0e6a37955561e29e4a593479c5c73db43822b3c184aa",
+      "p2_root": "/mnt/hdd002/dhnyu/fusedata/scene_data/reduced/observations/obs_ee28248872c4ab0ce8b3ea4f/production"
+    },
+    "sampling": {
+      "namespace": "b6-stage-a-pilot-v1",
+      "seed": 20261002,
+      "hash": "sha256_utf8_namespace_pipe_seed_pipe_scene_id",
+      "split": "training",
+      "per_stratum": 8,
+      "redistribution": "remaining_global_hash_order"
+    },
+    "scales": [
+      "Original",
+      "S100",
+      "S50",
+      "S25"
+    ],
+    "count_only_scales": [
+      "S10",
+      "S5"
+    ],
+    "policies": [
+      "G",
+      "P-post",
+      "P-pre"
+    ],
+    "segmentation": {
+      "anchor": "scene_clipped_component",
+      "preserve_vertices": true,
+      "synthetic_con": false
+    },
+    "sn": {
+      "radius_m": 100,
+      "top_k": 16,
+      "quantization_m": 1e-09,
+      "tie_break": "destination_local_id",
+      "symmetrization": "either_direction"
+    },
+    "tolerance": {
+      "coordinate_m": 1e-07,
+      "length_absolute_m": 1e-07,
+      "measure_relative": 1e-10,
+      "tiny_residual_m": 0.001
+    },
+    "position_grid_m": 50,
+    "resources": {
+      "workers": 40,
+      "threads": 1,
+      "maximum_seconds": 3600,
+      "maximum_output_bytes": 10737418240.0,
+      "maximum_rss_gib": 12
+    },
+    "output_root": "/mnt/hdd002/dhnyu/fusedata/experiments/b6_road_granularity",
+    "store": "/mnt/hdd002/dhnyu/fusedata/targets/fuse-b6-road-granularity-stage-a"
+  }
+}
